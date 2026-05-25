@@ -1,0 +1,6 @@
+User-Agent: *
+Allow: /
+Disallow: /studio
+Disallow: /api/
+
+Sitemap: https://alexandrematencio.github.io/photo-portfolio/sitemap.xml
