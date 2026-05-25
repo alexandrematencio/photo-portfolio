@@ -8,6 +8,9 @@
     "start": "next start -p 3010",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .next out",
+    "predeploy": "npm run clean && npm run build",
+    "deploy": "gh-pages -d out --dotfiles -m \"chore(deploy): publish static export\"",
     "upload-photos": "node --env-file=.env.local --import tsx scripts/upload-photos.ts",
     "set-homepage": "node --env-file=.env.local --import tsx scripts/set-homepage.ts",
     "wipe-photos": "node --env-file=.env.local --import tsx scripts/wipe-photos.ts",
@@ -37,6 +40,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "gh-pages": "^6.3.0",
     "postcss": "^8.5.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0"

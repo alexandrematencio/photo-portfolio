@@ -50,6 +50,7 @@ next-env.d.ts
 # documentation interne (non destinée au repo public)
 /doc
 /CLAUDE.md
+/yml-deploy-guide.md
 
 # éditeurs / IDE
 /.vscode

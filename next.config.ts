@@ -1,21 +1,23 @@
 import type { NextConfig } from 'next';
 
-// `output: 'export'` produit un dossier `out/` statique 100% client → déployable sur GitHub Pages.
-// `next dev` n'est pas affecté (export n'agit que pendant `next build`).
-// `images.unoptimized` est requis avec export (pas d'API d'optimisation côté serveur).
-// `basePath` : préfixe d'URL quand le site est servi sous /<repo>/ (cas GH Pages).
-//   En local : NEXT_PUBLIC_BASE_PATH est vide → site servi à la racine.
-//   En CI : le workflow set NEXT_PUBLIC_BASE_PATH=/<repo>.
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+// Deploy via gh-pages package (local, pas GitHub Actions). Voir yml-deploy-guide.md.
+// - `output: 'export'` → produit /out (Next.js statique)
+// - `basePath` = "/photo-portfolio" en prod, vide en dev (pour que `next dev` reste à la racine)
+// - `assetPrefix` doit matcher basePath sinon les <link>/<script>/<img> 404
+// - `trailingSlash: true` car GH Pages ne réécrit pas /carte → /carte/index.html
+// - `images.unoptimized: true` car pas de runtime serveur
+const isProd = process.env.NODE_ENV === 'production';
+const basePath = isProd ? '/photo-portfolio' : '';
 
 const nextConfig: NextConfig = {
   output: 'export',
   reactStrictMode: true,
-  trailingSlash: true, // GH Pages préfère les slashs finaux pour les dossiers
+  poweredByHeader: false,
+  trailingSlash: true,
   basePath,
-  // Le basePath est aussi appliqué aux assets : les imports d'image local fonctionnent
+  assetPrefix: basePath,
   images: {
-    unoptimized: true, // mandatory en export statique
+    unoptimized: true,
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       { protocol: 'https', hostname: 'cdn.sanity.io' },
