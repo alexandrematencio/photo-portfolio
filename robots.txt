@@ -3,4 +3,4 @@ Allow: /
 Disallow: /studio
 Disallow: /api/
 
-Sitemap: https://alexandrematencio.github.io/photo-portfolio/sitemap.xml
+Sitemap: http://localhost:3010/sitemap.xml
