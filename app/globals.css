@@ -1,0 +1,186 @@
+@import "tailwindcss";
+
+@theme {
+  /* Palette « gallery paper » — fond blanc cassé, ink noir, accent cobalt depuis le glyph ALXMTNC. */
+  --color-bg: #fafaf8;
+  --color-bg-elev: #eeedea;
+  --color-fg: #0a0a0a;
+  --color-fg-muted: #6e6960;
+  --color-line: #e5e2dc;
+  --color-accent: #0013ff;
+
+  /* Inter pour tout — chargé via next/font/google dans app/layout.tsx.
+     Aucune typo serif ou cursive nulle part sur le site. */
+  --font-sans: var(--font-inter), -apple-system, "Helvetica Neue", system-ui, sans-serif;
+  --font-display: var(--font-inter), -apple-system, "Helvetica Neue", system-ui, sans-serif;
+
+  --shadow-soft: 0 8px 40px rgba(10, 10, 10, 0.08);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Indication scroll : flèche qui flotte légèrement vers le haut/bas */
+@keyframes scroll-cue {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateY(10px);
+    opacity: 0.9;
+  }
+}
+.scroll-cue {
+  animation: scroll-cue 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-cue {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/* Skip link a11y */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 0.75rem 1rem;
+  background: var(--color-fg);
+  color: var(--color-bg);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+}
+
+/* Focus visible */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Selection */
+::selection {
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+
+/* Reduced motion : sécurité globale, neutralise toute transition/animation auto */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Flat Gallery masonry :
+   Une seule variable `--gallery-gap` contrôle :
+   - le gap horizontal entre colonnes (column-gap)
+   - le gap vertical entre cartes dans une même colonne (margin-bottom des enfants)
+   → les deux sont GARANTIS identiques. Modifie la valeur ici pour tout changer. */
+.flat-gallery-masonry {
+  --gallery-gap: 0.75rem; /* 12px desktop */
+  column-gap: var(--gallery-gap);
+}
+.flat-gallery-masonry > * {
+  margin-bottom: var(--gallery-gap);
+}
+@media (max-width: 767px) {
+  .flat-gallery-masonry {
+    --gallery-gap: 0.5rem; /* 8px mobile */
+  }
+}
+
+/* ScrollPhysicsGallery base (porté depuis html-script-reference.md, adouci) */
+.gallery-stage {
+  position: relative;
+  width: 100%;
+  padding: 8vh 0 20vh 0;
+  perspective: 1200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3vh;
+}
+
+.photo-item {
+  position: relative;
+  /* Le ratio natif de la photo est injecté via la variable --ratio (default 4/5). */
+  aspect-ratio: var(--ratio, 4 / 5);
+  /* Largeur : on prend le min entre une cible visuelle et ce que la hauteur autorise. */
+  width: min(45vw, calc(75vh * var(--ratio, 0.8)));
+  max-width: 720px;
+  max-height: 75vh;
+  transform-style: preserve-3d;
+}
+.photo-item:nth-child(odd) {
+  transform: translateX(-15vw);
+}
+.photo-item:nth-child(even) {
+  transform: translateX(15vw);
+}
+
+.photo-inner {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  will-change: transform;
+  transform-origin: center center;
+  background: var(--color-bg-elev);
+}
+
+.photo-inner img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  will-change: transform;
+}
+
+@media (max-width: 768px) {
+  .photo-item {
+    width: min(85vw, calc(65vh * var(--ratio, 0.8)));
+    max-height: 65vh;
+  }
+  .photo-item:nth-child(odd),
+  .photo-item:nth-child(even) {
+    transform: none;
+  }
+  .gallery-stage {
+    /* min 20px de gap vertical entre photos en mobile (cf. demande utilisateur) */
+    gap: max(2vh, 20px);
+    padding: 6vh 0 15vh 0;
+  }
+}

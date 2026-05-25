@@ -1,0 +1,44 @@
+{
+  "name": "amatencio-photo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3010",
+    "build": "next build",
+    "start": "next start -p 3010",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "upload-photos": "node --env-file=.env.local --import tsx scripts/upload-photos.ts",
+    "set-homepage": "node --env-file=.env.local --import tsx scripts/set-homepage.ts",
+    "wipe-photos": "node --env-file=.env.local --import tsx scripts/wipe-photos.ts",
+    "set-profile": "node --env-file=.env.local --import tsx scripts/set-profile.ts"
+  },
+  "dependencies": {
+    "@portabletext/react": "^3.2.0",
+    "@sanity/client": "^7.22.0",
+    "@sanity/image-url": "^2.1.1",
+    "@sanity/vision": "^5.26.0",
+    "clsx": "^2.1.1",
+    "exifr": "^7.1.3",
+    "gsap": "^3.13.0",
+    "lenis": "^1.1.20",
+    "lucide-react": "^0.469.0",
+    "next": "^16.0.0",
+    "next-sanity": "^13.0.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sanity": "^5.26.0",
+    "styled-components": "^6.1.13",
+    "tailwind-merge": "^2.6.0",
+    "tsx": "^4.22.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "postcss": "^8.5.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}
