@@ -82,10 +82,14 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
 
   return (
     <div>
-      <div
+      {/* Filter tabs — aerated, full-bleed sticky bar.
+          Typography matches brand book §5.3 (sub-label spec: 11px / 700 / uppercase / tracking 0.25em).
+          Active state: solid fg color + offset-8 underline (no border-b that fights with bottom border). */}
+      <nav
         role="tablist"
         aria-label="Grouping mode"
-        className="sticky top-0 z-30 flex gap-0 border-b border-[var(--color-line)] bg-[var(--color-bg)]"
+        className="sticky top-0 z-30 flex justify-start gap-10 md:gap-14 border-b border-[var(--color-line)] bg-[var(--color-bg)]"
+        style={{ paddingLeft: 32, paddingRight: 32, paddingTop: 24, paddingBottom: 24 }}
       >
         {TABS.map((tab) => {
           const active = tab.id === mode;
@@ -97,9 +101,9 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
               type="button"
               onClick={() => setMode(tab.id)}
               className={cn(
-                'flex-1 md:flex-none md:px-10 py-4 text-[11px] uppercase tracking-[0.25em] transition-colors',
+                'text-[12px] uppercase tracking-[0.25em] font-bold py-2 transition-colors motion-reduce:transition-none',
                 active
-                  ? 'text-[var(--color-fg)] border-b border-[var(--color-fg)]'
+                  ? 'text-[var(--color-fg)] underline underline-offset-8 decoration-2'
                   : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
               )}
             >
@@ -107,28 +111,35 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
             </button>
           );
         })}
-      </div>
+      </nav>
 
-      {groups.map((group) => (
-        <section key={group.key} className="px-4 md:px-8 py-12">
-          <h2 className="text-xs uppercase tracking-[0.3em] text-[var(--color-fg-muted)] mb-6">
-            {group.label}
-            <span className="ml-3 text-[var(--color-fg-muted)]/60 normal-case tracking-normal">
-              ({group.items.length})
-            </span>
-          </h2>
-          {/*
-            Masonry CSS columns. La classe `flat-gallery-masonry` (globals.css)
-            applique le même `--gallery-gap` au column-gap ET au margin-bottom
-            des enfants → gap horizontal = gap vertical, garanti.
-          */}
-          <div className="flat-gallery-masonry columns-2 md:columns-3 lg:columns-4 [column-fill:_balance]">
-            {group.items.map((p) => (
-              <PhotoCard key={p._id} photo={p} />
-            ))}
-          </div>
-        </section>
-      ))}
+      {/* Groups — 64 px gap between each (per spec), 40 px from the tabs bar above */}
+      <div
+        className="flex flex-col gap-16"
+        style={{ paddingLeft: 32, paddingRight: 32, paddingTop: 40 }}
+      >
+        {groups.map((group) => (
+          <section key={group.key}>
+            <h2 className="text-[11px] uppercase tracking-[0.25em] font-bold text-[var(--color-fg-muted)] mb-6">
+              {group.label}
+              <span className="ml-3 text-[var(--color-fg-muted)]/60">
+                ({group.items.length})
+              </span>
+            </h2>
+            {/*
+              Masonry CSS columns. La classe `flat-gallery-masonry` (globals.css)
+              applique le même `--gallery-gap` au column-gap ET au margin-bottom
+              des enfants → gap horizontal = gap vertical, garanti.
+              Grid: 2 cols mobile, 3 cols desktop (max — cohérent brand book §9.8).
+            */}
+            <div className="flat-gallery-masonry columns-2 md:columns-3 [column-fill:_balance]">
+              {group.items.map((p) => (
+                <PhotoCard key={p._id} photo={p} />
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
     </div>
   );
 }
