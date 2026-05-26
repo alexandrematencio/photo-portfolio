@@ -76,14 +76,16 @@ export function MobileMenu() {
         </button>
       </div>
 
-      {/* OPEN — full-screen drawer on bg #f5f2f0 */}
+      {/* OPEN — full-screen drawer on bg #f5f2f0.
+          `justify-between` on the column flex pushes the top bar to the top
+          edge and the nav to the bottom edge (per Pencil mockup `jPTyJ`). */}
       {open && (
         <div
           id="mobile-menu"
           role="dialog"
           aria-modal="true"
           aria-label="Mobile menu"
-          className="fixed inset-0 z-[60] md:hidden flex flex-col"
+          className="fixed inset-0 z-[60] md:hidden flex flex-col justify-between"
           style={{ backgroundColor: '#f5f2f0' }}
         >
           {/* Top bar — 32 px padding all sides, glyph left + X close right */}
@@ -109,11 +111,11 @@ export function MobileMenu() {
             </button>
           </div>
 
-          {/* Nav items — pushed to bottom via mt-auto, aligned bottom-left,
-              gap 32, paddingLeft 32, paddingBottom 32 (per Pencil mockup). */}
+          {/* Nav items — bottom-left aligned via `justify-between` on the parent.
+              gap 32 between items, paddingLeft 32 + paddingBottom 32 (per Pencil mockup). */}
           <nav
             aria-label="Mobile navigation"
-            className="mt-auto flex flex-col gap-8"
+            className="flex flex-col gap-8"
             style={{ paddingLeft: 32, paddingBottom: 32, paddingRight: 32 }}
           >
             {MOBILE_LINKS.map((link) =>
