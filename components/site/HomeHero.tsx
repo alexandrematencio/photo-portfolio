@@ -120,9 +120,9 @@ export function HomeHero() {
     };
 
     const onEnter = (e: PointerEvent) => {
-      // Touch / pen pointers don't get the magnifier (no hover).
-      if (e.pointerType !== 'mouse') return;
-      box.style.cursor = 'none';
+      // Mouse: hide the cursor (the revealed disc takes over).
+      // Touch/pen: nothing to hide — the finger is the cursor.
+      if (e.pointerType === 'mouse') box.style.cursor = 'none';
       onMove(e);
     };
 
@@ -135,14 +135,21 @@ export function HomeHero() {
       }
     };
 
+    // iOS long-press → context menu (Save image, Copy, Share). Kill it on this box.
+    const onContextMenu = (e: Event) => e.preventDefault();
+
     box.addEventListener('pointerenter', onEnter);
     box.addEventListener('pointermove', onMove);
     box.addEventListener('pointerleave', onLeave);
+    box.addEventListener('pointercancel', onLeave);
+    box.addEventListener('contextmenu', onContextMenu);
 
     return () => {
       box.removeEventListener('pointerenter', onEnter);
       box.removeEventListener('pointermove', onMove);
       box.removeEventListener('pointerleave', onLeave);
+      box.removeEventListener('pointercancel', onLeave);
+      box.removeEventListener('contextmenu', onContextMenu);
       if (raf) cancelAnimationFrame(raf);
     };
   }, [reducedMotion]);
@@ -348,12 +355,17 @@ export function HomeHero() {
           ref={photoRef}
           className="pointer-events-none relative size-56 md:size-64 overflow-hidden bg-[var(--color-bg-elev)]"
         >
-          {/* Inner box that owns the pointer events (so the hero scroll behaviour is preserved
-              elsewhere). The cursor is hidden inside this box; the reveal layer paints a 48 px
-              circular clip following the pointer. */}
+          {/* Inner box owns the pointer events. On touch devices we also kill native
+              gestures that would interfere with the reveal: native scroll under the finger,
+              long-press → context menu (Save image / Copy / Share), text selection, image drag. */}
           <div
             ref={photoBoxRef}
-            className="pointer-events-auto absolute inset-0"
+            className="pointer-events-auto absolute inset-0 select-none"
+            style={{
+              touchAction: 'none',
+              WebkitTouchCallout: 'none',
+              WebkitUserSelect: 'none',
+            }}
           >
             {/* Default image — always visible */}
             <Image
@@ -361,15 +373,16 @@ export function HomeHero() {
               alt={profileAlt}
               fill
               sizes="(max-width: 768px) 14rem, 16rem"
-              className="object-cover"
+              className="object-cover pointer-events-none"
+              draggable={false}
               priority
             />
-            {/* Reveal image — clipped to a circle that follows the cursor.
+            {/* Reveal image — clipped to a circle that follows the pointer.
                 Initial clip-path collapsed to 0 px so nothing shows until pointer enters. */}
             <div
               ref={revealLayerRef}
               aria-hidden
-              className="absolute inset-0"
+              className="absolute inset-0 pointer-events-none"
               style={{ clipPath: 'circle(0px at 50% 50%)' }}
             >
               <Image
@@ -378,6 +391,7 @@ export function HomeHero() {
                 fill
                 sizes="(max-width: 768px) 14rem, 16rem"
                 className="object-cover"
+                draggable={false}
               />
             </div>
           </div>
