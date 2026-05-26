@@ -42,25 +42,36 @@ export function HomeHero() {
   const arrowRef = useRef<HTMLDivElement>(null);
   const spacerRef = useRef<HTMLDivElement>(null);
   const navBgRef = useRef<HTMLDivElement>(null);
+  // CSS-anchored landing glyph. Independent of the GSAP morph math so that even
+  // when the morph drifts (mobile address-bar resize invalidates viewport-relative
+  // measurements), the glyph the user actually sees is locked at top:18 / left:32.
+  const staticGlyphRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
 
-  // Bande opaque h-14/h-16 en haut du viewport. Au scroll, son opacité passe
-  // de 0 → 1 sur ~30vh de scroll, en même temps que la morph dépose les items
-  // au sommet. Une fois opaque, plus aucune photo ne peut être visible derrière.
+  // Bande opaque h-14/h-16 en haut du viewport + static landing glyph. Au scroll,
+  // l'opacité des deux passe de 0 → 1 sur la pin range (20vh mobile / 70vh desktop),
+  // au même rythme que le morph dépose le glyph en haut-gauche. Le glyph statique
+  // est CSS-ancré (top:18px, left:32px) — pas de math viewport-relative, donc
+  // immune au mobile address-bar resize qui faisait dériver la morph.
   useEffect(() => {
-    const el = navBgRef.current;
-    if (!el) return;
+    const bg = navBgRef.current;
+    const glyph = staticGlyphRef.current;
+    if (!bg && !glyph) return;
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const fadeRange = isMobile ? 0.2 : 0.7;
     let raf = 0;
+    const update = () => {
+      const p = Math.min(1, window.scrollY / (window.innerHeight * fadeRange));
+      if (bg) bg.style.opacity = String(p);
+      if (glyph) glyph.style.opacity = String(p);
+      raf = 0;
+    };
     const onScroll = () => {
       if (raf) return;
-      raf = requestAnimationFrame(() => {
-        const p = Math.min(1, window.scrollY / (window.innerHeight * 0.3));
-        el.style.opacity = String(p);
-        raf = 0;
-      });
+      raf = requestAnimationFrame(update);
     };
     window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
+    update();
     return () => {
       window.removeEventListener('scroll', onScroll);
       if (raf) cancelAnimationFrame(raf);
@@ -283,6 +294,17 @@ export function HomeHero() {
           0
         );
 
+        // Fade out the morphing block before it "lands". On mobile, the GSAP
+        // landing position is unreliable (viewport mutates during scroll, refresh
+        // events lag), so we make sure the morphing element is invisible by the
+        // time it'd hit its drifted target. The static glyph (CSS-anchored) takes
+        // over as the visible element at top:18/left:32.
+        tl.to(
+          logoBlockRef.current,
+          { opacity: 0, ease: 'power2.in', duration: 0.3 },
+          0.7
+        );
+
         // En mobile, la nav stack est cachée (display:none → offsetWidth = 0) :
         // on skip la morph des items pour éviter des calculs sur des éléments invisibles.
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
@@ -342,6 +364,24 @@ export function HomeHero() {
         className="fixed inset-x-0 top-0 h-16 z-20 bg-[var(--color-bg)] pointer-events-none"
         style={{ opacity: 0 }}
       />
+
+      {/*
+        Static landing glyph — CSS-anchored at (32, 18). The morphing logoBlock
+        targets this position via GSAP transforms, but on mobile the math drifts
+        when the address-bar resizes mid-scroll. This element doesn't move: pure
+        CSS `fixed top: 18 / left: 32`. Fade-in matches the pin range so it's at
+        opacity 1 exactly when the morphing block fades to 0. Aria-hidden — the
+        accessible navigation lives in <SiteHeader /> (other pages) and
+        <MobileMenu /> (mobile burger drawer).
+      */}
+      <div
+        ref={staticGlyphRef}
+        aria-hidden
+        className="fixed top-[18px] left-[32px] z-50 pointer-events-none"
+        style={{ opacity: 0 }}
+      >
+        <GlyphLogo size={GLYPH_TARGET} title="A. Matencio" />
+      </div>
 
       {/* Overlay plein-écran fixed : items centrés (flex), animés par GSAP. */}
       <div
