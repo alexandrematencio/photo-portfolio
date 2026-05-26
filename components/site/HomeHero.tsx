@@ -222,17 +222,27 @@ export function HomeHero() {
         const navTargetY = HEADER_HEIGHT / 2;
 
         // Timeline unique pinnée au spacer.
-        // - pin: true → la page est "trappée" pendant 50vh de scroll
-        // - scrub: 1.2 → l'animation suit le scroll avec 1.2s de lag (= feel "slow/luxe")
+        // - pin: true → la page est "trappée" pendant N vh de scroll
+        // - scrub: 2 → l'animation suit le scroll avec 2s de lag (= feel "slow/luxe")
         // - Pendant le pin, la gallery ne peut pas entrer dans le viewport.
+        //
+        // Mobile : pin range RACCOURCI à 20vh. Sur iOS/Android, le viewport se
+        // redimensionne au scroll (collapse address-bar) et `logoInit.top` capturé
+        // au mount devient périmé. Avec un long pin (70vh), le glyph "atterrit"
+        // visiblement plus bas que la nav-bar cible. En raccourcissant le pin,
+        // le morph se complete avant que l'écart soit perceptible — et de toute
+        // façon, sur mobile la nav est cachée donc seul le logo bouge.
+        const isMobileViewport = window.matchMedia('(max-width: 768px)').matches;
+        const pinEnd = isMobileViewport ? '+=20vh' : '+=70vh';
+
         const tl = gsap.timeline({
           scrollTrigger: {
             trigger: spacerRef.current,
             start: 'top top',
             pin: true,
             pinSpacing: true,
-            scrub: 2,
-            end: '+=70vh',
+            scrub: isMobileViewport ? 0.5 : 2,
+            end: pinEnd,
             invalidateOnRefresh: true,
           },
         });
@@ -255,14 +265,29 @@ export function HomeHero() {
         );
 
         // Morph LENT : logo (vers top-left) + nav-items (vers full-width space-between).
-        // Durée 1 = toute la timeline. Couplé au scrub: 1.2s, le déploiement
-        // est nettement plus lent que les fades.
+        // Durée 1 = toute la timeline. Couplé au scrub, le déploiement est plus lent que les fades.
+        //
+        // x / y en function getters : avec `invalidateOnRefresh: true`, GSAP appelle ces
+        // fonctions à chaque refresh (resize, viewport change, mobile address-bar collapse).
+        // Sans ça, `logoInit.top` capturé au mount devient périmé et le glyph atterrit ailleurs
+        // que top:18px sur mobile.
+        const getLogoDx = () => {
+          const init = capture(logoBlockRef.current!);
+          const glyphOffset = (init.width - GLYPH_INITIAL) / 2;
+          return PAD_LEFT - glyphOffset * logoTargetScale - init.left;
+        };
+        const getLogoDy = () => {
+          const init = capture(logoBlockRef.current!);
+          const targetTop = (HEADER_HEIGHT - GLYPH_TARGET) / 2;
+          return targetTop - init.top;
+        };
+
         tl.fromTo(
           logoBlockRef.current,
           { x: 0, y: 0, scale: 1, transformOrigin: '0 0' },
           {
-            x: logoDx,
-            y: logoDy,
+            x: getLogoDx,
+            y: getLogoDy,
             scale: logoTargetScale,
             transformOrigin: '0 0',
             ease,
