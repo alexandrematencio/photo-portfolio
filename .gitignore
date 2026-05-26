@@ -49,6 +49,7 @@ next-env.d.ts
 
 # documentation interne (non destinée au repo public)
 /doc
+/brand
 /CLAUDE.md
 /yml-deploy-guide.md
 

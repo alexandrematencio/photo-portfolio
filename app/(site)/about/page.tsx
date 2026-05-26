@@ -1,50 +1,70 @@
-import { PageShell } from '@/components/site/PageShell';
-import { PortableBody } from '@/components/site/PortableBody';
-import { getSiteSettings } from '@/lib/sanity/queries';
 import { buildMetadata } from '@/lib/seo/metadata';
 
 export const metadata = buildMetadata({
   title: 'About',
   description:
-    "Démarche d'A. Matencio — photographie d'auteur entre rue, paysage et portrait.",
+    "A. Matencio’s approach — author photography between street, landscape and portrait.",
   path: '/about',
 });
 
 export const revalidate = 300;
 
-export default async function AboutPage() {
-  const settings = await getSiteSettings();
+const BIO = `I’m 🇫🇷🇪🇸🇻🇳, I grew up in the 🇳🇱, and worked in 🇹🇳 🇻🇳 and now in 🇫🇷.
+
+Art Director for 8 years, photographer by way of cinema. When the sun’s up: AD at aaxlo, a digital agency enhanced by AI co-founded with my brother, following a few years running my own design studio (Zalem Industries).
+
+The rest of the time: the streets, the camera, and that drive to capture the exact frame a director would have chosen.
+
+Street photography is my favorite format because it’s the only one where the backdrop refuses to cooperate. You don’t direct anything: you watch, you frame, you shoot.`;
+
+const GEAR_SETS = [
+  {
+    body: 'Olympus OM-D EM-10 mkIII',
+    lenses: `+ Mr.Zuiko 17mm f1.8
++ Mr. Zuiko 45mm f1.8
++ Retropia “Oreo” 25mm locked at f11`,
+  },
+  {
+    body: 'Fujifilm X-PRO 2',
+    lenses: `+ Meike MF 35mm f1.4
++ Viltrox “Air” 25mm f1.7`,
+  },
+];
+
+export default function AboutPage() {
   return (
-    <PageShell title="About" subtitle="Démarche & parcours">
-      <PortableBody
-        value={settings?.aboutBody}
-        fallback={
-          <div className="space-y-5 text-[var(--color-fg)]/85 text-base md:text-lg leading-relaxed">
-            <p>
-              <em className="text-[var(--color-fg-muted)]">
-                [Placeholder — à remplir dans /studio]
-              </em>
-            </p>
-            <p>
-              A. Matencio est photographe d'auteur. Son travail explore la rue, le paysage et le portrait — trois disciplines qu'il aborde comme trois manières d'écouter ce qui est déjà là, plutôt que de produire ce qui n'y est pas.
-            </p>
-            <p>
-              Né en [année], il photographie depuis [année] entre [villes / régions]. Ses séries ont été présentées à [galeries / festivals / publications].
-            </p>
-            <p>
-              La démarche tient en une phrase : <em>regarder lentement, déclencher juste</em>. Pas de mise en scène, pas de filtre. Le numérique comme un négatif silencieux.
-            </p>
-            <h2 className="mt-12 mb-4 font-bold uppercase text-xl md:text-2xl tracking-tight">
-              Expositions
-            </h2>
-            <p>[Liste à compléter via le CMS.]</p>
-            <h2 className="mt-12 mb-4 font-bold uppercase text-xl md:text-2xl tracking-tight">
-              Publications
-            </h2>
-            <p>[Liste à compléter via le CMS.]</p>
+    <article
+      className="max-w-[1107px]"
+      style={{ paddingLeft: 32, paddingRight: 32 }}
+    >
+      <div className="flex flex-col gap-10 md:gap-14">
+        <h1 className="text-[48px] md:text-[64px] font-black uppercase tracking-[-0.04em] leading-none pb-2 md:pb-4 text-[var(--color-fg)]">
+          ABOUT
+        </h1>
+
+        <div className="flex flex-col gap-8">
+          <p className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)] whitespace-pre-line">
+            {BIO}
+          </p>
+
+          <h2 className="text-[36px] md:text-[48px] font-bold uppercase tracking-[-0.02em] leading-[0.9] text-[var(--color-fg)]">
+            GEAR
+          </h2>
+
+          <div className="flex flex-col gap-8 pb-4 md:pb-8">
+            {GEAR_SETS.map((set) => (
+              <div key={set.body} className="flex flex-col">
+                <h3 className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.375] text-[var(--color-fg)]">
+                  {set.body}
+                </h3>
+                <p className="text-[17px] md:text-[24px] font-bold tracking-[-0.02em] leading-[1.46] text-[var(--color-fg)] whitespace-pre-line">
+                  {set.lenses}
+                </p>
+              </div>
+            ))}
           </div>
-        }
-      />
-    </PageShell>
+        </div>
+      </div>
+    </article>
   );
 }

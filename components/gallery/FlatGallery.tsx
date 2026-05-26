@@ -8,16 +8,16 @@ import type { Photo, PhotoCategory } from '@/lib/sanity/queries';
 type Mode = 'year' | 'location' | 'type';
 
 const TABS: { id: Mode; label: string }[] = [
-  { id: 'year', label: 'Année' },
-  { id: 'location', label: 'Lieu' },
+  { id: 'year', label: 'Year' },
+  { id: 'location', label: 'Location' },
   { id: 'type', label: 'Type' },
 ];
 
 const CATEGORY_LABEL: Record<PhotoCategory, string> = {
-  landscape: 'Paysage',
+  landscape: 'Landscape',
   architecture: 'Architecture',
   portrait: 'Portrait',
-  streetphotography: 'Photo de rue',
+  streetphotography: 'Street',
 };
 
 const CATEGORY_ORDER: PhotoCategory[] = [
@@ -50,7 +50,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
         map.get(k)!.push(p);
       }
       return Array.from(map.entries())
-        .sort((a, b) => a[0].localeCompare(b[0], 'fr'))
+        .sort((a, b) => a[0].localeCompare(b[0], 'en'))
         .map(([k, items]) => ({ key: k, label: k, items }));
     }
     // type
@@ -71,7 +71,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
   if (photos.length === 0) {
     return (
       <div className="py-32 text-center text-[var(--color-fg-muted)] text-sm">
-        Aucune photo pour le moment. Ajoutez-en depuis{' '}
+        No photos yet. Add some from{' '}
         <a href="/studio" className="underline">
           /studio
         </a>
@@ -84,7 +84,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
     <div>
       <div
         role="tablist"
-        aria-label="Mode de regroupement"
+        aria-label="Grouping mode"
         className="sticky top-0 z-30 flex gap-0 border-b border-[var(--color-line)] bg-[var(--color-bg)]"
       >
         {TABS.map((tab) => {

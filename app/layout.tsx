@@ -6,6 +6,7 @@ import { buildMetadata } from '@/lib/seo/metadata';
 const inter = Inter({
   subsets: ['latin'],
   weight: ['400', '500', '700', '900'],
+  style: ['normal', 'italic'],
   variable: '--font-inter',
   display: 'swap',
 });
@@ -24,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={inter.variable}>
+    <html lang="en" className={inter.variable}>
       <body>{children}</body>
     </html>
   );

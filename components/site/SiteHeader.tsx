@@ -45,7 +45,7 @@ export function SiteHeader() {
   return (
     <>
       <a href="#main" className="skip-link">
-        Aller au contenu
+        Skip to content
       </a>
       <header
         className={cn(
@@ -59,16 +59,16 @@ export function SiteHeader() {
         aria-hidden={isHome}
       >
         <nav
-          aria-label="Navigation principale"
+          aria-label="Main navigation"
           className="flex h-full items-center justify-between"
           style={{ paddingLeft: 32, paddingRight: 64 }}
         >
           <Link
             href="/"
             className="flex items-center shrink-0"
-            aria-label="A. Matencio — accueil"
+            aria-label="A. Matencio — home"
           >
-            <GlyphLogo size={28} title="A. Matencio — accueil" />
+            <GlyphLogo size={28} title="A. Matencio — home" />
           </Link>
 
           {/* 4 nav-links : visibles sur desktop, distribuées par space-between */}
@@ -95,7 +95,7 @@ export function SiteHeader() {
           <button
             type="button"
             className="md:hidden size-10 flex items-center justify-center bg-[var(--color-bg)] text-[var(--color-fg)] border-2 border-[var(--color-fg)]"
-            aria-label={open ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-label={open ? 'Close menu' : 'Open menu'}
             aria-expanded={open}
             aria-controls="mobile-nav"
             onClick={() => setOpen((v) => !v)}
@@ -111,23 +111,23 @@ export function SiteHeader() {
           className="fixed inset-0 z-[60] md:hidden bg-[var(--color-bg)] flex flex-col"
           role="dialog"
           aria-modal="true"
-          aria-label="Menu mobile"
+          aria-label="Mobile menu"
         >
-          <div className="flex items-center justify-between p-4 border-b-2 border-[var(--color-fg)]">
+          <div className="flex items-center justify-between px-6 py-4 border-b-2 border-[var(--color-fg)]">
             <span className="text-[11px] uppercase tracking-[0.3em] font-bold text-[var(--color-fg)]">
               Menu
             </span>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              aria-label="Fermer le menu"
+              aria-label="Close menu"
               className="size-10 flex items-center justify-center text-[var(--color-fg)] border-2 border-[var(--color-fg)]"
             >
               <X size={20} strokeWidth={2.5} />
             </button>
           </div>
           <nav
-            aria-label="Navigation mobile"
+            aria-label="Mobile navigation"
             className="flex-1 flex flex-col"
           >
             {LINKS.map((link, i) => {

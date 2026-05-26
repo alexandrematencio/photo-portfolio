@@ -89,7 +89,7 @@ export function HomeHero() {
   //    2. En dev : refresh la page (Cmd+Shift+R pour bust le cache navigateur).
   //    3. En prod : commit + push → Vercel redeploy auto.
   const profileSrc = '/img/photo-profile.jpg';
-  const profileAlt = "Portrait d'A. Matencio";
+  const profileAlt = 'Portrait of A. Matencio';
 
   useEffect(() => {
     if (reducedMotion) return;
@@ -271,7 +271,7 @@ export function HomeHero() {
       {/* Overlay plein-écran fixed : items centrés (flex), animés par GSAP. */}
       <div
         ref={sectionRef}
-        aria-label="Accueil"
+        aria-label="Home"
         className="fixed inset-0 z-30 pointer-events-none flex flex-col items-center justify-center gap-16 px-4 py-12 md:py-16 text-center"
       >
         <div
@@ -303,7 +303,7 @@ export function HomeHero() {
         </div>
 
         <nav
-          aria-label="Navigation principale"
+          aria-label="Main navigation"
           className="pointer-events-auto hidden md:flex flex-col items-center gap-2 md:gap-3"
         >
           {NAV_LINKS.map((link, i) => (
@@ -325,12 +325,12 @@ export function HomeHero() {
       <button
         type="button"
         onClick={() => setBurgerOpen(true)}
-        aria-label="Ouvrir le menu"
+        aria-label="Open menu"
         aria-expanded={burgerOpen}
         aria-controls="mobile-menu"
-        className="md:hidden fixed top-4 right-4 z-[55] size-12 flex items-center justify-center bg-[var(--color-bg)] text-[var(--color-fg)] border-2 border-[var(--color-fg)]"
+        className="md:hidden fixed top-6 right-6 z-[55] size-10 flex items-center justify-center bg-[var(--color-bg)] text-[var(--color-fg)] border-2 border-[var(--color-fg)]"
       >
-        <Menu size={22} strokeWidth={2.5} />
+        <Menu size={20} strokeWidth={2.5} />
       </button>
 
       {burgerOpen && (
@@ -341,22 +341,22 @@ export function HomeHero() {
           aria-label="Menu"
           className="md:hidden fixed inset-0 z-[70] bg-[var(--color-bg)] flex flex-col"
         >
-          <div className="flex items-center justify-between p-4 border-b-2 border-[var(--color-fg)]">
+          <div className="flex items-center justify-between px-6 py-4 border-b-2 border-[var(--color-fg)]">
             <span className="text-[11px] uppercase tracking-[0.3em] font-bold text-[var(--color-fg)]">
               Menu
             </span>
             <button
               type="button"
               onClick={() => setBurgerOpen(false)}
-              aria-label="Fermer le menu"
-              className="size-12 flex items-center justify-center bg-[var(--color-bg)] text-[var(--color-fg)] border-2 border-[var(--color-fg)] -mr-1 -my-1"
+              aria-label="Close menu"
+              className="size-10 flex items-center justify-center bg-[var(--color-bg)] text-[var(--color-fg)] border-2 border-[var(--color-fg)]"
             >
-              <X size={22} strokeWidth={2.5} />
+              <X size={20} strokeWidth={2.5} />
             </button>
           </div>
 
           <nav
-            aria-label="Navigation mobile"
+            aria-label="Mobile navigation"
             className="flex-1 flex flex-col"
           >
             {NAV_LINKS.map((link, i) => (

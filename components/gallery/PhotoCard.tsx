@@ -26,7 +26,7 @@ export function PhotoCard({ photo }: { photo: Photo }) {
             type="button"
             onClick={() => setOpen(true)}
             className="absolute inset-0 cursor-zoom-in p-0 m-0 border-0 bg-transparent text-left"
-            aria-label={`Ouvrir « ${photo.title} » en plein écran`}
+            aria-label={`Open “${photo.title}” fullscreen`}
           >
             {src && (
               <Image

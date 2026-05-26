@@ -1,6 +1,7 @@
 import { SiteHeader } from '@/components/site/SiteHeader';
 import { SiteFooter } from '@/components/site/SiteFooter';
 import { FramedScroll } from '@/components/site/FramedScroll';
+import { MainPadding } from '@/components/site/MainPadding';
 
 export default function SiteLayout({
   children,
@@ -11,7 +12,7 @@ export default function SiteLayout({
     <>
       <SiteHeader />
       <FramedScroll>
-        <main id="main">{children}</main>
+        <MainPadding>{children}</MainPadding>
         <SiteFooter />
       </FramedScroll>
     </>

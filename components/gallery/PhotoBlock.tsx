@@ -36,7 +36,7 @@ export const PhotoBlock = forwardRef<HTMLDivElement, Props>(
               type="button"
               onClick={() => setOpen(true)}
               className="photo-inner cursor-zoom-in w-full h-full p-0 m-0 border-0 bg-transparent"
-              aria-label={`Ouvrir « ${photo?.title} » en plein écran`}
+              aria-label={`Open “${photo?.title}” fullscreen`}
             >
               {src && (
                 <Image

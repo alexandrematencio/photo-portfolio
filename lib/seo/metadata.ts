@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 
-const SITE_NAME = 'A. Matencio — Photographe';
+const SITE_NAME = 'A. Matencio — Photographer';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 const DEFAULT_DESC =
-  "Photographie d'auteur — rue, paysage et portrait. Portfolio d'A. Matencio.";
+  "Author photography — street, landscape and portrait. Portfolio of A. Matencio.";
 
 export function buildMetadata(opts: {
   title?: string;
@@ -27,7 +27,7 @@ export function buildMetadata(opts: {
       type: 'website',
       url,
       siteName: SITE_NAME,
-      locale: 'fr_FR',
+      locale: 'en_US',
       images: [{ url: image, width: 1200, height: 630, alt: title }],
     },
     twitter: {

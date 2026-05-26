@@ -65,7 +65,7 @@ export function PhotoLightbox({ photo, onClose }: Props) {
           e.stopPropagation();
           onClose();
         }}
-        aria-label="Fermer"
+        aria-label="Close"
         className="absolute top-2 right-2 z-20 size-7 flex items-center justify-center text-[var(--color-fg)] hover:opacity-60 transition-opacity motion-reduce:transition-none"
       >
         <X size={20} strokeWidth={2} />
@@ -79,10 +79,10 @@ export function PhotoLightbox({ photo, onClose }: Props) {
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           className="absolute top-2 left-2 z-20 flex items-center gap-2 h-7 px-1 text-[10px] uppercase tracking-[0.2em] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors motion-reduce:transition-none"
-          aria-label="Ouvrir l'original dans un nouvel onglet"
+          aria-label="Open original in a new tab"
         >
           <ExternalLink size={12} strokeWidth={2} />
-          <span className="hidden md:inline">Ouvrir l'original</span>
+          <span className="hidden md:inline">Open original</span>
         </a>
       )}
 
@@ -118,7 +118,7 @@ export function PhotoLightbox({ photo, onClose }: Props) {
             className="flex items-center justify-center text-[var(--color-fg-muted)] text-sm"
             style={{ width: 400, height: 300 }}
           >
-            Photo placeholder — aucune image disponible.
+            Photo placeholder — no image available.
           </div>
         )}
       </div>

@@ -13,8 +13,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/flat-gallery',
     '/contact',
     '/hire-me',
-    '/mentions-legales',
-    '/politique-de-confidentialite',
+    '/legal',
+    '/privacy',
   ];
   return routes.map((path) => ({
     url: `${base}${path}`,

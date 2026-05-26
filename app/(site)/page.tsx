@@ -7,7 +7,7 @@ import { buildMetadata } from '@/lib/seo/metadata';
 export const metadata = buildMetadata({
   title: 'Portfolio',
   description:
-    "Portfolio immersif d'A. Matencio — photographie de rue, paysage et portrait.",
+    "Immersive portfolio of A. Matencio — street, landscape and portrait photography.",
   path: '/',
 });
 
