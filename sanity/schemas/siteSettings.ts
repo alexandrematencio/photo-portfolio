@@ -71,7 +71,7 @@ export const siteSettingsSchema = defineType({
           name: 'skewMax',
           title: 'Inclinaison max (°)',
           type: 'number',
-          initialValue: 10,
+          initialValue: 5,
           validation: (Rule) => Rule.min(0).max(30),
         }),
         defineField({
@@ -91,7 +91,7 @@ export const siteSettingsSchema = defineType({
           name: 'velocityDivisorSkew',
           title: 'Diviseur vélocité — skew',
           type: 'number',
-          initialValue: -200,
+          initialValue: -400,
         }),
         defineField({
           name: 'velocityDivisorRotX',

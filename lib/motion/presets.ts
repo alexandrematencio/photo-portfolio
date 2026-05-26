@@ -7,10 +7,10 @@ import type { MotionSettings } from '@/lib/sanity/queries';
  */
 export const DEFAULT_MOTION: MotionSettings = {
   scaleMin: 0.94,
-  skewMax: 10,
+  skewMax: 5,
   rotXMax: 15,
   velocityDivisorScale: 20000,
-  velocityDivisorSkew: -200,
+  velocityDivisorSkew: -400,
   velocityDivisorRotX: -80,
 };
 
