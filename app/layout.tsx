@@ -26,7 +26,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body>{children}</body>
+      {/* `suppressHydrationWarning` on <body> only: silences mismatches caused by
+          browser extensions (ColorZilla `cz-shortcut-listen`, Grammarly, Dark Reader…)
+          that inject attributes into the body before React hydrates. Scoped to this
+          single element — does NOT mask real mismatches in children. */}
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }

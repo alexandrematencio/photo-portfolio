@@ -83,14 +83,69 @@ export function HomeHero() {
     };
   }, [burgerOpen]);
 
-  // Photo profil servie depuis `/public/img/photo-profile.jpg`.
-  // 👉 Pour changer la photo :
-  //    1. Remplace le fichier `public/img/photo-profile.jpg` par ton nouveau JPG
-  //       (n'importe quelle résolution, idéalement carrée et > 800×800 px).
-  //    2. En dev : refresh la page (Cmd+Shift+R pour bust le cache navigateur).
-  //    3. En prod : commit + push → Vercel redeploy auto.
-  const profileSrc = asset('/img/photo-profile.jpg');
+  // Photo profil — magnifier hover effect.
+  // Layer 1 (default, always visible)   : alex-profile-pic-default.jpg
+  // Layer 2 (revealed under the cursor) : alex-profile-pic-hover-reveal.jpg
+  // The cursor itself is hidden inside the photo box; a 96 px circular clip on
+  // layer 2 follows the pointer, "peeking" through the default image.
+  const profileSrcDefault = asset('/img/alex-profile-pic-default.jpg');
+  const profileSrcReveal = asset('/img/alex-profile-pic-hover-reveal.jpg');
   const profileAlt = 'Portrait of A. Matencio';
+  const photoBoxRef = useRef<HTMLDivElement>(null);
+  const revealLayerRef = useRef<HTMLDivElement>(null);
+
+  // Bind the magnifier reveal — purely DOM mutation (no React re-render) for 60 fps.
+  // Respects prefers-reduced-motion: in that case, the reveal layer stays hidden.
+  useEffect(() => {
+    if (reducedMotion) return;
+    const box = photoBoxRef.current;
+    const reveal = revealLayerRef.current;
+    if (!box || !reveal) return;
+
+    const RADIUS = 48; // 96 px diameter
+    let raf = 0;
+    let pendingX = 0;
+    let pendingY = 0;
+
+    const apply = () => {
+      reveal.style.clipPath = `circle(${RADIUS}px at ${pendingX}px ${pendingY}px)`;
+      raf = 0;
+    };
+
+    const onMove = (e: PointerEvent) => {
+      const rect = box.getBoundingClientRect();
+      pendingX = e.clientX - rect.left;
+      pendingY = e.clientY - rect.top;
+      if (!raf) raf = requestAnimationFrame(apply);
+    };
+
+    const onEnter = (e: PointerEvent) => {
+      // Touch / pen pointers don't get the magnifier (no hover).
+      if (e.pointerType !== 'mouse') return;
+      box.style.cursor = 'none';
+      onMove(e);
+    };
+
+    const onLeave = () => {
+      box.style.cursor = '';
+      reveal.style.clipPath = 'circle(0px at 50% 50%)';
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+
+    box.addEventListener('pointerenter', onEnter);
+    box.addEventListener('pointermove', onMove);
+    box.addEventListener('pointerleave', onLeave);
+
+    return () => {
+      box.removeEventListener('pointerenter', onEnter);
+      box.removeEventListener('pointermove', onMove);
+      box.removeEventListener('pointerleave', onLeave);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [reducedMotion]);
 
   useEffect(() => {
     if (reducedMotion) return;
@@ -293,14 +348,39 @@ export function HomeHero() {
           ref={photoRef}
           className="pointer-events-none relative size-56 md:size-64 overflow-hidden bg-[var(--color-bg-elev)]"
         >
-          <Image
-            src={profileSrc}
-            alt={profileAlt}
-            fill
-            sizes="(max-width: 768px) 14rem, 16rem"
-            className="object-cover"
-            priority
-          />
+          {/* Inner box that owns the pointer events (so the hero scroll behaviour is preserved
+              elsewhere). The cursor is hidden inside this box; the reveal layer paints a 48 px
+              circular clip following the pointer. */}
+          <div
+            ref={photoBoxRef}
+            className="pointer-events-auto absolute inset-0"
+          >
+            {/* Default image — always visible */}
+            <Image
+              src={profileSrcDefault}
+              alt={profileAlt}
+              fill
+              sizes="(max-width: 768px) 14rem, 16rem"
+              className="object-cover"
+              priority
+            />
+            {/* Reveal image — clipped to a circle that follows the cursor.
+                Initial clip-path collapsed to 0 px so nothing shows until pointer enters. */}
+            <div
+              ref={revealLayerRef}
+              aria-hidden
+              className="absolute inset-0"
+              style={{ clipPath: 'circle(0px at 50% 50%)' }}
+            >
+              <Image
+                src={profileSrcReveal}
+                alt=""
+                fill
+                sizes="(max-width: 768px) 14rem, 16rem"
+                className="object-cover"
+              />
+            </div>
+          </div>
         </div>
 
         <nav

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { PhotoCard } from './PhotoCard';
 import { cn } from '@/lib/utils/cn';
 import type { Photo, PhotoCategory } from '@/lib/sanity/queries';
@@ -27,10 +27,16 @@ const CATEGORY_ORDER: PhotoCategory[] = [
   'streetphotography',
 ];
 
+type Group = { key: string; label: string; items: Photo[] };
+
 export function FlatGallery({ photos }: { photos: Photo[] }) {
   const [mode, setMode] = useState<Mode>('year');
+  // Single-select pattern: activeKey === null means "All" is active (= everything visible).
+  // activeKey === some group key means only that group's photos are visible.
+  // Clicking the already-active chip returns to "All" (undo).
+  const [activeKey, setActiveKey] = useState<string | null>(null);
 
-  const groups = useMemo(() => {
+  const allGroups: Group[] = useMemo(() => {
     if (mode === 'year') {
       const map = new Map<number, Photo[]>();
       for (const p of photos) {
@@ -68,6 +74,27 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
     );
   }, [mode, photos]);
 
+  // Reset to "All" when grouping mode changes.
+  useEffect(() => {
+    setActiveKey(null);
+  }, [mode]);
+
+  const allSelected = activeKey === null;
+  const visibleGroups = allSelected
+    ? allGroups
+    : allGroups.filter((g) => g.key === activeKey);
+
+  function activateOrReset(key: string) {
+    // Click on the already-active chip → return to "All" (undo behaviour).
+    setActiveKey((prev) => (prev === key ? null : key));
+  }
+
+  function selectAll() {
+    setActiveKey(null);
+  }
+
+  const totalPhotos = allGroups.reduce((sum, g) => sum + g.items.length, 0);
+
   if (photos.length === 0) {
     return (
       <div className="py-32 text-center text-[var(--color-fg-muted)] text-sm">
@@ -82,9 +109,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
 
   return (
     <div>
-      {/* Filter tabs — aerated, full-bleed sticky bar.
-          Typography matches brand book §5.3 (sub-label spec: 11px / 700 / uppercase / tracking 0.25em).
-          Active state: solid fg color + offset-8 underline (no border-b that fights with bottom border). */}
+      {/* Mode selector — sticky bar, defines the grouping axis */}
       <nav
         role="tablist"
         aria-label="Grouping mode"
@@ -113,12 +138,61 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
         })}
       </nav>
 
-      {/* Groups — 64 px gap between each (per spec), 40 px from the tabs bar above */}
+      {/* Filter chips — pill buttons per Pencil "filter-button" spec.
+          "All" chip at the start = reset (re-selects everything).
+          Per-value chips toggle their group's visibility. */}
+      <div
+        role="group"
+        aria-label={`Filter by ${mode}`}
+        className="flex flex-wrap gap-x-3 gap-y-2"
+        style={{ paddingLeft: 32, paddingRight: 32, paddingTop: 32 }}
+      >
+        {/* All — reset chip */}
+        <button
+          type="button"
+          onClick={selectAll}
+          aria-pressed={allSelected}
+          style={{ paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4 }}
+          className={cn(
+            'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border transition-colors motion-reduce:transition-none',
+            allSelected
+              ? 'text-[var(--color-fg)] border-[var(--color-fg)]'
+              : 'text-[var(--color-fg-muted)] border-[var(--color-fg-muted)] opacity-50 hover:opacity-100 hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
+          )}
+        >
+          All ({totalPhotos})
+        </button>
+
+        {/* Per-value chips */}
+        {allGroups.map((g) => {
+          const isSelected = activeKey === g.key;
+          return (
+            <button
+              key={g.key}
+              type="button"
+              onClick={() => activateOrReset(g.key)}
+              aria-pressed={isSelected}
+              style={{ paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4 }}
+              className={cn(
+                'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border transition-colors motion-reduce:transition-none',
+                isSelected
+                  ? 'text-[var(--color-fg)] border-[var(--color-fg)]'
+                  : 'text-[var(--color-fg-muted)] border-[var(--color-fg-muted)] opacity-50 hover:opacity-100 hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
+              )}
+            >
+              {g.label} ({g.items.length})
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Groups — 64 px between each (per spec).
+          Single-select means visibleGroups is never empty (always "All" or one group). */}
       <div
         className="flex flex-col gap-16"
         style={{ paddingLeft: 32, paddingRight: 32, paddingTop: 40 }}
       >
-        {groups.map((group) => (
+        {visibleGroups.map((group) => (
           <section key={group.key}>
             <h2 className="text-[11px] uppercase tracking-[0.25em] font-bold text-[var(--color-fg-muted)] mb-6">
               {group.label}
