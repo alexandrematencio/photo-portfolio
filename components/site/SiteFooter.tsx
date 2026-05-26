@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ChevronRight, Mail, Send } from 'lucide-react';
+import { asset } from '@/lib/utils/asset';
 
 const YEAR = new Date().getFullYear();
 const EMAIL = 'amatencio@pm.me';
@@ -56,7 +57,7 @@ export function SiteFooter() {
         <div className="flex flex-col gap-4">
           {/* logo-glyph 64×60 */}
           <img
-            src="/img/logos/glyph-alxmtnc-gray.svg"
+            src={asset('/img/logos/glyph-alxmtnc-gray.svg')}
             alt=""
             width={64}
             height={60}

@@ -7,6 +7,7 @@ import { ChevronDown, Menu, X } from 'lucide-react';
 import { GlyphLogo } from './GlyphLogo';
 import { MagnifierHeading } from './MagnifierHeading';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
+import { asset } from '@/lib/utils/asset';
 
 const NAV_LINKS = [
   { href: '/about', label: 'About' },
@@ -88,7 +89,7 @@ export function HomeHero() {
   //       (n'importe quelle résolution, idéalement carrée et > 800×800 px).
   //    2. En dev : refresh la page (Cmd+Shift+R pour bust le cache navigateur).
   //    3. En prod : commit + push → Vercel redeploy auto.
-  const profileSrc = '/img/photo-profile.jpg';
+  const profileSrc = asset('/img/photo-profile.jpg');
   const profileAlt = 'Portrait of A. Matencio';
 
   useEffect(() => {
