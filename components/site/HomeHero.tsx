@@ -2,8 +2,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Menu, X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { GlyphLogo } from './GlyphLogo';
 import { MagnifierHeading } from './MagnifierHeading';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
@@ -43,7 +43,6 @@ export function HomeHero() {
   const spacerRef = useRef<HTMLDivElement>(null);
   const navBgRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
-  const [burgerOpen, setBurgerOpen] = useState(false);
 
   // Bande opaque h-14/h-16 en haut du viewport. Au scroll, son opacité passe
   // de 0 → 1 sur ~30vh de scroll, en même temps que la morph dépose les items
@@ -67,21 +66,6 @@ export function HomeHero() {
       if (raf) cancelAnimationFrame(raf);
     };
   }, []);
-
-  // Burger overlay : ESC to close + body scroll lock
-  useEffect(() => {
-    if (!burgerOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setBurgerOpen(false);
-    };
-    document.addEventListener('keydown', onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [burgerOpen]);
 
   // Photo profil — magnifier hover effect.
   // Layer 1 (default, always visible)   : alex-profile-pic-default.jpg
@@ -441,59 +425,7 @@ export function HomeHero() {
         </nav>
       </div>
 
-      {/* === MOBILE BURGER (md:hidden) === */}
-      <button
-        type="button"
-        onClick={() => setBurgerOpen(true)}
-        aria-label="Open menu"
-        aria-expanded={burgerOpen}
-        aria-controls="mobile-menu"
-        className="md:hidden fixed top-6 right-6 z-[55] size-10 flex items-center justify-center bg-[var(--color-bg)] text-[var(--color-fg)] border-2 border-[var(--color-fg)]"
-      >
-        <Menu size={20} strokeWidth={2.5} />
-      </button>
-
-      {burgerOpen && (
-        <div
-          id="mobile-menu"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Menu"
-          className="md:hidden fixed inset-0 z-[70] bg-[var(--color-bg)] flex flex-col"
-        >
-          <div className="flex items-center justify-between px-6 py-4 border-b-2 border-[var(--color-fg)]">
-            <span className="text-[11px] uppercase tracking-[0.3em] font-bold text-[var(--color-fg)]">
-              Menu
-            </span>
-            <button
-              type="button"
-              onClick={() => setBurgerOpen(false)}
-              aria-label="Close menu"
-              className="size-10 flex items-center justify-center bg-[var(--color-bg)] text-[var(--color-fg)] border-2 border-[var(--color-fg)]"
-            >
-              <X size={20} strokeWidth={2.5} />
-            </button>
-          </div>
-
-          <nav
-            aria-label="Mobile navigation"
-            className="flex-1 flex flex-col"
-          >
-            {NAV_LINKS.map((link, i) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setBurgerOpen(false)}
-                className={`flex-1 flex items-center px-6 text-4xl font-black uppercase tracking-tighter text-[var(--color-fg)] leading-none ${
-                  i > 0 ? 'border-t-2 border-[var(--color-fg)]' : ''
-                } active:bg-[var(--color-fg)] active:text-[var(--color-bg)]`}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-      )}
+      {/* Mobile burger + drawer ont migré dans <MobileMenu /> au niveau layout. */}
 
       {/* Down-arrow fixed bottom (opacité gérée par la timeline) */}
       <div
