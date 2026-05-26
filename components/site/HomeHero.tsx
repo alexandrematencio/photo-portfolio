@@ -86,7 +86,10 @@ export function HomeHero() {
     const reveal = revealLayerRef.current;
     if (!box || !reveal) return;
 
-    const RADIUS = 48; // 96 px diameter
+    // Desktop: 74 px radius (~148 px diameter, = mobile / 1.3).
+    // Mobile: 96 px radius — finger-driven engagement needs more reveal area.
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const RADIUS = isMobile ? 96 : 74;
     let raf = 0;
     let pendingX = 0;
     let pendingY = 0;
