@@ -356,7 +356,7 @@ export function HomeHero() {
           <GlyphLogo size={GLYPH_INITIAL} title="A. Matencio" />
           <MagnifierHeading
             ref={nameRef}
-            short="A. Matencio"
+            short="ALXMTNC"
             long="Alexandre Matencio"
             className="font-bold text-2xl md:text-[26px] tracking-[-0.04em] text-[var(--color-fg)] mt-1"
             longClassName="font-bold text-[36px] md:text-[40px] tracking-[-0.04em] text-[var(--color-fg)]"
