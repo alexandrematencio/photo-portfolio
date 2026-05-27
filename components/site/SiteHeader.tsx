@@ -31,10 +31,10 @@ export function SiteHeader() {
       </a>
       <header
         className={cn(
-          // Background opaque sur desktop uniquement — sur mobile, le header est
-          // transparent pour laisser respirer le contenu (le glyph et le bouton MENU
-          // suffisent en eux-mêmes, pas besoin d'une bande pleine).
-          'fixed inset-x-0 top-0 z-50 h-16 md:bg-[var(--color-bg)]',
+          // Header transparent sur les deux breakpoints — le contenu (photos /
+          // gallery) reste visible derrière le nav et permet au CursorInvert
+          // disque de blend avec ce qui défile sous le menu.
+          'fixed inset-x-0 top-0 z-50 h-16',
           // Sur la home, masqué — le HomeHero morphe vers ce layout exact.
           isHome && 'hidden'
         )}

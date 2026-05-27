@@ -41,49 +41,36 @@ export function HomeHero() {
   const navItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
   const arrowRef = useRef<HTMLDivElement>(null);
   const spacerRef = useRef<HTMLDivElement>(null);
-  const navBgRef = useRef<HTMLDivElement>(null);
   // CSS-anchored landing glyph. Independent of the GSAP morph math so that even
   // when the morph drifts (mobile address-bar resize invalidates viewport-relative
   // measurements), the glyph the user actually sees is locked at top:18 / left:32.
   const staticGlyphRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
 
-  // Bande opaque navBg + static landing glyph — deux pacings DIFFÉRENTS au scroll :
-  //
-  // - navBg (bande opaque en haut) : fade-in LINÉAIRE 0 → 1 sur toute la pin range
-  //   (90vh mobile / 105vh desktop). Doit être présent dès le début du morph pour
-  //   masquer les photos qui scrollent derrière les nav-items en mouvement.
-  //
-  // - static landing glyph : fade-in DÉLIBÉRÉMENT TARDIF sur les 15 % finaux de la
-  //   pin range. Le morphing logoBlock voyage vers (32, 18) avec `power3.out` —
-  //   il est visuellement à 99 %+ de sa destination à 85 % du timeline. Avant ça,
-  //   afficher le static glyph donnerait l'impression de deux glyphs simultanés
-  //   (un en mouvement, un fixé). En commençant le fade-in à 85 %, le static
-  //   n'apparaît que quand le morph "atterrit" précisément.
+  // Static landing glyph — fade-in DÉLIBÉRÉMENT TARDIF sur les 15 % finaux de la
+  // pin range. Le morphing logoBlock voyage vers (32, 18) avec `power3.out` —
+  // il est visuellement à 99 %+ de sa destination à 85 % du timeline. Avant ça,
+  // afficher le static glyph donnerait l'impression de deux glyphs simultanés
+  // (un en mouvement, un fixé). En commençant le fade-in à 85 %, le static
+  // n'apparaît que quand le morph "atterrit" précisément.
   //
   // Les fractions (0.9 / 1.05) doivent rester en sync avec `pinEnd` dans le
-  // useEffect GSAP ci-dessous (sinon le morph et le crossfade désynchronisent).
+  // useEffect GSAP ci-dessous.
   useEffect(() => {
-    const bg = navBgRef.current;
     const glyph = staticGlyphRef.current;
-    if (!bg && !glyph) return;
+    if (!glyph) return;
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
     const fadeRange = isMobile ? 0.9 : 1.05;
-    const staticStart = fadeRange * 0.85; // static n'apparaît qu'à 85 % du morph
+    const staticStart = fadeRange * 0.85;
     const staticSpan = fadeRange - staticStart;
     let raf = 0;
     const update = () => {
       const scrollFrac = window.scrollY / window.innerHeight;
-      if (bg) {
-        bg.style.opacity = String(Math.min(1, scrollFrac / fadeRange));
-      }
-      if (glyph) {
-        const p = Math.max(
-          0,
-          Math.min(1, (scrollFrac - staticStart) / staticSpan)
-        );
-        glyph.style.opacity = String(p);
-      }
+      const p = Math.max(
+        0,
+        Math.min(1, (scrollFrac - staticStart) / staticSpan)
+      );
+      glyph.style.opacity = String(p);
       raf = 0;
     };
     const onScroll = () => {
@@ -379,19 +366,6 @@ export function HomeHero() {
 
   return (
     <>
-      {/*
-        Bande nav-bar opaque en haut du viewport. Fade-in au scroll → après le
-        morph, aucune photo ne peut être visible dans la zone du nav-bar.
-        z-20 < z-30 (items HomeHero) : la bande est BEHIND les items mais
-        DEVANT les photos de la gallery.
-      */}
-      <div
-        ref={navBgRef}
-        aria-hidden
-        className="fixed inset-x-0 top-0 h-16 z-20 bg-[var(--color-bg)] pointer-events-none"
-        style={{ opacity: 0 }}
-      />
-
       {/*
         Static landing glyph — CSS-anchored at (32, 18). The morphing logoBlock
         targets this position via GSAP transforms, but on mobile the math drifts
