@@ -218,8 +218,9 @@ body {
     transform: none;
   }
   .gallery-stage {
-    /* min 20px de gap vertical entre photos en mobile (cf. demande utilisateur) */
-    gap: max(2vh, 20px);
+    /* Gap vertical FIXE de 80 px entre photos sur mobile. Valeur précise pour
+       garantir un espacement constant à toute hauteur de viewport. */
+    gap: 80px;
     padding: 6vh 0 15vh 0;
   }
 }

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PhotoBlock } from './PhotoBlock';
+import { PhotoLightbox } from './PhotoLightbox';
 import type { Photo } from '@/lib/sanity/queries';
 import type { MotionSettings } from '@/lib/sanity/queries';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
@@ -23,6 +24,9 @@ export function ScrollPhysicsGallery({ photos, motion }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
   const items = photos.length > 0 ? photos : Array.from({ length: 6 }, () => null);
+  // Single carousel instance per page — owned by the parent that has the
+  // full photos array. PhotoBlock notifies us with the clicked index.
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (reducedMotion) return;
@@ -92,8 +96,10 @@ export function ScrollPhysicsGallery({ photos, motion }: Props) {
 
       // 3. VELOCITY-DRIVEN DISTORSION
       // Durées de recovery courtes : les photos se "remettent droites" 2.5-3x plus vite.
+      // Désactivée sur mobile : la skewY + rotateX faisait visuellement déborder
+      // les photos sur leurs voisines au scroll, même avec un gap correct au layout.
       const inners = stage.querySelectorAll<HTMLElement>('.photo-inner');
-      if (inners.length > 0) {
+      if (!isMobile && inners.length > 0) {
         const setScale = gsap.quickTo(inners, 'scale', {
           duration: 0.3,
           ease: 'power3.out',
@@ -145,14 +151,24 @@ export function ScrollPhysicsGallery({ photos, motion }: Props) {
   }, [reducedMotion, motion]);
 
   return (
-    <div ref={stageRef} className="gallery-stage" aria-label="Galerie immersive">
-      {items.map((photo, index) => (
-        <PhotoBlock
-          key={photo?._id ?? `placeholder-${index}`}
-          photo={photo}
-          index={index}
+    <>
+      <div ref={stageRef} className="gallery-stage" aria-label="Galerie immersive">
+        {items.map((photo, index) => (
+          <PhotoBlock
+            key={photo?._id ?? `placeholder-${index}`}
+            photo={photo}
+            index={index}
+            onOpen={(i) => setOpenIndex(i)}
+          />
+        ))}
+      </div>
+      {openIndex !== null && photos.length > 0 && (
+        <PhotoLightbox
+          photos={photos}
+          initialIndex={openIndex}
+          onClose={() => setOpenIndex(null)}
         />
-      ))}
-    </div>
+      )}
+    </>
   );
 }

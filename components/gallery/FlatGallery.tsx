@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { PhotoCard } from './PhotoCard';
+import { PhotoLightbox } from './PhotoLightbox';
 import { cn } from '@/lib/utils/cn';
 import type { Photo, PhotoCategory } from '@/lib/sanity/queries';
 
@@ -35,6 +36,9 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
   // activeKey === some group key means only that group's photos are visible.
   // Clicking the already-active chip returns to "All" (undo).
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  // Single carousel instance for the whole flat gallery — initialIndex is the
+  // photo's position in the currently-visible flat ordering.
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   const allGroups: Group[] = useMemo(() => {
     if (mode === 'year') {
@@ -84,6 +88,14 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
     ? allGroups
     : allGroups.filter((g) => g.key === activeKey);
 
+  // Flat list of visible photos — what the user actually sees in document
+  // order. The carousel cycles through this; changing filters resets the
+  // carousel scope on the next open.
+  const flatPhotos = useMemo(
+    () => visibleGroups.flatMap((g) => g.items),
+    [visibleGroups]
+  );
+
   function activateOrReset(key: string) {
     // Click on the already-active chip → return to "All" (undo behaviour).
     setActiveKey((prev) => (prev === key ? null : key));
@@ -126,7 +138,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
               type="button"
               onClick={() => setMode(tab.id)}
               className={cn(
-                'text-[12px] uppercase tracking-[0.25em] font-bold py-2 transition-colors motion-reduce:transition-none',
+                'text-[12px] uppercase tracking-[0.25em] font-bold py-2 cursor-pointer transition-colors motion-reduce:transition-none',
                 active
                   ? 'text-[var(--color-fg)] underline underline-offset-8 decoration-2'
                   : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
@@ -154,7 +166,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
           aria-pressed={allSelected}
           style={{ paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4 }}
           className={cn(
-            'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border transition-colors motion-reduce:transition-none',
+            'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border cursor-pointer transition-colors motion-reduce:transition-none',
             allSelected
               ? 'text-[var(--color-fg)] border-[var(--color-fg)]'
               : 'text-[var(--color-fg-muted)] border-[var(--color-fg-muted)] opacity-50 hover:opacity-100 hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
@@ -174,7 +186,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
               aria-pressed={isSelected}
               style={{ paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4 }}
               className={cn(
-                'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border transition-colors motion-reduce:transition-none',
+                'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border cursor-pointer transition-colors motion-reduce:transition-none',
                 isSelected
                   ? 'text-[var(--color-fg)] border-[var(--color-fg)]'
                   : 'text-[var(--color-fg-muted)] border-[var(--color-fg-muted)] opacity-50 hover:opacity-100 hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
@@ -192,28 +204,50 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
         className="flex flex-col gap-16"
         style={{ paddingLeft: 32, paddingRight: 32, paddingTop: 40 }}
       >
-        {visibleGroups.map((group) => (
-          <section key={group.key}>
-            <h2 className="text-[11px] uppercase tracking-[0.25em] font-bold text-[var(--color-fg-muted)] mb-6">
-              {group.label}
-              <span className="ml-3 text-[var(--color-fg-muted)]/60">
-                ({group.items.length})
-              </span>
-            </h2>
-            {/*
-              Masonry CSS columns. La classe `flat-gallery-masonry` (globals.css)
-              applique le même `--gallery-gap` au column-gap ET au margin-bottom
-              des enfants → gap horizontal = gap vertical, garanti.
-              Grid: 2 cols mobile, 3 cols desktop (max — cohérent brand book §9.8).
-            */}
-            <div className="flat-gallery-masonry columns-2 md:columns-3 [column-fill:_balance]">
-              {group.items.map((p) => (
-                <PhotoCard key={p._id} photo={p} />
-              ))}
-            </div>
-          </section>
-        ))}
+        {(() => {
+          // Walk through visibleGroups + items in document order, assigning each
+          // photo its position in flatPhotos so the carousel opens at the
+          // clicked photo. Tracked outside the .map closure so it survives
+          // group boundaries.
+          let flatCursor = 0;
+          return visibleGroups.map((group) => (
+            <section key={group.key}>
+              <h2 className="text-[11px] uppercase tracking-[0.25em] font-bold text-[var(--color-fg-muted)] mb-6">
+                {group.label}
+                <span className="ml-3 text-[var(--color-fg-muted)]/60">
+                  ({group.items.length})
+                </span>
+              </h2>
+              {/*
+                Masonry CSS columns. La classe `flat-gallery-masonry` (globals.css)
+                applique le même `--gallery-gap` au column-gap ET au margin-bottom
+                des enfants → gap horizontal = gap vertical, garanti.
+                Grid: 2 cols mobile, 3 cols desktop (max — cohérent brand book §9.8).
+              */}
+              <div className="flat-gallery-masonry columns-2 md:columns-3 [column-fill:_balance]">
+                {group.items.map((p) => {
+                  const myIndex = flatCursor++;
+                  return (
+                    <PhotoCard
+                      key={p._id}
+                      photo={p}
+                      onOpen={() => setOpenIndex(myIndex)}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          ));
+        })()}
       </div>
+
+      {openIndex !== null && flatPhotos.length > 0 && (
+        <PhotoLightbox
+          photos={flatPhotos}
+          initialIndex={openIndex}
+          onClose={() => setOpenIndex(null)}
+        />
+      )}
     </div>
   );
 }
