@@ -69,12 +69,12 @@ export function SiteFooter() {
           />
           {/* text-content — vertical, gap 8 */}
           <div className="flex flex-col gap-2">
-            {/* signature — vertical, no gap */}
+            {/* signature — vertical, no gap. Level 1: name in black 900. Level 4: subtitle normal. */}
             <div>
-              <div className="text-[16px] font-bold tracking-[-0.02em] text-[#888888]">
+              <div className="text-[16px] font-black tracking-[-0.02em] text-[#888888]">
                 A. Matencio
               </div>
-              <div className="text-[12px] font-bold tracking-[-0.02em] text-[#888888]">
+              <div className="text-[12px] font-normal tracking-[-0.02em] text-[#888888]">
                 Author Photography
               </div>
             </div>
@@ -89,8 +89,8 @@ Portraits`}
 
         {/* ─── COL 2 — contact-block (vertical, gap 32) ─── */}
         <div className="flex flex-col gap-8">
-          {/* studio location */}
-          <p className="text-[16px] font-bold tracking-[-0.02em] text-[#888888]">
+          {/* studio location — Level 2 section label (uppercase + tracking-wide). */}
+          <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#888888]">
             Studio based in Villejuif, 94
           </p>
 
@@ -101,7 +101,7 @@ Portraits`}
               <Mail size={12} strokeWidth={1.5} className="text-[#5a5a5a] shrink-0" />
               <a
                 href={`mailto:${EMAIL}`}
-                className="text-[16px] italic font-bold tracking-[-0.02em] text-[#888888] hover:text-white transition-colors motion-reduce:transition-none"
+                className="text-[16px] italic font-medium tracking-[-0.02em] text-[#888888] hover:text-white transition-colors motion-reduce:transition-none"
               >
                 {EMAIL}
               </a>
@@ -113,13 +113,13 @@ Portraits`}
                 href="https://t.me/BaronMuster"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[16px] italic font-bold tracking-[-0.02em] text-[#888888] hover:text-white transition-colors motion-reduce:transition-none"
+                className="text-[16px] italic font-medium tracking-[-0.02em] text-[#888888] hover:text-white transition-colors motion-reduce:transition-none"
               >
                 {HANDLE}
               </a>
             </div>
-            {/* details — response time */}
-            <p className="text-[16px] font-normal tracking-[-0.02em] text-[#5a5a5a]">
+            {/* details — response time. Level 4 fine print: smaller + normal weight. */}
+            <p className="text-[12px] font-normal tracking-[-0.02em] text-[#5a5a5a]">
               Typically responds within 72 hours
             </p>
           </div>
@@ -131,16 +131,18 @@ Portraits`}
         <div className="flex flex-col md:flex-row md:justify-end md:items-stretch md:self-stretch gap-8 md:gap-14">
           {/* left-nav-column — Site */}
           <nav aria-labelledby="footer-site" className="flex flex-col gap-4">
-            <h2 id="footer-site" className="text-[16px] font-bold tracking-[-0.02em] text-[#888888]">
+            {/* Level 2 section label: bold + uppercase + tracking-wide. */}
+            <h2 id="footer-site" className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#888888]">
               Site
             </h2>
             <ul className="flex flex-col gap-3">
               {SITE_LINKS.map((link) => (
                 <li key={link.href} className="flex items-center gap-1">
                   <ChevronRight size={10} strokeWidth={2} className="text-[#5a5a5a] shrink-0" />
+                  {/* Level 3 clickable: medium weight, readable but quiet. */}
                   <Link
                     href={link.href}
-                    className="text-[12px] font-bold tracking-[-0.02em] leading-none text-[#888888] hover:text-white transition-colors motion-reduce:transition-none"
+                    className="text-[12px] font-medium tracking-[-0.02em] leading-none text-[#888888] hover:text-white transition-colors motion-reduce:transition-none"
                   >
                     {link.label}
                   </Link>
@@ -155,16 +157,18 @@ Portraits`}
           <div className="flex flex-col md:justify-between md:self-stretch gap-8 md:gap-32">
             {/* right-nav-column — Information */}
             <nav aria-labelledby="footer-info" className="flex flex-col gap-4">
-              <h2 id="footer-info" className="text-[16px] font-bold tracking-[-0.02em] text-[#888888]">
+              {/* Level 2 section label: bold + uppercase + tracking-wide. */}
+              <h2 id="footer-info" className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#888888]">
                 Information
               </h2>
               <ul className="flex flex-col gap-3">
                 {INFO_LINKS.map((link) => (
                   <li key={link.href} className="flex items-center gap-1">
                     <ChevronRight size={10} strokeWidth={2} className="text-[#5a5a5a] shrink-0" />
+                    {/* Level 3 clickable: medium weight. */}
                     <Link
                       href={link.href}
-                      className="text-[12px] font-bold tracking-[-0.02em] leading-none text-[#888888] hover:text-white transition-colors motion-reduce:transition-none"
+                      className="text-[12px] font-medium tracking-[-0.02em] leading-none text-[#888888] hover:text-white transition-colors motion-reduce:transition-none"
                     >
                       {link.label}
                     </Link>
@@ -175,7 +179,7 @@ Portraits`}
 
             {/* Copyright — DESKTOP only. Pushed to bottom-right via justify-between + self-stretch.
                 On mobile, see the separate centered copyright at the very bottom of the footer. */}
-            <p className="hidden md:block text-[12px] font-bold tracking-[-0.02em] text-[#5a5a5a]">
+            <p className="hidden md:block text-[12px] font-normal tracking-[-0.02em] text-[#5a5a5a]">
               {copyright}
             </p>
           </div>
@@ -183,7 +187,7 @@ Portraits`}
 
         {/* Copyright — MOBILE only. Centered, locked to bottom of footer (pb-8 = 32px on the
             parent container). Hidden on desktop where the inline copyright above takes over. */}
-        <p className="md:hidden text-center text-[12px] font-bold tracking-[-0.02em] text-[#5a5a5a]">
+        <p className="md:hidden text-center text-[12px] font-normal tracking-[-0.02em] text-[#5a5a5a]">
           {copyright}
         </p>
       </div>
