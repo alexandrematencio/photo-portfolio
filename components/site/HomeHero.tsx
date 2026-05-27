@@ -432,7 +432,19 @@ export function HomeHero() {
 
         <div
           ref={photoRef}
-          className="pointer-events-none relative size-56 md:size-64 overflow-hidden bg-[var(--color-bg-elev)]"
+          // `isolation: isolate` crée un stacking context atomique : le
+          // CursorInvert disque (mix-blend-mode: difference) ne peut PAS
+          // pénétrer cette zone, garantissant que la photo du hero n'est
+          // jamais affectée par le hover des nav-items même si le disque
+          // venait à overlap géométriquement.
+          //
+          // `data-cursor-shield` : signale à CursorInvert.tsx de SNAP-HIDE le
+          // disque (transition désactivée) quand la souris entre dans cette
+          // zone. Empêche le disque de fade-out lentement par-dessus la photo
+          // pendant que le magnifier-reveal de la photo s'active — pas de
+          // combinaison entre les deux effets.
+          data-cursor-shield
+          className="pointer-events-none relative size-56 md:size-64 overflow-hidden bg-[var(--color-bg-elev)] isolate"
         >
           {/* Inner box owns the pointer events. On touch devices we also kill native
               gestures that would interfere with the reveal: native scroll under the finger,
@@ -487,7 +499,8 @@ export function HomeHero() {
               ref={(el) => {
                 navItemsRef.current[i] = el;
               }}
-              className="text-2xl md:text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none transition-opacity hover:opacity-60 motion-reduce:transition-none whitespace-nowrap"
+              data-cursor-invert
+              className="text-2xl md:text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none motion-reduce:transition-none whitespace-nowrap"
             >
               {link.label}
             </Link>

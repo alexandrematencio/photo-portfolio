@@ -3,6 +3,7 @@ import { SiteFooter } from '@/components/site/SiteFooter';
 import { FramedScroll } from '@/components/site/FramedScroll';
 import { MainPadding } from '@/components/site/MainPadding';
 import { MobileMenu } from '@/components/site/MobileMenu';
+import { CursorInvert } from '@/components/site/CursorInvert';
 
 export default function SiteLayout({
   children,
@@ -14,6 +15,10 @@ export default function SiteLayout({
       <SiteHeader />
       {/* Mobile menu rendered once for the whole (site) group — works on home and editorial pages alike. */}
       <MobileMenu />
+      {/* Desktop-only cursor inversion disc — triggers on elements with `data-cursor-invert`.
+          Lives at the layout root (not inside any transformed/isolated container) so the
+          mix-blend-mode can blend against everything painted underneath the viewport. */}
+      <CursorInvert />
       <FramedScroll>
         <MainPadding>{children}</MainPadding>
         <SiteFooter />

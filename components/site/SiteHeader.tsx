@@ -53,7 +53,8 @@ export function SiteHeader() {
             <GlyphLogo size={28} title="A. Matencio — home" />
           </Link>
 
-          {/* 4 nav-links : visibles sur desktop, distribuées par space-between */}
+          {/* 4 nav-links : visibles sur desktop, distribuées par space-between.
+              `data-cursor-invert` déclenche le disque d'inversion (CursorInvert.tsx). */}
           {LINKS.map((link) => {
             const active = pathname === link.href;
             return (
@@ -61,10 +62,11 @@ export function SiteHeader() {
                 key={link.href}
                 href={link.href}
                 aria-current={active ? 'page' : undefined}
+                data-cursor-invert
                 className={cn(
                   // Specs Pencil nav item : fontSize 32, fontWeight 700, letterSpacing -1.28 (= -0.04em).
                   // PAS d'uppercase (Pencil = "About", pas "ABOUT").
-                  'hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none transition-opacity hover:opacity-60 motion-reduce:transition-none',
+                  'hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none motion-reduce:transition-none',
                   active && 'underline underline-offset-4 decoration-2'
                 )}
               >
