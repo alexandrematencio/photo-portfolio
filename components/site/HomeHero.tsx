@@ -51,7 +51,7 @@ export function HomeHero() {
   // Bande opaque navBg + static landing glyph — deux pacings DIFFÉRENTS au scroll :
   //
   // - navBg (bande opaque en haut) : fade-in LINÉAIRE 0 → 1 sur toute la pin range
-  //   (30vh mobile / 105vh desktop). Doit être présent dès le début du morph pour
+  //   (90vh mobile / 105vh desktop). Doit être présent dès le début du morph pour
   //   masquer les photos qui scrollent derrière les nav-items en mouvement.
   //
   // - static landing glyph : fade-in DÉLIBÉRÉMENT TARDIF sur les 15 % finaux de la
@@ -61,14 +61,14 @@ export function HomeHero() {
   //   (un en mouvement, un fixé). En commençant le fade-in à 85 %, le static
   //   n'apparaît que quand le morph "atterrit" précisément.
   //
-  // Les fractions (0.3 / 1.05) doivent rester en sync avec `pinEnd` dans le
+  // Les fractions (0.9 / 1.05) doivent rester en sync avec `pinEnd` dans le
   // useEffect GSAP ci-dessous (sinon le morph et le crossfade désynchronisent).
   useEffect(() => {
     const bg = navBgRef.current;
     const glyph = staticGlyphRef.current;
     if (!bg && !glyph) return;
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
-    const fadeRange = isMobile ? 0.3 : 1.05;
+    const fadeRange = isMobile ? 0.9 : 1.05;
     const staticStart = fadeRange * 0.85; // static n'apparaît qu'à 85 % du morph
     const staticSpan = fadeRange - staticStart;
     let raf = 0;
@@ -241,22 +241,24 @@ export function HomeHero() {
 
         // Timeline unique pinnée au spacer.
         // - pin: true → la page est "trappée" pendant N vh de scroll
-        // - scrub: 2 → l'animation suit le scroll avec 2s de lag (= feel "slow/luxe")
+        // - scrub : lag entre scroll et progression de l'animation (= feel "slow/luxe")
         // - Pendant le pin, la gallery ne peut pas entrer dans le viewport.
         //
-        // Pin range ×1.5 vs version précédente (mobile 20→30vh, desktop 70→105vh) :
-        // ralentit le morph d'environ 1.5x dans les deux sens du scroll. Le morph
-        // demande plus de "force" de scroll pour se compléter, donnant un feel
-        // moins réactif et plus délibéré. Le static glyph fade-in (autre useEffect)
-        // utilise les mêmes fractions (0.3 / 1.05) pour rester aligné.
+        // Pin range mobile 90vh / desktop 105vh : sur mobile, un swipe pouce
+        // couvre ~200-400px ; à 30vh (~230px) le morph se jouait en UN swipe et
+        // paraissait instantané. À 90vh (~690px) il faut ~3 swipes — feel
+        // délibéré et immersif, l'utilisateur "tire" la page pour révéler la galerie.
+        // Le static glyph fade-in (autre useEffect) utilise les mêmes fractions
+        // (0.9 / 1.05) pour que le crossfade reste calé au pin end.
         //
         // Note mobile : sur iOS/Android le viewport se redimensionne au scroll
         // (collapse address-bar) et `logoInit.top` capturé au mount devient périmé.
         // Le static glyph CSS-ancré à top:18 prend le relais via crossfade — donc
         // même si la math GSAP dérive vers la fin du morph, la position finale
-        // visible reste solide.
+        // visible reste solide. C'est ce qui nous permet de pousser le pin range
+        // mobile aussi loin sans craindre le drift.
         const isMobileViewport = window.matchMedia('(max-width: 768px)').matches;
-        const pinEnd = isMobileViewport ? '+=30vh' : '+=105vh';
+        const pinEnd = isMobileViewport ? '+=90vh' : '+=105vh';
 
         const tl = gsap.timeline({
           scrollTrigger: {
@@ -264,7 +266,7 @@ export function HomeHero() {
             start: 'top top',
             pin: true,
             pinSpacing: true,
-            scrub: isMobileViewport ? 0.5 : 2,
+            scrub: isMobileViewport ? 1 : 2,
             end: pinEnd,
             invalidateOnRefresh: true,
           },
@@ -421,7 +423,7 @@ export function HomeHero() {
           <GlyphLogo size={GLYPH_INITIAL} title="A. Matencio" />
           <MagnifierHeading
             ref={nameRef}
-            short="ALXMTNC"
+            shorts={['ALXMTNC', 'PHOTOGRAPHY']}
             long="Alexandre Matencio"
             className="font-bold text-2xl md:text-[26px] tracking-[-0.04em] text-[var(--color-fg)] mt-1"
             longClassName="font-bold text-[36px] md:text-[40px] tracking-[-0.04em] text-[var(--color-fg)]"
