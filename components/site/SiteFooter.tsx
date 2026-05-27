@@ -47,11 +47,15 @@ const INFO_LINKS = [
  *                   └── copyright pushed bottom
  */
 export function SiteFooter() {
+  const copyright = `©${YEAR} / All Rights Reserved`;
   return (
     <footer className="bg-[#151312] text-[#888888] flex justify-center">
+      {/* Mobile: vertical stack, left-aligned, 32px horizontal margin, 32px bottom padding,
+          64px top padding. Desktop: 3-column row, 128px horizontal padding, 64px top/bottom.
+          Padding handled via .site-footer-container in globals.css — Tailwind utilities for
+          padding were occasionally missed by Turbopack's hot-reload, raw CSS is reliable. */}
       <div
-        className="w-full max-w-[1080px] flex flex-col md:flex-row md:items-start md:justify-between gap-12 md:gap-8 px-6 md:px-32"
-        style={{ paddingTop: 64, paddingBottom: 64 }}
+        className="site-footer-container w-full max-w-[1080px] flex flex-col md:flex-row md:items-start md:justify-between gap-12 md:gap-8"
       >
         {/* ─── COL 1 — logo-block (vertical, gap 16) ─── */}
         <div className="flex flex-col gap-4">
@@ -121,8 +125,10 @@ Portraits`}
           </div>
         </div>
 
-        {/* ─── COL 3 — footer-nav-block (horizontal, gap 56, justify end, h-full) ─── */}
-        <div className="flex flex-row justify-end items-stretch self-stretch gap-14">
+        {/* ─── COL 3 — footer-nav-block.
+            Mobile: stacks vertically (Site nav above Information nav, both left-aligned).
+            Desktop: horizontal row, navs side-by-side, copyright pushed to bottom-right. */}
+        <div className="flex flex-col md:flex-row md:justify-end md:items-stretch md:self-stretch gap-8 md:gap-14">
           {/* left-nav-column — Site */}
           <nav aria-labelledby="footer-site" className="flex flex-col gap-4">
             <h2 id="footer-site" className="text-[16px] font-bold tracking-[-0.02em] text-[#888888]">
@@ -143,8 +149,10 @@ Portraits`}
             </ul>
           </nav>
 
-          {/* right-nav-column-container — vertical, gap 128 + justify space-between, h-full */}
-          <div className="flex flex-col justify-between self-stretch gap-32">
+          {/* right-nav-column-container.
+              Mobile: simple vertical stack (Information nav only — copyright moved out).
+              Desktop: justify-between + self-stretch to push copyright to the bottom-right corner. */}
+          <div className="flex flex-col md:justify-between md:self-stretch gap-8 md:gap-32">
             {/* right-nav-column — Information */}
             <nav aria-labelledby="footer-info" className="flex flex-col gap-4">
               <h2 id="footer-info" className="text-[16px] font-bold tracking-[-0.02em] text-[#888888]">
@@ -165,12 +173,19 @@ Portraits`}
               </ul>
             </nav>
 
-            {/* copyright — pushed to bottom via justify-between */}
-            <p className="text-[12px] font-bold tracking-[-0.02em] text-[#5a5a5a]">
-              ©{YEAR} / All Rights Reserved
+            {/* Copyright — DESKTOP only. Pushed to bottom-right via justify-between + self-stretch.
+                On mobile, see the separate centered copyright at the very bottom of the footer. */}
+            <p className="hidden md:block text-[12px] font-bold tracking-[-0.02em] text-[#5a5a5a]">
+              {copyright}
             </p>
           </div>
         </div>
+
+        {/* Copyright — MOBILE only. Centered, locked to bottom of footer (pb-8 = 32px on the
+            parent container). Hidden on desktop where the inline copyright above takes over. */}
+        <p className="md:hidden text-center text-[12px] font-bold tracking-[-0.02em] text-[#5a5a5a]">
+          {copyright}
+        </p>
       </div>
     </footer>
   );
