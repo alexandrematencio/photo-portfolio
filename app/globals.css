@@ -60,6 +60,31 @@ body {
   }
 }
 
+/* Lightbox loader — barre fine 3px en haut du viewport.
+   Pendant le load : remplissage 0 → 85% en 1.2s (ease-out asymétrique pour donner
+   l'illusion d'un progress qui ralentit). Quand l'image arrive : on saute à 100%
+   puis on fade out. Reduced motion : on garde le fill (c'est une info de statut,
+   pas une décoration) mais sur une easing linéaire courte. */
+@keyframes lightbox-loader-fill {
+  from { width: 0%; }
+  to { width: 85%; }
+}
+.lightbox-loader-bar {
+  animation: lightbox-loader-fill 1200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.lightbox-loader-bar.is-loaded {
+  animation: none;
+  width: 100%;
+  opacity: 0;
+  transition: width 160ms ease-out, opacity 280ms ease-out 180ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lightbox-loader-bar {
+    animation-duration: 600ms;
+    animation-timing-function: linear;
+  }
+}
+
 /* Skip link a11y */
 .skip-link {
   position: absolute;

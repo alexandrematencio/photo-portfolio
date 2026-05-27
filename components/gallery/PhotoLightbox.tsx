@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ExternalLink } from 'lucide-react';
 import { urlFor } from '@/lib/sanity/image';
@@ -21,6 +21,10 @@ const FRAME_THICKNESS = 32;
 const OUTER_GUTTER = 32;
 
 export function PhotoLightbox({ photo, onClose }: Props) {
+  // Preview image load state — drives the 3px loader bar at top of the viewport.
+  // next/image fires onLoad once the underlying <img> resolved (cached or downloaded).
+  const [loaded, setLoaded] = useState(false);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -58,6 +62,45 @@ export function PhotoLightbox({ photo, onClose }: Props) {
       style={{ backgroundColor: BG_COLOR, padding: OUTER_GUTTER }}
       onClick={onClose}
     >
+      {/* Loader bar — 100×3 px ink line centered in the viewport with "loading"
+          label above. Fills while the preview JPEG is downloading, snaps to 100%
+          + fades when loaded (label fades in sync). */}
+      {previewSrc && (
+        <div
+          aria-hidden
+          className="absolute top-1/2 left-1/2 pointer-events-none flex flex-col items-center"
+          style={{
+            zIndex: 30,
+            transform: 'translate(-50%, -50%)',
+            gap: 7,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontWeight: 400,
+              fontSize: 16,
+              lineHeight: 1,
+              color: 'var(--color-fg)',
+              opacity: loaded ? 0 : 1,
+              transition: 'opacity 280ms ease-out 180ms',
+            }}
+          >
+            loading
+          </span>
+          <div style={{ width: 100, height: 3 }}>
+            <div
+              className={`lightbox-loader-bar${loaded ? ' is-loaded' : ''}`}
+              style={{
+                height: '100%',
+                backgroundColor: 'var(--color-fg)',
+                transformOrigin: 'left',
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Bouton fermer — au-dessus de tout, dans la gouttière externe */}
       <button
         type="button"
@@ -107,10 +150,18 @@ export function PhotoLightbox({ photo, onClose }: Props) {
             height={imgH}
             sizes="100vw"
             priority
+            onLoad={() => setLoaded(true)}
             className="block w-auto h-auto"
             style={{
               maxWidth: `calc(100vw - ${totalChromePerAxis}px)`,
               maxHeight: `calc(100vh - ${totalChromePerAxis}px)`,
+              // Image grows from 0 → full size once loaded. The white frame is
+              // already at its final dimensions (layout reserved by width/height
+              // attrs) — only the painted bitmap scales in. Transform-only =
+              // no layout thrash. Brand book §3.2 default ease (expo.out).
+              transform: loaded ? 'scale(1)' : 'scale(0)',
+              transformOrigin: 'center center',
+              transition: 'transform 500ms cubic-bezier(0.22, 1, 0.36, 1)',
             }}
           />
         ) : (
