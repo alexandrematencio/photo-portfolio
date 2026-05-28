@@ -41,6 +41,19 @@ export const photoSchema = defineType({
       rows: 2,
     }),
     defineField({
+      name: 'series',
+      title: 'Série',
+      type: 'reference',
+      to: [{ type: 'series' }],
+      description:
+        'Optionnel. Une photo sans série apparaît dans la vue « Sans série » du Studio.',
+      validation: (Rule) =>
+        Rule.custom((value) => {
+          if (!value) return 'Photo sans série — pense à la rattacher.';
+          return true;
+        }).warning(),
+    }),
+    defineField({
       name: 'category',
       title: 'Type',
       type: 'string',

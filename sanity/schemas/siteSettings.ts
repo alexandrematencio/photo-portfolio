@@ -1,10 +1,37 @@
-import { defineField, defineType } from 'sanity';
+import { defineArrayMember, defineField, defineType } from 'sanity';
+import {
+  NormalBlock,
+  H2Block,
+  H3Block,
+  H4Block,
+} from '../components/EditorBlocks';
+
+/**
+ * Shared block-type for editorial PT bodies (about, contact, digital-agency).
+ * Custom `styles` use the EditorBlocks components so the Studio preview
+ * matches the proportional typography rendered by `PortableBody` (editorial
+ * variant). Default Sanity sizing made h2/h3/h4 look identical or absurdly
+ * large relative to body — editors couldn't tell what the site would do.
+ */
+const editorialBlockType = defineArrayMember({
+  type: 'block',
+  styles: [
+    { title: 'Normal', value: 'normal', component: NormalBlock },
+    { title: 'Heading 2', value: 'h2', component: H2Block },
+    { title: 'Heading 3', value: 'h3', component: H3Block },
+    { title: 'Heading 4', value: 'h4', component: H4Block },
+  ],
+  // Lists kept as default — site doesn't render them in editorial variant
+  // yet (cf. PortableBody.tsx), so editors should avoid them for these bodies.
+});
 
 export const siteSettingsSchema = defineType({
   name: 'siteSettings',
   title: 'Réglages du site',
   type: 'document',
-  // Singleton : un seul document de ce type
+  // Singleton : un seul document de ce type. La structure pointe sur un ID
+  // fixe ('siteSettings'). Les actions create/duplicate/delete/unpublish sont
+  // filtrées via document.actions dans sanity/studio.config.ts.
   fields: [
     defineField({
       name: 'profileImage',
@@ -25,19 +52,25 @@ export const siteSettingsSchema = defineType({
       name: 'aboutBody',
       title: 'Page « About »',
       type: 'array',
-      of: [{ type: 'block' }],
+      of: [editorialBlockType],
     }),
     defineField({
       name: 'contactBody',
       title: 'Page « Contact »',
       type: 'array',
-      of: [{ type: 'block' }],
+      of: [editorialBlockType],
     }),
     defineField({
-      name: 'hireBody',
-      title: 'Page « Hire Me »',
+      name: 'digitalAgencyBody',
+      title: 'Page « Digital Agency »',
       type: 'array',
-      of: [{ type: 'block' }],
+      of: [editorialBlockType],
+    }),
+    defineField({
+      name: 'socialsBody',
+      title: 'Page « Socials »',
+      type: 'array',
+      of: [editorialBlockType],
     }),
     defineField({
       name: 'socials',

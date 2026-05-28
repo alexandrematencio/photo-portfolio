@@ -83,6 +83,24 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
     setActiveKey(null);
   }, [mode]);
 
+  // Hash deep-link: if URL ends with #photo-<slug>, scroll to that photo on
+  // mount. Used by the Studio's preview pane (Prod or Local) to land the user
+  // on the photo they're editing. No router work needed — works in static
+  // export. The figure carries id={`photo-${slug}`} (see PhotoCard).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hash = window.location.hash;
+    if (!hash || !hash.startsWith('#photo-')) return;
+    const targetId = hash.slice(1);
+    const raf = window.requestAnimationFrame(() => {
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, []);
+
   const allSelected = activeKey === null;
   const visibleGroups = allSelected
     ? allGroups

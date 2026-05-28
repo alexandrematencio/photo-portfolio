@@ -9,9 +9,10 @@ const HANDLE = '@BaronMuster';
 const SITE_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/about', label: 'About' },
-  { href: '/flat-gallery', label: 'Flat gallery' },
+  { href: '/archives', label: 'Archives' },
   { href: '/contact', label: 'Contact' },
-  { href: '/hire-me', label: 'Hire me' },
+  { href: '/digital-agency', label: 'Digital Agency' },
+  { href: '/socials', label: 'Socials' },
 ];
 
 const INFO_LINKS = [

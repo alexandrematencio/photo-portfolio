@@ -6,7 +6,7 @@ export const metadata = buildMetadata({
   path: '/legal',
 });
 
-const EMAIL = 'hello@amatencio.photo';
+const EMAIL = 'amatencio@pm.me';
 
 export default function LegalPage() {
   return (

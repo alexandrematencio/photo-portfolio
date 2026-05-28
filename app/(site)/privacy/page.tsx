@@ -6,7 +6,7 @@ export const metadata = buildMetadata({
   path: '/privacy',
 });
 
-const EMAIL = 'hello@amatencio.photo';
+const EMAIL = 'amatencio@pm.me';
 
 export default function PrivacyPage() {
   return (

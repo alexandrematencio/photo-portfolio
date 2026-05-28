@@ -1,15 +1,8 @@
 'use client';
 
 import { NextStudio } from 'next-sanity/studio';
-import { defineConfig } from 'sanity';
-import { structureTool } from 'sanity/structure';
-import { visionTool } from '@sanity/vision';
-import { schemaTypes } from '@/sanity/schemas';
-
-const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID ?? '';
-const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET ?? 'production';
-const apiVersion =
-  process.env.NEXT_PUBLIC_SANITY_API_VERSION ?? '2026-01-01';
+import { studioConfig } from '@/sanity/studio.config';
+import { projectId } from '@/lib/sanity/env';
 
 export function Studio() {
   if (!projectId) {
@@ -27,34 +20,5 @@ export function Studio() {
     );
   }
 
-  const config = defineConfig({
-    name: 'amatencio-photo',
-    title: 'A. Matencio — Studio',
-    projectId,
-    dataset,
-    basePath: '/studio',
-    plugins: [
-      structureTool({
-        structure: (S) =>
-          S.list()
-            .title('Contenu')
-            .items([
-              S.listItem()
-                .title('Réglages du site')
-                .id('siteSettings')
-                .child(
-                  S.document()
-                    .schemaType('siteSettings')
-                    .documentId('siteSettings')
-                ),
-              S.divider(),
-              S.documentTypeListItem('photo').title('Photos'),
-            ]),
-      }),
-      visionTool({ defaultApiVersion: apiVersion }),
-    ],
-    schema: { types: schemaTypes },
-  });
-
-  return <NextStudio config={config} />;
+  return <NextStudio config={studioConfig} />;
 }

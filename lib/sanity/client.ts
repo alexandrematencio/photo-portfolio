@@ -1,21 +1,44 @@
 import { createClient } from 'next-sanity';
-import { apiVersion, dataset, projectId, isSanityConfigured } from './env';
+import {
+  apiVersion,
+  dataset,
+  isSanityConfigured,
+  projectId,
+  readToken,
+} from './env';
 
-// useCdn: false — le site est en `output: 'export'` (static export), donc TOUS
-// les fetchs Sanity ont lieu au BUILD TIME. Le CDN Sanity (qui sert à amortir
-// des requêtes runtime fréquentes) n'a aucun bénéfice ici et peut ajouter 5-15
-// min de cache stale entre une modif dans Studio et son apparition dans le build.
-// Avec useCdn: false, chaque `npm run build` voit l'état Sanity réel à l'instant
-// du build — pas de surprise "j'ai modifié l'ordre il y a 2 min et le build a
-// pris la version d'avant".
-// Workflow : toute modif dans Sanity Studio → re-deploy (`npm run deploy`) pour
-// que les changements arrivent en prod. Pas de webhook automatique branché.
+// In dev (NODE_ENV !== 'production') AND outside a Next production build phase,
+// if a read token is configured, the site uses perspective:'previewDrafts' so
+// drafts are visible. This makes the Studio's "Local" preview pane meaningful.
+//
+// Triple gate (NODE_ENV + NEXT_PHASE + token presence) ensures that a
+// `next build` run with the token in env never bakes drafts into the static
+// export — GH Pages must only ever serve published content.
+//
+// useCdn:false in both modes — the static export fetches at build time, no
+// runtime CDN cache layer to amortize.
+const isProductionBuild =
+  process.env.NODE_ENV === 'production' ||
+  process.env.NEXT_PHASE === 'phase-production-build';
+
+const usePreviewDrafts = !isProductionBuild && readToken.length > 0;
+
+if (isProductionBuild && readToken.length > 0) {
+  // Defensive: the build phase ignores the token. Surface it so the developer
+  // is not surprised if drafts don't show up later.
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[sanity] SANITY_API_READ_TOKEN set during production build — ignored. Drafts are NEVER baked into the static export.'
+  );
+}
+
 export const sanityClient = isSanityConfigured
   ? createClient({
       projectId,
       dataset,
       apiVersion,
       useCdn: false,
-      perspective: 'published',
+      perspective: usePreviewDrafts ? 'previewDrafts' : 'published',
+      ...(usePreviewDrafts ? { token: readToken } : {}),
     })
   : null;

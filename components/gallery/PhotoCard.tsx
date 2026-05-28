@@ -21,7 +21,8 @@ export function PhotoCard({ photo, onOpen }: Props) {
 
   return (
     <figure
-      className="group relative overflow-hidden bg-[var(--color-bg-elev)] break-inside-avoid"
+      id={`photo-${photo.slug.current}`}
+      className="group relative overflow-hidden bg-[var(--color-bg-elev)] break-inside-avoid scroll-mt-24"
       style={{ aspectRatio: ratio }}
     >
       {clickable ? (

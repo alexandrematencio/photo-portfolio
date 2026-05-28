@@ -7,14 +7,15 @@ import { GlyphLogo } from './GlyphLogo';
 
 const LINKS = [
   { href: '/about', label: 'About' },
-  { href: '/flat-gallery', label: 'Flat Gallery' },
+  { href: '/archives', label: 'Archives' },
   { href: '/contact', label: 'Contact' },
-  { href: '/hire-me', label: 'Hire me' },
+  { href: '/digital-agency', label: 'Digital Agency' },
+  { href: '/socials', label: 'Socials' },
 ];
 
 /**
  * Nav-bar globale, identique sur toutes les pages publiques.
- * Layout : full-width flex space-between, [32px PAD_LEFT] LOGO ─ About ─ Flat Gallery ─ Contact ─ Hire me [64px PAD_RIGHT].
+ * Layout : full-width flex space-between, [32px PAD_LEFT] LOGO ─ About ─ Archives ─ Contact ─ Digital Agency ─ Socials [64px PAD_RIGHT].
  * Cohérent pixel-pour-pixel avec l'état final du morph hero de la home.
  * Masqué sur `/` (le HomeHero gère son propre morph qui devient la nav-bar).
  *

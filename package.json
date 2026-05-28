@@ -14,7 +14,8 @@
     "upload-photos": "node --env-file=.env.local --import tsx scripts/upload-photos.ts",
     "set-homepage": "node --env-file=.env.local --import tsx scripts/set-homepage.ts",
     "wipe-photos": "node --env-file=.env.local --import tsx scripts/wipe-photos.ts",
-    "set-profile": "node --env-file=.env.local --import tsx scripts/set-profile.ts"
+    "set-profile": "node --env-file=.env.local --import tsx scripts/set-profile.ts",
+    "audit-series": "node --env-file=.env.local --import tsx scripts/audit-photos-without-series.ts"
   },
   "dependencies": {
     "@portabletext/react": "^3.2.0",

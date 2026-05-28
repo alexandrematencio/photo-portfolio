@@ -8,7 +8,7 @@ export const metadata = buildMetadata({
 
 export const revalidate = 300;
 
-const EMAIL = 'hello@amatencio.photo';
+const EMAIL = 'amatencio@pm.me';
 
 export default function ContactPage() {
   return (

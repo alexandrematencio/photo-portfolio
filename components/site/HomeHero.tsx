@@ -11,9 +11,10 @@ import { asset } from '@/lib/utils/asset';
 
 const NAV_LINKS = [
   { href: '/about', label: 'About' },
-  { href: '/flat-gallery', label: 'Flat Gallery' },
+  { href: '/archives', label: 'Archives' },
   { href: '/contact', label: 'Contact' },
-  { href: '/hire-me', label: 'Hire me' },
+  { href: '/digital-agency', label: 'Digital Agency' },
+  { href: '/socials', label: 'Socials' },
 ];
 
 // Cibles de la transition (≈ taille finale du header)

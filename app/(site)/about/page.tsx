@@ -1,4 +1,6 @@
 import { buildMetadata } from '@/lib/seo/metadata';
+import { getSiteSettings } from '@/lib/sanity/queries';
+import { PortableBody } from '@/components/site/PortableBody';
 
 export const metadata = buildMetadata({
   title: 'About',
@@ -9,29 +11,20 @@ export const metadata = buildMetadata({
 
 export const revalidate = 300;
 
-const BIO = `I’m 🇫🇷🇪🇸🇻🇳, I grew up in the 🇳🇱, and worked in 🇹🇳 🇻🇳 and now in 🇫🇷.
+// Fallback only — used when `siteSettings.aboutBody` is empty (initial Sanity
+// state, or local dev without a configured client). CLAUDE.md §8.5: Sanity is
+// the single source of truth for every editable section here (bio, gear, lens
+// lists, anything the photographer might rephrase). Don't grow this fallback
+// to mirror current Sanity content — that would re-introduce the divergence
+// bug it exists to prevent.
+const BIO_FALLBACK = `I’m 🇫🇷🇪🇸🇻🇳, I grew up in the 🇳🇱, and worked in 🇹🇳 🇻🇳 and now in 🇫🇷.
 
-Art Director for 8 years, photographer by way of cinema. When the sun’s up: AD at aaxlo, a digital agency enhanced by AI co-founded with my brother, following a few years running my own design studio (Zalem Industries).
+Art Director for 8 years, photographer by way of cinema. Edit this copy from Studio (Réglages du site → Page "About") to take over.`;
 
-The rest of the time: the streets, the camera, and that drive to capture the exact frame a director would have chosen.
+export default async function AboutPage() {
+  const settings = await getSiteSettings();
+  const aboutBody = settings?.aboutBody;
 
-Street photography is my favorite format because it’s the only one where the backdrop refuses to cooperate. You don’t direct anything: you watch, you frame, you shoot.`;
-
-const GEAR_SETS = [
-  {
-    body: 'Olympus OM-D EM-10 mkIII',
-    lenses: `+ Mr.Zuiko 17mm f1.8
-+ Mr. Zuiko 45mm f1.8
-+ Retropia “Oreo” 25mm locked at f11`,
-  },
-  {
-    body: 'Fujifilm X-PRO 2',
-    lenses: `+ Meike MF 35mm f1.4
-+ Viltrox “Air” 25mm f1.7`,
-  },
-];
-
-export default function AboutPage() {
   return (
     <article
       className="max-w-[1107px]"
@@ -42,28 +35,15 @@ export default function AboutPage() {
           ABOUT
         </h1>
 
-        <div className="flex flex-col gap-8">
-          <p className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)] whitespace-pre-line">
-            {BIO}
-          </p>
-
-          <h2 className="text-[36px] md:text-[48px] font-bold uppercase tracking-[-0.02em] leading-[0.9] text-[var(--color-fg)]">
-            GEAR
-          </h2>
-
-          <div className="flex flex-col gap-8 pb-4 md:pb-8">
-            {GEAR_SETS.map((set) => (
-              <div key={set.body} className="flex flex-col">
-                <h3 className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.375] text-[var(--color-fg)]">
-                  {set.body}
-                </h3>
-                <p className="text-[17px] md:text-[24px] font-bold tracking-[-0.02em] leading-[1.46] text-[var(--color-fg)] whitespace-pre-line">
-                  {set.lenses}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
+        <PortableBody
+          value={aboutBody}
+          variant="editorial"
+          fallback={
+            <p className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)] whitespace-pre-line">
+              {BIO_FALLBACK}
+            </p>
+          }
+        />
       </div>
     </article>
   );

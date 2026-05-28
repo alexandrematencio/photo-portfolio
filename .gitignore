@@ -52,6 +52,7 @@ next-env.d.ts
 /brand
 /CLAUDE.md
 /yml-deploy-guide.md
+/screens
 
 # éditeurs / IDE
 /.vscode

@@ -15,7 +15,7 @@ import { GlyphLogo } from './GlyphLogo';
  * - Open: full-screen overlay on bg #f5f2f0. Top bar 32 px padding all sides with the cobalt
  *   glyph on the left and an X close icon on the right. Nav items pushed to bottom-left with
  *   32 px padding (left + bottom), gap 32 px, 48 px / bold.
- * - Items: About, Flat Gallery, Contact, Hire me, Instagram (external link).
+ * - Items: About, Archives, Contact, Digital Agency, Socials, Instagram (external link).
  *
  * Rendered once at the layout level — both home and editorial pages share this single instance.
  */
@@ -24,11 +24,11 @@ type Link = { href: string; label: string; external?: boolean };
 
 const MOBILE_LINKS: Link[] = [
   { href: '/about', label: 'About' },
-  { href: '/flat-gallery', label: 'Flat Gallery' },
+  { href: '/archives', label: 'Archives' },
   { href: '/contact', label: 'Contact' },
-  { href: '/hire-me', label: 'Hire me' },
-  // TODO: replace with the actual Instagram handle once provided.
-  { href: 'https://www.instagram.com/', label: 'Instagram', external: true },
+  { href: '/digital-agency', label: 'Digital Agency' },
+  { href: '/socials', label: 'Socials' },
+  { href: 'https://www.instagram.com/alxmtc', label: 'Instagram', external: true },
 ];
 
 export function MobileMenu() {
