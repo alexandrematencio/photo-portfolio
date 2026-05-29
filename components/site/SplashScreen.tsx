@@ -460,11 +460,13 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
     >
       <div
         className={cn(
-          // gap-0 : ALX et MTNC se touchent au départ comme du texte normal
-          // "ALXMTNC". Le slot grandit ENTRE eux pendant la phase 2 et les
-          // pousse de chaque côté (effet Willem). Sans gap, l'expansion lit
-          // comme un vrai "creusement" entre deux mots collés.
-          'flex items-center gap-0 leading-none',
+          // gap-2 (8 px) : petit espace de respiration symétrique entre ALX,
+          // le slot, et MTNC. L'effet Willem reste lisible (les lettres sont
+          // quasi-collées au start, slot à width 0, juste 16 px d'écart total
+          // entre ALX et MTNC) tout en laissant un gap visible à la fin de
+          // l'expansion. gap-0 faisait littéralement toucher les glyphs aux
+          // bords du slot, ce qui paraissait trop tight visuellement.
+          'flex items-center gap-2 leading-none',
           // verticalMobile: stack ALX / slot / MTNC vertically on < md. The
           // column shrinks to its widest child (MTNC), `items-start` aligns
           // ALX and the slot on that left edge. The OUTER overlay's
