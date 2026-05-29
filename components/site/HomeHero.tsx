@@ -12,6 +12,7 @@ import {
 } from './SplashScreen';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { asset } from '@/lib/utils/asset';
+import { lockBodyScroll, unlockBodyScroll } from '@/lib/utils/scrollLock';
 
 const NAV_LINKS = [
   { href: '/about', label: 'About' },
@@ -63,6 +64,10 @@ export function HomeHero() {
   // hidden, so a safety-net timeout reveals everything after 8 s.
   const [entranceDone, setEntranceDone] = useState(false);
   const entranceStartedRef = useRef(false);
+  // Tracks whether the entrance currently holds a body-scroll lock so that
+  // unmount mid-entrance properly releases it (otherwise the refcount would
+  // never reach zero and scroll would stay locked).
+  const lockHeldRef = useRef(false);
 
   // Static landing glyph — fade-in DÉLIBÉRÉMENT TARDIF sur les 15 % finaux de la
   // pin range. Le morphing logoBlock voyage vers (32, 18) avec `power3.out` —
@@ -145,14 +150,22 @@ export function HomeHero() {
       if (entranceStartedRef.current) return;
       entranceStartedRef.current = true;
 
-      // Lock scroll for the entrance duration so the (soon-to-bind) scroll-
-      // morph doesn't trigger while items are still flying into place.
-      const prevOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
+      // Lock scroll for the entrance duration. Shared refcount with the
+      // SplashScreen so the body stays locked across the splash → entrance
+      // hand-off: splash unmount cleanup decrements but the lock survives until
+      // entrance onComplete decrements it back to zero. Without this, scroll
+      // would briefly unlock during the ~1 s overlap between splash unmount
+      // and entrance end, letting a stray wheel/trackpad event scroll into a
+      // partial scroll-morph state that snaps once ScrollTrigger binds.
+      lockBodyScroll();
+      lockHeldRef.current = true;
 
       import('gsap').then((gsapModule) => {
         if (cancelled) {
-          document.body.style.overflow = prevOverflow;
+          if (lockHeldRef.current) {
+            unlockBodyScroll();
+            lockHeldRef.current = false;
+          }
           return;
         }
         const gsap = gsapModule.default ?? gsapModule;
@@ -167,7 +180,10 @@ export function HomeHero() {
         const tl = gsap.timeline({
           onComplete: () => {
             if (cancelled) return;
-            document.body.style.overflow = prevOverflow;
+            if (lockHeldRef.current) {
+              unlockBodyScroll();
+              lockHeldRef.current = false;
+            }
             setEntranceDone(true);
           },
         });
@@ -248,6 +264,12 @@ export function HomeHero() {
       cancelled = true;
       window.removeEventListener(SPLASH_REVEAL_EVENT, onReveal);
       window.clearTimeout(safety);
+      // If we still hold the lock at unmount, release it so the refcount
+      // doesn't stay positive forever.
+      if (lockHeldRef.current) {
+        unlockBodyScroll();
+        lockHeldRef.current = false;
+      }
     };
   }, [reducedMotion]);
 

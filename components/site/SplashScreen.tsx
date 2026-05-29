@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { asset } from '@/lib/utils/asset';
+import { lockBodyScroll, unlockBodyScroll } from '@/lib/utils/scrollLock';
 
 /**
  * SplashScreen — entrance animation prototyped on /splash-test.
@@ -162,13 +163,14 @@ export function SplashScreen({ onComplete }: Props) {
   };
 
   // Lock body scroll while the splash plays — the underlying HomeHero binds a
-  // ScrollTrigger that we don't want firing mid-splash.
+  // ScrollTrigger that we don't want firing mid-splash. Uses the shared
+  // refcounted lock so the HomeHero entrance (which also locks) can keep the
+  // body locked after the splash unmounts, until the entrance itself completes.
   useEffect(() => {
     if (!mounted) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockBodyScroll();
     return () => {
-      document.body.style.overflow = prev;
+      unlockBodyScroll();
     };
   }, [mounted]);
 

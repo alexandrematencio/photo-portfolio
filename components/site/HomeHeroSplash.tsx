@@ -9,6 +9,7 @@ import { MagnifierHeading } from './MagnifierHeading';
 import { SPLASH_REVEAL_EVENT, type SplashRevealDetail } from './SplashScreen';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { asset } from '@/lib/utils/asset';
+import { lockBodyScroll, unlockBodyScroll } from '@/lib/utils/scrollLock';
 
 /**
  * HomeHeroSplash — sandbox clone of HomeHero with an "egg-laying" entrance
@@ -68,6 +69,7 @@ export function HomeHeroSplash() {
   // overwrite the entrance transforms with its `fromTo({y:0,...}, ...)`).
   const [entranceDone, setEntranceDone] = useState(false);
   const entranceStartedRef = useRef(false);
+  const lockHeldRef = useRef(false);
 
   // ════════════════════════════════════════════════════════════════════════
   // Entrance choreography
@@ -93,16 +95,18 @@ export function HomeHeroSplash() {
       if (entranceStartedRef.current || cancelled) return;
       entranceStartedRef.current = true;
 
-      // Lock scroll for the duration of the entrance — when the splash
-      // overlay fades and the user gains scroll control again, we don't want
-      // them triggering the (deferred-but-imminent) scroll-morph half-way
-      // through the entrance animation.
-      const prevOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
+      // Shared refcounted lock — see lib/utils/scrollLock for why this exists
+      // (splash unmount must not prematurely unlock while entrance is still
+      // running). Same pattern as HomeHero on /.
+      lockBodyScroll();
+      lockHeldRef.current = true;
 
       import('gsap').then((gsapModule) => {
         if (cancelled) {
-          document.body.style.overflow = prevOverflow;
+          if (lockHeldRef.current) {
+            unlockBodyScroll();
+            lockHeldRef.current = false;
+          }
           return;
         }
         const gsap = gsapModule.default ?? gsapModule;
@@ -120,7 +124,10 @@ export function HomeHeroSplash() {
         const tl = gsap.timeline({
           onComplete: () => {
             if (cancelled) return;
-            document.body.style.overflow = prevOverflow;
+            if (lockHeldRef.current) {
+              unlockBodyScroll();
+              lockHeldRef.current = false;
+            }
             setEntranceDone(true);
           },
         });
@@ -222,6 +229,10 @@ export function HomeHeroSplash() {
 
     cleanup = () => {
       window.removeEventListener(SPLASH_REVEAL_EVENT, onReveal);
+      if (lockHeldRef.current) {
+        unlockBodyScroll();
+        lockHeldRef.current = false;
+      }
     };
 
     return () => {
