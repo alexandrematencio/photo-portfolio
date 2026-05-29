@@ -38,6 +38,7 @@ import { createPortal } from 'react-dom';
 import { X, ExternalLink, ArrowLeft, ArrowRight } from 'lucide-react';
 import { urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
+import { OriginalViewer } from './OriginalViewer';
 
 type Props = {
   photos: Photo[];
@@ -58,6 +59,9 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
   const [index, setIndex] = useState(initialIndex);
   const [loaded, setLoaded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  // In-app original viewer (replaces the old target="_blank" link) — null when
+  // closed, holds the photo whose original is being viewed when open.
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   // Prev/next arrow buttons (desktop only). Anchored 32 px away from the
   // photo frame on each side — positions are measured imperatively from the
@@ -237,7 +241,9 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
     </div>
   );
 
-  return createPortal(
+  return (
+    <>
+      {createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -295,7 +301,9 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
           {/* Chrome wrappers: an outer span/div handles the load-driven fade
               (delayed 420 ms so it lands after the image's 500 ms scale-in),
               the inner element keeps its native hover transition. */}
-          {/* Open original — 4 px above-left of frame, aligned to frame left. */}
+          {/* Open original — 4 px above-left of frame, aligned to frame left.
+              Opens the OriginalViewer (in-app, pinch + double-click zoom)
+              instead of redirecting to a new tab. */}
           {originalSrc && (
             <span
               className="absolute left-0 z-20"
@@ -308,17 +316,18 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
                   : 'opacity 160ms ease-out',
               }}
             >
-              <a
-                href={originalSrc}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                aria-label="Open original in a new tab"
-                className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors motion-reduce:transition-none"
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setViewerOpen(true);
+                }}
+                aria-label="Open original — pinch or double-click to zoom"
+                className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors motion-reduce:transition-none bg-transparent border-0 p-0 cursor-pointer"
               >
                 <ExternalLink size={isMobile ? 16 : 12} strokeWidth={2} />
                 {!isMobile && <span>Open original</span>}
-              </a>
+              </button>
             </span>
           )}
           {/* Close — 4 px above-right of frame, aligned to frame right. */}
@@ -438,6 +447,17 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
         </>
       )}
     </div>,
-    document.body
+        document.body
+      )}
+      {viewerOpen && originalSrc && (
+        <OriginalViewer
+          src={originalSrc}
+          alt={photo.image?.alt ?? photo.title}
+          naturalWidth={imgW}
+          naturalHeight={imgH}
+          onClose={() => setViewerOpen(false)}
+        />
+      )}
+    </>
   );
 }
