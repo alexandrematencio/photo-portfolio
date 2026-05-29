@@ -70,6 +70,17 @@ export const MagnifierHeading = forwardRef<HTMLHeadingElement, Props>(
     const layerCurrentRef = useRef<HTMLSpanElement>(null);
     const layerNextRef = useRef<HTMLSpanElement>(null);
     const indexRef = useRef(0);
+    // `shorts` lives in a ref so the main animation effect doesn't depend on
+    // its array identity. The parent (HomeHero) re-instantiates the literal
+    // `shorts={['ALXMTNC', 'PHOTOGRAPHY']}` on every render — without the
+    // ref, the dep array sees a new reference every re-render and re-runs
+    // the effect. The re-run would reset `indexRef.current = 0` and desync it
+    // from the textContent we wrote in the previous tick, causing a visible
+    // jump at the next lens reset (ALXMTNC end-of-sweep → PHOTOGRAPHY without
+    // the "Alexandre Matencio" cover). The signature ref below resets the
+    // cycle index ONLY when the actual content of shorts changes.
+    const shortsRef = useRef(shorts);
+    const lastShortsSigRef = useRef<string | null>(null);
     const reducedMotion = useReducedMotion();
 
     const setRefs = (node: HTMLHeadingElement | null) => {
@@ -77,6 +88,18 @@ export const MagnifierHeading = forwardRef<HTMLHeadingElement, Props>(
       if (typeof forwardedRef === 'function') forwardedRef(node);
       else if (forwardedRef) forwardedRef.current = node;
     };
+
+    // Keep `shortsRef` and `indexRef` in sync with the prop. Detects genuine
+    // content changes (different strings) versus re-renders that just hand us
+    // a new array reference with the same values.
+    useEffect(() => {
+      shortsRef.current = shorts;
+      const sig = shorts.join('');
+      if (lastShortsSigRef.current !== null && lastShortsSigRef.current !== sig) {
+        indexRef.current = 0;
+      }
+      lastShortsSigRef.current = sig;
+    }, [shorts]);
 
     useEffect(() => {
       if (reducedMotion) return;
@@ -88,8 +111,6 @@ export const MagnifierHeading = forwardRef<HTMLHeadingElement, Props>(
       let lensX = resetX;
       let pausedUntil = 0;
       let endX = el.offsetWidth + lensWidth;
-      // Reset le compteur de cycle quand le composant remonte (changement de shorts).
-      indexRef.current = 0;
 
       const measure = () => {
         endX = el.offsetWidth + lensWidth;
@@ -105,13 +126,16 @@ export const MagnifierHeading = forwardRef<HTMLHeadingElement, Props>(
           // Fin du sweep : cycle d'un cran. Le calque NEXT (texte actuellement
           // visible partout à gauche) devient le contenu du calque CURRENT —
           // continuité parfaite au reset de la lentille hors écran à gauche.
-          indexRef.current = (indexRef.current + 1) % shorts.length;
+          // Lecture via shortsRef.current → toujours la dernière version même
+          // si la prop a changé entre deux frames.
+          const current = shortsRef.current;
+          indexRef.current = (indexRef.current + 1) % current.length;
           if (layerCurrentRef.current) {
-            layerCurrentRef.current.textContent = shorts[indexRef.current];
+            layerCurrentRef.current.textContent = current[indexRef.current];
           }
           if (layerNextRef.current) {
             layerNextRef.current.textContent =
-              shorts[(indexRef.current + 1) % shorts.length];
+              current[(indexRef.current + 1) % current.length];
           }
           pausedUntil = now + pauseMs;
           lensX = resetX;
@@ -128,7 +152,9 @@ export const MagnifierHeading = forwardRef<HTMLHeadingElement, Props>(
         cancelAnimationFrame(raf);
         window.removeEventListener('resize', measure);
       };
-    }, [reducedMotion, lensWidth, lensSlant, speed, pauseMs, shorts]);
+      // `shorts` n'est PAS dans les deps : voir le useEffect dédié plus haut
+      // pour la gestion fine du reset d'index sur changement de contenu.
+    }, [reducedMotion, lensWidth, lensSlant, speed, pauseMs]);
 
     // Lens itself — parallélogramme : top de [lensX, lensX+lensWidth], bottom
     // décalé de --lens-slant vers la gauche.
