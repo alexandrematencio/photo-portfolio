@@ -6,12 +6,33 @@ import { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { GlyphLogo } from './GlyphLogo';
 import { MagnifierHeading } from './MagnifierHeading';
-import {
-  SPLASH_REVEAL_EVENT,
-  type SplashRevealDetail,
-} from './SplashScreen';
+import { SPLASH_REVEAL_EVENT, type SplashRevealDetail } from './SplashScreen';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { asset } from '@/lib/utils/asset';
+
+/**
+ * HomeHeroSplash — sandbox clone of HomeHero with an "egg-laying" entrance
+ * choreography triggered by the splash screen.
+ *
+ * Listens for `window.dispatchEvent(new Event(SPLASH_REVEAL_EVENT))` — when
+ * fired (the splash glyph has landed at the hero position), runs:
+ *   1) Photo unfurls top → bottom (~250 ms, ease power3.out)
+ *   2) Each nav item is "laid" by the photo — emerges from the photo bottom,
+ *      drops to its natural position with `back.out(1.8)` (single subtle
+ *      overshoot + settle). Staggered ~120 ms per item.
+ *   3) The down-arrow fades in last.
+ *
+ * Until that event fires (or while body scroll is locked by the splash), the
+ * photo / nav / arrow stay at opacity 0. Body scroll stays locked during the
+ * entrance so the existing scroll-morph (which captures positions at mount)
+ * doesn't fight the entrance transforms.
+ *
+ * The scroll-morph timeline is deferred until the entrance has completed,
+ * because its `fromTo({x:0,y:0,scale:1}, ...)` would clobber the entrance
+ * transforms if both ran in parallel.
+ *
+ * ROLLBACK: delete this file. The original HomeHero on `/` is untouched.
+ */
 
 const NAV_LINKS = [
   { href: '/about', label: 'About' },
@@ -21,24 +42,18 @@ const NAV_LINKS = [
   { href: '/socials', label: 'Socials' },
 ];
 
-// Cibles de la transition (≈ taille finale du header)
+// Mêmes constantes que HomeHero — voir HomeHero.tsx pour l'explication.
 const GLYPH_INITIAL = 108;
 const GLYPH_TARGET = 28;
 const NAV_FONT_INITIAL = 32;
-// 32 = pas de shrink, les nav-items gardent leur taille initiale (32px)
-// en mode nav-bar fixed top. Seule la position morphe (vertical → horizontal).
 const NAV_FONT_TARGET = 32;
-const HEADER_HEIGHT = 64; // h-16 — identique sur toutes les pages (SiteHeader)
-// Nav-bar final = pleine largeur, items space-between
+const HEADER_HEIGHT = 64;
 const PAD_LEFT = 32;
 const PAD_RIGHT = 64;
+const FADE_FAST_DURATION = 0.15;
+const MORPH_SLOW_DURATION = 1;
 
-// Timing du morph dans la timeline (en "unités" timeline, 1 = full)
-// La durée totale en SECONDES est gérée par le `scrub` du ScrollTrigger.
-const FADE_FAST_DURATION = 0.15; // photo-profile, arrow, nom : vanish vite
-const MORPH_SLOW_DURATION = 1; // logo + nav items : morph lent, prend toute la timeline
-
-export function HomeHero() {
+export function HomeHeroSplash() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const logoBlockRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLHeadingElement>(null);
@@ -46,33 +61,179 @@ export function HomeHero() {
   const navItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
   const arrowRef = useRef<HTMLDivElement>(null);
   const spacerRef = useRef<HTMLDivElement>(null);
-  // CSS-anchored landing glyph. Independent of the GSAP morph math so that even
-  // when the morph drifts (mobile address-bar resize invalidates viewport-relative
-  // measurements), the glyph the user actually sees is locked at top:18 / left:32.
   const staticGlyphRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
 
-  // ─── Splash entrance gating ──────────────────────────────────────────────
-  // photo / nav items / arrow start at opacity 0 (inline style in JSX). When
-  // the SplashScreen dispatches SPLASH_REVEAL_EVENT, the entrance useEffect
-  // below either runs the "egg-laying" choreography (skip:false) or shows
-  // everything immediately (skip:true — Esc / reduced motion / safety net).
-  // The scroll-morph useEffect is GATED behind `entranceDone` because its
-  // `fromTo({y:0,...}, ...)` would otherwise overwrite the entrance transforms
-  // at scroll progress 0. Without the splash flow this could keep elements
-  // hidden, so a safety-net timeout reveals everything after 8 s.
+  // Entrance state — gates the scroll-morph effect (which would otherwise
+  // overwrite the entrance transforms with its `fromTo({y:0,...}, ...)`).
   const [entranceDone, setEntranceDone] = useState(false);
   const entranceStartedRef = useRef(false);
 
-  // Static landing glyph — fade-in DÉLIBÉRÉMENT TARDIF sur les 15 % finaux de la
-  // pin range. Le morphing logoBlock voyage vers (32, 18) avec `power3.out` —
-  // il est visuellement à 99 %+ de sa destination à 85 % du timeline. Avant ça,
-  // afficher le static glyph donnerait l'impression de deux glyphs simultanés
-  // (un en mouvement, un fixé). En commençant le fade-in à 85 %, le static
-  // n'apparaît que quand le morph "atterrit" précisément.
-  //
-  // Les fractions (0.9 / 1.05) doivent rester en sync avec `pinEnd` dans le
-  // useEffect GSAP ci-dessous.
+  // ════════════════════════════════════════════════════════════════════════
+  // Entrance choreography
+  // ════════════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    if (reducedMotion) {
+      // Reduced motion: skip entrance, show everything immediately.
+      const photo = photoRef.current;
+      const arrow = arrowRef.current;
+      if (photo) photo.style.opacity = '1';
+      if (arrow) arrow.style.opacity = '1';
+      navItemsRef.current.forEach((el) => {
+        if (el) el.style.opacity = '1';
+      });
+      setEntranceDone(true);
+      return;
+    }
+
+    let cancelled = false;
+    let cleanup: (() => void) | null = null;
+
+    const runEntrance = () => {
+      if (entranceStartedRef.current || cancelled) return;
+      entranceStartedRef.current = true;
+
+      // Lock scroll for the duration of the entrance — when the splash
+      // overlay fades and the user gains scroll control again, we don't want
+      // them triggering the (deferred-but-imminent) scroll-morph half-way
+      // through the entrance animation.
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+
+      import('gsap').then((gsapModule) => {
+        if (cancelled) {
+          document.body.style.overflow = prevOverflow;
+          return;
+        }
+        const gsap = gsapModule.default ?? gsapModule;
+
+        const photo = photoRef.current;
+        const arrow = arrowRef.current;
+        const navItems = navItemsRef.current.filter(Boolean) as HTMLAnchorElement[];
+
+        // Read the photo bottom in viewport coords — that's where every nav
+        // item is "laid" from. We don't need to re-read it per-item: all
+        // items drop from the same Y (the photo's bottom edge).
+        const photoRect = photo?.getBoundingClientRect();
+        const photoBottomY = photoRect ? photoRect.bottom : 0;
+
+        const tl = gsap.timeline({
+          onComplete: () => {
+            if (cancelled) return;
+            document.body.style.overflow = prevOverflow;
+            setEntranceDone(true);
+          },
+        });
+
+        // 1 — Photo unfurls top → bottom. clip-path inset(0 0 100% 0) means
+        // "clip 100 % from the bottom" → only the top edge visible. Animating
+        // the bottom inset to 0 reveals the photo top-down like a window blind.
+        if (photo) {
+          gsap.set(photo, { opacity: 1, clipPath: 'inset(0 0 100% 0)' });
+          tl.to(
+            photo,
+            {
+              clipPath: 'inset(0 0 0% 0)',
+              duration: 0.25,
+              ease: 'power3.out',
+            },
+            0
+          );
+        }
+
+        // 2 — Nav items dropped one by one from the photo bottom. Each item
+        // starts at `y = photoBottom - itemTop` (its CSS transform offset
+        // that lifts it up to the photo bottom), then animates to `y: 0` with
+        // `back.out(1.8)` — single subtle overshoot + settle. Stagger 120 ms
+        // between item starts so they "egg-lay" sequentially rather than en
+        // bloc.
+        const NAV_DROP_DUR = 0.7;
+        const NAV_DROP_STAGGER = 0.12;
+        const NAV_DROP_START = 0.18; // ~70 % into the photo unfurl
+
+        navItems.forEach((item, i) => {
+          // Capture the item's natural (final) position before applying any
+          // transform. With opacity:0, this rect is still valid (opacity
+          // doesn't affect layout).
+          const itemRect = item.getBoundingClientRect();
+          const fromY = photoBottomY - itemRect.top;
+          // If fromY is positive (photo bottom is below item natural top), the
+          // item is "already above" — push it down to start. If negative
+          // (item natural top is below photo bottom), push it up.
+          // For the typical home layout the items sit BELOW the photo, so
+          // fromY is negative and we pull them UP to start.
+
+          const delay = NAV_DROP_START + i * NAV_DROP_STAGGER;
+
+          // Two parallel tweens per item: opacity snaps in (40 ms) so the
+          // item doesn't pop in mid-air, and y animates with back.out for
+          // the drop+settle.
+          gsap.set(item, { opacity: 0, y: fromY });
+          tl.to(item, { opacity: 1, duration: 0.08 }, delay);
+          tl.to(
+            item,
+            {
+              y: 0,
+              duration: NAV_DROP_DUR,
+              ease: 'back.out(1.8)',
+            },
+            delay
+          );
+        });
+
+        // 3 — Down-arrow fades in last, ~250 ms after the last nav item is
+        // mostly settled.
+        if (arrow) {
+          const arrowDelay =
+            NAV_DROP_START + navItems.length * NAV_DROP_STAGGER + 0.25;
+          gsap.set(arrow, { opacity: 0, y: 6 });
+          tl.to(
+            arrow,
+            { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' },
+            arrowDelay
+          );
+        }
+      });
+    };
+
+    const showAllImmediately = () => {
+      const photo = photoRef.current;
+      const arrow = arrowRef.current;
+      if (photo) photo.style.opacity = '1';
+      if (arrow) arrow.style.opacity = '1';
+      navItemsRef.current.forEach((el) => {
+        if (el) el.style.opacity = '1';
+      });
+    };
+
+    const onReveal = (e: Event) => {
+      const detail = (e as CustomEvent<SplashRevealDetail>).detail;
+      const skip = detail?.skip === true;
+      if (skip) {
+        if (entranceStartedRef.current) return;
+        entranceStartedRef.current = true;
+        showAllImmediately();
+        setEntranceDone(true);
+      } else {
+        runEntrance();
+      }
+    };
+    window.addEventListener(SPLASH_REVEAL_EVENT, onReveal);
+
+    cleanup = () => {
+      window.removeEventListener(SPLASH_REVEAL_EVENT, onReveal);
+    };
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, [reducedMotion]);
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Static landing glyph fade (identical to HomeHero) — opacity is driven by
+  // scroll-frac, no entrance gating needed (stays at 0 while page unscrolled).
+  // ════════════════════════════════════════════════════════════════════════
   useEffect(() => {
     const glyph = staticGlyphRef.current;
     if (!glyph) return;
@@ -102,176 +263,21 @@ export function HomeHero() {
     };
   }, []);
 
-  // ────────────────────────────────────────────────────────────────────────
-  // SPLASH ENTRANCE — listens for SPLASH_REVEAL_EVENT dispatched by
-  // <SplashScreen />. When the splash glyph lands at the hero glyph position,
-  // runs the "egg-laying" choreography:
-  //   1) Photo unfurls top → bottom (~250 ms, power3.out clip-path).
-  //   2) Each nav item is "laid" by the photo — emerges from photoBottom,
-  //      drops to its natural CSS position with back.out(1.8) (single subtle
-  //      overshoot + settle). Staggered 120 ms per item.
-  //   3) Down-arrow fades in last.
-  // If the splash bypassed (Esc / reduced motion / safety net = no event in
-  // 8 s), shows everything immediately and unblocks `entranceDone` so the
-  // scroll-morph useEffect can bind.
-  // ────────────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (reducedMotion) {
-      // Reduced motion: skip both the splash flow and the entrance.
-      const photo = photoRef.current;
-      const arrow = arrowRef.current;
-      if (photo) photo.style.opacity = '1';
-      if (arrow) arrow.style.opacity = '1';
-      navItemsRef.current.forEach((el) => {
-        if (el) el.style.opacity = '1';
-      });
-      setEntranceDone(true);
-      return;
-    }
-
-    let cancelled = false;
-
-    const showAllImmediately = () => {
-      const photo = photoRef.current;
-      const arrow = arrowRef.current;
-      if (photo) photo.style.opacity = '1';
-      if (arrow) arrow.style.opacity = '1';
-      navItemsRef.current.forEach((el) => {
-        if (el) el.style.opacity = '1';
-      });
-    };
-
-    const runEntrance = () => {
-      if (entranceStartedRef.current) return;
-      entranceStartedRef.current = true;
-
-      // Lock scroll for the entrance duration so the (soon-to-bind) scroll-
-      // morph doesn't trigger while items are still flying into place.
-      const prevOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-
-      import('gsap').then((gsapModule) => {
-        if (cancelled) {
-          document.body.style.overflow = prevOverflow;
-          return;
-        }
-        const gsap = gsapModule.default ?? gsapModule;
-
-        const photo = photoRef.current;
-        const arrow = arrowRef.current;
-        const navItems = navItemsRef.current.filter(Boolean) as HTMLAnchorElement[];
-
-        const photoRect = photo?.getBoundingClientRect();
-        const photoBottomY = photoRect ? photoRect.bottom : 0;
-
-        const tl = gsap.timeline({
-          onComplete: () => {
-            if (cancelled) return;
-            document.body.style.overflow = prevOverflow;
-            setEntranceDone(true);
-          },
-        });
-
-        // 1 — Photo unfurls top → bottom. `inset(0 0 100% 0)` = clipped 100%
-        // from the bottom (only top edge visible). Animating bottom inset to
-        // 0 reveals the photo top-down.
-        if (photo) {
-          gsap.set(photo, { opacity: 1, clipPath: 'inset(0 0 100% 0)' });
-          tl.to(
-            photo,
-            { clipPath: 'inset(0 0 0% 0)', duration: 0.25, ease: 'power3.out' },
-            0
-          );
-        }
-
-        // 2 — Nav items dropped from the photo bottom, staggered. Each item's
-        // start position = `y = photoBottom - itemTop` (offsets the item from
-        // its natural CSS top up/down to where photoBottom lives). Then `y: 0`
-        // with `back.out(1.8)` settles it into its natural spot with a single
-        // subtle overshoot + bounce-back (refined, not cartoon).
-        const NAV_DROP_DUR = 0.7;
-        const NAV_DROP_STAGGER = 0.12;
-        const NAV_DROP_START = 0.18;
-
-        navItems.forEach((item, i) => {
-          const itemRect = item.getBoundingClientRect();
-          const fromY = photoBottomY - itemRect.top;
-          const delay = NAV_DROP_START + i * NAV_DROP_STAGGER;
-          gsap.set(item, { opacity: 0, y: fromY });
-          tl.to(item, { opacity: 1, duration: 0.08 }, delay);
-          tl.to(
-            item,
-            { y: 0, duration: NAV_DROP_DUR, ease: 'back.out(1.8)' },
-            delay
-          );
-        });
-
-        // 3 — Down-arrow fades in last.
-        if (arrow) {
-          const arrowDelay =
-            NAV_DROP_START + navItems.length * NAV_DROP_STAGGER + 0.25;
-          gsap.set(arrow, { opacity: 0, y: 6 });
-          tl.to(
-            arrow,
-            { opacity: 1, y: 0, duration: 0.4, ease: 'power2.out' },
-            arrowDelay
-          );
-        }
-      });
-    };
-
-    const onReveal = (e: Event) => {
-      const detail = (e as CustomEvent<SplashRevealDetail>).detail;
-      const skip = detail?.skip === true;
-      if (skip) {
-        if (entranceStartedRef.current) return;
-        entranceStartedRef.current = true;
-        showAllImmediately();
-        setEntranceDone(true);
-      } else {
-        runEntrance();
-      }
-    };
-    window.addEventListener(SPLASH_REVEAL_EVENT, onReveal);
-
-    // Safety net: if no splash event ever fires (SplashScreen failed to mount,
-    // or homepage was rendered without it for some reason), reveal everything
-    // after 8 s so the page never stays stuck with hidden photo / nav / arrow.
-    const safety = window.setTimeout(() => {
-      if (cancelled || entranceStartedRef.current) return;
-      entranceStartedRef.current = true;
-      showAllImmediately();
-      setEntranceDone(true);
-    }, 8000);
-
-    return () => {
-      cancelled = true;
-      window.removeEventListener(SPLASH_REVEAL_EVENT, onReveal);
-      window.clearTimeout(safety);
-    };
-  }, [reducedMotion]);
-
-  // Photo profil — magnifier hover effect.
-  // Layer 1 (default, always visible)   : alex-profile-pic-default.jpg
-  // Layer 2 (revealed under the cursor) : alex-profile-pic-hover-reveal.jpg
-  // The cursor itself is hidden inside the photo box; a 96 px circular clip on
-  // layer 2 follows the pointer, "peeking" through the default image.
+  // ════════════════════════════════════════════════════════════════════════
+  // Magnifier reveal on the profile photo (identical to HomeHero).
+  // ════════════════════════════════════════════════════════════════════════
   const profileSrcDefault = asset('/img/alex-profile-pic-default.jpg');
   const profileSrcReveal = asset('/img/alex-profile-pic-hover-reveal.jpg');
   const profileAlt = 'Portrait of A. Matencio';
   const photoBoxRef = useRef<HTMLDivElement>(null);
   const revealLayerRef = useRef<HTMLDivElement>(null);
 
-  // Bind the magnifier reveal — purely DOM mutation (no React re-render) for 60 fps.
-  // Respects prefers-reduced-motion: in that case, the reveal layer stays hidden.
   useEffect(() => {
     if (reducedMotion) return;
     const box = photoBoxRef.current;
     const reveal = revealLayerRef.current;
     if (!box || !reveal) return;
 
-    // Desktop: 74 px radius (~148 px diameter, = mobile / 1.3).
-    // Mobile: 96 px radius — finger-driven engagement needs more reveal area.
     const isMobile = window.matchMedia('(max-width: 768px)').matches;
     const RADIUS = isMobile ? 96 : 74;
     let raf = 0;
@@ -282,21 +288,16 @@ export function HomeHero() {
       reveal.style.clipPath = `circle(${RADIUS}px at ${pendingX}px ${pendingY}px)`;
       raf = 0;
     };
-
     const onMove = (e: PointerEvent) => {
       const rect = box.getBoundingClientRect();
       pendingX = e.clientX - rect.left;
       pendingY = e.clientY - rect.top;
       if (!raf) raf = requestAnimationFrame(apply);
     };
-
     const onEnter = (e: PointerEvent) => {
-      // Mouse: hide the cursor (the revealed disc takes over).
-      // Touch/pen: nothing to hide — the finger is the cursor.
       if (e.pointerType === 'mouse') box.style.cursor = 'none';
       onMove(e);
     };
-
     const onLeave = () => {
       box.style.cursor = '';
       reveal.style.clipPath = 'circle(0px at 50% 50%)';
@@ -305,8 +306,6 @@ export function HomeHero() {
         raf = 0;
       }
     };
-
-    // iOS long-press → context menu (Save image, Copy, Share). Kill it on this box.
     const onContextMenu = (e: Event) => e.preventDefault();
 
     box.addEventListener('pointerenter', onEnter);
@@ -314,7 +313,6 @@ export function HomeHero() {
     box.addEventListener('pointerleave', onLeave);
     box.addEventListener('pointercancel', onLeave);
     box.addEventListener('contextmenu', onContextMenu);
-
     return () => {
       box.removeEventListener('pointerenter', onEnter);
       box.removeEventListener('pointermove', onMove);
@@ -325,12 +323,12 @@ export function HomeHero() {
     };
   }, [reducedMotion]);
 
+  // ════════════════════════════════════════════════════════════════════════
+  // Scroll-morph timeline (identical to HomeHero) — GATED by `entranceDone`
+  // so it doesn't fight the entrance transforms at progress=0.
+  // ════════════════════════════════════════════════════════════════════════
   useEffect(() => {
     if (reducedMotion) return;
-    // GATED behind the entrance: this scroll-morph timeline does
-    // `fromTo({x:0,y:0,scale:1}, ...)` on the nav items with ScrollTrigger
-    // scrub, which would forcibly set those properties to 0 at scroll-progress
-    // 0 and clobber the entrance transforms. Wait until entrance is settled.
     if (!entranceDone) return;
 
     let cancelled = false;
@@ -345,9 +343,8 @@ export function HomeHero() {
           stModule.default;
         gsap.registerPlugin(ScrollTrigger);
 
-        const ease = 'power3.out'; // cubic-bezier natural ease-out
+        const ease = 'power3.out';
 
-        // Capture des rects initiales (sans transform), centrées dans le hero
         const capture = (el: HTMLElement) => {
           const t = el.style.transform;
           el.style.transform = '';
@@ -361,11 +358,6 @@ export function HomeHero() {
 
         const logoTargetScale = GLYPH_TARGET / GLYPH_INITIAL;
         const navTargetScale = NAV_FONT_TARGET / NAV_FONT_INITIAL;
-
-        // Pour les calculs de spacing horizontal, on utilise la largeur VISIBLE
-        // du logo (le glyph seul = GLYPH_TARGET 28px) — PAS la largeur du bloc
-        // entier qui inclut le MagnifierHeading invisible (~330px). Sinon
-        // l'espacement diffère du SiteHeader des autres pages qui n'a que le glyph.
         const logoVisibleWidth = GLYPH_TARGET;
         const navTargetWidths = navInit.map((init) =>
           init ? init.width * navTargetScale : 0
@@ -377,14 +369,12 @@ export function HomeHero() {
         const itemGap = (availableWidth - totalContentWidth) / NAV_LINKS.length;
 
         const logoTargetTop = (HEADER_HEIGHT - GLYPH_TARGET) / 2;
-        // Le block logo contient glyph + MagnifierHeading. Le MagnifierHeading
-        // a un spacer invisible plus large que le glyph → le glyph est centré
-        // dans un bloc plus large. Compensation pour que le GLYPH (pas le block)
-        // atterrisse à PAD_LEFT exactement.
         const glyphOffsetInBlock = (logoInit.width - GLYPH_INITIAL) / 2;
         const logoDx =
           PAD_LEFT - glyphOffsetInBlock * logoTargetScale - logoInit.left;
         const logoDy = logoTargetTop - logoInit.top;
+        void logoDx;
+        void logoDy;
 
         const targetLeftFor = (i: number) => {
           let cursor = PAD_LEFT + logoVisibleWidth + itemGap;
@@ -397,24 +387,6 @@ export function HomeHero() {
           targetLeftFor(i) + navTargetWidths[i] / 2;
         const navTargetY = HEADER_HEIGHT / 2;
 
-        // Timeline unique pinnée au spacer.
-        // - pin: true → la page est "trappée" pendant N vh de scroll
-        // - scrub : lag entre scroll et progression de l'animation (= feel "slow/luxe")
-        // - Pendant le pin, la gallery ne peut pas entrer dans le viewport.
-        //
-        // Pin range mobile 90vh / desktop 105vh : sur mobile, un swipe pouce
-        // couvre ~200-400px ; à 30vh (~230px) le morph se jouait en UN swipe et
-        // paraissait instantané. À 90vh (~690px) il faut ~3 swipes — feel
-        // délibéré et immersif, l'utilisateur "tire" la page pour révéler la galerie.
-        // Le static glyph fade-in (autre useEffect) utilise les mêmes fractions
-        // (0.9 / 1.05) pour que le crossfade reste calé au pin end.
-        //
-        // Note mobile : sur iOS/Android le viewport se redimensionne au scroll
-        // (collapse address-bar) et `logoInit.top` capturé au mount devient périmé.
-        // Le static glyph CSS-ancré à top:18 prend le relais via crossfade — donc
-        // même si la math GSAP dérive vers la fin du morph, la position finale
-        // visible reste solide. C'est ce qui nous permet de pousser le pin range
-        // mobile aussi loin sans craindre le drift.
         const isMobileViewport = window.matchMedia('(max-width: 768px)').matches;
         const pinEnd = isMobileViewport ? '+=90vh' : '+=105vh';
 
@@ -430,7 +402,6 @@ export function HomeHero() {
           },
         });
 
-        // Fades RAPIDES (photo-profile + nom + down-arrow vanishent ensemble, vite).
         tl.to(
           arrowRef.current,
           { opacity: 0, y: 10, ease: 'power2.out', duration: FADE_FAST_DURATION },
@@ -447,13 +418,6 @@ export function HomeHero() {
           0
         );
 
-        // Morph LENT : logo (vers top-left) + nav-items (vers full-width space-between).
-        // Durée 1 = toute la timeline. Couplé au scrub, le déploiement est plus lent que les fades.
-        //
-        // x / y en function getters : avec `invalidateOnRefresh: true`, GSAP appelle ces
-        // fonctions à chaque refresh (resize, viewport change, mobile address-bar collapse).
-        // Sans ça, `logoInit.top` capturé au mount devient périmé et le glyph atterrit ailleurs
-        // que top:18px sur mobile.
         const getLogoDx = () => {
           const init = capture(logoBlockRef.current!);
           const glyphOffset = (init.width - GLYPH_INITIAL) / 2;
@@ -479,19 +443,12 @@ export function HomeHero() {
           0
         );
 
-        // Fade out the morphing block before it "lands". On mobile, the GSAP
-        // landing position is unreliable (viewport mutates during scroll, refresh
-        // events lag), so we make sure the morphing element is invisible by the
-        // time it'd hit its drifted target. The static glyph (CSS-anchored) takes
-        // over as the visible element at top:18/left:32.
         tl.to(
           logoBlockRef.current,
           { opacity: 0, ease: 'power2.in', duration: 0.3 },
           0.7
         );
 
-        // En mobile, la nav stack est cachée (display:none → offsetWidth = 0) :
-        // on skip la morph des items pour éviter des calculs sur des éléments invisibles.
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
         if (!isMobile) {
           navItemsRef.current.forEach((item, i) => {
@@ -518,11 +475,6 @@ export function HomeHero() {
         }
 
         cleanup = () => {
-          // On ne tue QUE notre timeline + son scrollTrigger.
-          // `kill(true)` = revert : enlève le wrapper <pin-spacer> que GSAP a inséré
-          // autour du spacer et restaure le DOM original. Sans le `true`, React
-          // crashe au unmount avec "removeChild: node is not a child of this node"
-          // parce qu'il essaie de retirer le spacer dont GSAP a changé le parent.
           tl.scrollTrigger?.kill(true);
           tl.kill();
         };
@@ -537,15 +489,6 @@ export function HomeHero() {
 
   return (
     <>
-      {/*
-        Static landing glyph — CSS-anchored at (32, 18). The morphing logoBlock
-        targets this position via GSAP transforms, but on mobile the math drifts
-        when the address-bar resizes mid-scroll. This element doesn't move: pure
-        CSS `fixed top: 18 / left: 32`. Fade-in matches the pin range so it's at
-        opacity 1 exactly when the morphing block fades to 0. Aria-hidden — the
-        accessible navigation lives in <SiteHeader /> (other pages) and
-        <MobileMenu /> (mobile burger drawer).
-      */}
       <div
         ref={staticGlyphRef}
         aria-hidden
@@ -555,7 +498,6 @@ export function HomeHero() {
         <GlyphLogo size={GLYPH_TARGET} title="A. Matencio" />
       </div>
 
-      {/* Overlay plein-écran fixed : items centrés (flex), animés par GSAP. */}
       <div
         ref={sectionRef}
         aria-label="Home"
@@ -577,28 +519,11 @@ export function HomeHero() {
 
         <div
           ref={photoRef}
-          // `isolation: isolate` crée un stacking context atomique : le
-          // CursorInvert disque (mix-blend-mode: difference) ne peut PAS
-          // pénétrer cette zone, garantissant que la photo du hero n'est
-          // jamais affectée par le hover des nav-items même si le disque
-          // venait à overlap géométriquement.
-          //
-          // `data-cursor-shield` : signale à CursorInvert.tsx de SNAP-HIDE le
-          // disque (transition désactivée) quand la souris entre dans cette
-          // zone. Empêche le disque de fade-out lentement par-dessus la photo
-          // pendant que le magnifier-reveal de la photo s'active — pas de
-          // combinaison entre les deux effets.
           data-cursor-shield
-          // opacity: 0 initial — l'entrance "splash" l'unfurl top → bottom via
-          // clip-path quand SPLASH_REVEAL_EVENT fire (skip:false), ou la rend
-          // visible immédiatement (skip:true / reduced motion / safety net).
-          // Voir le useEffect entrance plus haut.
+          // opacity: 0 initial — entrance unfurls via clipPath, opacity is set to 1 by gsap.
           className="pointer-events-none relative size-56 md:size-64 overflow-hidden bg-[var(--color-bg-elev)] isolate"
           style={{ opacity: 0 }}
         >
-          {/* Inner box owns the pointer events. On touch devices we also kill native
-              gestures that would interfere with the reveal: native scroll under the finger,
-              long-press → context menu (Save image / Copy / Share), text selection, image drag. */}
           <div
             ref={photoBoxRef}
             className="pointer-events-auto absolute inset-0 select-none"
@@ -608,7 +533,6 @@ export function HomeHero() {
               WebkitUserSelect: 'none',
             }}
           >
-            {/* Default image — always visible */}
             <Image
               src={profileSrcDefault}
               alt={profileAlt}
@@ -618,8 +542,6 @@ export function HomeHero() {
               draggable={false}
               priority
             />
-            {/* Reveal image — clipped to a circle that follows the pointer.
-                Initial clip-path collapsed to 0 px so nothing shows until pointer enters. */}
             <div
               ref={revealLayerRef}
               aria-hidden
@@ -650,8 +572,7 @@ export function HomeHero() {
                 navItemsRef.current[i] = el;
               }}
               data-cursor-invert
-              // opacity: 0 initial — chacun est "pondu" par la photo via le
-              // useEffect entrance (drop + bounce avec back.out(1.8)).
+              // opacity: 0 initial — entrance "lays" the items one by one.
               className="text-2xl md:text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none motion-reduce:transition-none whitespace-nowrap"
               style={{ opacity: 0 }}
             >
@@ -661,10 +582,6 @@ export function HomeHero() {
         </nav>
       </div>
 
-      {/* Mobile burger + drawer ont migré dans <MobileMenu /> au niveau layout. */}
-
-      {/* Down-arrow fixed bottom (opacity initiale 0, révélée en dernier par
-          l'entrance splash ; ensuite fade out via la timeline scroll-morph). */}
       <div
         ref={arrowRef}
         aria-hidden
@@ -678,16 +595,6 @@ export function HomeHero() {
         />
       </div>
 
-      {/*
-        Spacer pinned : pendant 70vh de scroll, la page est "trappée" et la
-        timeline GSAP joue. Photos de la gallery ne peuvent pas entrer dans
-        le viewport tant que le pin n'est pas relâché → zéro overlap garanti.
-
-        Le wrapper externe est un buffer React-stable : GSAP insère son
-        <pin-spacer> à L'INTÉRIEUR. Au unmount, React supprime ce wrapper
-        et tous ses descendants (y compris les ajouts GSAP), évitant un
-        crash "removeChild: node is not a child of this node".
-      */}
       <div aria-hidden>
         <div
           ref={spacerRef}

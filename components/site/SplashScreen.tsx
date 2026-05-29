@@ -1,0 +1,477 @@
+'use client';
+
+import Image from 'next/image';
+import { useEffect, useRef, useState } from 'react';
+import { useReducedMotion } from '@/lib/motion/useReducedMotion';
+import { asset } from '@/lib/utils/asset';
+
+/**
+ * SplashScreen — entrance animation prototyped on /splash-test.
+ *
+ * Inspired by codepen.io/osmosupply/pen/wBGYEMd (Willem) — letters on either
+ * side of a "letter-substitute" slot in which photos cycle, then a final
+ * element (here: the ALXMTNC glyph) appears and travels to its place in the
+ * hero banner.
+ *
+ * Scope: this component is the ONLY new runtime piece. It is mounted exclusively
+ * by `/splash-test` for now. Deleting this file + the `/splash-test` route is
+ * enough to fully roll back. See the rollback note in app/(site)/splash-test.
+ *
+ * Honors `prefers-reduced-motion` (skips straight to onComplete). Escape skips.
+ */
+
+const SPLASH_PHOTOS = [
+  '/img/splashscreen/splash-active-1.jpg',
+  '/img/splashscreen/splash-active-2.jpg',
+  '/img/splashscreen/splash-active-3.jpg',
+] as const;
+
+/**
+ * Event dispatched on `window` when the splash exits — either because the
+ * glyph just landed at the hero banner's centered glyph position (full
+ * choreography path) or because the splash was bypassed (Escape / reduced
+ * motion / safety net). Listeners receive a CustomEvent whose `detail.skip`
+ * tells them which one:
+ *   - `detail.skip === false` → play the "egg-laying" entrance (photo unfurl
+ *     → nav items dropped one by one with bounce → arrow fade-in).
+ *   - `detail.skip === true`  → skip the entrance and show everything
+ *     immediately. The user didn't see the splash land, no point making them
+ *     wait through the entrance either.
+ *
+ * Guaranteed to fire AT MOST ONCE per splash mount (internal ref dedup).
+ */
+export const SPLASH_REVEAL_EVENT = 'splash:reveal-hero';
+export type SplashRevealDetail = { skip: boolean };
+
+/**
+ * Measure the actual visible cap-height (top-of-glyph → bottom-of-glyph in
+ * pixels, baseline ignored) of the rendered text in `el`. Uses an off-screen
+ * canvas + alpha scan. Awaits `document.fonts.ready` upstream so the measured
+ * font matches what's rendered on screen (not a fallback metric).
+ *
+ * Returns the cap-height in CSS pixels at the element's current font-size.
+ * Falls back to `fontSize × 0.72` (Inter Bold cap ratio) on errors.
+ */
+function measureCapHeightPx(el: HTMLElement): number {
+  const style = window.getComputedStyle(el);
+  const fontSize = parseFloat(style.fontSize);
+  if (!Number.isFinite(fontSize) || fontSize <= 0) return 0;
+
+  // Render at a high reference size (200 px) for sub-pixel measurement
+  // precision, then scale the result back to the actual rendered size.
+  const SAMPLE_FS = 200;
+  const sampleScale = SAMPLE_FS / fontSize;
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return fontSize * 0.72;
+
+  const text = 'ALXMTNC';
+  const fontString = `${style.fontWeight} ${SAMPLE_FS}px ${style.fontFamily}`;
+  ctx.font = fontString;
+  ctx.textBaseline = 'alphabetic';
+  const m = ctx.measureText(text);
+  const padding = SAMPLE_FS;
+  canvas.width = Math.ceil(m.width) + padding * 2;
+  canvas.height = SAMPLE_FS * 3;
+
+  // Canvas resize resets state — re-apply font + draw.
+  ctx.font = fontString;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#000';
+  ctx.fillText(text, padding, SAMPLE_FS * 2);
+
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  let topY = -1;
+  let bottomY = -1;
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      if (img[(y * canvas.width + x) * 4 + 3] > 10) {
+        if (topY === -1) topY = y;
+        bottomY = y;
+        break;
+      }
+    }
+  }
+
+  if (topY === -1 || bottomY === -1) return fontSize * 0.72;
+  return (bottomY - topY + 1) / sampleScale;
+}
+
+// Glyph SVG inlined (rather than reusing GlyphLogo) so the wrapping element can
+// be sized, positioned and colored independently for the travel phase.
+function SplashGlyph() {
+  return (
+    <svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 559 521"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label="ALXMTNC"
+    >
+      <g clipPath="url(#splash-glyph-clip)">
+        <path
+          opacity="0.3"
+          d="M85.6254 273.246V372.848L174.835 321.12"
+          fill="currentColor"
+        />
+        <path
+          d="M343.313 422.277L257.688 372.848L472.766 248.43V149.166L257.688 273.246L172.062 223.885L386.735 99.4667L386.938 0L172.062 124.283L85.6254 74.9212V173.644L0 124.688V322.675L85.6254 372.848V273.246L172.062 322.675V422.277L343.313 521L558.797 397.394L559 297.994L343.313 422.277Z"
+          fill="currentColor"
+        />
+      </g>
+      <defs>
+        <clipPath id="splash-glyph-clip">
+          <rect width="559" height="521" fill="white" />
+        </clipPath>
+      </defs>
+    </svg>
+  );
+}
+
+type Props = {
+  /** Fires when the splash finishes (or is skipped) and starts to unmount. */
+  onComplete?: () => void;
+};
+
+export function SplashScreen({ onComplete }: Props) {
+  const [mounted, setMounted] = useState(true);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const leftRef = useRef<HTMLSpanElement>(null);
+  const rightRef = useRef<HTMLSpanElement>(null);
+  const slotRef = useRef<HTMLDivElement>(null);
+  const photoRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const glyphRef = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
+  // Guarantees SPLASH_REVEAL_EVENT fires AT MOST ONCE per mount — Esc pressed
+  // after the glyph has already landed, for instance, must not re-dispatch.
+  const revealedRef = useRef(false);
+
+  const dispatchReveal = (skip: boolean) => {
+    if (revealedRef.current) return;
+    revealedRef.current = true;
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent<SplashRevealDetail>(SPLASH_REVEAL_EVENT, {
+          detail: { skip },
+        })
+      );
+    }
+  };
+
+  // Lock body scroll while the splash plays — the underlying HomeHero binds a
+  // ScrollTrigger that we don't want firing mid-splash.
+  useEffect(() => {
+    if (!mounted) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mounted]);
+
+  // Skip on Escape — convenient when iterating. Bypass = treat as "skip" so
+  // the hero immediately shows everything instead of running the slow entrance.
+  useEffect(() => {
+    if (!mounted) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        dispatchReveal(true);
+        onComplete?.();
+        setMounted(false);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [mounted, onComplete]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    if (reduced) {
+      // Reduced motion: no splash, no entrance. Dispatch with skip:true so the
+      // hero shows everything immediately.
+      dispatchReveal(true);
+      onComplete?.();
+      setMounted(false);
+      return;
+    }
+
+    let cancelled = false;
+    let cleanup: (() => void) | null = null;
+
+    // Preload all splash images so the cycle is smooth on first paint. Raw
+    // JPEGs in /public/ can be 3-13 MB each (test-grade source files); without
+    // preload the wipe-in reveals would render half-blank frames.
+    const preload = Promise.all(
+      SPLASH_PHOTOS.map(
+        (src) =>
+          new Promise<void>((resolve) => {
+            const img = new window.Image();
+            img.src = asset(src);
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          })
+      )
+    );
+
+    // Wait for the real font (Inter via next/font) to be loaded BEFORE measuring
+    // cap-height, otherwise the canvas would scan fallback-font glyphs whose
+    // metrics differ from what's actually painted on screen.
+    const fontsReady =
+      typeof document !== 'undefined' && document.fonts?.ready
+        ? document.fonts.ready
+        : Promise.resolve();
+
+    Promise.all([import('gsap'), preload, fontsReady]).then(([gsapModule]) => {
+      if (cancelled) return;
+      const gsap = gsapModule.default ?? gsapModule;
+
+      const overlay = overlayRef.current;
+      const left = leftRef.current;
+      const right = rightRef.current;
+      const slot = slotRef.current;
+      const glyphWrap = glyphRef.current;
+      const photos = photoRefs.current.filter(Boolean) as HTMLDivElement[];
+      if (!overlay || !left || !right || !slot || !glyphWrap || photos.length !== 3) {
+        return;
+      }
+
+      // Letter STRICT cap-height (bottom-of-glyph → top-of-glyph, baseline +
+      // descender padding excluded). This is what the user sees as "the letter
+      // height" — not the line-box. The slot's image height is set to match
+      // this value pixel-for-pixel so the photos look the exact same size as
+      // the visible part of the letters.
+      const letterH = measureCapHeightPx(left);
+
+      // Slot footprint = letter-height tall, 1.5× wide (3:2 ratio, matches the
+      // source photos so no crop is needed). All 3 photos object-cover into this
+      // stable rectangle — width never changes during the cycle, so ALX and MTNC
+      // stay anchored either side. The glyph then occupies the same letter-height
+      // vertical band (at its natural ~1.07 aspect ratio).
+      const slotW = Math.round(letterH * 1.5);
+      slot.style.height = `${letterH}px`;
+      slot.style.width = `${slotW}px`;
+
+      // Place the glyph wrapper EXACTLY over the slot. We keep it in the DOM
+      // as a sibling of the row (position: fixed) so the travel phase can move
+      // it freely without being clipped by the row's flex container.
+      const slotRect = slot.getBoundingClientRect();
+      const glyphH = letterH;
+      const glyphW = glyphH * (559 / 521);
+      const glyphLeft = slotRect.left + (slotRect.width - glyphW) / 2;
+      const glyphTop = slotRect.top + (slotRect.height - glyphH) / 2;
+      glyphWrap.style.width = `${glyphW}px`;
+      glyphWrap.style.height = `${glyphH}px`;
+      glyphWrap.style.left = `${glyphLeft}px`;
+      glyphWrap.style.top = `${glyphTop}px`;
+
+      // Locate the HomeHero's centered glyph by DOM query — no edits to
+      // HomeHero needed. We take the biggest GlyphLogo on the page that is
+      // not part of the splash overlay.
+      const allGlyphs = Array.from(
+        document.querySelectorAll<SVGElement>('svg[viewBox="0 0 559 521"]')
+      );
+      const heroTarget = allGlyphs
+        .filter((s) => !overlay.contains(s))
+        .map((el) => ({ el, rect: el.getBoundingClientRect() }))
+        .filter(({ rect }) => rect.width > 50)
+        .sort((a, b) => b.rect.width - a.rect.width)[0];
+
+      const tl = gsap.timeline({
+        onComplete: () => {
+          if (cancelled) return;
+          onComplete?.();
+          setMounted(false);
+        },
+      });
+
+      // 1 — Letters rise + fade in together.
+      tl.fromTo(
+        [left, right],
+        { opacity: 0, y: 14 },
+        { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' },
+        0
+      );
+
+      // 2 — Photo cycle. Each photo wipes in left → right. Subsequent photos
+      // are stacked on top of the previous one — the wipe naturally covers
+      // the previous photo with the next.
+      const REVEAL = 0.42;
+      const HOLD = 0.16;
+      let cursor = 0.4;
+      photos.forEach((p) => {
+        tl.to(
+          p,
+          { clipPath: 'inset(0 0% 0 0)', duration: REVEAL, ease: 'power2.out' },
+          cursor
+        );
+        cursor += REVEAL + HOLD;
+      });
+
+      // 3 — Glyph wipes in (left → right) with the same easing as the photo
+      // cycle for continuity. Simultaneously, the slot (photo-3 + elevated bg)
+      // wipes OUT in the same direction (left edge disappears first) so that
+      // behind the wipe-line the glyph appears alone on the splash background —
+      // no photo, no slot panel, "rien derrière le logo".
+      // Both tweens share `cursor`, `REVEAL` and `power2.out` so the wipe-line
+      // stays perfectly aligned across the slot width.
+      tl.to(
+        glyphWrap,
+        { clipPath: 'inset(0 0% 0 0)', duration: REVEAL, ease: 'power2.out' },
+        cursor
+      );
+      tl.to(
+        slot,
+        { clipPath: 'inset(0 0 0 100%)', duration: REVEAL, ease: 'power2.out' },
+        cursor
+      );
+      cursor += REVEAL + 0.45;
+
+      // 4 — Handoff. ALX/MTNC dissolve, then the glyph travels via a bezier
+      // ease (`power3.inOut`) to the HomeHero centered glyph position. Falls
+      // back to a stationary fade-out if no target is found (defensive). The
+      // slot is already gone (clipped out in phase 3) so no need to touch it.
+      tl.to([left, right], { opacity: 0, duration: 0.4, ease: 'power2.in' }, cursor);
+
+      const TRAVEL_DUR = 0.95;
+      const TRAVEL_START = cursor + 0.05;
+      const TRAVEL_END = TRAVEL_START + TRAVEL_DUR;
+
+      if (heroTarget) {
+        const targetCx = heroTarget.rect.left + heroTarget.rect.width / 2;
+        const targetCy = heroTarget.rect.top + heroTarget.rect.height / 2;
+        const currentCx = glyphLeft + glyphW / 2;
+        const currentCy = glyphTop + glyphH / 2;
+        const dx = targetCx - currentCx;
+        const dy = targetCy - currentCy;
+        const scale = heroTarget.rect.width / glyphW;
+
+        tl.to(
+          glyphWrap,
+          {
+            x: dx,
+            y: dy,
+            scale,
+            transformOrigin: '50% 50%',
+            duration: TRAVEL_DUR,
+            ease: 'power3.inOut',
+          },
+          TRAVEL_START
+        );
+      }
+
+      // 5 — At the exact moment the glyph LANDS at its hero-banner position,
+      // fire the reveal event (skip:false) so the hero can start its
+      // "egg-laying" entrance (photo unfurl → nav items dropped → arrow). The
+      // splash overlay then fades over the next 0.4s — by which time the photo
+      // is unfurled and the first nav item is starting to drop.
+      tl.call(
+        () => {
+          dispatchReveal(false);
+        },
+        undefined,
+        TRAVEL_END
+      );
+
+      // 6 — Overlay background fades out so HomeHeroSplash (already mounted
+      // and now mid-entrance) takes over visually. The splash glyph fades
+      // with the overlay — by then it sits on top of the hero's own centered
+      // glyph, so the handoff reads as one continuous element.
+      tl.to(overlay, { opacity: 0, duration: 0.4, ease: 'power2.in' }, TRAVEL_END);
+
+      cleanup = () => {
+        tl.kill();
+      };
+    });
+
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, [mounted, reduced, onComplete]);
+
+  if (!mounted) return null;
+
+  return (
+    <div
+      ref={overlayRef}
+      aria-hidden
+      // z-[9999] sits above SiteHeader (z-50), HomeHero overlay (z-30) and
+      // CursorInvert. pointer-events: none lets the underlying page stay
+      // interactive in case anything wants focus during the splash (we still
+      // lock scroll via body.style.overflow).
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--color-bg)] overflow-hidden pointer-events-none"
+    >
+      <div className="flex items-center gap-3 md:gap-5 leading-none">
+        <span
+          ref={leftRef}
+          className="font-bold tracking-[-0.04em] text-[var(--color-fg)] select-none"
+          style={{
+            fontSize: 'clamp(48px, 12vw, 160px)',
+            lineHeight: 1,
+            opacity: 0,
+          }}
+        >
+          ALX
+        </span>
+
+        <div
+          ref={slotRef}
+          className="relative overflow-hidden bg-[var(--color-bg-elev)] shrink-0"
+        >
+          {SPLASH_PHOTOS.map((src, i) => (
+            <div
+              key={src}
+              ref={(el) => {
+                photoRefs.current[i] = el;
+              }}
+              className="absolute inset-0"
+              style={{ clipPath: 'inset(0 100% 0 0)' }}
+            >
+              <Image
+                src={asset(src)}
+                alt=""
+                fill
+                sizes="(max-width: 768px) 30vw, 240px"
+                className="object-cover"
+                priority
+                draggable={false}
+              />
+            </div>
+          ))}
+        </div>
+
+        <span
+          ref={rightRef}
+          className="font-bold tracking-[-0.04em] text-[var(--color-fg)] select-none"
+          style={{
+            fontSize: 'clamp(48px, 12vw, 160px)',
+            lineHeight: 1,
+            opacity: 0,
+          }}
+        >
+          MTNC
+        </span>
+      </div>
+
+      {/* Glyph wrapper — fixed-positioned sibling of the row so the travel
+          phase can translate freely outside the row's flex bounds. Position
+          and size are set in JS at mount to align exactly over the slot. */}
+      <div
+        ref={glyphRef}
+        className="fixed pointer-events-none"
+        style={{
+          left: 0,
+          top: 0,
+          color: 'var(--color-accent)',
+          clipPath: 'inset(0 100% 0 0)',
+          willChange: 'transform, clip-path',
+        }}
+      >
+        <SplashGlyph />
+      </div>
+    </div>
+  );
+}

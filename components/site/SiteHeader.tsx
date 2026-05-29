@@ -24,6 +24,10 @@ const LINKS = [
 export function SiteHeader() {
   const pathname = usePathname();
   const isHome = pathname === '/';
+  // /splash-test est un sandbox qui clone la home pour prototyper le splash —
+  // on masque le header ici aussi pour que le test reflète exactement `/`.
+  // À supprimer en même temps que `app/(site)/splash-test/` pour rollback total.
+  const hideHeader = isHome || pathname === '/splash-test';
 
   return (
     <>
@@ -37,9 +41,9 @@ export function SiteHeader() {
           // disque de blend avec ce qui défile sous le menu.
           'fixed inset-x-0 top-0 z-50 h-16',
           // Sur la home, masqué — le HomeHero morphe vers ce layout exact.
-          isHome && 'hidden'
+          hideHeader && 'hidden'
         )}
-        aria-hidden={isHome}
+        aria-hidden={hideHeader}
       >
         <nav
           aria-label="Main navigation"

@@ -1,5 +1,6 @@
 import { ScrollPhysicsGallery } from '@/components/gallery/ScrollPhysicsGallery';
 import { HomeHero } from '@/components/site/HomeHero';
+import { SplashScreen } from '@/components/site/SplashScreen';
 import { getHomepagePhotos, getSiteSettings } from '@/lib/sanity/queries';
 import { resolveMotion } from '@/lib/motion/presets';
 import { buildMetadata } from '@/lib/seo/metadata';
@@ -22,6 +23,15 @@ export default async function HomePage() {
 
   return (
     <>
+      {/* SplashScreen — overlay z-9999 qui joue l'animation d'intro ALXMTNC
+          puis dispatch SPLASH_REVEAL_EVENT pour déclencher l'entrance du
+          HomeHero (photo unfurl + nav items "pondus" + arrow). Le hero
+          rend déjà toute sa structure DOM (photo/nav/arrow à opacity:0) :
+          le splash flotte par-dessus pendant qu'il joue, puis fade out.
+          Honore prefers-reduced-motion (skip direct + reveal:skip pour que
+          le hero affiche tout immédiatement). */}
+      <SplashScreen />
+
       <HomeHero />
 
       <ScrollPhysicsGallery photos={photos} motion={motion} />
