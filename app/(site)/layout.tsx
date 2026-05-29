@@ -4,6 +4,7 @@ import { FramedScroll } from '@/components/site/FramedScroll';
 import { MainPadding } from '@/components/site/MainPadding';
 import { MobileMenu } from '@/components/site/MobileMenu';
 import { CursorInvert } from '@/components/site/CursorInvert';
+import { SiteSessionMarker } from '@/components/site/SiteSessionMarker';
 
 export default function SiteLayout({
   children,
@@ -12,6 +13,10 @@ export default function SiteLayout({
 }) {
   return (
     <>
+      {/* Tracks "user has loaded at least one (site) page in this tab" via
+          sessionStorage, so the splash on / can distinguish a genuine first
+          arrival from any subsequent internal navigation back to /. */}
+      <SiteSessionMarker />
       <SiteHeader />
       {/* Mobile menu rendered once for the whole (site) group — works on home and editorial pages alike. */}
       <MobileMenu />

@@ -100,6 +100,99 @@ function measureCapHeightPx(el: HTMLElement): number {
   return (bottomY - topY + 1) / sampleScale;
 }
 
+/**
+ * Measure the LEFT and RIGHT side bearings of `text` rendered in the same
+ * font/weight/size as `el`. Side bearings = empty horizontal space inside the
+ * text's box (advance width) between the box edge and the first/last visible
+ * pixel of the glyph. They're typically asymmetric per character: for the
+ * splash, Inter Bold "X" has a notable right bearing while "M" has a small
+ * left bearing — so without compensation the visual whitespace LEFT of the
+ * photo slot is bigger than the whitespace RIGHT of it, even with symmetric
+ * CSS gap. We use this to apply asymmetric margin to the slot and balance
+ * the two visual gaps.
+ *
+ * Letter-spacing is intentionally NOT applied on the canvas — it only affects
+ * inter-letter spacing, not outer bearings, so its absence doesn't bias the
+ * measurement.
+ */
+function measureSideBearings(
+  text: string,
+  el: HTMLElement
+): { leftBearing: number; rightBearing: number } {
+  const style = window.getComputedStyle(el);
+  const fontSize = parseFloat(style.fontSize);
+  if (!Number.isFinite(fontSize) || fontSize <= 0) {
+    return { leftBearing: 0, rightBearing: 0 };
+  }
+
+  const SAMPLE_FS = 200;
+  const sampleScale = SAMPLE_FS / fontSize;
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return { leftBearing: 0, rightBearing: 0 };
+
+  const fontString = `${style.fontWeight} ${SAMPLE_FS}px ${style.fontFamily}`;
+  ctx.font = fontString;
+  ctx.textBaseline = 'alphabetic';
+  const m = ctx.measureText(text);
+  const padding = SAMPLE_FS;
+  canvas.width = Math.ceil(m.width) + padding * 2;
+  canvas.height = SAMPLE_FS * 3;
+
+  ctx.font = fontString;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#000';
+  ctx.fillText(text, padding, SAMPLE_FS * 2);
+
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+  // Scan column by column from the left, find first column with any ink.
+  let leftmostX = -1;
+  for (let x = 0; x < canvas.width; x++) {
+    let hasInk = false;
+    for (let y = 0; y < canvas.height; y++) {
+      if (img[(y * canvas.width + x) * 4 + 3] > 10) {
+        hasInk = true;
+        break;
+      }
+    }
+    if (hasInk) {
+      leftmostX = x;
+      break;
+    }
+  }
+
+  // Scan from the right.
+  let rightmostX = -1;
+  for (let x = canvas.width - 1; x >= 0; x--) {
+    let hasInk = false;
+    for (let y = 0; y < canvas.height; y++) {
+      if (img[(y * canvas.width + x) * 4 + 3] > 10) {
+        hasInk = true;
+        break;
+      }
+    }
+    if (hasInk) {
+      rightmostX = x;
+      break;
+    }
+  }
+
+  if (leftmostX < 0 || rightmostX < 0) {
+    return { leftBearing: 0, rightBearing: 0 };
+  }
+
+  // Text box runs from x=padding to x=padding+m.width.
+  const leftBearingSample = leftmostX - padding;
+  const rightBearingSample = padding + m.width - (rightmostX + 1);
+
+  return {
+    leftBearing: Math.max(0, leftBearingSample / sampleScale),
+    rightBearing: Math.max(0, rightBearingSample / sampleScale),
+  };
+}
+
 // Glyph SVG inlined (rather than reusing GlyphLogo) so the wrapping element can
 // be sized, positioned and colored independently for the travel phase.
 function SplashGlyph() {
@@ -199,10 +292,59 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
 
   useEffect(() => {
     if (!mounted) return;
-    if (reduced) {
-      // Reduced motion: no splash, no entrance. Dispatch with skip:true so the
-      // hero shows everything immediately.
-      dispatchReveal(true);
+
+    // ────────────────────────────────────────────────────────────────────
+    // Activation gate — decide whether this mount should actually play.
+    //
+    // Spec :
+    //   • 1ʳᵉ arrivée sur /  (pas de flag de session)  → PLAY
+    //   • reload AU HERO  (scrollY ≈ 0)                → PLAY
+    //   • reload IN GALLERY (scrollY > 0)              → SKIP
+    //   • back / forward navigation                    → SKIP
+    //   • internal Link navigation back to /           → SKIP
+    //     (sessionStorage flag set when the splash first played in this tab)
+    //
+    // Skip path : dispatchReveal(true) so HomeHero shows everything in its
+    // scroll-aware morphed state, no entrance animation, no hero overlay
+    // flashing over the gallery for a second.
+    // ────────────────────────────────────────────────────────────────────
+    let shouldSkip = false;
+    if (typeof window !== 'undefined') {
+      const navEntries = performance.getEntriesByType('navigation');
+      const navType = (navEntries[0] as PerformanceNavigationTiming | undefined)
+        ?.type;
+      // `siteVisited` is set by <SiteSessionMarker /> (in the (site) layout)
+      // AT RENDER TIME on the first pathname change in this tab. By the time
+      // our own useEffect runs, the layout has already committed its render
+      // — so for a /contact → / Link nav, the flag is in sessionStorage
+      // BEFORE we read it here, and the splash correctly skips.
+      // The render-time approach is what makes this race-free; an earlier
+      // useEffect-based attempt suffered from React's depth-first effect
+      // order (SplashScreen, deeper, would read before the marker, shallower,
+      // set).
+      const siteVisited = sessionStorage.getItem('siteVisited') === 'true';
+      // 4 px tolerance — browsers sometimes restore scroll a couple px off 0.
+      const atHero = window.scrollY <= 4;
+
+      if (navType === 'back_forward') {
+        shouldSkip = true;
+      } else if (navType === 'reload') {
+        shouldSkip = !atHero;
+      } else {
+        // 'navigate' (first load OR client-side Link nav back to /)
+        shouldSkip = siteVisited;
+      }
+    }
+
+    if (shouldSkip || reduced) {
+      // Reduced motion OR contextual skip: bypass the whole splash. Defer
+      // the event by one macrotask so HomeHero's listener (added in its own
+      // useEffect on the same render commit) is bound before we dispatch.
+      // Without this, the event would fire before the listener exists and
+      // HomeHero would wait for the 8 s safety net to reveal itself.
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => dispatchReveal(true), 0);
+      }
       onComplete?.();
       setMounted(false);
       return;
@@ -271,13 +413,39 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
       slot.style.height = `${letterH}px`;
       slot.style.width = `${slotW}px`;
 
+      // Compensate for font side-bearing asymmetry. Inter Bold "X" leaves a
+      // notable right bearing (empty space at the right of its advance width),
+      // while "M" has a small left bearing. With purely symmetric CSS gap, the
+      // visual whitespace LEFT of the slot is therefore bigger than the one
+      // RIGHT of it. We measure both bearings, take half their difference, and
+      // apply it as opposing margins on the slot — total slot layout footprint
+      // stays the same (margin-left + margin-right cancel), but the slot
+      // shifts horizontally toward the "looser" side until the two visual
+      // whitespaces match. Must be applied BEFORE measuring slotRect for the
+      // glyph wrapper, otherwise the glyph lands at the un-shifted position
+      // and looks slightly off-center vs the rendered slot.
+      // Skipped in vertical-mobile layout — column direction, side bearings
+      // are irrelevant.
+      if (!isVerticalMobile) {
+        const leftBearings = measureSideBearings('ALX', left);
+        const rightBearings = measureSideBearings('MTNC', right);
+        const asymmetryPx =
+          (leftBearings.rightBearing - rightBearings.leftBearing) / 2;
+        slot.style.marginLeft = `${-asymmetryPx}px`;
+        slot.style.marginRight = `${asymmetryPx}px`;
+      } else {
+        slot.style.marginLeft = '';
+        slot.style.marginRight = '';
+      }
+
       // Place the glyph wrapper EXACTLY over the slot when it's at its FINAL
       // expanded size. We measure first (slot at full size = letters pushed
-      // apart), capture the glyph target position, then collapse the slot's
-      // main axis to 0 for the Willem expansion (next gsap.set below).
-      // The getBoundingClientRect() forces a synchronous layout — by the time
-      // the browser actually paints (next frame), the slot is already back at
-      // 0, so the user never sees the temporary full-size frame.
+      // apart, bearing-margin already applied), capture the glyph target
+      // position, then collapse the slot's main axis to 0 for the Willem
+      // expansion (next gsap.set below). The getBoundingClientRect() forces a
+      // synchronous layout — by the time the browser actually paints (next
+      // frame), the slot is already back at 0, so the user never sees the
+      // temporary full-size frame.
       const slotRect = slot.getBoundingClientRect();
       const glyphH = letterH;
       const glyphW = glyphH * (559 / 521);
