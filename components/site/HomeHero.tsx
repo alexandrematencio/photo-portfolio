@@ -45,7 +45,7 @@ export function HomeHero() {
   const nameRef = useRef<HTMLHeadingElement>(null);
   const photoRef = useRef<HTMLDivElement>(null);
   const navItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
-  const arrowRef = useRef<HTMLDivElement>(null);
+  const arrowRef = useRef<HTMLButtonElement>(null);
   const spacerRef = useRef<HTMLDivElement>(null);
   // CSS-anchored landing glyph. Independent of the GSAP morph math so that even
   // when the morph drifts (mobile address-bar resize invalidates viewport-relative
@@ -685,12 +685,21 @@ export function HomeHero() {
 
       {/* Mobile burger + drawer ont migré dans <MobileMenu /> au niveau layout. */}
 
-      {/* Down-arrow fixed bottom (opacity initiale 0, révélée en dernier par
-          l'entrance splash ; ensuite fade out via la timeline scroll-morph). */}
-      <div
+      {/* Down-arrow fixed bottom — bouton cliquable qui scroll smooth vers le
+          début de la gallery (`#gallery-start` sur le stage de
+          ScrollPhysicsGallery). Opacity initiale 0, révélé en dernier par
+          l'entrance splash ; fade out ensuite via la timeline scroll-morph. */}
+      <button
         ref={arrowRef}
-        aria-hidden
-        className="pointer-events-none fixed bottom-6 left-1/2 -translate-x-1/2 z-40"
+        type="button"
+        onClick={() => {
+          const target = document.getElementById('gallery-start');
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }}
+        aria-label="Scroll to gallery"
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 cursor-pointer bg-transparent border-0 p-2 -m-2"
         style={{ opacity: 0 }}
       >
         <ChevronDown
@@ -698,7 +707,7 @@ export function HomeHero() {
           strokeWidth={1.5}
           className="scroll-cue text-[var(--color-fg)]"
         />
-      </div>
+      </button>
 
       {/*
         Spacer pinned : pendant 70vh de scroll, la page est "trappée" et la

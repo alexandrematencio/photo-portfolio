@@ -152,7 +152,12 @@ export function ScrollPhysicsGallery({ photos, motion }: Props) {
 
   return (
     <>
-      <div ref={stageRef} className="gallery-stage" aria-label="Galerie immersive">
+      <div
+        ref={stageRef}
+        id="gallery-start"
+        className="gallery-stage"
+        aria-label="Galerie immersive"
+      >
         {items.map((photo, index) => (
           <PhotoBlock
             key={photo?._id ?? `placeholder-${index}`}
