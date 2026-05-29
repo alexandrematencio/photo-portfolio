@@ -271,9 +271,13 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
       slot.style.height = `${letterH}px`;
       slot.style.width = `${slotW}px`;
 
-      // Place the glyph wrapper EXACTLY over the slot. We keep it in the DOM
-      // as a sibling of the row (position: fixed) so the travel phase can move
-      // it freely without being clipped by the row's flex container.
+      // Place the glyph wrapper EXACTLY over the slot when it's at its FINAL
+      // expanded size. We measure first (slot at full size = letters pushed
+      // apart), capture the glyph target position, then collapse the slot's
+      // main axis to 0 for the Willem expansion (next gsap.set below).
+      // The getBoundingClientRect() forces a synchronous layout — by the time
+      // the browser actually paints (next frame), the slot is already back at
+      // 0, so the user never sees the temporary full-size frame.
       const slotRect = slot.getBoundingClientRect();
       const glyphH = letterH;
       const glyphW = glyphH * (559 / 521);
@@ -283,6 +287,22 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
       glyphWrap.style.height = `${glyphH}px`;
       glyphWrap.style.left = `${glyphLeft}px`;
       glyphWrap.style.top = `${glyphTop}px`;
+
+      // Willem expansion setup. The slot's main axis (width in horizontal
+      // layout, height in vertical layout) collapses to 0, ALX and MTNC fall
+      // back against each other as if "ALXMTNC" was one word. Phase 2 then
+      // grows the slot back to full size, pushing the letters apart.
+      // Photo 0 sits at clipPath inset(0 0 0 0) (fully revealed via the slot
+      // growth itself — object-cover means the visible portion expands
+      // symmetrically from the center as the slot widens). Photos 1 and 2
+      // keep their initial inline clipPath inset(0 100% 0 0) and wipe in via
+      // clipPath as before, inside the now-fixed-size slot.
+      const expandProp: 'width' | 'height' = isVerticalMobile
+        ? 'height'
+        : 'width';
+      const expandTarget = isVerticalMobile ? letterH : slotW;
+      gsap.set(slot, { [expandProp]: 0 });
+      gsap.set(photos[0], { clipPath: 'inset(0 0% 0 0)' });
 
       // Locate the HomeHero's centered glyph by DOM query — no edits to
       // HomeHero needed. We take the biggest GlyphLogo on the page that is
@@ -312,20 +332,33 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
         0
       );
 
-      // 2 — Photo cycle. Each photo wipes in left → right. Subsequent photos
-      // are stacked on top of the previous one — the wipe naturally covers
-      // the previous photo with the next.
+      // 2 — Photo cycle, Willem-style.
+      //   • Sub-phase 1: the slot grows from 0 to its full main-axis size
+      //     (width horizontal / height vertical), pushing ALX and MTNC apart.
+      //     Photo 0 is already clipPath-revealed (inset 0), so as the slot
+      //     widens it fills with the photo — the center column of the image
+      //     expands outward symmetrically (object-cover). Same easing/duration
+      //     as the subsequent photo wipes for one continuous tempo.
+      //   • Sub-phases 2 & 3: photos 1 and 2 wipe in via clipPath inside the
+      //     now-fixed slot, like before — each covers the previous one with a
+      //     left → right reveal.
       const REVEAL = 0.42;
       const HOLD = 0.16;
       let cursor = 0.4;
-      photos.forEach((p) => {
+      tl.to(
+        slot,
+        { [expandProp]: expandTarget, duration: REVEAL, ease: 'power2.out' },
+        cursor
+      );
+      cursor += REVEAL + HOLD;
+      for (let i = 1; i < photos.length; i++) {
         tl.to(
-          p,
+          photos[i],
           { clipPath: 'inset(0 0% 0 0)', duration: REVEAL, ease: 'power2.out' },
           cursor
         );
         cursor += REVEAL + HOLD;
-      });
+      }
 
       // 3 — Glyph wipes in (left → right) with the same easing as the photo
       // cycle for continuity. Simultaneously, the slot (photo-3 + elevated bg)
@@ -427,15 +460,17 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
     >
       <div
         className={cn(
-          'flex items-center gap-3 md:gap-5 leading-none',
+          // gap-0 : ALX et MTNC se touchent au départ comme du texte normal
+          // "ALXMTNC". Le slot grandit ENTRE eux pendant la phase 2 et les
+          // pousse de chaque côté (effet Willem). Sans gap, l'expansion lit
+          // comme un vrai "creusement" entre deux mots collés.
+          'flex items-center gap-0 leading-none',
           // verticalMobile: stack ALX / slot / MTNC vertically on < md. The
           // column shrinks to its widest child (MTNC), `items-start` aligns
           // ALX and the slot on that left edge. The OUTER overlay's
           // `items-center justify-center` then centers the whole column both
-          // horizontally and vertically in the viewport — so the elements
-          // read "left-aligned inside a centered block", not flushed against
-          // the viewport's left edge.
-          verticalMobile && 'max-md:flex-col max-md:items-start max-md:gap-4'
+          // horizontally and vertically in the viewport.
+          verticalMobile && 'max-md:flex-col max-md:items-start'
         )}
       >
         <span
