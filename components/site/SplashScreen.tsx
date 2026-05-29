@@ -327,7 +327,11 @@ export function SplashScreen({ onComplete }: Props) {
         { clipPath: 'inset(0 0 0 100%)', duration: REVEAL, ease: 'power2.out' },
         cursor
       );
-      cursor += REVEAL + 0.45;
+      // Hold post-glyph aligné sur le HOLD inter-photos : le glyph est "le
+      // 4ᵉ élément du cycle", donc même tempo que les swaps qui précèdent.
+      // L'assouplissement du travel (power3.inOut, 0.95s ci-dessous) reste
+      // intact — seule la pause d'attente est tightenée.
+      cursor += REVEAL + HOLD;
 
       // 4 — Handoff. ALX/MTNC dissolve, then the glyph travels via a bezier
       // ease (`power3.inOut`) to the HomeHero centered glyph position. Falls
