@@ -38,6 +38,7 @@ import { createPortal } from 'react-dom';
 import { X, ExternalLink, ArrowLeft, ArrowRight } from 'lucide-react';
 import { urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
+import { pushModalHistory } from '@/lib/utils/modalHistory';
 import { OriginalViewer } from './OriginalViewer';
 
 type Props = {
@@ -112,6 +113,20 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
     // don't need to re-bind listeners (prev/next close over current setIndex).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose]);
+
+  // Browser back integration. Push a history entry on mount so the next
+  // back-button press CLOSES the lightbox instead of navigating to the
+  // previous page (Google, About, …). The stack util coordinates with
+  // OriginalViewer so nested modals close one layer at a time.
+  // onCloseRef ensures the popstate handler always reads the latest onClose
+  // even though we register it once on mount with empty deps.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+  useEffect(() => {
+    return pushModalHistory(() => onCloseRef.current());
+  }, []);
 
   // Desktop: position prev/next arrows 32 px from the photo frame's edges.
   // A ResizeObserver re-measures on every frame size change — crucial because
