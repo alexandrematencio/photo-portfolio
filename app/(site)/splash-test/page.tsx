@@ -35,7 +35,11 @@ export default async function SplashTestPage() {
 
   return (
     <>
-      <SplashScreen />
+      {/* `verticalMobile` est un opt-in sandbox : sur < md, stack ALX / slot /
+          MTNC à la verticale avec une typo plus grosse. La home `/` continue
+          d'utiliser le layout horizontal (default). À fusionner sur `/` quand
+          le rendu mobile est validé. */}
+      <SplashScreen verticalMobile />
       <HomeHeroSplash />
       <ScrollPhysicsGallery photos={photos} motion={motion} />
     </>

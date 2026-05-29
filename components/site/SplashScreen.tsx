@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { asset } from '@/lib/utils/asset';
+import { cn } from '@/lib/utils/cn';
 import { lockBodyScroll, unlockBodyScroll } from '@/lib/utils/scrollLock';
 
 /**
@@ -135,9 +136,16 @@ function SplashGlyph() {
 type Props = {
   /** Fires when the splash finishes (or is skipped) and starts to unmount. */
   onComplete?: () => void;
+  /**
+   * Sandbox-only opt-in: on mobile (< md), stack ALX / slot / MTNC vertically
+   * and bump the letter font-size. Desktop layout unchanged. Used by
+   * /splash-test while we iterate on the mobile composition without touching
+   * the production splash on /.
+   */
+  verticalMobile?: boolean;
 };
 
-export function SplashScreen({ onComplete }: Props) {
+export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
   const [mounted, setMounted] = useState(true);
   const overlayRef = useRef<HTMLDivElement>(null);
   const leftRef = useRef<HTMLSpanElement>(null);
@@ -240,12 +248,19 @@ export function SplashScreen({ onComplete }: Props) {
         return;
       }
 
-      // Letter STRICT cap-height (bottom-of-glyph → top-of-glyph, baseline +
-      // descender padding excluded). This is what the user sees as "the letter
-      // height" — not the line-box. The slot's image height is set to match
-      // this value pixel-for-pixel so the photos look the exact same size as
-      // the visible part of the letters.
-      const letterH = measureCapHeightPx(left);
+      // Letter height drives slot + glyph sizing.
+      // - Horizontal (default): STRICT cap-height (bottom-of-glyph → top-of-
+      //   glyph, baseline + descender padding excluded). Slot reads as the
+      //   exact visible extent of the letters — a 4ᵗʰ "letter substitute".
+      // - Vertical mobile (verticalMobile && < md): full line-box height
+      //   (= font-size, since lineHeight:1). Slot occupies the same vertical
+      //   real estate as a line of text, so it reads "as tall as the letters"
+      //   in the stacked ALX / slot / MTNC column.
+      const isVerticalMobile =
+        verticalMobile && window.matchMedia('(max-width: 768px)').matches;
+      const letterH = isVerticalMobile
+        ? left.getBoundingClientRect().height
+        : measureCapHeightPx(left);
 
       // Slot footprint = letter-height tall, 1.5× wide (3:2 ratio, matches the
       // source photos so no crop is needed). All 3 photos object-cover into this
@@ -396,7 +411,7 @@ export function SplashScreen({ onComplete }: Props) {
       cancelled = true;
       cleanup?.();
     };
-  }, [mounted, reduced, onComplete]);
+  }, [mounted, reduced, onComplete, verticalMobile]);
 
   if (!mounted) return null;
 
@@ -410,15 +425,30 @@ export function SplashScreen({ onComplete }: Props) {
       // lock scroll via body.style.overflow).
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-[var(--color-bg)] overflow-hidden pointer-events-none"
     >
-      <div className="flex items-center gap-3 md:gap-5 leading-none">
+      <div
+        className={cn(
+          'flex items-center gap-3 md:gap-5 leading-none',
+          // verticalMobile: stack ALX / slot / MTNC vertically on < md. The
+          // column shrinks to its widest child (MTNC), `items-start` aligns
+          // ALX and the slot on that left edge. The OUTER overlay's
+          // `items-center justify-center` then centers the whole column both
+          // horizontally and vertically in the viewport — so the elements
+          // read "left-aligned inside a centered block", not flushed against
+          // the viewport's left edge.
+          verticalMobile && 'max-md:flex-col max-md:items-start max-md:gap-4'
+        )}
+      >
         <span
           ref={leftRef}
-          className="font-bold tracking-[-0.04em] text-[var(--color-fg)] select-none"
-          style={{
-            fontSize: 'clamp(48px, 12vw, 160px)',
-            lineHeight: 1,
-            opacity: 0,
-          }}
+          className={cn(
+            'font-bold tracking-[-0.04em] text-[var(--color-fg)] select-none',
+            // Default + desktop: same range as before (clamp 48-160 px).
+            'text-[clamp(48px,12vw,160px)]',
+            // verticalMobile override: bigger range below md so the letters
+            // read big without the horizontal width constraint of the row.
+            verticalMobile && 'max-md:text-[clamp(80px,22vw,130px)]'
+          )}
+          style={{ lineHeight: 1, opacity: 0 }}
         >
           ALX
         </span>
@@ -451,12 +481,12 @@ export function SplashScreen({ onComplete }: Props) {
 
         <span
           ref={rightRef}
-          className="font-bold tracking-[-0.04em] text-[var(--color-fg)] select-none"
-          style={{
-            fontSize: 'clamp(48px, 12vw, 160px)',
-            lineHeight: 1,
-            opacity: 0,
-          }}
+          className={cn(
+            'font-bold tracking-[-0.04em] text-[var(--color-fg)] select-none',
+            'text-[clamp(48px,12vw,160px)]',
+            verticalMobile && 'max-md:text-[clamp(80px,22vw,130px)]'
+          )}
+          style={{ lineHeight: 1, opacity: 0 }}
         >
           MTNC
         </span>

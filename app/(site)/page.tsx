@@ -29,8 +29,12 @@ export default async function HomePage() {
           rend déjà toute sa structure DOM (photo/nav/arrow à opacity:0) :
           le splash flotte par-dessus pendant qu'il joue, puis fade out.
           Honore prefers-reduced-motion (skip direct + reveal:skip pour que
-          le hero affiche tout immédiatement). */}
-      <SplashScreen />
+          le hero affiche tout immédiatement).
+          `verticalMobile`: sur < md, stack ALX / slot / MTNC à la verticale,
+          left-aligned dans un bloc centré. Typo agrandie et slot à hauteur
+          line-box pour matcher l'extent vertical des lettres. Desktop
+          inchangé. */}
+      <SplashScreen verticalMobile />
 
       <HomeHero />
 
