@@ -350,6 +350,42 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
       return;
     }
 
+    // ────────────────────────────────────────────────────────────────────
+    // We've decided to PLAY the full intro. By definition the user is at the
+    // top of the hero. Two things to nail down before the splash runs:
+    //
+    //   1. window.scrollTo(0, 0) — start the intro from the very top.
+    //   2. history.scrollRestoration = 'manual' — stop the browser from
+    //      applying its ASYNCHRONOUS scroll restoration.
+    //
+    // Why (2) matters — the production bug it fixes: on a slow cold load the
+    // gate above reads scrollY ≈ 0 (the document is still too short to restore
+    // into, because the gallery images haven't loaded yet) → we PLAY. A second
+    // or two later the gallery images arrive, the document grows to full height,
+    // and the browser applies the *deferred* restored scroll (~1 viewport down).
+    // The HomeHero scroll-morph (scrub) and the static-glyph fader both read
+    // window.scrollY, so they react to that phantom scroll and collapse the hero
+    // into the nav-bar on its own — exactly the "hero disappears 1-2 s after the
+    // reveal" symptom. Disabling restoration here removes the trigger. The body
+    // stays locked through the entrance, so even a late restoration attempt is
+    // clamped to 0 until we hand off.
+    //
+    // Scoped to the PLAY path only: reload-in-gallery / back-forward SKIP the
+    // splash (above) and never reach this code, so their native scroll
+    // restoration is untouched. We capture the previous value and restore it on
+    // unmount (cleanup) so a later reload still behaves normally.
+    // ────────────────────────────────────────────────────────────────────
+    let prevScrollRestoration: ScrollRestoration | null = null;
+    if (typeof window !== 'undefined') {
+      try {
+        prevScrollRestoration = history.scrollRestoration;
+        history.scrollRestoration = 'manual';
+      } catch {
+        prevScrollRestoration = null;
+      }
+      window.scrollTo(0, 0);
+    }
+
     let cancelled = false;
     let cleanup: (() => void) | null = null;
 
@@ -611,6 +647,15 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
     return () => {
       cancelled = true;
       cleanup?.();
+      // Restore the browser's native scroll restoration so subsequent reloads
+      // (which SKIP the splash) keep their position as before.
+      if (prevScrollRestoration !== null) {
+        try {
+          history.scrollRestoration = prevScrollRestoration;
+        } catch {
+          // ignore — leaving it 'manual' is a benign fallback
+        }
+      }
     };
   }, [mounted, reduced, onComplete, verticalMobile]);
 

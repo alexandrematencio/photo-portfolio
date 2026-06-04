@@ -29,7 +29,11 @@ html {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  scroll-behavior: smooth;
+  /* No `scroll-behavior: smooth` here on purpose: it's a documented conflict
+     with GSAP ScrollTrigger (which needs to read/set scroll instantly during
+     pin + refresh) and it's redundant — Lenis owns smooth scrolling on the
+     home, and the few in-app jumps use scrollIntoView({ behavior: 'smooth' })
+     explicitly. Keeping it could desync the morph/refresh on cold loads. */
 }
 
 body {

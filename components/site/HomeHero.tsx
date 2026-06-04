@@ -539,6 +539,14 @@ export function HomeHero() {
           });
         }
 
+        // Late-binding hygiene: this morph only binds AFTER the splash entrance
+        // (~5 s on a cold load), by which point fonts and the first gallery
+        // images have likely shifted the layout since the trigger geometry was
+        // first measured. Recompute now so start/end and progress are read from
+        // the settled layout against the current (top, on the splash-play path)
+        // scroll position.
+        ScrollTrigger.refresh();
+
         cleanup = () => {
           // On ne tue QUE notre timeline + son scrollTrigger.
           // `kill(true)` = revert : enlève le wrapper <pin-spacer> que GSAP a inséré
