@@ -451,19 +451,35 @@ export function HomeHero({ hero }: HomeHeroProps) {
         });
 
         // Fades RAPIDES (photo-profile + nom + down-arrow vanishent ensemble, vite).
+        //
+        // ⚠️ `autoAlpha` et JAMAIS `opacity` : le hero est un overlay
+        // `fixed inset-0` qui ne part JAMAIS (il est seulement rendu
+        // transparent). Or `opacity: 0` ne retire pas un élément du hit-test —
+        // ces éléments restaient donc cliquables, invisibles, par-dessus la
+        // galerie tout le reste de la page. Bugs réels payés : la boîte de la
+        // photo de profil (192 × 128 px mesurés au centre exact du viewport)
+        // volait le curseur — son `pointerenter` pose `cursor: none` pour
+        // l'effet loupe, sans rien afficher en échange — avalait les clics sur
+        // les photos de la curation, et son `touch-action: none` empêchait le
+        // défilement au doigt commencé en plein centre de l'écran ; la flèche
+        // du bas restait un bouton cliquable qui renvoyait au début de la
+        // galerie. `autoAlpha` pose `visibility: hidden` à l'opacité 0 exacte
+        // (et la retire dès qu'elle repasse au-dessus, en remontant) : les
+        // éléments deviennent inertes précisément quand ils deviennent
+        // invisibles.
         tl.to(
           arrowRef.current,
-          { opacity: 0, y: 10, ease: 'power2.out', duration: FADE_FAST_DURATION },
+          { autoAlpha: 0, y: 10, ease: 'power2.out', duration: FADE_FAST_DURATION },
           0
         );
         tl.to(
           photoRef.current,
-          { opacity: 0, scale: 0.5, ease: 'power2.in', duration: FADE_FAST_DURATION },
+          { autoAlpha: 0, scale: 0.5, ease: 'power2.in', duration: FADE_FAST_DURATION },
           0
         );
         tl.to(
           nameRef.current,
-          { opacity: 0, ease: 'power2.in', duration: FADE_FAST_DURATION },
+          { autoAlpha: 0, ease: 'power2.in', duration: FADE_FAST_DURATION },
           0
         );
 
@@ -504,9 +520,12 @@ export function HomeHero({ hero }: HomeHeroProps) {
         // events lag), so we make sure the morphing element is invisible by the
         // time it'd hit its drifted target. The static glyph (CSS-anchored) takes
         // over as the visible element at top:18/left:32.
+        // autoAlpha, même raison que les fades ci-dessus : ce bloc est
+        // `pointer-events-auto` et resterait un obstacle invisible en haut au
+        // centre de l'écran une fois fondu.
         tl.to(
           logoBlockRef.current,
-          { opacity: 0, ease: 'power2.in', duration: 0.3 },
+          { autoAlpha: 0, ease: 'power2.in', duration: 0.3 },
           0.7
         );
 
