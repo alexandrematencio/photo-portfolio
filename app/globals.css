@@ -43,6 +43,24 @@ body {
   min-height: 100vh;
 }
 
+/* Photos : pas de glisser-déposer vers le bureau, pas de sélection, pas de
+   menu « Enregistrer l'image » au appui long iOS. Le blocage du clic droit,
+   lui, vit dans <PhotoGuard /> (un menu contextuel ne se désactive pas en CSS).
+
+   ⚠️ Ces règles sont un RALENTISSEUR, pas une protection : les outils de
+   développement, l'onglet réseau et une simple capture d'écran passent outre,
+   et rien ne peut l'empêcher — un navigateur doit décoder l'image pour
+   l'afficher. La vraie protection est le plafond de résolution posé à l'import
+   (MAX_EDGE dans scripts/upload-photos.ts).
+
+   Portée `body` et non `*` : le Studio (/studio) n'est pas dans ce groupe de
+   routes et garde donc son clic droit, indispensable pour éditer. */
+body img {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
 /* Indication scroll : flèche qui flotte légèrement vers le haut/bas */
 @keyframes scroll-cue {
   0%, 100% {

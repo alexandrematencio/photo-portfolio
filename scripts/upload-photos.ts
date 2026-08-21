@@ -92,6 +92,87 @@ const RESERVED_FILES = new Set([
   'photo-profile.png',
 ]);
 
+// ── Plafond de résolution ─────────────────────────────────────────────────────
+//
+// Les fichiers sont réduits AVANT d'être déposés dans Sanity. C'est la seule
+// protection réelle du travail : plafonner les URLs côté site ne sert à rien
+// tant que l'asset stocké est en 6000 px, puisqu'il suffit de retirer le `?w=`
+// d'une URL d'image pour récupérer l'original (vérifié — `max-w=` seul ne
+// plafonne rien côté CDN Sanity).
+//
+// 2048 px sur le grand côté : remplit n'importe quelle lightbox, y compris sur
+// écran retina, mais ne fait qu'un tirage de 17 × 11 cm à 300 dpi — inexploitable
+// en impression. Décidé avec Alexandre le 2026-08-21.
+//
+// ⚠️ Les masters restent dans `portfolio/` (gitignoré) : ce script ne modifie
+// JAMAIS les fichiers sources, il n'envoie qu'une copie réduite.
+const MAX_EDGE = 2048;
+const JPEG_QUALITY = 82;
+
+/**
+ * Réduit une image pour le web et renvoie de quoi rendre compte de l'opération.
+ *
+ * `.rotate()` sans argument applique l'orientation EXIF aux PIXELS. Indispensable
+ * ici : Sanity supprime les métadonnées du fichier qu'il sert (vérifié au niveau
+ * des octets, y compris à l'URL de l'original), donc une image portrait qui
+ * compterait sur son drapeau d'orientation arriverait couchée sur le site.
+ *
+ * Le format d'entrée est conservé (un PNG reste un PNG) : le CDN Sanity négocie
+ * de toute façon WebP/AVIF à la livraison via `auto('format')`, c'est lui qui
+ * décide du format servi, pas ce fichier.
+ */
+async function downscaleForWeb(
+  buffer: Buffer,
+  ext: string
+): Promise<{
+  buffer: Buffer;
+  from: { w: number; h: number; bytes: number };
+  to: { w: number; h: number; bytes: number };
+}> {
+  const { default: sharp } = await import('sharp');
+  const before = await sharp(buffer).metadata();
+
+  const pipeline = sharp(buffer)
+    .rotate()
+    .resize({
+      width: MAX_EDGE,
+      height: MAX_EDGE,
+      // `inside` + les deux côtés à la même valeur = le GRAND côté est plafonné,
+      // quelle que soit l'orientation. `withoutEnlargement` pour ne jamais
+      // gonfler une petite image (un agrandissement n'ajoute aucun détail et
+      // alourdirait le fichier pour rien).
+      fit: 'inside',
+      withoutEnlargement: true,
+    });
+
+  // `withIccProfile('srgb')` : garde-fou COULEUR, pas une coquetterie. Sharp
+  // supprime le profil ICC par défaut ; un fichier exporté en AdobeRGB ou
+  // ProPhoto serait alors relu comme du sRGB et virerait au terne, sans le
+  // moindre signal. Les exports actuels d'Alexandre sont déjà en sRGB (vérifié :
+  // moyennes RVB rigoureusement identiques avec et sans), le profil ne coûte
+  // donc que 498 octets aujourd'hui — et couvre le jour où l'export changera.
+  const encoded =
+    ext === 'png'
+      ? pipeline.png({ compressionLevel: 9 })
+      : ext === 'webp'
+        ? pipeline.webp({ quality: JPEG_QUALITY })
+        : pipeline.jpeg({
+            quality: JPEG_QUALITY,
+            mozjpeg: true,
+            progressive: true,
+          });
+  const out = await encoded.withIccProfile('srgb').toBuffer();
+
+  const after = await sharp(out).metadata();
+  return {
+    buffer: out,
+    from: { w: before.width ?? 0, h: before.height ?? 0, bytes: buffer.length },
+    to: { w: after.width ?? 0, h: after.height ?? 0, bytes: out.length },
+  };
+}
+
+const mo = (bytes: number) => `${(bytes / 1048576).toFixed(1)} Mo`;
+
 // ── Taxonomies Sanity ─────────────────────────────────────────────────────────
 
 type TaxonomyDoc = { _id: string; title: string; aliases?: string[] };
@@ -548,7 +629,17 @@ async function main(): Promise<void> {
     const contentType =
       ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
 
-    const asset = await client.assets.upload('image', buffer, {
+    // Réduction AVANT dépôt — cf. MAX_EDGE. Le master de `portfolio/` n'est
+    // pas touché : seule cette copie part chez Sanity.
+    const shrunk = await downscaleForWeb(buffer, ext);
+    const ratio = 1 - shrunk.to.bytes / shrunk.from.bytes;
+    console.log(
+      `        ${shrunk.from.w}×${shrunk.from.h} ${mo(shrunk.from.bytes)}` +
+        ` → ${shrunk.to.w}×${shrunk.to.h} ${mo(shrunk.to.bytes)}` +
+        ` (−${Math.round(ratio * 100)} %)`
+    );
+
+    const asset = await client.assets.upload('image', shrunk.buffer, {
       filename: p.filename,
       contentType,
     });

@@ -6,6 +6,7 @@ import { MobileMenu } from '@/components/site/MobileMenu';
 import { CursorInvert } from '@/components/site/CursorInvert';
 import { EmailHoneypot } from '@/components/site/EmailHoneypot';
 import { SiteSessionMarker } from '@/components/site/SiteSessionMarker';
+import { PhotoGuard } from '@/components/site/PhotoGuard';
 
 export default function SiteLayout({
   children,
@@ -18,6 +19,10 @@ export default function SiteLayout({
           sessionStorage, so the splash on / can distinguish a genuine first
           arrival from any subsequent internal navigation back to /. */}
       <SiteSessionMarker />
+      {/* Clic droit + glisser-déposer neutralisés sur les images du site
+          (jamais dans /studio, hors de ce groupe de routes). Ralentisseur et
+          signal, PAS une protection — cf. le commentaire du composant. */}
+      <PhotoGuard />
       <SiteHeader />
       {/* Mobile menu rendered once for the whole (site) group — works on home and editorial pages alike. */}
       <MobileMenu />

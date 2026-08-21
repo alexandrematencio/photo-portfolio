@@ -208,8 +208,13 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
   if (!photo) return null;
 
   const builder = photo.image ? urlFor(photo.image) : null;
-  const previewSrc = builder?.width(2400).quality(88).auto('format').url();
-  const originalSrc = builder?.url();
+  // `urlFor` plafonne déjà à MAX_PHOTO_WIDTH (2048). On ne redemande donc PAS
+  // 2400 ici : c'était la plus grande résolution servie du site, au-dessus de ce
+  // que n'importe quel écran affiche dans cette boîte.
+  const previewSrc = builder?.quality(88).auto('format').url();
+  // Le viseur zoomable montre la même image que l'aperçu — jamais l'asset nu.
+  // Avant : `builder.url()`, sans largeur, donc l'original pleine résolution.
+  const originalSrc = builder?.quality(88).auto('format').url();
 
   const imgW = photo.image?.dimensions?.width ?? 2400;
   const imgH = photo.image?.dimensions?.height ?? 1800;

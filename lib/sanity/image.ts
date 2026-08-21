@@ -5,9 +5,39 @@ const builder = isSanityConfigured
   ? imageUrlBuilder({ projectId, dataset })
   : null;
 
+/**
+ * Largeur maximale servie pour une photo, tous usages confondus.
+ *
+ * Doit rester alignée sur `MAX_EDGE` de `scripts/upload-photos.ts` (2048) : les
+ * photos importées depuis ce script ne sont de toute façon pas plus grandes, ce
+ * plafond ne mord donc que sur les assets antérieurs, restés en pleine
+ * résolution dans Sanity.
+ *
+ * ⚠️ Ce n'est PAS une protection à lui seul, seulement un garde-fou. L'asset
+ * stocké reste joignable à son URL nue : sur un original en 6000 px, retirer le
+ * `?w=` rend les 6000 px. Vérifié aussi : le paramètre `max-w=` du CDN Sanity ne
+ * plafonne rien (6000×4000 renvoyés avec `?max-w=2048`), il ne peut donc pas
+ * servir de barrière. Seule la réduction de l'asset à l'import ferme le trou.
+ */
+export const MAX_PHOTO_WIDTH = 2048;
+
+/**
+ * Constructeur d'URL d'image, **déjà plafonné** à `MAX_PHOTO_WIDTH`.
+ *
+ * Le plafond est posé ici et pas dans chaque appelant parce qu'il n'y a qu'une
+ * façon de le rater : oublier `.width()`. C'est exactement ce qui arrivait au
+ * bouton « Open original » de la lightbox — un `builder.url()` sans largeur, qui
+ * servait donc l'original pleine résolution (jusqu'à 6356 px / 28 Mo) en un clic,
+ * sans même ouvrir les outils de développement.
+ *
+ * Les appelants gardent la main : `.width(280)` l'emporte (le dernier appel
+ * gagne). Demander PLUS que le plafond fonctionnerait aussi — c'est délibéré,
+ * une vignette n'a pas à être bridée par une règle pensée pour les grands
+ * formats — mais ça doit rester un geste conscient, jamais un oubli.
+ */
 export function urlFor(source: SanityImageSource) {
   if (!builder) return null;
-  return builder.image(source);
+  return builder.image(source).width(MAX_PHOTO_WIDTH);
 }
 
 /**
