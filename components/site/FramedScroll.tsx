@@ -32,8 +32,16 @@ export function FramedScroll({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
+  // `data-scroll-container` : marqueur, pas un comportement. C'est CE nœud qui
+  // porte le scroll de la page (le body ne scrolle pas), donc une page qui doit
+  // piloter son propre défilement a besoin de le retrouver depuis son sous-arbre
+  // (`closest`). /series s'en sert pour consommer les 70 px de débord vertical —
+  // la réserve du footer — à la fin du défilement horizontal de sa rangée.
   return (
-    <div className="fixed inset-x-0 top-16 bottom-0 overflow-y-auto overflow-x-hidden">
+    <div
+      data-scroll-container
+      className="fixed inset-x-0 top-16 bottom-0 overflow-y-auto overflow-x-hidden"
+    >
       <div className="flex min-h-full flex-col">{children}</div>
     </div>
   );

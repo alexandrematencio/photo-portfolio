@@ -48,6 +48,13 @@ import {
 
 type Phase = 'closed' | 'opening' | 'open' | 'closing' | 'switching';
 
+/**
+ * Durée du glissement du footer. Court exprès : le footer n'est pas un
+ * événement de la page, c'est la butée de fin de rangée qui se montre. Assez
+ * long pour ne pas claquer, assez court pour ne pas se faire remarquer.
+ */
+const FOOTER_REVEAL_DUR = 0.26;
+
 type Captured = {
   layer: GhostLayer;
   colGhosts: HTMLImageElement[];
@@ -87,6 +94,79 @@ export function DesktopSeries({
   const pendingRef = useRef<Pending | null>(null);
   const capturedRef = useRef<Captured | null>(null);
   const reduced = useReducedMotion();
+  // Footer : révélé (true) ou rangé sous l'horizon (false). Un ref et non un
+  // state — la molette le lit à chaque événement, un re-render par cran serait
+  // du gaspillage et introduirait un décalage d'une frame.
+  const footerShown = useRef(false);
+  const footerTween = useRef<gsap.core.Tween | null>(null);
+
+  // ── Footer accroché à la fin de la rangée ─────────────────────────────────
+  //
+  // Sur /series, la page déborde de EXACTEMENT la hauteur du footer (70 px) :
+  // la scène occupe toute la hauteur visible et le footer reste juste sous
+  // l'horizon (§3.7 invariant 11). Ce débord cesse d'être un scroll libre — il
+  // devient la RÉSERVE que la fin du défilement horizontal consomme. D'où le
+  // pilotage manuel : la molette ne fait plus jamais défiler la page
+  // verticalement, c'est cette fonction qui décide, et seulement en bout de
+  // rangée.
+
+  const scrollContainer = useCallback(
+    () =>
+      sceneRef.current?.closest<HTMLElement>('[data-scroll-container]') ?? null,
+    []
+  );
+
+  const showFooter = useCallback(
+    (show: boolean) => {
+      if (footerShown.current === show) return;
+      const cont = scrollContainer();
+      if (!cont) return;
+      const max = cont.scrollHeight - cont.clientHeight;
+      if (max <= 0) return;
+      footerShown.current = show;
+      const to = show ? max : 0;
+      footerTween.current?.kill();
+      if (reduced) {
+        cont.scrollTop = to;
+        return;
+      }
+      footerTween.current = gsap.to(cont, {
+        scrollTop: to,
+        duration: FOOTER_REVEAL_DUR,
+        ease: 'power2.out',
+        overwrite: true,
+      });
+    },
+    [reduced, scrollContainer]
+  );
+
+  /**
+   * Remet la page à plat, sans que la rangée bouge à l'écran.
+   *
+   * Appelée juste avant de mesurer les rects d'un vol d'ouverture : la vue
+   * ouverte est en `absolute inset-0` de la scène, elle DOIT être mesurée sur
+   * une page non défilée, sinon elle se pose 70 px trop haut — sous la nav-bar,
+   * avec la colonne de vignettes qui court sous le footer (état vérifié en
+   * capture avant ce correctif). Mais remettre à plat déplace aussi les piles
+   * de 70 px vers le bas, et leurs rects sont le POINT DE DÉPART des vols : les
+   * clones jailliraient d'ailleurs que là où l'utilisateur voit les piles. D'où
+   * la compensation en transform — la rangée reste visuellement immobile, donc
+   * `getBoundingClientRect` rend la position à l'écran, et la destination est
+   * mesurée sur une page à plat. Les deux bouts du vol sont justes.
+   *
+   * Le transform est retiré au passage en `open`, où la rangée est de toute
+   * façon masquée par sa classe (invariant 12).
+   */
+  const flattenPage = useCallback(() => {
+    const cont = scrollContainer();
+    if (!cont) return;
+    footerTween.current?.kill();
+    const off = cont.scrollTop;
+    footerShown.current = false;
+    if (off <= 0) return;
+    cont.scrollTop = 0;
+    if (rowRef.current) gsap.set(rowRef.current, { y: -off });
+  }, [scrollContainer]);
 
   // ── Sélecteurs DOM (points de mesure des vols) ────────────────────────────
 
@@ -123,6 +203,9 @@ export function DesktopSeries({
     firstTransition.current = false;
 
     if (instant) {
+      // Pas de vol ici, donc rien à compenser : il suffit que la page soit à
+      // plat pour que la vue ouverte se pose au bon endroit.
+      if (target) flattenPage();
       setDisplayed(target);
       setPhase(target ? 'open' : 'closed');
       return;
@@ -159,7 +242,13 @@ export function DesktopSeries({
     animating.current = true;
 
     if (pending.type === 'open' && displayed) {
+      // AVANT toute mesure : page à plat, rangée compensée. Voir flattenPage.
+      flattenPage();
       runOpen(scene, displayed, () => {
+        // La rangée est masquée dès `open` (invariant 12) : le transform de
+        // compensation n'a plus de raison d'être et ne doit pas survivre à une
+        // fermeture, qui repose sur les rects réels des piles.
+        if (rowRef.current) gsap.set(rowRef.current, { y: 0 });
         setPhase('open');
         animating.current = false;
       });
@@ -586,20 +675,91 @@ export function DesktopSeries({
   }, [phase, onClose]);
 
   // Molette verticale → défilement horizontal de la rangée (spec §5).
-  // Non-passive : on doit pouvoir preventDefault. Le trackpad horizontal
-  // passe nativement (deltaX) — on ne touche qu'au deltaY dominant.
+  //
+  // Écoutée sur le CONTENEUR DE SCROLL DE LA PAGE, plus sur la seule rangée :
+  // toute la surface de la page répond au geste, pas uniquement la bande de
+  // piles en bas d'écran (la nav-bar, elle, est `fixed` HORS de ce conteneur —
+  // elle garde donc son comportement propre). Corollaire : la page ne défile
+  // plus jamais verticalement d'elle-même, c'est ce gestionnaire qui décide,
+  // et le seul défilement vertical possible est la révélation du footer en
+  // bout de rangée.
+  //
+  // Non-passive : on doit pouvoir preventDefault. Le trackpad horizontal passe
+  // nativement (deltaX dominant) — on ne touche qu'au deltaY.
+  useEffect(() => {
+    const cont = scrollContainer();
+    const row = rowRef.current;
+    if (!cont || !row) return;
+
+    const onWheel = (e: WheelEvent) => {
+      // Branche cachée (viewport mobile) : ne jamais réagir — invariant 3.
+      if (sceneRef.current?.offsetParent === null) return;
+
+      if (phase !== 'closed') {
+        // Vue ouverte : rien ne change à l'expérience — la colonne de vignettes
+        // garde son défilement natif. Seule la PAGE est immobilisée, sans quoi
+        // la vue ouverte remonterait de 70 px sous la nav-bar en découvrant un
+        // footer qui n'a rien à faire là (il n'appartient qu'au bout de la
+        // rangée). Pendant les vols (opening/closing/switching), tout est gelé :
+        // un défilement en cours de vol déplacerait les éléments réels sous des
+        // clones `position: fixed`, et le raccord se ferait à côté.
+        const target = e.target as Element | null;
+        const inCol = target?.closest?.('[data-open-col]');
+        if (!inCol || phase !== 'open') e.preventDefault();
+        return;
+      }
+
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      e.preventDefault();
+
+      const maxLeft = row.scrollWidth - row.clientWidth;
+      // Tolérance d'1 px : les navigateurs rendent un scrollLeft fractionnaire
+      // (zoom, DPR non entier) et une égalité stricte ne serait jamais vraie.
+      const atEnd = row.scrollLeft >= maxLeft - 1;
+
+      if (e.deltaY > 0) {
+        // Vers le bas → vers la droite. Le footer n'apparaît qu'une fois la
+        // rangée DÉJÀ au bout : arriver au bout ne le déclenche pas, il faut un
+        // cran de plus. La butée est ainsi un temps d'arrêt, pas un mur, et le
+        // footer ne surgit jamais par inadvertance.
+        if (atEnd) showFooter(true);
+        else row.scrollLeft = Math.min(maxLeft, row.scrollLeft + e.deltaY);
+      } else {
+        // Vers le haut → vers la gauche, mais le footer se range d'abord :
+        // il occupe le cran qui l'avait fait venir.
+        if (footerShown.current) showFooter(false);
+        else row.scrollLeft = Math.max(0, row.scrollLeft + e.deltaY);
+      }
+    };
+
+    cont.addEventListener('wheel', onWheel, { passive: false });
+    return () => cont.removeEventListener('wheel', onWheel);
+  }, [phase, scrollContainer, showFooter]);
+
+  // Le footer n'existe qu'au bout de la rangée : dès qu'on s'en éloigne — au
+  // cliquer-glisser, aux flèches du clavier, à la barre de défilement — il se
+  // range. Sans ça il resterait suspendu au-dessus d'une rangée revenue au
+  // milieu de sa course, sans plus rien à quoi être accroché.
   useEffect(() => {
     const row = rowRef.current;
     if (!row) return;
-    const onWheel = (e: WheelEvent) => {
-      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-      if (row.scrollWidth <= row.clientWidth) return;
-      row.scrollLeft += e.deltaY;
-      e.preventDefault();
+    const onScroll = () => {
+      if (!footerShown.current) return;
+      if (sceneRef.current?.offsetParent === null) return;
+      const maxLeft = row.scrollWidth - row.clientWidth;
+      if (row.scrollLeft < maxLeft - 1) showFooter(false);
     };
-    row.addEventListener('wheel', onWheel, { passive: false });
-    return () => row.removeEventListener('wheel', onWheel);
-  }, []);
+    row.addEventListener('scroll', onScroll, { passive: true });
+    return () => row.removeEventListener('scroll', onScroll);
+  }, [showFooter]);
+
+  // Le vol en cours ne doit pas être doublé d'un glissement de footer.
+  useEffect(
+    () => () => {
+      footerTween.current?.kill();
+    },
+    []
+  );
 
   // Cliquer-glisser sur la rangée. Seuil de 6 px avant de « voler » le clic.
   useEffect(() => {
