@@ -16,6 +16,7 @@
     "migrate-series-multi": "node --env-file=.env.local --import tsx scripts/migrate-photo-series-multi.ts",
     "assign-series-by-location": "node --env-file=.env.local --import tsx scripts/assign-series-by-location.ts",
     "check-parser": "node --import tsx scripts/check-filename-parser.ts",
+    "check-image-prep": "node --import tsx scripts/check-image-prep.ts",
     "wipe-photos": "node --env-file=.env.local --import tsx scripts/wipe-photos.ts",
     "set-hero": "node --env-file=.env.local --import tsx scripts/set-hero.ts",
     "audit-series": "node --env-file=.env.local --import tsx scripts/audit-photos-without-series.ts"

@@ -17,12 +17,16 @@ const ctx: ParseContext = {
       'paysage', 'ls', 'landscape',
       'pt', 'portrait',
       'archi', 'ar', 'architecture',
+      'topo', // « topo » est à la fois style et série : teste la priorité
     ].map(normalizeForMatch)
   ),
   cameraAliases: new Set(['Fuji X-PRO2', 'X-Pro2'].map(normalizeForMatch)),
   lensAliases: new Set(['MF 35MM f1.4 Meike'].map(normalizeForMatch)),
   knownLocations: new Set(
     ['Paris, France', 'Djerba, Tunisia', 'Villejuif, France'].map(normalizeForMatch)
+  ),
+  seriesKeys: new Set(
+    ['Global Street', 'Topo', 'Djerba', 'Paris'].map(normalizeForMatch)
   ),
   currentYear: 2026,
 };
@@ -31,6 +35,7 @@ type Expect = {
   title?: string;
   location?: string | null;
   styleTokens?: string[];
+  seriesTokens?: string[];
   cameraToken?: string | null;
   lensToken?: string | null;
   year?: number | null;
@@ -152,6 +157,46 @@ const CASES: { name: string; input: string; expect: Expect }[] = [
     name: 'Lieu inconnu mais forme « Ville, Pays » reconnue',
     input: 'Ailleurs -Lisbonne, Portugal -sp',
     expect: { location: 'Lisbonne, Portugal', styleTokens: ['sp'] },
+  },
+  {
+    name: 'Multi-styles + multi-séries implicites (exemple Alexandre)',
+    input: 'Scène -street, topo -global street, topo',
+    expect: {
+      title: 'Scène',
+      styleTokens: ['street', 'topo'],
+      seriesTokens: ['global street', 'topo'],
+      location: null,
+      unresolved: [],
+    },
+  },
+  {
+    name: 'Série explicite, une seule',
+    input: 'Solo -serie:Global Street -paris, france',
+    expect: {
+      seriesTokens: ['Global Street'],
+      location: 'paris, france',
+      unresolved: [],
+    },
+  },
+  {
+    name: 'Séries explicites multiples, clé accentuée',
+    input: 'Duo -séries:Global Street, Topo',
+    expect: { seriesTokens: ['Global Street', 'Topo'], unresolved: [] },
+  },
+  {
+    name: 'Série implicite sans virgule (existante)',
+    input: 'Plage -Djerba -sp',
+    expect: { seriesTokens: ['Djerba'], styleTokens: ['sp'], location: null },
+  },
+  {
+    name: 'Le lieu n’est pas volé par les séries (« france » n’en est pas une)',
+    input: 'Toits -paris, france',
+    expect: { location: 'paris, france', seriesTokens: [] },
+  },
+  {
+    name: 'Jeton à la fois style et série : le style gagne',
+    input: 'Ambigu -topo',
+    expect: { styleTokens: ['topo'], seriesTokens: [] },
   },
 ];
 

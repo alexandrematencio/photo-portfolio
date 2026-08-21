@@ -55,6 +55,7 @@ Les deux écritures se mélangent librement dans un même nom. Les noms de champ
 | Objectif | `objectif:` `lens:` `optique:` |
 | Année | `annee:` `year:` `an:` |
 | Date | `date:` (format `AAAA-MM-JJ`) |
+| Série(s) | `serie:` `series:` |
 
 Si tu écris `--lieu:` avec deux tirets par réflexe de ligne de commande, c'est accepté aussi.
 
@@ -71,7 +72,7 @@ Ce n'est pas une hiérarchie, juste une liste. Range les champs comme ça t'arra
 
 ## Ce que la déduction sait reconnaître
 
-Sans nom de champ, l'import identifie un jeton ainsi : un nombre à quatre chiffres entre 1900 et l'an prochain est une **année** ; une chaîne `AAAA-MM-JJ` est une **date** ; un mot du vocabulaire des styles (voir plus bas) est un **style** ; un boîtier ou un objectif déjà présent dans le catalogue est reconnu par son nom ; et une chaîne contenant une virgule, ou correspondant à un lieu déjà utilisé, est un **lieu**.
+Sans nom de champ, l'import identifie un jeton ainsi : un nombre à quatre chiffres entre 1900 et l'an prochain est une **année** ; une chaîne `AAAA-MM-JJ` est une **date** ; un mot du vocabulaire des styles (voir plus bas) est un **style** ; un boîtier ou un objectif déjà présent dans le catalogue est reconnu par son nom ; un nom de **série existante** (ou plusieurs, séparées par des virgules) est reconnu ; et une chaîne contenant une virgule, ou correspondant à un lieu déjà utilisé, est un **lieu**.
 
 Tout le reste est signalé dans le rapport comme non compris, et ignoré. L'import ne devine jamais au hasard.
 
@@ -108,6 +109,21 @@ Les accents et la casse sont ignorés. Un mot absent de cette table est **ignor�
 
 Pour ajouter un nouveau style au vocabulaire, passe par le Studio : **Structure → Taxonomies → Styles**, crée le style, et renseigne ses alias. Il devient utilisable dès l'import suivant.
 
+## Les séries
+
+Une photo peut rejoindre une ou plusieurs séries directement depuis son nom, séparées par des virgules :
+
+```
+Scène de rue -paris, france -street -serie:Global Street, Topo
+```
+
+Deux règles distinctes selon l'écriture :
+
+- **Avec la clé `serie:`** — les séries qui n'existent pas encore sont **créées automatiquement** à l'import (avec leur titre tel que tu l'as tapé), exactement comme le fait l'action « Ajouter à une série » du Studio. Le rapport les liste avant de valider.
+- **Sans la clé** — un jeton n'est reconnu comme série(s) que si **tous** ses noms correspondent à des séries déjà existantes (titre ou slug). Une série toute neuve écrite sans clé finirait en « jeton incompris » : pour la première fois, utilise `serie:`, ensuite l'écriture libre suffit.
+
+Deux précisions. Si un mot est à la fois un style et une série (« topo » par exemple), un jeton sans clé où tout matche des styles est lu comme **styles** — pour forcer la série, écris `serie:topo`. Et le rattachement par le nom se **cumule** avec `--auto-series` : la photo rejoint ses séries du nom ET celle de son lieu.
+
 ## Boîtier et objectif
 
 Ces deux champs sont facultatifs dans le nom, parce que l'appareil les écrit souvent tout seul dans l'EXIF. La règle de priorité : **le nom de fichier gagne toujours sur l'EXIF.** Si tu ne mets rien, l'EXIF prend le relais. Si l'EXIF est muet aussi, le champ reste vide et la photo remonte dans les alertes du tableau de bord.
@@ -128,7 +144,17 @@ Attention aux variantes d'écriture : « Fuji X-PRO2 » et « Fujifilm X-Pro2 »
 
 Le **texte alternatif** est obligatoire et doit faire entre 5 et 200 caractères. L'import le pré-remplit avec « Titre — Lieu », ce qui satisfait la validation mais ne vaut rien pour l'accessibilité ni le référencement. Il faut le réécrire à la main dans le Studio : une description sensorielle courte — le lieu, le sujet, l'ambiance. Pas d'accumulation de mots-clés.
 
-La **série** et la **curation** (la sélection affichée sur la page d'accueil) se gèrent également dans le Studio, après l'import.
+La **curation** (la sélection affichée sur la page d'accueil) se gère dans le Studio, après l'import — elle vit dans les Réglages du site, pas sur la photo.
+
+## Comment exporter tes fichiers
+
+**sRGB, 8 bits, grand côté d'au moins 2048 px, qualité maximale.** Le poids du fichier que tu déposes n'a aucune importance : l'import fabrique sa propre copie réduite et ne touche jamais à ton master.
+
+Formats acceptés : `.jpg`, `.jpeg`, `.png`, `.webp`, `.avif`, `.heic`, `.heif`, `.tif`, `.tiff`. Tout ce qui n'est pas dans cette liste est ignoré en silence par le dossier `portfolio/`.
+
+**N'exporte pas en HDR.** Ce n'est pas une préférence esthétique, c'est une contrainte mesurée : le CDN de Sanity ré-encode chaque image qu'il sert, y compris à l'adresse dite « originale ». Une gain map HDR ou un fichier PQ/HLG y perd sa couche HDR quoi qu'il arrive — personne ne verrait jamais la différence sur le site, et le master serait juste plus lourd. Si tu en déposes un quand même, rien ne casse : l'import le détecte, l'aplatit proprement et te le dit dans le rapport.
+
+Même logique pour le **Display P3** ou l'**AdobeRGB** : c'est converti en sRGB à l'import, avec écrêtage des couleurs hors gamut. Autant faire la conversion toi-même dans Lightroom, où tu vois le résultat.
 
 ## Comment se passe un import
 
@@ -146,7 +172,7 @@ Le rapport détaille, fichier par fichier, ce qui a été compris : titre, slug,
 
 Avec `--auto-series`, chaque photo est rattachée à la série correspondant à son lieu : une photo à « Djerba, Tunisia » rejoint la série « Djerba », créée au besoin. La règle de nommage est la même que celle du rattachement en masse (`npm run assign-series-by-location`), donc les deux outils alimentent bien les mêmes séries au lieu d'en créer des parallèles.
 
-Sans lieu, pas de série — c'est signalé dans le rapport. Et sans `--auto-series`, la série reste vide : tu la choisis à la main dans le Studio, via l'action **« Ajouter à une série »** du menu d'une photo, qui permet aussi de créer une série en tapant simplement son nom.
+Sans lieu, pas de série automatique — c'est signalé dans le rapport. `--auto-series` se cumule avec les séries écrites dans le nom de fichier (section « Les séries ») : la photo rejoint les deux. Et sans l'un ni l'autre, la série se choisit à la main dans le Studio, via l'action **« Ajouter à une série »** du menu d'une photo, qui permet aussi de créer une série en tapant simplement son nom.
 
 L'import est **idempotent** : l'identifiant d'une photo dérive de son nom de fichier, donc relancer la commande ignore ce qui a déjà été importé. Corollaire à connaître : **renommer un fichier après coup et le réimporter crée une deuxième photo** au lieu de mettre à jour la première. Pour corriger des métadonnées après import, passe par le Studio.
 
@@ -163,6 +189,7 @@ Djerba Beach Girls -djerba, tunisia -sp,portrait -Fuji X-PRO2.jpeg
 Villejuif Construction -villejuif, france -archi.jpeg
 Toits gris -2024 -paris, france.jpeg
 Nuit blanche -style:sp -lieu:Paris, France -annee:2023 -boitier:Leica M6.jpeg
+Scène de rue -paris, france -street -serie:Global Street, Topo.jpeg
 Sans rien.jpeg
 ```
 
@@ -174,4 +201,5 @@ Sans rien.jpeg
 | Plus de 3 styles | Les 3 premiers sont gardés, le reste signalé |
 | Objectif manuel omis | Information définitivement perdue |
 | Boîtier neuf sans `-boitier:` | Non reconnu ; signalé comme jeton incompris |
+| Série neuve sans `-serie:` | Non reconnue ; signalée comme jeton incompris |
 | Deux orthographes d'un même boîtier | Deux boîtiers dans le catalogue |

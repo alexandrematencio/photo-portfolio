@@ -4,9 +4,11 @@
  * Deux écritures possibles pour chaque champ, mélangeables dans un même nom :
  *
  *   1. Explicite (recommandée, jamais ambiguë) :
- *        Titre -lieu:paris, france -style:sp,paysage -boitier:Fuji X-PRO2
+ *        Titre -lieu:paris, france -style:sp,paysage -serie:global street, topo
  *   2. Implicite (confort, devinée d'après le contenu du jeton) :
  *        Titre -paris, france -sp,paysage -2024
+ *
+ * Styles et séries acceptent PLUSIEURS valeurs, séparées par des virgules.
  *
  * L'ordre n'a AUCUNE importance : `-lieu:x -date:y` ≡ `-date:y -lieu:x`.
  * Un champ absent n'est pas une erreur — il est simplement vide, à compléter
@@ -53,6 +55,11 @@ const KEY_ALIASES: Record<string, PhotoField> = {
   an: 'year',
 
   date: 'date',
+
+  serie: 'series',
+  'série': 'series',
+  series: 'series',
+  'séries': 'series',
 };
 
 export type PhotoField =
@@ -62,7 +69,8 @@ export type PhotoField =
   | 'camera'
   | 'lens'
   | 'year'
-  | 'date';
+  | 'date'
+  | 'series';
 
 export type ParseContext = {
   /** normalize(alias|titre) → présence, pour les 4 styles connus. */
@@ -73,6 +81,8 @@ export type ParseContext = {
   lensAliases: Set<string>;
   /** normalize(lieu) → présence, lieux déjà utilisés dans le catalogue. */
   knownLocations: Set<string>;
+  /** normalize(titre | slug) → présence, séries existantes du catalogue. */
+  seriesKeys: Set<string>;
   /** Année courante, pour borner la détection d'année. */
   currentYear: number;
 };
@@ -81,6 +91,7 @@ export type ParsedFilename = {
   title: string;
   location: string | null;
   styleTokens: string[];
+  seriesTokens: string[];
   cameraToken: string | null;
   lensToken: string | null;
   year: number | null;
@@ -110,7 +121,7 @@ function splitKey(token: string): { field: PhotoField | null; value: string; raw
   return { field, value: m[2]!.trim(), rawKey };
 }
 
-function splitStyles(value: string): string[] {
+function splitList(value: string): string[] {
   return value
     .split(',')
     .map((s) => s.trim())
@@ -119,9 +130,16 @@ function splitStyles(value: string): string[] {
 
 /** Tous les segments correspondent-ils à un alias de style connu ? */
 function looksLikeStyles(value: string, ctx: ParseContext): boolean {
-  const parts = splitStyles(value);
+  const parts = splitList(value);
   if (parts.length === 0) return false;
   return parts.every((p) => ctx.styleAliases.has(normalizeForMatch(p)));
+}
+
+/** Tous les segments correspondent-ils à une série existante (titre ou slug) ? */
+function looksLikeSeries(value: string, ctx: ParseContext): boolean {
+  const parts = splitList(value);
+  if (parts.length === 0) return false;
+  return parts.every((p) => ctx.seriesKeys.has(normalizeForMatch(p)));
 }
 
 function titleFromLegacyBase(base: string): string {
@@ -140,6 +158,7 @@ export function parsePhotoFilename(
     title: '',
     location: null,
     styleTokens: [],
+    seriesTokens: [],
     cameraToken: null,
     lensToken: null,
     year: null,
@@ -207,8 +226,15 @@ export function parsePhotoFilename(
         case 'styles':
           setOnce(
             'styles',
-            () => (result.styleTokens = splitStyles(value)),
+            () => (result.styleTokens = splitList(value)),
             result.styleTokens.length > 0
+          );
+          break;
+        case 'series':
+          setOnce(
+            'series',
+            () => (result.seriesTokens = splitList(value)),
+            result.seriesTokens.length > 0
           );
           break;
         case 'camera':
@@ -272,7 +298,7 @@ export function parsePhotoFilename(
     }
 
     if (result.styleTokens.length === 0 && looksLikeStyles(value, ctx)) {
-      result.styleTokens = splitStyles(value);
+      result.styleTokens = splitList(value);
       continue;
     }
 
@@ -283,6 +309,16 @@ export function parsePhotoFilename(
 
     if (result.lensToken === null && ctx.lensAliases.has(norm)) {
       result.lensToken = value;
+      continue;
+    }
+
+    // Séries — testées AVANT le lieu : un jeton multi-séries contient des
+    // virgules (« global street, topo ») et serait sinon happé par la règle
+    // « une virgule = un lieu ». Tous les segments doivent matcher une série
+    // EXISTANTE ; une série encore inconnue passe par la clé explicite
+    // (`-serie:`), qui seule autorise la création.
+    if (result.seriesTokens.length === 0 && looksLikeSeries(value, ctx)) {
+      result.seriesTokens = splitList(value);
       continue;
     }
 

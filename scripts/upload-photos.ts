@@ -17,6 +17,9 @@
  *     absents du nom. Les objectifs manuels (ex. Meike MF) n'écrivent pas
  *     d'EXIF → les donner dans le nom de fichier. Le nom de fichier GAGNE
  *     sur l'EXIF s'il est renseigné.
+ *   - Séries : `-serie:Global Street, Topo` (une ou plusieurs, créées au
+ *     besoin) ; sans clé, un jeton dont TOUS les segments sont des séries
+ *     existantes est reconnu. Cumulable avec --auto-series.
  *   - Date / année : jamais dans le nom — lues depuis l'EXIF
  *     (DateTimeOriginal), fallback année courante.
  *   - Fichier sans séparateur ` -` : mode legacy (titre depuis le nom,
@@ -51,6 +54,14 @@ import {
   parsePhotoFilename,
   type ParseContext,
 } from './parse-photo-filename';
+import {
+  MAX_BYTES,
+  MAX_EDGE,
+  SUPPORTED_PATTERN,
+  prepareForWeb,
+  probeImage,
+  type ImageProbe,
+} from './prepare-image';
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
 const DATASET = process.env.NEXT_PUBLIC_SANITY_DATASET ?? 'production';
@@ -92,86 +103,13 @@ const RESERVED_FILES = new Set([
   'photo-profile.png',
 ]);
 
-// ── Plafond de résolution ─────────────────────────────────────────────────────
-//
-// Les fichiers sont réduits AVANT d'être déposés dans Sanity. C'est la seule
-// protection réelle du travail : plafonner les URLs côté site ne sert à rien
-// tant que l'asset stocké est en 6000 px, puisqu'il suffit de retirer le `?w=`
-// d'une URL d'image pour récupérer l'original (vérifié — `max-w=` seul ne
-// plafonne rien côté CDN Sanity).
-//
-// 2048 px sur le grand côté : remplit n'importe quelle lightbox, y compris sur
-// écran retina, mais ne fait qu'un tirage de 17 × 11 cm à 300 dpi — inexploitable
-// en impression. Décidé avec Alexandre le 2026-08-21.
+// Plafonds de résolution et de poids, sondage HDR, décodage : `prepare-image.ts`.
 //
 // ⚠️ Les masters restent dans `portfolio/` (gitignoré) : ce script ne modifie
 // JAMAIS les fichiers sources, il n'envoie qu'une copie réduite.
-const MAX_EDGE = 2048;
-const JPEG_QUALITY = 82;
-
-/**
- * Réduit une image pour le web et renvoie de quoi rendre compte de l'opération.
- *
- * `.rotate()` sans argument applique l'orientation EXIF aux PIXELS. Indispensable
- * ici : Sanity supprime les métadonnées du fichier qu'il sert (vérifié au niveau
- * des octets, y compris à l'URL de l'original), donc une image portrait qui
- * compterait sur son drapeau d'orientation arriverait couchée sur le site.
- *
- * Le format d'entrée est conservé (un PNG reste un PNG) : le CDN Sanity négocie
- * de toute façon WebP/AVIF à la livraison via `auto('format')`, c'est lui qui
- * décide du format servi, pas ce fichier.
- */
-async function downscaleForWeb(
-  buffer: Buffer,
-  ext: string
-): Promise<{
-  buffer: Buffer;
-  from: { w: number; h: number; bytes: number };
-  to: { w: number; h: number; bytes: number };
-}> {
-  const { default: sharp } = await import('sharp');
-  const before = await sharp(buffer).metadata();
-
-  const pipeline = sharp(buffer)
-    .rotate()
-    .resize({
-      width: MAX_EDGE,
-      height: MAX_EDGE,
-      // `inside` + les deux côtés à la même valeur = le GRAND côté est plafonné,
-      // quelle que soit l'orientation. `withoutEnlargement` pour ne jamais
-      // gonfler une petite image (un agrandissement n'ajoute aucun détail et
-      // alourdirait le fichier pour rien).
-      fit: 'inside',
-      withoutEnlargement: true,
-    });
-
-  // `withIccProfile('srgb')` : garde-fou COULEUR, pas une coquetterie. Sharp
-  // supprime le profil ICC par défaut ; un fichier exporté en AdobeRGB ou
-  // ProPhoto serait alors relu comme du sRGB et virerait au terne, sans le
-  // moindre signal. Les exports actuels d'Alexandre sont déjà en sRGB (vérifié :
-  // moyennes RVB rigoureusement identiques avec et sans), le profil ne coûte
-  // donc que 498 octets aujourd'hui — et couvre le jour où l'export changera.
-  const encoded =
-    ext === 'png'
-      ? pipeline.png({ compressionLevel: 9 })
-      : ext === 'webp'
-        ? pipeline.webp({ quality: JPEG_QUALITY })
-        : pipeline.jpeg({
-            quality: JPEG_QUALITY,
-            mozjpeg: true,
-            progressive: true,
-          });
-  const out = await encoded.withIccProfile('srgb').toBuffer();
-
-  const after = await sharp(out).metadata();
-  return {
-    buffer: out,
-    from: { w: before.width ?? 0, h: before.height ?? 0, bytes: buffer.length },
-    to: { w: after.width ?? 0, h: after.height ?? 0, bytes: out.length },
-  };
-}
 
 const mo = (bytes: number) => `${(bytes / 1048576).toFixed(1)} Mo`;
+const ko = (bytes: number) => `${Math.round(bytes / 1024)} Ko`;
 
 // ── Taxonomies Sanity ─────────────────────────────────────────────────────────
 
@@ -301,11 +239,13 @@ type PlanEntry = {
   lensLabel: string;
   year: number;
   dateTaken?: string;
-  seriesRef: string | null;
+  seriesRefs: { ref: string; label: string }[];
   seriesLabel: string;
+  /** Sondage HDR / gamut / profondeur — `null` sur une photo déjà importée. */
+  probe: ImageProbe | null;
 };
 
-/** Série à créer par --auto-series (dédupliquée sur l'ensemble du run). */
+/** Série à créer (`-serie:` ou --auto-series), dédupliquée sur le run. */
 type PendingSeries = { _id: string; title: string; slug: string };
 
 async function main(): Promise<void> {
@@ -317,9 +257,13 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // Le filtre acceptait autrefois les seuls jpg/png/webp : un HEIC ou un AVIF
+  // déposé dans `portfolio/` était ignoré SANS le moindre message. Les formats
+  // d'appareil moderne (donc ceux qui portent du HDR) entrent maintenant dans
+  // le lot — cf. SUPPORTED_EXTENSIONS.
   const files = entries
     .filter(
-      (f) => /\.(jpe?g|png|webp)$/i.test(f) && !RESERVED_FILES.has(f.toLowerCase())
+      (f) => SUPPORTED_PATTERN.test(f) && !RESERVED_FILES.has(f.toLowerCase())
     )
     .sort((a, b) => {
       const numA = parseInt(a.match(/\d+/)?.[0] ?? '0', 10);
@@ -366,15 +310,8 @@ async function main(): Promise<void> {
   const lensResolver = new GearResolver('lens', lenses);
   const knownPhotoIds = new Set(existingPhotoIds);
 
-  const parseCtx: ParseContext = {
-    styleAliases: new Set(styleMatcher.keys()),
-    cameraAliases: new Set(buildMatcher(cameras).keys()),
-    lensAliases: new Set(buildMatcher(lenses).keys()),
-    knownLocations: new Set(knownLocations.map(normalizeForMatch)),
-    currentYear: new Date().getFullYear(),
-  };
-
-  // Index des séries existantes, pour --auto-series (titre ET slug).
+  // Index des séries existantes (titre ET slug) — sert au rattachement par nom
+  // de fichier (`-serie:`) comme à --auto-series.
   const seriesByKey = new Map<string, { _id: string; title: string }>();
   for (const s of existingSeries) {
     seriesByKey.set(normalizeForMatch(s.title), s);
@@ -382,23 +319,42 @@ async function main(): Promise<void> {
   }
   const pendingSeries = new Map<string, PendingSeries>();
 
-  /** Résout (ou planifie) la série correspondant à un lieu. */
+  const parseCtx: ParseContext = {
+    styleAliases: new Set(styleMatcher.keys()),
+    cameraAliases: new Set(buildMatcher(cameras).keys()),
+    lensAliases: new Set(buildMatcher(lenses).keys()),
+    knownLocations: new Set(knownLocations.map(normalizeForMatch)),
+    seriesKeys: new Set(seriesByKey.keys()),
+    currentYear: new Date().getFullYear(),
+  };
+
+  /**
+   * Résout (ou planifie) une série par son nom — le titre est gardé tel que
+   * tapé dans le nom de fichier. La clé est aussi ajoutée au contexte de parse :
+   * une série créée par le fichier 3 devient reconnaissable en écriture
+   * implicite dès le fichier 4 du même run.
+   */
+  function resolveSeriesByName(name: string): { ref: string; label: string } {
+    const key = normalizeForMatch(name);
+    const hit = seriesByKey.get(key);
+    if (hit) return { ref: hit._id, label: hit.title };
+
+    const slug = slugify(name);
+    const id = `series-${slug}`;
+    if (!pendingSeries.has(id)) {
+      pendingSeries.set(id, { _id: id, title: name, slug });
+      seriesByKey.set(key, { _id: id, title: name });
+      parseCtx.seriesKeys.add(key);
+    }
+    return { ref: id, label: `${name} (nouvelle)` };
+  }
+
+  /** Résout (ou planifie) la série correspondant à un lieu (--auto-series). */
   function resolveSeriesForLocation(location: string): {
     ref: string;
     label: string;
   } {
-    const title = seriesTitleForLocation(location, FULL_LOCATION);
-    const key = normalizeForMatch(title);
-    const hit = seriesByKey.get(key);
-    if (hit) return { ref: hit._id, label: hit.title };
-
-    const slug = slugify(title);
-    const id = `series-${slug}`;
-    if (!pendingSeries.has(id)) {
-      pendingSeries.set(id, { _id: id, title, slug });
-      seriesByKey.set(key, { _id: id, title });
-    }
-    return { ref: id, label: `${title} (nouvelle)` };
+    return resolveSeriesByName(seriesTitleForLocation(location, FULL_LOCATION));
   }
 
   // ── Construction du plan ────────────────────────────────────────────────────
@@ -424,13 +380,32 @@ async function main(): Promise<void> {
         lensRef: null,
         lensLabel: '—',
         year: 0,
-        seriesRef: null,
+        seriesRefs: [],
         seriesLabel: '—',
+        probe: null,
       });
       continue;
     }
 
-    const exif = await readExif(path.join(PORTFOLIO_DIR, filename));
+    const filepath = path.join(PORTFOLIO_DIR, filename);
+    const exif = await readExif(filepath);
+
+    // Sondage HDR / gamut AU MOMENT DU PLAN, pas à l'upload : le dry-run doit
+    // dire ce qui sera perdu AVANT d'écrire quoi que ce soit, sinon il ment par
+    // omission sur le seul point qui n'est pas rattrapable après coup. Le
+    // buffer est relu à l'upload plutôt que gardé — 22 masters de 30 Mo en
+    // mémoire simultanément, non.
+    const { default: sharp } = await import('sharp');
+    let probe: ImageProbe | null = null;
+    try {
+      const raw = await fs.readFile(filepath);
+      probe = probeImage(raw, await sharp(raw).metadata());
+      probe.losses.forEach((l) => warnings.push(l));
+    } catch (err) {
+      warnings.push(
+        `image illisible au sondage (${err instanceof Error ? err.message.split('\n')[0] : err})`
+      );
+    }
 
     // Styles — un alias inconnu n'interrompt JAMAIS l'import : il est signalé
     // et la photo remonte dans l'alerte « sans style » du tableau de bord.
@@ -480,16 +455,22 @@ async function main(): Promise<void> {
       warnings.push(`ni année dans le nom, ni date EXIF → année ${year} par défaut`);
     }
 
-    // Série : uniquement avec --auto-series, et seulement si le lieu est connu.
-    let seriesRef: string | null = null;
-    let seriesLabel = AUTO_SERIES ? '—' : '(non gérée)';
+    // Séries : celles du nom de fichier (`-serie:a, b` ou implicites), puis
+    // celle du lieu si --auto-series — cumulables, `photo.series` est un
+    // tableau (appartenance multiple, cf. CLAUDE.md §11.2).
+    const seriesRefs: { ref: string; label: string }[] = [];
+    for (const token of parsed.seriesTokens) {
+      const s = resolveSeriesByName(token);
+      if (!seriesRefs.some((x) => x.ref === s.ref)) seriesRefs.push(s);
+    }
     if (AUTO_SERIES && parsed.location) {
       const s = resolveSeriesForLocation(parsed.location);
-      seriesRef = s.ref;
-      seriesLabel = s.label;
-    } else if (AUTO_SERIES && !parsed.location) {
+      if (!seriesRefs.some((x) => x.ref === s.ref)) seriesRefs.push(s);
+    } else if (AUTO_SERIES && !parsed.location && seriesRefs.length === 0) {
       warnings.push('--auto-series sans lieu : aucune série assignée');
     }
+    const seriesLabel =
+      seriesRefs.map((s) => s.label).join(', ') || '—';
 
     // Slug SEO : [année]-[lieu-court]-[titre] (cf. CLAUDE.md §5.1).
     const locationShort = parsed.location
@@ -518,8 +499,9 @@ async function main(): Promise<void> {
         : '—',
       year,
       dateTaken,
-      seriesRef,
+      seriesRefs,
       seriesLabel,
+      probe,
     });
   }
 
@@ -567,9 +549,22 @@ async function main(): Promise<void> {
   }
   if (pendingSeries.size > 0) {
     console.log(
-      `\nSéries à créer (--auto-series) : ${[...pendingSeries.values()]
+      `\nSéries à créer : ${[...pendingSeries.values()]
         .map((s) => s.title)
         .join(', ')}`
+    );
+  }
+  // Le HDR ne « se dégrade » pas en chemin : le CDN Sanity le supprime (mesuré,
+  // cf. prepare-image.ts). Autant l'annoncer en bloc, une bonne fois, plutôt que
+  // de le laisser noyé dans les avertissements ligne à ligne.
+  const hdrFiles = toUpload.filter((p) => p.probe && p.probe.hdr !== 'sdr');
+  if (hdrFiles.length > 0) {
+    console.log(
+      `\n${hdrFiles.length} fichier(s) HDR détecté(s) — aplati(s) en SDR avant dépôt :\n  ` +
+        hdrFiles.map((p) => `${p.filename} (${p.probe!.hdr})`).join('\n  ') +
+        '\n  Le CDN Sanity ré-encode tout ce qu’il sert : aucune URL ne rendrait\n' +
+        '  le HDR, même à l’adresse « originale ». Exporte en sRGB 8 bits, grand\n' +
+        `  côté ≥ ${MAX_EDGE} px, qualité max — le HDR n’apporte rien ici.`
     );
   }
   if (incomplete.length > 0) {
@@ -625,23 +620,25 @@ async function main(): Promise<void> {
     console.log(`[${index + 1}/${toUpload.length}] upload ${p.filename}…`);
 
     const buffer = await fs.readFile(filepath);
-    const ext = path.extname(p.filename).slice(1).toLowerCase();
-    const contentType =
-      ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
 
-    // Réduction AVANT dépôt — cf. MAX_EDGE. Le master de `portfolio/` n'est
-    // pas touché : seule cette copie part chez Sanity.
-    const shrunk = await downscaleForWeb(buffer, ext);
+    // Réduction AVANT dépôt — cf. MAX_EDGE / MAX_BYTES. Le master de
+    // `portfolio/` n'est pas touché : seule cette copie part chez Sanity.
+    const shrunk = await prepareForWeb(filepath, buffer);
     const ratio = 1 - shrunk.to.bytes / shrunk.from.bytes;
     console.log(
       `        ${shrunk.from.w}×${shrunk.from.h} ${mo(shrunk.from.bytes)}` +
-        ` → ${shrunk.to.w}×${shrunk.to.h} ${mo(shrunk.to.bytes)}` +
-        ` (−${Math.round(ratio * 100)} %)`
+        ` → ${shrunk.to.w}×${shrunk.to.h} ${ko(shrunk.to.bytes)}` +
+        ` (−${Math.round(ratio * 100)} %` +
+        (shrunk.quality ? `, q=${shrunk.quality}` : '') +
+        `)${shrunk.to.bytes > MAX_BYTES ? ' ⚠ au-dessus du plafond' : ''}` +
+        (shrunk.systemDecoded ? ' [décodé par sips]' : '')
     );
 
+    // Le nom porte l'extension du fichier RÉELLEMENT déposé : un HEIC converti
+    // en JPEG garderait sinon un `.heic` trompeur côté Sanity.
     const asset = await client.assets.upload('image', shrunk.buffer, {
-      filename: p.filename,
-      contentType,
+      filename: `${path.basename(p.filename, path.extname(p.filename))}.${shrunk.ext}`,
+      contentType: shrunk.contentType,
     });
 
     await client.createOrReplace({
@@ -673,11 +670,13 @@ async function main(): Promise<void> {
       // `_key` = l'id de la série : déterministe, donc un ré-upload de la même
       // photo produit exactement le même document (l'idempotence du script
       // repose là-dessus).
-      ...(p.seriesRef
+      ...(p.seriesRefs.length > 0
         ? {
-            series: [
-              { _key: p.seriesRef, _type: 'reference', _ref: p.seriesRef },
-            ],
+            series: p.seriesRefs.map((s) => ({
+              _key: s.ref,
+              _type: 'reference',
+              _ref: s.ref,
+            })),
           }
         : {}),
       year: p.year,
