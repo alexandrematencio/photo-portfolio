@@ -621,7 +621,13 @@ export function HomeHero({ hero }: HomeHeroProps) {
           // clip-path quand SPLASH_REVEAL_EVENT fire (skip:false), ou la rend
           // visible immédiatement (skip:true / reduced motion / safety net).
           // Voir le useEffect entrance plus haut.
-          className="pointer-events-none relative size-56 md:size-64 overflow-hidden bg-[var(--color-bg-elev)] isolate"
+          //
+          // Format : carré jusqu'à `lg` (mobiles + petites tablettes), 3:2
+          // paysage (2x3/4x6) à partir de `lg` — MÊME hauteur (h-64), on
+          // n'élargit que les côtés (w-96 = 384 = 256 × 1,5). La hauteur ne
+          // doit pas changer entre breakpoints de la même plage : le morph et
+          // l'entrance mesurent photoBottom au mount.
+          className="pointer-events-none relative size-56 md:size-64 lg:h-64 lg:w-96 overflow-hidden bg-[var(--color-bg-elev)] isolate"
           style={{ opacity: 0 }}
         >
           {/* Inner box owns the pointer events. On touch devices we also kill native
@@ -643,7 +649,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
                 src={profileSrcDefault}
                 alt={profileAlt}
                 fill
-                sizes="(max-width: 768px) 14rem, 16rem"
+                sizes="(max-width: 768px) 14rem, (max-width: 1024px) 16rem, 24rem"
                 className="object-cover pointer-events-none"
                 draggable={false}
                 priority
@@ -663,7 +669,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
                   src={profileSrcReveal}
                   alt=""
                   fill
-                  sizes="(max-width: 768px) 14rem, 16rem"
+                  sizes="(max-width: 768px) 14rem, (max-width: 1024px) 16rem, 24rem"
                   className="object-cover"
                   draggable={false}
                 />
