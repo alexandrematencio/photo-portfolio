@@ -16,6 +16,7 @@ import { FolderStack } from './FolderStack';
 import { OpenSeriesView } from './OpenSeriesView';
 import {
   DUR,
+  STAGGER,
   createGhostLayer,
   fadeOutLayer,
   flyCrossing,
@@ -305,6 +306,7 @@ export function DesktopSeries({
     gsap.set(pileItems, { autoAlpha: 0 });
 
     const flights: Flight[] = [];
+    let centerFlight: Flight | null = null;
     if (captured) {
       // Miroir de l'ouverture : repli sur la boîte de la cover pour les photos
       // au-delà du plafond de 5 vignettes de pile. Sans lui, leurs clones
@@ -327,7 +329,7 @@ export function DesktopSeries({
       });
       const centerFrom = rectOf(q('[data-center-img]'));
       if (captured.centerGhost && coverTo && centerFrom) {
-        flights.push({ ghost: captured.centerGhost, from: centerFrom, to: coverTo });
+        centerFlight = { ghost: captured.centerGhost, from: centerFrom, to: coverTo };
       }
     }
 
@@ -348,10 +350,14 @@ export function DesktopSeries({
         else done();
       },
     });
-    // Miroir du chemin d'ouverture : depuis la colonne, on DESCEND d'abord
-    // (90 % du Y au point intermédiaire) puis on glisse le long de l'horizon
-    // jusqu'à la pile.
-    flyCurved(tl, flights, { duration: DUR.close, midX: 0.05, midY: 0.905, at: 0 });
+    // Le `tl.reverse()` de la démo 4, reconstruit : même courbe à rebours
+    // (descente d'abord, glissade ensuite) ET cascade inversée — flyCurved
+    // s'en charge via `direction: 'close'`. Le centre, appelé à part, part
+    // dès t=0 (miroir du vol de cover de l'ouverture, posé à 0.04).
+    flyCurved(tl, flights, { duration: DUR.close, direction: 'close', at: 0 });
+    if (centerFlight) {
+      flyCurved(tl, [centerFlight], { duration: DUR.close, direction: 'close', at: 0 });
+    }
     tl.to(otherStacks, { autoAlpha: 1, y: 0, duration: DUR.fade }, DUR.close - 0.3);
   }
 
@@ -425,22 +431,19 @@ export function DesktopSeries({
     if (captured) {
       flyOutRight(tl, captured.colGhosts, { at: 0 });
       if (captured.centerGhost) {
-        tl.to(
-          captured.centerGhost,
-          { autoAlpha: 0, filter: 'blur(6px)', duration: DUR.fade },
-          0
-        );
+        tl.to(captured.centerGhost, { autoAlpha: 0, duration: DUR.fade }, 0);
       }
     }
+    // Fondu d'apparition calé sur la cascade des vols (même STAGGER).
     flights.forEach(({ ghost }, i) =>
-      tl.to(ghost, { opacity: 1, duration: 0.12 }, 0.12 + i * 0.02)
+      tl.to(ghost, { opacity: 1, duration: 0.12 }, 0.12 + i * STAGGER)
     );
     flyCurved(tl, flights, { duration: DUR.switch, at: 0.12 });
     if (centerWrap) {
       tl.fromTo(
         centerWrap,
-        { autoAlpha: 0, filter: 'blur(6px)' },
-        { autoAlpha: 1, filter: 'blur(0px)', duration: DUR.fade },
+        { autoAlpha: 0 },
+        { autoAlpha: 1, duration: DUR.fade },
         0.25
       );
     }

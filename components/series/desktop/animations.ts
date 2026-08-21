@@ -18,26 +18,27 @@ import { MotionPathPlugin } from 'gsap/MotionPathPlugin';
  * préservant sa progression. Les fantômes ne vivent que le temps d'un
  * geste (≤ 0,8 s) ; un resize pendant ce court vol est accepté.
  *
- * Les recettes visuelles (spec §5, valeurs → brand book une fois calées) :
- * - chemin courbe à deux points avec DÉPASSEMENT avant la pose
- *   (curviness 0.45) — c'est lui qui donne la matière ;
- * - cascade ~20 ms entre vignettes ;
- * - échange de photos : flou et opacité culminent À MI-PARCOURS,
- *   les deux images arrivent nettes.
+ * Recette visuelle : COPIE STRICTE de la démo 4 Codrops (`script4.js` de
+ * https://github.com/Ibaliqbal/codrops-motion-path-transition, boutons
+ * « bottom »/« left ») — voir `flyCurved`. La recette précédente (chemin en
+ * fractions, motion blur directionnel) est MISE DE CÔTÉ, intacte, dans la
+ * section « Recette précédente » en bas de fichier.
  */
 
 gsap.registerPlugin(MotionPathPlugin);
 
 export const DUR = {
-  open: 0.8,
-  close: 0.8,
+  // La démo est à 1.1 s ; 0.9 s décidé avec Alexandre (2026-08-21), tout le
+  // reste de la recette est repris tel quel.
+  open: 0.9,
+  close: 0.9,
   switch: 0.6,
   swap: 0.45,
   fade: 0.3,
 } as const;
 
 export const EASE = 'expo.inOut';
-const STAGGER = 0.02;
+export const STAGGER = 0.035;
 
 // ── Couche de fantômes ───────────────────────────────────────────────────────
 
@@ -108,15 +109,36 @@ export type Flight = {
 };
 
 /**
- * Vol le long du chemin de la démo de référence : le point intermédiaire est
- * à `midX` du trajet horizontal mais seulement `midY` du vertical. Avec les
- * défauts (0.95 / 0.095, les valeurs EXACTES de la démo Codrops), l'élément
- * GLISSE d'abord le long de l'horizon puis REMONTE se poser — ce n'est pas
- * une diagonale. La fermeture passe les fractions inverses (peu de X,
- * beaucoup de Y au point intermédiaire) pour parcourir le même chemin en
- * miroir. L'échelle voyage DANS les points du chemin, comme la démo.
+ * Vol « démo 4 » — COPIE STRICTE de `script4.js` de la démo Codrops
+ * (https://tympanus.net/Tutorials/MotionPathTransition/index4.html, boutons
+ * « bottom »/« left »), transposée à nos clones :
  *
- * ⚠️ **L'échelle est NON UNIFORME (`scaleX`/`scaleY`), jamais `scale`.**
+ * - `ease: 'expo.inOut'` sur toute la trajectoire — l'accélération franche au
+ *   départ et la longue décélération à la pose viennent de LÀ, pas du chemin ;
+ * - MotionPath à DEUX points, `curviness: 0.25` (quasi droit, coin arrondi).
+ *   Au point intermédiaire (sens « open ») : la quasi-totalité du trajet
+ *   horizontal est faite (il ne reste que 2,5 px — `targetX * 1.5` de la
+ *   démo) mais seulement 25 px du vertical (`top ± 25`) → l'élément GLISSE le
+ *   long de l'horizon puis REMONTE se poser ;
+ * - l'échelle est aux TROIS QUARTS de sa course au point intermédiaire
+ *   (`(1 - scale) * 0.25 + scale` dans la démo) : elle se joue pendant la
+ *   glissade, pas pendant la montée ;
+ * - cascade `STAGGER` (0.035 s) depuis le premier vol.
+ *
+ * Seul point NON transposé : le cas spécial « index 0 en ligne droite » de la
+ * démo. Chez elle, le premier item ne bouge quasiment que sur un axe (la
+ * droite EST le rail) — c'est une optimisation de chemin dégénéré. Chez nous,
+ * chaque vol traverse l'écran sur les deux axes : une ligne droite ferait une
+ * DIAGONALE en plein milieu de la scène, effet que la démo ne montre jamais.
+ * Tous les vols sont donc courbes.
+ *
+ * `direction: 'close'` = le `tl.reverse()` de la démo, reconstruit : même
+ * courbe parcourue en sens inverse (le vertical d'abord, la glissade ensuite,
+ * l'échelle au dernier quart), et CASCADE INVERSÉE — le dernier vol de
+ * l'ouverture part le premier, l'index 0 atterrit en dernier.
+ *
+ * ⚠️ **L'échelle est NON UNIFORME (`scaleX`/`scaleY`), jamais `scale`** —
+ * seul écart assumé avec la démo, dont les vignettes gardent leur ratio.
  * Source et destination n'ont pas le même rapport de forme : les boîtes de la
  * pile font toutes 299×176 (la cover, `object-fit: cover`) alors que chaque
  * vignette de colonne porte le ratio de SA photo. Un scale uniforme fait donc
@@ -133,6 +155,112 @@ export type Flight = {
  * absorbé par le fondu croisé de `fadeOutLayer`, jamais par une coupe franche.
  */
 export function flyCurved(
+  tl: gsap.core.Timeline,
+  flights: Flight[],
+  {
+    duration = DUR.open,
+    stagger = STAGGER,
+    direction = 'open',
+    at = 0,
+  }: {
+    duration?: number;
+    stagger?: number;
+    direction?: 'open' | 'close';
+    at?: number;
+  } = {}
+): void {
+  const n = flights.length;
+  flights.forEach(({ ghost, from, to }, i) => {
+    const dx = to.left - from.left;
+    const dy = to.top - from.top;
+    const sx = to.width / from.width;
+    const sy = to.height / from.height;
+
+    // Offsets ABSOLUS de la démo (pas des fractions) : 2,5 px restants sur
+    // l'axe de la glissade, 25 px parcourus sur l'autre. Bornés au trajet
+    // réel pour les déplacements plus courts que l'offset.
+    const nudgeX = Math.sign(dx) * Math.min(2.5, Math.abs(dx));
+    const nudgeY = Math.sign(dy) * Math.min(25, Math.abs(dy));
+
+    const mid =
+      direction === 'open'
+        ? {
+            x: dx - nudgeX,
+            y: nudgeY,
+            scaleX: 1 + (sx - 1) * 0.75,
+            scaleY: 1 + (sy - 1) * 0.75,
+          }
+        : {
+            x: nudgeX,
+            y: dy - nudgeY,
+            scaleX: 1 + (sx - 1) * 0.25,
+            scaleY: 1 + (sy - 1) * 0.25,
+          };
+    const end = { x: dx, y: dy, scaleX: sx, scaleY: sy };
+
+    tl.to(
+      ghost,
+      {
+        duration,
+        ease: EASE,
+        transformOrigin: 'top left',
+        motionPath: {
+          path: [mid, end],
+          curviness: 0.25,
+        },
+      },
+      at + (direction === 'open' ? i : n - 1 - i) * stagger
+    );
+  });
+}
+
+/**
+ * Échange de photos (clic sur une vignette de colonne) : deux vols droits et
+ * croisés, SANS motion blur (retiré le 2026-08-21 — la version avec blur est
+ * mise de côté en bas de fichier, `flyCrossingLegacy`), sur la même courbe
+ * `expo.inOut` que la démo 4 — signature de mouvement unique sur la page.
+ */
+export function flyCrossing(
+  tl: gsap.core.Timeline,
+  flights: Flight[],
+  { duration = DUR.swap }: { duration?: number } = {}
+): void {
+  for (const { ghost, from, to } of flights) {
+    // Scale par axe, même raison que dans `flyCurved` : ici source et cible
+    // partagent en principe le ratio de la photo, mais l'écrire par axe rend
+    // l'atterrissage exact quoi qu'il arrive (rect prédit arrondi, image au
+    // ratio inattendu) plutôt que « exact tant que l'hypothèse tient ».
+    tl.to(
+      ghost,
+      {
+        duration,
+        ease: EASE,
+        transformOrigin: 'top left',
+        x: to.left - from.left,
+        y: to.top - from.top,
+        scaleX: to.width / from.width,
+        scaleY: to.height / from.height,
+      },
+      0
+    );
+  }
+}
+
+// ── Recette précédente, MISE DE CÔTÉ (2026-08-21) ────────────────────────────
+//
+// Conservée intacte, prête à être rebranchée : dans DesktopSeries, remplacer
+// l'appel à `flyCurved` / `flyCrossing` par `flyCurvedLegacy` /
+// `flyCrossingLegacy` (l'API de flyCurvedLegacy prend `midX`/`midY` en
+// fractions — 0.05/0.905 pour la fermeture — au lieu de `direction`).
+// Rien d'autre à toucher.
+
+/**
+ * [LEGACY] Chemin en FRACTIONS du trajet (midX 0.95 / midY 0.095), curviness
+ * 0.45, échelle au quart au point intermédiaire, pas de cas spécial pour le
+ * premier vol, cascade dans le même sens à la fermeture. Remplacée par la
+ * copie stricte de la démo 4 (`flyCurved` ci-dessus).
+ */
+export function flyCurvedLegacy(
   tl: gsap.core.Timeline,
   flights: Flight[],
   {
@@ -162,9 +290,6 @@ export function flyCurved(
         transformOrigin: 'top left',
         motionPath: {
           path: [
-            // Même dosage que la démo au point intermédiaire : un quart de la
-            // croissance seulement, sur CHAQUE axe — l'élément grossit tard,
-            // ce qui donne sa nervosité au geste.
             {
               x: dx * midX,
               y: dy * midY,
@@ -184,7 +309,7 @@ export function flyCurved(
 let mbFilterSeq = 0;
 
 /**
- * MOTION BLUR directionnel (pas un flou gaussien uniforme — première
+ * [LEGACY] MOTION BLUR directionnel (pas un flou gaussien uniforme — première
  * tentative retoquée à juste titre) :
  *
  *   1. le clone <img> est emballé dans un wrapper tourné de l'angle de la
@@ -236,12 +361,11 @@ function wrapForMotionBlur(
 }
 
 /**
- * Échange de photos (spec §5) : deux vols droits et croisés, motion blur
- * directionnel et opacité légèrement creusée au sommet à mi-parcours,
- * arrivée nette. ≤ 0,5 s. Le blur reste le premier candidat au sacrifice
- * si les fps plongent (§7).
+ * [LEGACY] Échange de photos avec motion blur directionnel et opacité
+ * légèrement creusée au sommet à mi-parcours, arrivée nette. Remplacée par
+ * `flyCrossing` (sans blur, courbe démo 4).
  */
-export function flyCrossing(
+export function flyCrossingLegacy(
   tl: gsap.core.Timeline,
   flights: Flight[],
   { duration = DUR.swap }: { duration?: number } = {}
