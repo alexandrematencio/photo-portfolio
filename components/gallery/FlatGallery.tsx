@@ -1,12 +1,23 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import gsap from 'gsap';
+import { Flip } from 'gsap/Flip';
 import { PhotoCard } from './PhotoCard';
 import { PhotoLightbox } from './PhotoLightbox';
 import { cn } from '@/lib/utils/cn';
+import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import type { Photo } from '@/lib/sanity/queries';
 
+gsap.registerPlugin(Flip);
+
 type Mode = 'year' | 'location' | 'style' | 'camera' | 'lens';
+
+/** Paliers de densité de la démo Codrops — le nombre de colonnes par palier
+    vit dans globals.css (.grid-gallery[data-size-grid]). */
+const GRID_SIZES = ['50%', '75%', '100%', '125%', '150%'] as const;
+type GridSize = (typeof GRID_SIZES)[number];
 
 const TABS: { id: Mode; label: string }[] = [
   { id: 'year', label: 'Year' },
@@ -54,6 +65,92 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
   // Single carousel instance for the whole flat gallery — initialIndex is the
   // photo's position in the currently-visible flat ordering.
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  // Densité de la grille (boutons 50→150 %). 75 % = défaut de la démo.
+  const [gridSize, setGridSize] = useState<GridSize>('75%');
+  const reducedMotion = useReducedMotion();
+  // Conteneur des groupes : cible du filtre blur/brightness pendant le Flip,
+  // et racine de la requête des items à animer.
+  const galleryRef = useRef<HTMLDivElement | null>(null);
+  // Verrou d'animation de la démo (`animated`) — un ref, pas un state : sa
+  // valeur ne doit pas déclencher de re-render.
+  const gridAnimatingRef = useRef(false);
+
+  /** Changement de densité — transition recopiée de la démo 2 Codrops
+      (script2.js) : Flip absolute 1 s expo.inOut, stagger random 0,3 s, et
+      aller-retour blur(10px)/brightness(200%) sur tout le conteneur. */
+  function changeGridSize(target: GridSize) {
+    if (target === gridSize) return;
+    const gallery = galleryRef.current;
+    if (reducedMotion || !gallery) {
+      setGridSize(target);
+      return;
+    }
+    if (gridAnimatingRef.current) return;
+    gridAnimatingRef.current = true;
+
+    const items = gallery.querySelectorAll('.grid-gallery-item');
+    const state = Flip.getState(items);
+    // Le nouveau layout doit être dans le DOM avant Flip.from — d'où flushSync.
+    flushSync(() => setGridSize(target));
+
+    // Écart avec la démo, rendu nécessaire par nos groupes : quand Flip passe
+    // les items en `absolute`, chaque grille se vide et s'effondre — les titres
+    // des groupes suivants remontaient par-dessus les photos le temps du vol
+    // (vu à la capture). La démo n'a qu'une grille et rien dessous, l'effondrement
+    // y est invisible. On fige donc chaque grille à sa hauteur du layout
+    // d'ARRIVÉE (mesurée ici, après flushSync et avant l'absolute), puis on
+    // rend la main au CSS une fois les items revenus dans le flux.
+    const grids = Array.from(
+      gallery.querySelectorAll<HTMLElement>('.grid-gallery')
+    );
+    for (const grid of grids) {
+      grid.style.height = `${grid.offsetHeight}px`;
+    }
+    const releaseGrids = () => {
+      for (const grid of grids) grid.style.removeProperty('height');
+    };
+
+    const flipDuration = 1;
+    const staggerAmount = 0.3;
+    const totalFlipDuration = flipDuration + staggerAmount;
+
+    Flip.from(state, {
+      absolute: true,
+      duration: flipDuration,
+      ease: 'expo.inOut',
+      onComplete: () => {
+        releaseGrids();
+        gridAnimatingRef.current = false;
+      },
+      stagger: {
+        amount: staggerAmount,
+        from: 'random',
+      },
+    }).fromTo(
+      gallery,
+      {
+        filter: 'blur(0px) brightness(100%)',
+        willChange: 'filter',
+      },
+      {
+        duration: totalFlipDuration,
+        keyframes: [
+          {
+            filter: 'blur(10px) brightness(200%)',
+            duration: totalFlipDuration * 0.5,
+            ease: 'power2.in',
+          },
+          {
+            filter: 'blur(0px) brightness(100%)',
+            duration: totalFlipDuration * 0.5,
+            ease: 'power2',
+            delay: 0.5,
+          },
+        ],
+      },
+      0
+    );
+  }
 
   const allGroups: Group[] = useMemo(() => {
     if (mode === 'year') {
@@ -164,33 +261,53 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
 
   return (
     <div>
-      {/* Mode selector — sticky bar, defines the grouping axis */}
+      {/* Sticky bar — grouping axis tabs (left) + grid density switch (right).
+          Sous 768px la grille est verrouillée à 3 colonnes (CSS), les boutons
+          de densité y sont sans effet — comme dans la démo Codrops. */}
       <nav
-        role="tablist"
-        aria-label="Grouping mode"
-        className="sticky top-0 z-30 flex justify-start gap-10 md:gap-14 border-b border-[var(--color-line)] bg-[var(--color-bg)]"
+        className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-x-10 gap-y-4 border-b border-[var(--color-line)] bg-[var(--color-bg)]"
         style={{ paddingLeft: 32, paddingRight: 32, paddingTop: 24, paddingBottom: 24 }}
       >
-        {TABS.map((tab) => {
-          const active = tab.id === mode;
-          return (
+        <div
+          role="tablist"
+          aria-label="Grouping mode"
+          className="flex justify-start gap-10 md:gap-14"
+        >
+          {TABS.map((tab) => {
+            const active = tab.id === mode;
+            return (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={active}
+                type="button"
+                onClick={() => setMode(tab.id)}
+                className={cn(
+                  'text-[12px] uppercase font-bold py-2 cursor-pointer transition-colors motion-reduce:transition-none',
+                  active
+                    ? 'text-[var(--color-fg)] underline underline-offset-8 decoration-2'
+                    : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
+                )}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="grid-size-switch" role="group" aria-label="Grid display size">
+          {GRID_SIZES.map((size) => (
             <button
-              key={tab.id}
-              role="tab"
-              aria-selected={active}
+              key={size}
               type="button"
-              onClick={() => setMode(tab.id)}
-              className={cn(
-                'text-[12px] uppercase font-bold py-2 cursor-pointer transition-colors motion-reduce:transition-none',
-                active
-                  ? 'text-[var(--color-fg)] underline underline-offset-8 decoration-2'
-                  : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
-              )}
+              onClick={() => changeGridSize(size)}
+              aria-pressed={size === gridSize}
+              className={cn(size === gridSize && 'active')}
             >
-              {tab.label}
+              {size}
             </button>
-          );
-        })}
+          ))}
+        </div>
       </nav>
 
       {/* Filter chips — pill buttons per Pencil "filter-button" spec.
@@ -244,6 +361,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
       {/* Groups — 64 px between each (per spec).
           Single-select means visibleGroups is never empty (always "All" or one group). */}
       <div
+        ref={galleryRef}
         className="flex flex-col gap-16"
         style={{ paddingLeft: 32, paddingRight: 32, paddingTop: 40 }}
       >
@@ -271,12 +389,11 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
                 </span>
               </h2>
               {/*
-                Masonry CSS columns. La classe `flat-gallery-masonry` (globals.css)
-                applique le même `--gallery-gap` au column-gap ET au margin-bottom
-                des enfants → gap horizontal = gap vertical, garanti.
-                Grid: 2 cols mobile, 3 cols desktop (max — cohérent brand book §9.8).
+                Grille de la démo Codrops (globals.css .grid-gallery) : le
+                nombre de colonnes est piloté par data-size-grid, commun à tous
+                les groupes — un seul état, une seule rangée de boutons.
               */}
-              <div className="flat-gallery-masonry columns-2 md:columns-3 [column-fill:_balance]">
+              <div className="grid-gallery" data-size-grid={gridSize}>
                 {group.items.map((p) => {
                   const myIndex = flatCursor++;
                   return (

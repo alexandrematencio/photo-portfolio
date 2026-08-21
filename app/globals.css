@@ -151,21 +151,109 @@ body img {
   }
 }
 
-/* Flat Gallery masonry :
-   Une seule variable `--gallery-gap` contrôle :
-   - le gap horizontal entre colonnes (column-gap)
-   - le gap vertical entre cartes dans une même colonne (margin-bottom des enfants)
-   → les deux sont GARANTIS identiques. Modifie la valeur ici pour tout changer. */
-.flat-gallery-masonry {
-  --gallery-gap: 0.75rem; /* 12px desktop */
-  column-gap: var(--gallery-gap);
+/* Grille des Archives — recette de la démo 2 Codrops « Grid Layout Transitions »
+   (tympanus.net/Tutorials/GridLayoutTransitions/index2.html, style.css), reprise
+   telle quelle : la densité est pilotée par l'attribut data-size-grid (boutons
+   50→150 % dans FlatGallery), chaque palier fixe son nombre de colonnes, avec
+   les overrides tablette de la démo et le verrou 3 colonnes sous 768px (où les
+   boutons sont sans effet, comme dans la démo). La transition entre paliers est
+   un Flip GSAP (FlatGallery.changeGridSize), pas une transition CSS. */
+.grid-gallery {
+  position: relative;
+  display: grid;
+  gap: 1.5rem;
+  width: 100%;
 }
-.flat-gallery-masonry > * {
-  margin-bottom: var(--gallery-gap);
+.grid-gallery[data-size-grid='50%'] {
+  grid-template-columns: repeat(16, 1fr);
 }
-@media (max-width: 767px) {
-  .flat-gallery-masonry {
-    --gallery-gap: 0.5rem; /* 8px mobile */
+.grid-gallery[data-size-grid='75%'] {
+  grid-template-columns: repeat(10, 1fr);
+}
+.grid-gallery[data-size-grid='100%'] {
+  grid-template-columns: repeat(8, 1fr);
+}
+.grid-gallery[data-size-grid='125%'] {
+  grid-template-columns: repeat(6, 1fr);
+}
+.grid-gallery[data-size-grid='150%'] {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.grid-gallery-item {
+  will-change: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Boîte image : le ratio natif de la photo vient de --aspect-ratio (posé en
+   inline par PhotoCard). Assombrie au repos, pleine lumière au survol — le
+   hover de la démo, à la place du zoom 1.03 de l'ancienne masonry. */
+.grid-gallery-image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: var(--aspect-ratio, 4 / 5);
+  overflow: hidden;
+  background: var(--color-bg-elev);
+  filter: brightness(0.8);
+  transition: filter 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+.grid-gallery-image:hover {
+  filter: brightness(1);
+}
+
+@media (max-width: 768px) {
+  .grid-gallery[data-size-grid] {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (min-width: 768px) and (max-width: 1024px) {
+  .grid-gallery[data-size-grid='50%'] {
+    grid-template-columns: repeat(10, 1fr);
+  }
+  .grid-gallery[data-size-grid='75%'] {
+    grid-template-columns: repeat(8, 1fr);
+  }
+  .grid-gallery[data-size-grid='100%'] {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .grid-gallery[data-size-grid='125%'] {
+    grid-template-columns: repeat(5, 1fr);
+  }
+  .grid-gallery[data-size-grid='150%'] {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Sélecteur de densité (50→150 %) — pilule segmentée de la démo, tokens du
+   site. Paddings ici et non en utilities : le reset global hors @layer les
+   écraserait. */
+.grid-size-switch {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  background: var(--color-line);
+  border: 1px solid var(--color-line);
+  border-radius: 15px;
+  overflow: hidden;
+}
+.grid-size-switch button {
+  background: var(--color-bg);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--color-fg-muted);
+  padding: 0.75rem 1.15rem;
+}
+.grid-size-switch button.active {
+  background: var(--color-fg);
+  color: var(--color-bg);
+}
+@media (hover: hover) and (pointer: fine) {
+  .grid-size-switch button:not(.active):hover {
+    background: var(--color-bg-elev);
+    color: var(--color-fg);
   }
 }
 

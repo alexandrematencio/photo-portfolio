@@ -1,9 +1,21 @@
 'use client';
 
 import Image from 'next/image';
+import type { CSSProperties } from 'react';
 import { urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
 import { Placeholder } from './Placeholder';
+
+/* Nom court affiché sous chaque photo (demande d'Alexandre, 2026-08-21) —
+   mappé sur le slug du document `camera`. Un boîtier hors de cette liste
+   retombe sur son `title` Sanity : la carte ne dépend pas de la map pour
+   afficher quelque chose de juste. */
+const CAMERA_DISPLAY_NAMES: Record<string, string> = {
+  'olympus-om-d-e-m10-mk-iii': 'E-M10 MkIII',
+  'fujifilm-x-pro-2': 'Fujifilm X-PRO2',
+  'lumix-g7': 'Lumix G7',
+  'samsung-s21-fe': 'Samsung S21',
+};
 
 type Props = {
   photo: Photo;
@@ -12,49 +24,56 @@ type Props = {
   onOpen?: () => void;
 };
 
+/**
+ * Item de la grille des archives — structure de la démo 2 Codrops « Grid
+ * Layout Transitions » : boîte image au ratio natif, libellé (boîtier) en
+ * tout petit dessous. Le style de la boîte (aspect-ratio, hover brightness)
+ * vit dans globals.css (.grid-gallery-image).
+ */
 export function PhotoCard({ photo, onOpen }: Props) {
   const builder = photo.image ? urlFor(photo.image) : null;
   const src = builder?.width(800).quality(80).auto('format').url() ?? null;
   const alt = photo.image?.alt ?? photo.title;
   const ratio = photo.image?.dimensions?.aspectRatio ?? 4 / 5;
-  const clickable = Boolean(src);
+  const cameraName = photo.camera
+    ? CAMERA_DISPLAY_NAMES[photo.camera.slug] ?? photo.camera.title
+    : null;
 
   return (
     <figure
       id={`photo-${photo.slug.current}`}
-      className="group relative overflow-hidden bg-[var(--color-bg-elev)] break-inside-avoid scroll-mt-24"
-      style={{ aspectRatio: ratio }}
+      className="grid-gallery-item scroll-mt-24"
+      style={{ '--aspect-ratio': String(ratio) } as CSSProperties}
     >
-      {clickable ? (
+      {src ? (
         <button
           type="button"
           onClick={() => onOpen?.()}
-          className="absolute inset-0 cursor-zoom-in p-0 m-0 border-0 bg-transparent text-left"
+          className="grid-gallery-image cursor-zoom-in text-left"
           aria-label={`Open “${photo.title}” fullscreen`}
         >
-          {src && (
-            <Image
-              src={src}
-              alt={alt}
-              fill
-              sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-cover transition-transform duration-700 ease-out motion-reduce:transition-none group-hover:scale-[1.03]"
-            />
-          )}
+          <Image
+            src={src}
+            alt={alt}
+            fill
+            sizes="(max-width: 768px) 33vw, 20vw"
+            className="object-cover"
+          />
         </button>
       ) : (
-        <Placeholder title={photo.title} />
+        <div className="grid-gallery-image">
+          <Placeholder title={photo.title} />
+        </div>
       )}
-      <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 p-3 text-[10px] uppercase text-white bg-gradient-to-t from-black/70 via-black/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 motion-reduce:opacity-100 motion-reduce:bg-black/60">
-        {photo.title}
-        {/* marginTop inline : `mt-1` avalé par le reset global hors @layer. */}
-        <span
-          className="block text-white/70 normal-case tracking-normal"
-          style={{ marginTop: 4 }}
+      {cameraName && (
+        // marginTop inline : `mt-*` avalé par le reset global hors @layer.
+        <figcaption
+          className="text-[11px] font-normal text-left text-[var(--color-fg-muted)]"
+          style={{ marginTop: 6 }}
         >
-          {photo.location} · {photo.year}
-        </span>
-      </figcaption>
+          {cameraName}
+        </figcaption>
+      )}
     </figure>
   );
 }
