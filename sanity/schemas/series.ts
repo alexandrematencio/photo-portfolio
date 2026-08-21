@@ -1,5 +1,6 @@
 import { defineArrayMember, defineField, defineType } from 'sanity';
 import { PhotoOrderInput } from '../inputs/PhotoOrderInput';
+import { PhotoOrderItem } from '../inputs/PhotoOrderItem';
 
 export const seriesSchema = defineType({
   name: 'series',
@@ -65,10 +66,13 @@ export const seriesSchema = defineType({
               },
             }),
           },
+          // « Remove » retire la photo DE LA SÉRIE (et pas seulement de
+          // l'ordre, ce qui ne changeait rien à l'écran). Cf. PhotoOrderItem.
+          components: { item: PhotoOrderItem },
         }),
       ],
       description:
-        'Glisser-déposer pour choisir l’ordre d’affichage des photos de la série sur le site. Facultatif : les photos que tu n’ajoutes pas ici s’affichent APRÈS celles qui y sont, de la plus récente à la plus ancienne — une photo nouvellement rattachée à la série arrive donc en dernier, à toi de la remonter si tu veux. La 1ʳᵉ photo de cette liste sert aussi de couverture quand « Photo de couverture » est vide. ⚠️ Site statique : les changements n’apparaissent en ligne qu’après « Publish » + redéploiement.',
+        'Glisser-déposer pour choisir l’ordre d’affichage des photos de la série sur le site. Facultatif : les photos que tu n’ajoutes pas ici s’affichent APRÈS celles qui y sont, de la plus récente à la plus ancienne — une photo nouvellement rattachée à la série arrive donc en dernier, à toi de la remonter si tu veux. La 1ʳᵉ photo de cette liste sert aussi de couverture quand « Photo de couverture » est vide. « Remove » sur une photo la retire DE LA SÉRIE, pas seulement de l’ordre : elle reste dans « Toutes » et dans ses autres séries. ⚠️ Site statique : les changements n’apparaissent en ligne qu’après « Publish » + redéploiement.',
       validation: (Rule) => Rule.unique(),
       components: { input: PhotoOrderInput },
     }),

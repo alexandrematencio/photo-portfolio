@@ -4,7 +4,11 @@ import { visionTool } from '@sanity/vision';
 import { schemaTypes } from '@/sanity/schemas';
 import { buildStructure } from '@/sanity/structure';
 import { dashboardTool } from '@/sanity/tools';
-import { AssignToSeriesAction } from '@/sanity/actions';
+import {
+  AssignToSeriesAction,
+  DeletePhotoAction,
+  DeleteSeriesAction,
+} from '@/sanity/actions';
 // PhotoPreviewView / SiteSettingsPreviewView volontairement non importés (désactivés
 // — voir le commentaire `defaultDocumentNode` ci-dessous). Les fichiers restent dans
 // `sanity/preview/` pour réactivation rapide.
@@ -136,8 +140,25 @@ export const studioConfig = defineConfig({
       // soit l'onglet de Photos d'où l'on vient (une action document ne dépend
       // pas du panneau). Complète le champ `series` du formulaire, qui reste
       // utilisable directement.
+      //
+      // Delete natif REMPLACÉ par DeletePhotoAction : une photo référencée
+      // (photoOrder, coverPhoto, curation) était insupprimable — l'action
+      // custom détache les références en une transaction avant de supprimer.
       if (schemaType === 'photo') {
-        return [...prev, AssignToSeriesAction];
+        return [
+          ...prev.map((action) =>
+            action.action === 'delete' ? DeletePhotoAction : action
+          ),
+          AssignToSeriesAction,
+        ];
+      }
+      // Idem côté série : une série référencée par ses photos (`photo.series[]`)
+      // ou par `siteSettings.seriesOrder` était insupprimable. L'action custom
+      // détache ces liens — sans jamais supprimer une seule photo.
+      if (schemaType === 'series') {
+        return prev.map((action) =>
+          action.action === 'delete' ? DeleteSeriesAction : action
+        );
       }
       return prev;
     },
