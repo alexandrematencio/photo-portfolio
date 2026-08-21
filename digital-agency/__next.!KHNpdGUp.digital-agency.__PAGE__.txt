@@ -2,5 +2,5 @@
 2:I[683451,["/photo-portfolio/_next/static/chunks/0x.73w57rn4ou.js","/photo-portfolio/_next/static/chunks/0i.l9589uvx0j.js","/photo-portfolio/_next/static/chunks/019v.878l~-o-.js","/photo-portfolio/_next/static/chunks/00myej0f.8zrb.js","/photo-portfolio/_next/static/chunks/02967n73mk2ah.js"],"LegacyRedirect"]
 3:I[897367,["/photo-portfolio/_next/static/chunks/0x.73w57rn4ou.js","/photo-portfolio/_next/static/chunks/0i.l9589uvx0j.js"],"OutletBoundary"]
 4:"$Sreact.suspense"
-0:{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"to":"/about/digital-agency"}],[["$","script","script-0",{"src":"/photo-portfolio/_next/static/chunks/02967n73mk2ah.js","async":true}]],["$","$L3",null,{"children":["$","$4",null,{"name":"Next.MetadataOutlet","children":"$@5"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"bVR5r7Iyim2JAISG738C8"}
+0:{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"to":"/about/digital-agency"}],[["$","script","script-0",{"src":"/photo-portfolio/_next/static/chunks/02967n73mk2ah.js","async":true}]],["$","$L3",null,{"children":["$","$4",null,{"name":"Next.MetadataOutlet","children":"$@5"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"FkueBYU1aL91mnZbAQv-I"}
 5:null
