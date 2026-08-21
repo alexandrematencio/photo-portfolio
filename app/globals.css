@@ -225,38 +225,6 @@ body img {
   }
 }
 
-/* Sélecteur de densité (50→150 %) — pilule segmentée de la démo, tokens du
-   site. Paddings ici et non en utilities : le reset global hors @layer les
-   écraserait. */
-.grid-size-switch {
-  display: flex;
-  align-items: center;
-  gap: 1px;
-  background: var(--color-line);
-  border: 1px solid var(--color-line);
-  border-radius: 15px;
-  overflow: hidden;
-}
-.grid-size-switch button {
-  background: var(--color-bg);
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 11px;
-  color: var(--color-fg-muted);
-  padding: 0.75rem 1.15rem;
-}
-.grid-size-switch button.active {
-  background: var(--color-fg);
-  color: var(--color-bg);
-}
-@media (hover: hover) and (pointer: fine) {
-  .grid-size-switch button:not(.active):hover {
-    background: var(--color-bg-elev);
-    color: var(--color-fg);
-  }
-}
-
 /* ScrollPhysicsGallery base (porté depuis html-script-reference.md, adouci) */
 .gallery-stage {
   position: relative;

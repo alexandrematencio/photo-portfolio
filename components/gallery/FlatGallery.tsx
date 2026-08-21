@@ -295,14 +295,26 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
           })}
         </div>
 
-        <div className="grid-size-switch" role="group" aria-label="Grid display size">
+        {/* Même voix typographique que les tabs de gauche (12px bold, actif
+            souligné) — masqué sous md, où la grille est verrouillée à 3
+            colonnes et où ces boutons n'auraient aucun effet. */}
+        <div
+          role="group"
+          aria-label="Grid display size"
+          className="hidden md:flex items-center gap-6"
+        >
           {GRID_SIZES.map((size) => (
             <button
               key={size}
               type="button"
               onClick={() => changeGridSize(size)}
               aria-pressed={size === gridSize}
-              className={cn(size === gridSize && 'active')}
+              className={cn(
+                'text-[12px] font-bold py-2 cursor-pointer transition-colors motion-reduce:transition-none',
+                size === gridSize
+                  ? 'text-[var(--color-fg)] underline underline-offset-8 decoration-2'
+                  : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
+              )}
             >
               {size}
             </button>
