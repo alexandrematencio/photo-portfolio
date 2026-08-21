@@ -13,14 +13,28 @@ type Props = {
 };
 
 /**
- * Port du moteur scroll-physics de html-script-reference.md vers Next.js.
- * - Lenis pour smooth scroll
- * - GSAP + ScrollTrigger pour parallaxe per-item
- * - Velocity-driven distortion (scale/skewY/rotateX) avec bornes adoucies
- * - Respect strict de prefers-reduced-motion (CLAUDE.md §3.2)
- * - Cleanup complet à l'unmount
+ * Fondu d'entrée/sortie : portion de la HAUTEUR de l'image parcourue près du
+ * bord du viewport pendant laquelle l'opacité monte (entrée) ou descend
+ * (sortie). 0,25 = fondu discret, cantonné aux bords : une photo est à 100 %
+ * d'opacité dès que 25 % d'elle est entrée — donc TOUTE photo entièrement
+ * visible est pleine et entière, sans avoir à l'aligner au centre
+ * (demande Alexandre 2026-08-22).
  */
-export function ScrollPhysicsGallery({ photos, motion }: Props) {
+const EDGE_FADE_PORTION = 0.25;
+
+/**
+ * Galerie de la curation (home). Depuis le 2026-08-22 (décision Alexandre) :
+ * AUCUNE animation au scroll autre que le scroll lui-même —
+ * - Lenis pour le smooth scroll (le hero §3.6 s'appuie dessus), et
+ * - un fondu d'entrée/sortie scrubbé aux bords du viewport (voir
+ *   EDGE_FADE_PORTION) : les blocs arrivent un par un en fade-in par le bas,
+ *   sortent en fade-out par le haut (et inversement en remontant).
+ * La parallaxe per-item et la distorsion pilotée par la vélocité
+ * (scale/skewY/rotateX) sont SUPPRIMÉES — version archivée dans
+ * FREELANCE/RESOURCES/existing-components/scroll-velocity-distortion/.
+ * Respect strict de prefers-reduced-motion (CLAUDE.md §3.2), cleanup complet.
+ */
+export function ScrollPhysicsGallery({ photos }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
   const items = photos.length > 0 ? photos : Array.from({ length: 6 }, () => null);
@@ -62,80 +76,51 @@ export function ScrollPhysicsGallery({ photos, motion }: Props) {
       gsap.ticker.add((time: number) => lenis.raf(time * 1000));
       gsap.ticker.lagSmoothing(0);
 
-      // 2. PARALLAXE PER-ITEM (desktop uniquement)
-      const photoItems = stage.querySelectorAll<HTMLElement>('.photo-item');
+      // 2. FONDU D'ENTRÉE / SORTIE aux bords du viewport — calculé à chaque
+      // frame depuis les RECTS mesurés, jamais depuis des positions de
+      // triggers figées : la home a un hero pinné qui déplace le layout après
+      // coup (§3.6), et des tweens scrubbés sur positions pré-calculées
+      // fondaient ~100 px trop tôt (mesuré — l'item fondait encore sous le
+      // bord). Le rect, lui, EST ce que l'œil voit ; piloté par la position
+      // (pas le temps), remonter refait le chemin inverse à l'identique.
+      //
+      // Entrée : l'opacité monte de 0 → 1 pendant que les premiers 25 % de la
+      // photo franchissent le bord bas. Sortie : 1 → 0 pendant que les
+      // derniers 25 % franchissent le bord haut. Entre les deux, opacité 1 :
+      // toute photo entièrement visible est pleine et entière, où qu'elle
+      // soit dans l'écran (pas besoin de l'aligner au centre). Coût : ~30
+      // lectures de rect par frame de scroll, aucune écriture invalidant le
+      // layout (opacity seule).
+      const photoItems = Array.from(
+        stage.querySelectorAll<HTMLElement>('.photo-item')
+      );
       const triggers: ReturnType<typeof ScrollTrigger.create>[] = [];
 
-      // En mobile (< 768px), on désactive la parallaxe : les photos restent en flux
-      // vertical classique avec un gap fixe — pas de translation au scroll.
-      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      const applyEdgeFades = () => {
+        const vh = window.innerHeight;
+        for (const item of photoItems) {
+          const r = item.getBoundingClientRect();
+          const fadePx = Math.max(1, r.height * EDGE_FADE_PORTION);
+          const enter = (vh - r.top) / fadePx; // profondeur d'entrée (bord bas)
+          const exit = r.bottom / fadePx; // marge restante avant le bord haut
+          const o = gsap.utils.clamp(0, 1, Math.min(enter, exit));
+          item.style.opacity = String(o);
+          // visibility coupée à 0 : une photo hors écran ne doit être ni
+          // cliquable ni annoncée (les blocs sont des <button>).
+          item.style.visibility = o === 0 ? 'hidden' : '';
+        }
+      };
 
-      if (!isMobile) {
-        // Parallaxe : translation BORNÉE au viewport (window.innerHeight * speed).
-        // L'ancienne formule `maxScroll * speed` causait des déplacements gigantesques
-        // (jusqu'à 1800 px) avec 30 photos → photos cachées au load et overlap du footer.
-        // Désormais, max ~150 px de translate par photo sur l'ensemble du parcours.
-        photoItems.forEach((item) => {
-          const speed = parseFloat(item.dataset.speed ?? '0.1');
-
-          triggers.push(
-            gsap.to(item, {
-              y: () => window.innerHeight * speed,
-              ease: 'none',
-              scrollTrigger: {
-                trigger: item,
-                start: 'top bottom',
-                end: 'bottom top',
-                scrub: true,
-                invalidateOnRefresh: true,
-              },
-            }).scrollTrigger as ReturnType<typeof ScrollTrigger.create>
-          );
-        });
-      }
-
-      // 3. VELOCITY-DRIVEN DISTORSION
-      // Durées de recovery courtes : les photos se "remettent droites" 2.5-3x plus vite.
-      // Désactivée sur mobile : la skewY + rotateX faisait visuellement déborder
-      // les photos sur leurs voisines au scroll, même avec un gap correct au layout.
-      const inners = stage.querySelectorAll<HTMLElement>('.photo-inner');
-      if (!isMobile && inners.length > 0) {
-        const setScale = gsap.quickTo(inners, 'scale', {
-          duration: 0.3,
-          ease: 'power3.out',
-        });
-        const setSkew = gsap.quickTo(inners, 'skewY', {
-          duration: 0.1,
-          ease: 'power3.out',
-        });
-        const setRotX = gsap.quickTo(inners, 'rotateX', {
-          duration: 0.25,
-          ease: 'power3.out',
-        });
-
-        const velocityTrigger = ScrollTrigger.create({
+      triggers.push(
+        ScrollTrigger.create({
           trigger: document.body,
           start: 'top top',
           end: 'bottom bottom',
-          onUpdate: (self) => {
-            const velocity = self.getVelocity();
-
-            let scaleVal = 1 - Math.abs(velocity / motion.velocityDivisorScale);
-            scaleVal = gsap.utils.clamp(motion.scaleMin, 1, scaleVal);
-
-            let skewVal = velocity / motion.velocityDivisorSkew;
-            skewVal = gsap.utils.clamp(-motion.skewMax, motion.skewMax, skewVal);
-
-            let rotXVal = velocity / motion.velocityDivisorRotX;
-            rotXVal = gsap.utils.clamp(-motion.rotXMax, motion.rotXMax, rotXVal);
-
-            setScale(scaleVal);
-            setSkew(skewVal);
-            setRotX(rotXVal);
-          },
-        });
-        triggers.push(velocityTrigger);
-      }
+          onUpdate: applyEdgeFades,
+          onRefresh: applyEdgeFades,
+        })
+      );
+      applyEdgeFades();
 
       cleanup = () => {
         // On ne tue QUE nos propres triggers (sinon on bute ceux du HomeHero).
@@ -148,7 +133,7 @@ export function ScrollPhysicsGallery({ photos, motion }: Props) {
       cancelled = true;
       cleanup?.();
     };
-  }, [reducedMotion, motion]);
+  }, [reducedMotion]);
 
   return (
     <>
