@@ -263,6 +263,43 @@ function allPhotosNode(S: StructureBuilder) {
     .id('photos-all');
 }
 
+/**
+ * Photos entrées dans le catalogue au cours des 30 derniers jours.
+ *
+ * La vue qu'on cherche juste après un import : `upload-photos` dépose des
+ * photos sans série, sans curation et avec une légende auto à relire, et rien
+ * ne les distinguait ensuite du reste du catalogue — il fallait trier « Toutes »
+ * à la main pour retrouver ce qu'on venait d'ajouter.
+ *
+ * Fenêtre GLISSANTE, calculée par GROQ (`now()`), jamais en JS au moment de
+ * construire la structure : la structure n'est bâtie qu'une fois par session
+ * de Studio, une borne figée là vieillirait silencieusement pendant que
+ * l'éditeur travaille. `dateTime(...)` des deux côtés — `_createdAt` est une
+ * chaîne, la comparer telle quelle à un datetime ne compare rien.
+ *
+ * `_createdAt` et non `_updatedAt` : on veut « arrivées récemment », pas
+ * « retouchées récemment ». Une photo de 2015 dont on corrige la légende
+ * aujourd'hui n'a rien à faire ici.
+ *
+ * Pas de bouton de création : une photo créée à la main dans le Studio n'a pas
+ * d'image, et surtout ce panneau est une FENÊTRE sur le catalogue, pas un
+ * dossier où déposer quelque chose (même raison qu'à « La curation »).
+ */
+function recentPhotosNode(S: StructureBuilder) {
+  return S.listItem()
+    .title('Ajoutées récemment (30 j)')
+    .id('photos-recent')
+    .child(
+      S.documentList()
+        .title('Ajoutées les 30 derniers jours')
+        .filter(
+          '_type == "photo" && dateTime(_createdAt) > dateTime(now()) - 60*60*24*30'
+        )
+        .defaultOrdering([{ field: '_createdAt', direction: 'desc' }])
+        .initialValueTemplates([])
+    );
+}
+
 function photosGroupNode(S: StructureBuilder, context: StructureResolverContext) {
   return S.listItem()
     .title('Photos')
@@ -271,6 +308,7 @@ function photosGroupNode(S: StructureBuilder, context: StructureResolverContext)
       S.list()
         .title('Photos')
         .items([
+          recentPhotosNode(S),
           photosBySeriesNode(S),
           photosWithoutSeriesNode(S),
           photosByStyleNode(S, context),
