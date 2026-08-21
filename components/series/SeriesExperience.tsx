@@ -47,10 +47,13 @@ export function SeriesExperience({ series }: { series: PreparedSeries[] }) {
     window.history.replaceState(window.history.state, '', url);
   }, []);
 
+  // `photoIndex` : photo d'arrivée. 0 par défaut (clic sur une pile, un nom) ;
+  // la navigation clavier entre « à reculons » dans une série (flèche gauche
+  // depuis la première photo) et arrive alors sur sa dernière photo.
   const open = useCallback(
-    (slug: string) => {
+    (slug: string, photoIndex = 0) => {
       setOpenSlug(slug);
-      setActiveIndex(0);
+      setActiveIndex(photoIndex);
       syncHash(slug);
     },
     [syncHash]

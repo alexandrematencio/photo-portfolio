@@ -2,6 +2,7 @@ import { urlFor } from '@/lib/sanity/image';
 import type { PreparedSeries } from '@/lib/site/series';
 import { cn } from '@/lib/utils/cn';
 import { SeriesMeta } from '../shared/SeriesMeta';
+import { centerSrcFor } from '../shared/photoSrc';
 import { useMdUp } from '../shared/useMdUp';
 
 /**
@@ -51,9 +52,9 @@ export function OpenSeriesView({
 }) {
   const mdUp = useMdUp();
   const active = displayed.photos[activeIndex] ?? displayed.photos[0];
-  const centerSrc = active.image
-    ? (urlFor(active.image)?.width(1600).quality(82).auto('format').url() ?? '')
-    : '';
+  // Source unique de l'URL 1600 px (partagée avec le préchargement et
+  // l'affinage des clones — voir photoSrc.ts).
+  const centerSrc = centerSrcFor(active);
   const activeRatio = active.image?.dimensions?.aspectRatio ?? 4 / 3;
 
   return (

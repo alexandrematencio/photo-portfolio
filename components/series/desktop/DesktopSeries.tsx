@@ -8,10 +8,10 @@ import {
   useState,
 } from 'react';
 import gsap from 'gsap';
-import { urlFor } from '@/lib/sanity/image';
 import type { PreparedSeries } from '@/lib/site/series';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { cn } from '@/lib/utils/cn';
+import { centerSrcFor } from '../shared/photoSrc';
 import { FolderStack } from './FolderStack';
 import { OpenSeriesView } from './OpenSeriesView';
 import {
@@ -55,6 +55,22 @@ type Phase = 'closed' | 'opening' | 'open' | 'closing' | 'switching';
  */
 const FOOTER_REVEAL_DUR = 0.26;
 
+/**
+ * Cadence clavier. NAV_MIN_INTERVAL_MS borne le coût d'une touche MAINTENUE
+ * (répétition système ~30/s — autant de requêtes 1600 px et de re-renders
+ * sans borne) tout en restant sous le tapotement humain le plus rapide
+ * (~10-12/s) : aucun tap volontaire n'est avalé.
+ *
+ * Le vol d'échange ACCÉLÈRE avec le rythme : sa durée = l'intervalle entre
+ * les deux derniers taps, bornée [SWAP_MIN_DUR, DUR.swap]. Jamais de pas
+ * « instantané » qui sauterait l'animation (décision Alexandre 2026-08-22 —
+ * la première version skippait les vols dès qu'on accélérait à peine).
+ * Plancher 0,22 s : le vol reste lisible comme un mouvement (décision
+ * Alexandre, même date).
+ */
+const NAV_MIN_INTERVAL_MS = 80;
+const SWAP_MIN_DUR = 0.22;
+
 type Captured = {
   layer: GhostLayer;
   colGhosts: HTMLImageElement[];
@@ -65,6 +81,45 @@ type Pending =
   | { type: 'open' }
   | { type: 'close'; from: PreparedSeries }
   | { type: 'switch' };
+
+/**
+ * Chaîne d'échanges au clavier : une suite de vols de swap enchaînés SANS
+ * jamais repasser par l'état posé entre deux. Le maillon central : le clone
+ * qui couvre le centre à la fin d'un vol devient (recopié) le clone SORTANT
+ * du vol suivant — on ne dépend donc JAMAIS du décodage de l'image réelle
+ * pendant la chaîne, le raccord (whenSettled + handoff) n'a lieu qu'une
+ * fois, à la toute fin. Un clone déjà volé n'est jamais RÉUTILISÉ pour un
+ * second vol : ses transforms composeraient faux — on en recrée un,
+ * pixel-identique, à sa position courante.
+ */
+type SwapChain = {
+  layer: GhostLayer;
+  /** Clone posé sur le centre (résultat du dernier vol). */
+  centerGhost: HTMLImageElement | null;
+  /** Vignette réelle masquée (source du clone central). */
+  hiddenThumb: Element | null;
+  /** Vol en l'air (null = en traîne : raccord/fondu de fin). */
+  tl: gsap.core.Timeline | null;
+  /** Index où la chaîne SE REND (dernier vol parti ou cible en attente). */
+  headIndex: number;
+  /**
+   * Cible en attente, ÉCRASÉE par chaque nouveau tap (politique « retarget »,
+   * décidée par Alexandre le 2026-08-22 après essai des trois candidates sur
+   * pages de test) : quand on tape plus vite que le vol plancher, le vol
+   * suivant file DIRECTEMENT vers la dernière photo demandée — l'affichage ne
+   * prend jamais de retard sur le doigt, les intermédiaires sont sautées.
+   * Les deux politiques écartées (file complète, cadence plafonnée) sont
+   * archivées, fonctionnelles et annotées, dans
+   * FREELANCE/RESOURCES/existing-components/series-swap-overdrive-policies/.
+   */
+  pending: number | null;
+  /** Changement de série demandé pendant la chaîne : joué après la traîne. */
+  pendingSwitch: { dir: 1 | -1; entry: 'first' | 'last' } | null;
+  /** Durée du prochain vol (suit le rythme des taps). */
+  nextDur: number;
+  /** Invalidation des continuations asynchrones de traîne. */
+  epoch: number;
+};
 
 export function DesktopSeries({
   series,
@@ -81,7 +136,7 @@ export function DesktopSeries({
   activeIndex: number;
   hydrated: boolean;
   initialSlug: string | null;
-  onOpen: (slug: string) => void;
+  onOpen: (slug: string, photoIndex?: number) => void;
   onClose: () => void;
   onSelectPhoto: (index: number) => void;
 }) {
@@ -94,6 +149,50 @@ export function DesktopSeries({
   const pendingRef = useRef<Pending | null>(null);
   const capturedRef = useRef<Captured | null>(null);
   const reduced = useReducedMotion();
+  // Chaîne d'échanges clavier en cours (voir le type SwapChain). Pendant sa
+  // vie, `animating` reste vrai (clics et molette gelés comme pour tout vol),
+  // mais le CLAVIER, lui, continue d'être admis selon la politique.
+  const chainRef = useRef<SwapChain | null>(null);
+  // Index LOGIQUE : là où l'UI est ou SE REND (cible du vol en cours). Le
+  // clavier raisonne dessus — la prop `activeIndex`, elle, a un re-render de
+  // retard quand un vol vient d'être committé dans le même tick.
+  const indexRef = useRef(activeIndex);
+  // Dernière version de goToSeries, pour les continuations asynchrones de la
+  // chaîne (pendingSwitch joué à la fin de la traîne).
+  const goToSeriesRef = useRef<(dir: 1 | -1, entry: 'first' | 'last') => void>(
+    () => {}
+  );
+  const lastNavRef = useRef(0);
+  // Cache de chauffe des images centrales (1600 px) : URLs dont le DÉCODAGE
+  // est terminé (le fichier peut être en cache réseau sans être décodable à
+  // temps — c'est le décodage qui garantit un échange de src sans flash).
+  const hqReadyRef = useRef(new Set<string>());
+  const hqWarmRef = useRef(new Map<string, Promise<boolean>>());
+
+  /**
+   * Chauffe une image centrale : téléchargement + DÉCODAGE, dé-doublonné.
+   * Résout `true` seulement si l'image est réellement affichable — un échec
+   * réseau ne doit jamais pousser une src cassée dans un clone.
+   */
+  const warmHq = useCallback((src: string): Promise<boolean> => {
+    if (!src) return Promise.resolve(false);
+    if (hqReadyRef.current.has(src)) return Promise.resolve(true);
+    let p = hqWarmRef.current.get(src);
+    if (!p) {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = src;
+      p = img
+        .decode()
+        .then(() => {
+          hqReadyRef.current.add(src);
+          return true;
+        })
+        .catch(() => false);
+      hqWarmRef.current.set(src, p);
+    }
+    return p;
+  }, []);
   // Footer : révélé (true) ou rangé sous l'horizon (false). Un ref et non un
   // state — la molette le lit à chaque événement, un re-render par cran serait
   // du gaspillage et introduirait un décalage d'une frame.
@@ -168,6 +267,74 @@ export function DesktopSeries({
     if (rowRef.current) gsap.set(rowRef.current, { y: -off });
   }, [scrollContainer]);
 
+  // La prop reste la source de vérité ; les commits éagers (vol interrompu,
+  // goToSeries) ne font que prendre de l'avance d'un tick sur elle.
+  useEffect(() => {
+    indexRef.current = activeIndex;
+  }, [activeIndex]);
+
+  // Préchargement des VOISINES (±1) quand la vue est posée sur une photo — le
+  // pattern lightbox de §3.4, enfin branché. Le cas courant (un tap isolé)
+  // trouve alors son 1600 px déjà décodé : le clone entrant part net, sans
+  // passage par la vignette agrandie. Pendant une chaîne d'échanges, l'effet
+  // se tient à l'écart (les commits défilent trop vite, et les préchargements
+  // concurrenceraient les centres en cours de route) — la fin de traîne fait
+  // sa propre chauffe.
+  useEffect(() => {
+    if (phase !== 'open' || !displayed) return;
+    if (sceneRef.current?.offsetParent === null) return; // branche cachée
+    if (chainRef.current) return;
+    for (const i of [activeIndex + 1, activeIndex - 1]) {
+      const photo = displayed.photos[i];
+      if (photo) void warmHq(centerSrcFor(photo));
+    }
+  }, [phase, displayed, activeIndex, warmHq]);
+
+  /**
+   * Colonne de vignettes : en haut par défaut, défilée pour montrer la
+   * vignette active quand l'entrée dans la série ne se fait pas sur la
+   * première photo (navigation clavier arrivant sur la dernière). Appelée
+   * AVANT la mesure des vols d'un switch — défiler APRÈS enverrait les clones
+   * se poser sur des rects périmés, la colonne héritant du scroll de
+   * l'ancienne série (DOM réutilisé) — et après un passage instantané.
+   */
+  const settleColScroll = useCallback(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    const col = scene.querySelector<HTMLElement>('[data-open-col]');
+    if (!col) return;
+    col.scrollTop = 0;
+    const item = scene.querySelector<HTMLElement>(
+      '[data-col-item][aria-current]'
+    );
+    if (!item) return;
+    const r = item.getBoundingClientRect();
+    const top = r.top - col.getBoundingClientRect().top;
+    if (top + r.height > col.clientHeight) {
+      col.scrollTop = top - (col.clientHeight - r.height) / 2;
+    }
+  }, []);
+
+  /**
+   * Ajustement MINIMAL de la colonne pour rendre la vignette `i` visible —
+   * appelé AVANT la mesure d'un vol de chaîne (une vignette hors écran n'a
+   * pas de rect exploitable). Par index et non par aria-current : le commit
+   * React du nouvel index n'a pas encore peint au moment de la mesure. Pas
+   * de scrollIntoView : il pourrait défiler AUSSI le conteneur de page — qui
+   * ne doit jamais bouger tout seul (invariant 14).
+   */
+  const keepThumbVisible = useCallback((i: number) => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    const col = scene.querySelector<HTMLElement>('[data-open-col]');
+    const item = scene.querySelector<HTMLElement>(`[data-col-item="${i}"]`);
+    if (!col || !item) return;
+    const c = col.getBoundingClientRect();
+    const r = item.getBoundingClientRect();
+    if (r.bottom > c.bottom) col.scrollTop += r.bottom - c.bottom;
+    else if (r.top < c.top) col.scrollTop -= c.top - r.top;
+  }, []);
+
   // ── Sélecteurs DOM (points de mesure des vols) ────────────────────────────
 
   const q = useCallback(<T extends Element>(sel: string): T | null => {
@@ -208,6 +375,10 @@ export function DesktopSeries({
       if (target) flattenPage();
       setDisplayed(target);
       setPhase(target ? 'open' : 'closed');
+      // Après le re-render : colonne posée sur la vignette active — un
+      // passage instantané peut arriver sur la DERNIÈRE photo (clavier en
+      // mouvement réduit, entrée à reculons).
+      if (target) requestAnimationFrame(() => settleColScroll());
       return;
     }
 
@@ -462,6 +633,9 @@ export function DesktopSeries({
     const colItems = scene.querySelectorAll('[data-col-item]');
     gsap.set([centerWrap, ...colItems].filter(Boolean), { autoAlpha: 0 });
 
+    // Colonne posée AVANT toute mesure (voir settleColScroll).
+    settleColScroll();
+
     // Point d'apparition : la POSITION DE LA SÉRIE au moment du clic — son
     // nom dans la colonne de gauche (seule incarnation visible de la série en
     // vue ouverte). Les photos en jaillissent, glissent le long de l'horizon
@@ -537,111 +711,255 @@ export function DesktopSeries({
         0.25
       );
     }
-    // Colonne remise en haut pour la nouvelle série.
-    const col = q('[data-open-col]');
-    if (col) col.scrollTop = 0;
-
     const centerSrc = q<HTMLImageElement>('[data-center-img]')?.src ?? '';
     void preloadCapped(centerSrc).then(() => tl.play());
   }
 
-  const runSwap = useCallback(
-    async (toIndex: number) => {
-      const scene = sceneRef.current;
-      if (!scene || !displayed || toIndex === activeIndex) return;
+  // ── Chaîne d'échanges clavier (voir le type SwapChain) ───────────────────
+
+  /**
+   * Rect prédit de l'image centrale pour une photo de ratio donné — même
+   * règle que le CSS d'OpenSeriesView (width = min(100%, maxH × ratio),
+   * maxHeight, flex center). maxH réplique CENTER_MAX_H (100dvh − 300px) :
+   * ne PAS mesurer l'image courante à la place, sa hauteur dépend de SON
+   * ratio et fausserait la prédiction pour la suivante.
+   */
+  function predictCenterRect(cellRect: DOMRect, ratio: number): DOMRect {
+    const maxH = Math.min(cellRect.height, window.innerHeight - 300);
+    let w = Math.min(cellRect.width, maxH * ratio);
+    let h = w / ratio;
+    if (h > cellRect.height) {
+      h = cellRect.height;
+      w = h * ratio;
+    }
+    return new DOMRect(
+      cellRect.left + (cellRect.width - w) / 2,
+      cellRect.top + (cellRect.height - h) / 2,
+      w,
+      h
+    );
+  }
+
+  /**
+   * Point d'entrée unique d'un échange de photo (clavier comme clic de
+   * vignette). Chaîne inexistante → nouveau vol (si rien d'autre n'anime).
+   * Vol en l'air → la cible en attente est ÉCRASÉE (retarget, cf. SwapChain)
+   * et le vol en cours ACCÉLÈRE (timeScale), il n'est jamais coupé. Traîne de
+   * fin → reprise directe de la chaîne.
+   */
+  function requestSwapTo(toIndex: number, dur: number) {
+    const chain = chainRef.current;
+    if (!chain) {
+      // Ouverture / fermeture / switch en cours : on laisse finir.
       if (animating.current) return;
-      animating.current = true;
+      if (toIndex === indexRef.current) return;
+      startChain(toIndex, dur);
+      return;
+    }
+    if (chain.pendingSwitch) return; // on quitte déjà la série
+    chain.nextDur = dur;
+    chain.headIndex = toIndex;
+    if (chain.tl) {
+      chain.pending = toIndex; // écrase : on file droit à la dernière demandée
+      chain.tl.timeScale(Math.min(3, chain.tl.timeScale() * 1.6));
+    } else {
+      chainResume(chain, toIndex);
+    }
+  }
 
-      const next = displayed.photos[toIndex];
-      const nextSrc = next.image
-        ? (urlFor(next.image)?.width(1600).quality(82).auto('format').url() ?? '')
-        : '';
-      // Plafonné : le geste ne reste jamais suspendu à un réseau lent —
-      // au pire l'image se précise en vol (règle commune à tous les vols).
-      if (nextSrc) await preloadCapped(nextSrc, 300);
+  function startChain(toIndex: number, dur: number) {
+    if (!sceneRef.current || !displayed) return;
+    animating.current = true;
+    const chain: SwapChain = {
+      layer: createGhostLayer(),
+      centerGhost: null,
+      hiddenThumb: null,
+      tl: null,
+      headIndex: toIndex,
+      pending: null,
+      pendingSwitch: null,
+      nextDur: dur,
+      epoch: 0,
+    };
+    chainRef.current = chain;
+    chainFlight(chain, toIndex);
+  }
 
-      const centerImg = q<HTMLImageElement>('[data-center-img]');
-      const centerCell = q('[data-open-center]');
-      const outThumb = colImg(activeIndex);
-      const inThumb = colImg(toIndex);
-      const centerRect = rectOf(centerImg);
-      const cellRect = rectOf(centerCell);
-      const inRect = rectOf(inThumb);
+  /**
+   * Reprise depuis la traîne : le fondu de la couche est tué (opacité
+   * restaurée — les clones doivent recouvrir à 100 %), les continuations en
+   * attente invalidées (epoch), le centre re-masqué s'il avait été révélé.
+   */
+  function chainResume(chain: SwapChain, toIndex: number) {
+    chain.epoch++;
+    gsap.killTweensOf(chain.layer.el);
+    chain.layer.el.style.opacity = '1';
+    gsap.set(q('[data-center-wrap]'), { autoAlpha: 0 });
+    chainFlight(chain, toIndex);
+  }
 
-      if (!centerImg || !inThumb || !centerRect || !cellRect || !inRect) {
-        onSelectPhoto(toIndex);
-        animating.current = false;
-        return;
-      }
+  function chainFlight(chain: SwapChain, toIndex: number) {
+    chain.epoch++;
+    const fromIndex = indexRef.current;
+    // Commit à l'ENVOL : la src du centre part charger/décoder PENDANT le vol
+    // (le raccord de fin n'attendra presque rien), la vignette active suit le
+    // tap. Le réel reste masqué toute la vie de la chaîne, seuls les clones
+    // sont visibles au centre.
+    indexRef.current = toIndex;
+    onSelectPhoto(toIndex);
+    // La vignette cible doit être VISIBLE avant la mesure (hors écran → pas
+    // de rect exploitable).
+    keepThumbVisible(toIndex);
 
-      // Rect prédit de la nouvelle image centrale : ajustement du ratio de la
-      // photo entrante dans la cellule, centré — même règle que le CSS
-      // (max-width / maxHeight / flex center). L'écart éventuel d'un pixel se
-      // résorbe au raccord, l'image réelle prenant le relais du clone.
-      // rectOf garantit centerRect.height > 0 (rect nul → early return).
-      const maxH = centerRect.height;
-      const ratio =
-        (next.image?.dimensions?.aspectRatio ?? 4 / 3);
-      let w = Math.min(cellRect.width, maxH * ratio);
-      let h = w / ratio;
-      if (h > cellRect.height) {
-        h = cellRect.height;
-        w = h * ratio;
-      }
-      const predicted = new DOMRect(
-        cellRect.left + (cellRect.width - w) / 2,
-        cellRect.top + (cellRect.height - h) / 2,
-        w,
-        h
-      );
+    const photo = displayed?.photos[toIndex];
+    const inThumb = colImg(toIndex);
+    const cellRect = rectOf(q('[data-open-center]'));
+    const inRect = rectOf(inThumb);
+    if (!photo || !inThumb || !cellRect || !inRect) {
+      // Pas de vol possible (résilience) : droit à la traîne — l'état est
+      // committé, le raccord révélera le réel.
+      chainTail(chain);
+      return;
+    }
+    const ratio = photo.image?.dimensions?.aspectRatio ?? 4 / 3;
+    const predicted = predictCenterRect(cellRect, ratio);
 
-      const layer = createGhostLayer();
-      const flights: Flight[] = [];
+    // Clone SORTANT : recopie du clone central à sa position courante — un
+    // clone déjà volé n'est JAMAIS réutilisé pour un second vol, ses
+    // transforms composeraient faux (flyCrossing pose x/y/scale relatifs au
+    // rect d'apparition). Premier vol de la chaîne : clone de l'image réelle,
+    // puis le centre réel est masqué sous lui.
+    const prevGhost = chain.centerGhost;
+    const centerSrcEl = prevGhost ?? q<HTMLImageElement>('[data-center-img]');
+    const centerRect = rectOf(centerSrcEl);
+    let outGhost: HTMLImageElement | null = null;
+    if (centerSrcEl && centerRect) {
+      outGhost = spawnGhost(chain.layer, centerSrcEl, centerRect);
+    }
+    if (prevGhost) prevGhost.remove();
+    else gsap.set(q('[data-center-wrap]'), { autoAlpha: 0 });
 
-      const outRect = rectOf(outThumb);
-      const outGhost = spawnGhost(layer, centerImg, centerRect);
-      if (outRect && isOnScreen(outRect)) {
-        flights.push({ ghost: outGhost, from: centerRect, to: outRect });
+    const prevHidden = chain.hiddenThumb;
+    const inGhost = spawnGhost(
+      chain.layer,
+      inThumb.querySelector('img') ?? (inThumb as unknown as HTMLImageElement),
+      inRect
+    );
+    // Netteté du clone entrant : il part de la MEILLEURE source disponible —
+    // le 1600 px s'il est déjà décodé (préchargement des voisines), la
+    // vignette 280 px sinon — et s'affine dès que le 1600 px est décodé, sans
+    // attendre la traîne. L'échange de src d'un <img> garde l'ancienne image
+    // affichée jusqu'au décodage de la nouvelle (invariant 9) : la montée en
+    // netteté est sans flash. Sur réseau lent, la vignette reste visible le
+    // temps que les octets arrivent — irréductible — mais plus jamais
+    // « pixellisé jusqu'au raccord final ».
+    const hqSrc = centerSrcFor(photo);
+    if (hqSrc) {
+      if (hqReadyRef.current.has(hqSrc)) {
+        inGhost.src = hqSrc;
       } else {
-        // Vignette de destination hors écran (colonne défilée) : simple fondu.
-        gsap.to(outGhost, { autoAlpha: 0, duration: DUR.swap * 0.6 });
+        void warmHq(hqSrc).then((ok) => {
+          if (ok && inGhost.isConnected) inGhost.src = hqSrc;
+        });
       }
-      const inGhost = spawnGhost(layer, inThumb.querySelector('img') ?? inThumb as unknown as HTMLImageElement, inRect);
-      flights.push({ ghost: inGhost, from: inRect, to: predicted });
+    }
+    gsap.set(inThumb, { autoAlpha: 0 });
+    chain.hiddenThumb = inThumb;
+    chain.centerGhost = inGhost;
 
-      const centerWrap = q('[data-center-wrap]');
-      gsap.set(centerWrap, { autoAlpha: 0 });
-      gsap.set(inThumb, { autoAlpha: 0 });
-
-      const tl = gsap.timeline({
-        onComplete: () => {
-          onSelectPhoto(toIndex);
-          // 1 frame pour que React committe la nouvelle src, PUIS attendre
-          // son DÉCODAGE avant de retirer le clone : changer la src d'une
-          // <img> laisse l'ancienne photo affichée jusqu'au décodage — le
-          // clone doit couvrir tout ce laps, quelle que soit la connexion.
-          requestAnimationFrame(() => {
-            const imgEl = q<HTMLImageElement>('[data-center-img]');
-            void whenSettled([imgEl], 4000).then(() => {
-              gsap.set([centerWrap, inThumb].filter(Boolean), {
-                clearProps: 'opacity,visibility',
-              });
-              // inThumb ([data-col-item]) porte la transition-opacity CSS :
-              // même séquençage que runOpen, clones intacts pendant sa montée.
-              fadeOutLayer(layer, {
-                delay: HANDOFF_DELAY,
-                onComplete: () => {
-                  animating.current = false;
-                },
-              });
-            });
+    const outTo = rectOf(colImg(fromIndex));
+    const dur = chain.nextDur;
+    const tl = gsap.timeline({
+      onComplete: () => {
+        chain.tl = null;
+        // La vignette de la photo sortante remonte SOUS son clone posé, qui
+        // fond ensuite — séquencé (HANDOFF_DELAY), jamais croisé : la
+        // transition CSS de la vignette dure 150 ms.
+        if (prevHidden) {
+          gsap.set(prevHidden, { clearProps: 'opacity,visibility' });
+        }
+        if (outGhost) {
+          gsap.to(outGhost, {
+            autoAlpha: 0,
+            delay: HANDOFF_DELAY,
+            duration: 0.15,
+            onComplete: () => outGhost.remove(),
           });
+        }
+        const next = chain.pending;
+        chain.pending = null;
+        if (next !== null) chainFlight(chain, next);
+        else chainTail(chain);
+      },
+    });
+    const flights: Flight[] = [];
+    if (outGhost && centerRect) {
+      if (outTo && isOnScreen(outTo)) {
+        flights.push({ ghost: outGhost, from: centerRect, to: outTo });
+      } else {
+        // Vignette de retour hors écran : simple fondu du clone sortant.
+        gsap.to(outGhost, { autoAlpha: 0, duration: dur * 0.6 });
+      }
+    }
+    flights.push({ ghost: inGhost, from: inRect, to: predicted });
+    flyCrossing(tl, flights, { duration: dur });
+    chain.tl = tl;
+  }
+
+  /**
+   * Traîne de fin de chaîne — le SEUL raccord clone → réel de toute la
+   * chaîne : décodage du 1600 px du centre, reveal, puis fondu de la couche
+   * par-dessus (même séquence anti-blink que partout, HANDOFF_DELAY). Un
+   * changement de série demandé pendant la chaîne part une fois posée.
+   */
+  function chainTail(chain: SwapChain) {
+    const myEpoch = ++chain.epoch;
+    const centerImg = q<HTMLImageElement>('[data-center-img]');
+    void whenSettled([centerImg], 4000).then(() => {
+      if (chainRef.current !== chain || chain.epoch !== myEpoch) return;
+      gsap.set([q('[data-center-wrap]'), chain.hiddenThumb].filter(Boolean), {
+        clearProps: 'opacity,visibility',
+      });
+      fadeOutLayer(chain.layer, {
+        delay: HANDOFF_DELAY,
+        onComplete: () => {
+          if (chainRef.current !== chain) return;
+          chainRef.current = null;
+          animating.current = false;
+          const ps = chain.pendingSwitch;
+          if (ps) {
+            goToSeriesRef.current(ps.dir, ps.entry);
+            return;
+          }
+          // Fin de chaîne : chauffe des voisines de la photo posée — l'effet
+          // de préchargement s'est tenu à l'écart pendant la chaîne.
+          for (const i of [indexRef.current + 1, indexRef.current - 1]) {
+            const p = displayed?.photos[i];
+            if (p) void warmHq(centerSrcFor(p));
+          }
         },
       });
-      flyCrossing(tl, flights, { duration: DUR.swap });
-    },
-    [displayed, activeIndex, onSelectPhoto, q, colImg]
-  );
+    });
+  }
+
+  /**
+   * Pose l'état de la chaîne D'UN COUP (Échap) : clones retirés, réel révélé,
+   * main rendue. Réservé à la fermeture — pour la navigation, un vol commencé
+   * se joue toujours en entier.
+   */
+  function abortChain() {
+    const chain = chainRef.current;
+    if (!chain) return;
+    chain.epoch++;
+    chain.tl?.kill();
+    gsap.killTweensOf(chain.layer.el);
+    chain.layer.destroy();
+    gsap.set([q('[data-center-wrap]'), chain.hiddenThumb].filter(Boolean), {
+      clearProps: 'opacity,visibility',
+    });
+    chainRef.current = null;
+    animating.current = false;
+  }
 
   // ── Interactions ──────────────────────────────────────────────────────────
 
@@ -653,26 +971,112 @@ export function DesktopSeries({
     []
   );
 
-  const handleSelect = useCallback(
-    (i: number) => {
-      if (reduced) {
-        onSelectPhoto(i);
-        return;
-      }
-      void runSwap(i);
-    },
-    [reduced, onSelectPhoto, runSwap]
-  );
+  function handleSelect(i: number) {
+    if (reduced) {
+      indexRef.current = i;
+      onSelectPhoto(i);
+      return;
+    }
+    requestSwapTo(i, DUR.swap);
+  }
 
-  // Échap ferme (spec §5 — clavier de bout en bout).
+  // Passage de série : MÊME transition que le clic sur un nom de la colonne
+  // de gauche (runSwitch via la réconciliation openSeries → displayed).
+  // L'ordre est celui de la rangée (seriesOrder), cyclique. `entry` : 'last'
+  // quand on entre à reculons (flèche gauche depuis la 1re photo).
+  function goToSeries(dir: 1 | -1, entry: 'first' | 'last') {
+    if (!displayed) return;
+    const i = series.findIndex((s) => s.slug === displayed.slug);
+    if (i < 0) return;
+    const target = series[(i + dir + series.length) % series.length];
+    const index = entry === 'last' ? Math.max(0, target.photos.length - 1) : 0;
+    // Série unique : le tour cyclique retombe sur elle-même — simple échange.
+    if (target.slug === displayed.slug) {
+      if (index !== indexRef.current) handleSelect(index);
+      return;
+    }
+    indexRef.current = index;
+    onOpen(target.slug, index);
+  }
+  useEffect(() => {
+    goToSeriesRef.current = goToSeries;
+  });
+
+  // Clavier en vue ouverte (spec §5 — de bout en bout) : Échap ferme, ← / →
+  // reculent/avancent dans la série avec des vols ACCÉLÉRÉS au rythme des
+  // taps, ↑ / ↓ passent à la série précédente / suivante (le sens suit la
+  // colonne de noms : ↓ descend vers la série d'en dessous). Dépasser un bout
+  // de série avec ← / → continue dans la voisine — à reculons, sur sa
+  // DERNIÈRE photo. Un changement de série se joue toujours EN ENTIER,
+  // touches ignorées pendant la transition, qu'importe la direction (décision
+  // Alexandre 2026-08-22) ; demandé pendant une chaîne d'échanges, il part
+  // dès qu'elle s'est posée.
   useEffect(() => {
     if (phase !== 'open') return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !animating.current) onClose();
+      if (e.key === 'Escape') {
+        // Une fermeture part d'un état posé : la chaîne est posée d'un coup.
+        abortChain();
+        if (!animating.current) onClose();
+        return;
+      }
+      // Branche cachée (viewport mobile) : ne jamais réagir — invariant 3.
+      // (Échap reste au-dessus : l'état ouvert est partagé avec la branche
+      // mobile, le fermer au clavier y est tout aussi légitime.)
+      if (sceneRef.current?.offsetParent === null) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!displayed) return;
+      if (!['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp'].includes(e.key))
+        return;
+      // preventDefault même quand la touche est absorbée (cadence, politique,
+      // switch en cours) : elle ne doit jamais retomber en défilement natif.
+      e.preventDefault();
+      const now = performance.now();
+      const interval = now - lastNavRef.current;
+      if (interval < NAV_MIN_INTERVAL_MS) return;
+      lastNavRef.current = now;
+      // Le vol SUIT le rythme : sa durée = l'intervalle entre les deux
+      // derniers taps, bornée [SWAP_MIN_DUR, DUR.swap]. Jamais de pas sans
+      // animation.
+      const dur = Math.min(DUR.swap, Math.max(SWAP_MIN_DUR, interval / 1000));
+
+      const chain = chainRef.current;
+      // Switch / ouverture / fermeture en cours : on laisse finir.
+      if (!chain && animating.current) return;
+
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const dir: 1 | -1 = e.key === 'ArrowDown' ? 1 : -1;
+        if (chain) chain.pendingSwitch ??= { dir, entry: 'first' };
+        else goToSeries(dir, 'first');
+        return;
+      }
+
+      const dir: 1 | -1 = e.key === 'ArrowRight' ? 1 : -1;
+      if (chain?.pendingSwitch) return; // on quitte déjà la série
+      const head = chain ? chain.headIndex : indexRef.current;
+      const to = head + dir;
+      if (to < 0 || to >= displayed.photos.length) {
+        const entry: 'first' | 'last' = dir === 1 ? 'first' : 'last';
+        if (chain) chain.pendingSwitch = { dir, entry };
+        else goToSeries(dir, entry);
+        return;
+      }
+      if (reduced) {
+        indexRef.current = to;
+        onSelectPhoto(to);
+        keepThumbVisible(to);
+        return;
+      }
+      requestSwapTo(to, dur);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [phase, onClose]);
+    // Les fonctions de chaîne sont des fonctions de corps de composant (comme
+    // runOpen/runSwitch) : les lister ferait re-souscrire à chaque render.
+    // Tout ce dont elles dépendent (displayed, reduced, phase, la politique)
+    // est déjà couvert par les deps ci-dessous ou stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, displayed, reduced, onClose, onSelectPhoto, keepThumbVisible]);
 
   // Molette verticale → défilement horizontal de la rangée (spec §5).
   //
@@ -807,21 +1211,6 @@ export function DesktopSeries({
     };
   }, []);
 
-  // Flèches dans la colonne de vignettes.
-  const handleColKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (!displayed) return;
-      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
-        e.preventDefault();
-        handleSelect(Math.min(activeIndex + 1, displayed.photos.length - 1));
-      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
-        e.preventDefault();
-        handleSelect(Math.max(activeIndex - 1, 0));
-      }
-    },
-    [displayed, activeIndex, handleSelect]
-  );
-
   const isOpenish = phase !== 'closed';
 
   // Visibilité de la rangée fermée : cette classe est la SEULE autorité.
@@ -899,7 +1288,6 @@ export function DesktopSeries({
       {displayed && (
         <div
           data-open-root
-          onKeyDown={handleColKeyDown}
           className={cn(
             'absolute inset-0',
             phase !== 'open' && 'pointer-events-none'
