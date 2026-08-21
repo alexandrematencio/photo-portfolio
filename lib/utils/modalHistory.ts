@@ -21,10 +21,33 @@
  *     already popped by the browser. The cleanup removes the modal from
  *     the stack only — no extra `history.back()`.
  *   - Modal unmounted because of user action (Esc / X / backdrop click):
- *     we pop our entry manually with `history.back()` so the browser's
- *     back button is consistent afterwards. We mute the popstate listener
- *     for one tick around this call so the cascade doesn't also close
- *     the next-down modal in the stack.
+ *     we pop our entry manually so the browser's back button is consistent
+ *     afterwards. We mute the popstate listener around that call so the
+ *     cascade doesn't also close the next-down modal in the stack.
+ *
+ * ⚠️ POURQUOI LE RETRAIT EST DIFFÉRÉ (bug réel, coûteux, invisible en prod)
+ * ------------------------------------------------------------------------
+ * `history.back()` est ASYNCHRONE, et React en mode strict joue chaque effet
+ * DEUX fois : montage → nettoyage → montage. La version naïve (pushState au
+ * montage, back() immédiat au nettoyage) donnait donc cette séquence, relevée
+ * à la trace sur /archives :
+ *
+ *     pushState → len 3      (effet, 1er passage)
+ *     back()    ← len 3      (nettoyage du mode strict, différé par le navigateur)
+ *     pushState → len 4      (effet, 2e passage — AVANT que back() ne s'exécute)
+ *     popstate  · len 3      (back() s'exécute enfin et mange la 2e entrée)
+ *
+ * Le compte est faux d'une unité : à la fermeture suivante, le `back()` reculait
+ * une entrée trop loin et la page partait sur le **document vierge** (`about:blank`,
+ * `document.body` vide). Symptôme côté utilisateur : « je clique sur une photo,
+ * la page clignote et puis plus rien ». Invisible en production, où le mode
+ * strict ne double pas les effets — d'où un bug qui ne se reproduit QUE chez le
+ * développeur.
+ *
+ * Correctif : les retraits sont mis en attente et vidés au tick suivant, et un
+ * `pushState` qui survient entre-temps ANNULE un retrait en attente au lieu
+ * d'empiler une entrée de plus. Le va-et-vient du mode strict se neutralise donc
+ * de lui-même, et une vraie fermeture retire exactement une entrée.
  */
 
 type CloseFn = () => void;
@@ -34,6 +57,43 @@ type StackEntry = { close: CloseFn; viaPopState: { current: boolean } };
 const stack: StackEntry[] = [];
 let listener: ((e: PopStateEvent) => void) | null = null;
 let listenerMuted = false;
+
+/** Entrées à retirer, demandées mais pas encore exécutées (cf. préambule). */
+let pendingPop = 0;
+let flushScheduled = false;
+
+/** Rend la parole au listener, que le popstate arrive ou non. */
+function unmuteOnce() {
+  let done = false;
+  const release = () => {
+    if (done) return;
+    done = true;
+    window.removeEventListener('popstate', release);
+    listenerMuted = false;
+  };
+  window.addEventListener('popstate', release);
+  // Filet : une entrée déjà consommée n'émet pas de popstate. Sans ce délai on
+  // resterait muet pour toujours, et plus aucun retour navigateur ne fermerait
+  // de modale.
+  window.setTimeout(release, 250);
+}
+
+function flushPops() {
+  flushScheduled = false;
+  const n = pendingPop;
+  pendingPop = 0;
+  if (n <= 0 || typeof window === 'undefined') return;
+  listenerMuted = true;
+  unmuteOnce();
+  window.history.go(-n);
+}
+
+function schedulePop() {
+  pendingPop++;
+  if (flushScheduled) return;
+  flushScheduled = true;
+  window.setTimeout(flushPops, 0);
+}
 
 function attachListener() {
   if (listener || typeof window === 'undefined') return;
@@ -61,7 +121,12 @@ function detachListenerIfEmpty() {
  */
 export function pushModalHistory(close: CloseFn): () => void {
   if (typeof window === 'undefined') return () => {};
-  window.history.pushState({ modal: true }, '');
+  // Un retrait encore en attente sur ce tick = on vient d'être démonté puis
+  // remonté (mode strict). On REPREND cette entrée au lieu d'en empiler une
+  // seconde : c'est ce qui neutralise le va-et-vient, cf. préambule.
+  if (pendingPop > 0) pendingPop--;
+  else window.history.pushState({ modal: true }, '');
+
   const entry: StackEntry = { close, viaPopState: { current: false } };
   stack.push(entry);
   attachListener();
@@ -69,15 +134,10 @@ export function pushModalHistory(close: CloseFn): () => void {
     const idx = stack.indexOf(entry);
     if (idx >= 0) stack.splice(idx, 1);
     if (!entry.viaPopState.current && typeof window !== 'undefined') {
-      // User closed via UI (X, Esc, backdrop, swipe-away). Pop the entry we
-      // pushed on open so later browser-back works consistently. Mute the
-      // listener for one event-loop tick so the popstate this back() emits
-      // doesn't also pop the next modal in the stack.
-      listenerMuted = true;
-      window.history.back();
-      window.setTimeout(() => {
-        listenerMuted = false;
-      }, 0);
+      // Fermeture par l'interface (X, Échap, fond, balayage) : on retire
+      // l'entrée poussée à l'ouverture pour que le retour navigateur reste
+      // cohérent ensuite. Différé d'un tick — un remontage immédiat l'annule.
+      schedulePop();
     }
     detachListenerIfEmpty();
   };
