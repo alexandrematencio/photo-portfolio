@@ -1,12 +1,12 @@
 import { buildMetadata } from '@/lib/seo/metadata';
+import { ProtectedEmail } from '@/components/site/ProtectedEmail';
+import { EDITORIAL_BODY, EDITORIAL_BODY_LINK } from '@/lib/site/typography';
 
 export const metadata = buildMetadata({
   title: 'Legal Notice',
   description: 'Legal information for amatencio.photo.',
   path: '/legal',
 });
-
-const EMAIL = 'amatencio@pm.me';
 
 export default function LegalPage() {
   return (
@@ -20,7 +20,7 @@ export default function LegalPage() {
         </h1>
 
         <div className="flex flex-col gap-8">
-          <p className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)]">
+          <p className={EDITORIAL_BODY}>
             Placeholder. Before going live, fill in the details required by French law (LCEN, art. 6 III) and the EU regulations applicable to publishers established in the European Union.
           </p>
 
@@ -45,7 +45,7 @@ export default function LegalPage() {
             HOSTING
           </h2>
 
-          <p className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)]">
+          <p className={EDITORIAL_BODY}>
             Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA.
           </p>
 
@@ -53,7 +53,7 @@ export default function LegalPage() {
             INTELLECTUAL PROPERTY
           </h2>
 
-          <p className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)]">
+          <p className={EDITORIAL_BODY}>
             All photographs and texts published on this site are protected by copyright. Any reproduction, even partial, is forbidden without prior written authorization.
           </p>
 
@@ -61,12 +61,9 @@ export default function LegalPage() {
             CONTACT
           </h2>
 
-          <a
-            href={`mailto:${EMAIL}`}
-            className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)] underline underline-offset-[6px] decoration-2 hover:opacity-60 transition-opacity motion-reduce:transition-none w-fit"
-          >
-            {EMAIL}
-          </a>
+          <ProtectedEmail className={EDITORIAL_BODY_LINK}>
+            Get in touch by email
+          </ProtectedEmail>
         </div>
       </div>
     </article>

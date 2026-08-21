@@ -1,4 +1,4 @@
-import { defineField, defineType } from 'sanity';
+import { defineArrayMember, defineField, defineType } from 'sanity';
 
 export const photoSchema = defineType({
   name: 'photo',
@@ -22,7 +22,12 @@ export const photoSchema = defineType({
       name: 'image',
       title: 'Image',
       type: 'image',
-      options: { hotspot: true },
+      // 'exif' en plus des défauts : Sanity stocke Model/LensModel/date à
+      // l'upload (pas 'location' → pas de GPS stocké, cf. RGPD §5.5).
+      options: {
+        hotspot: true,
+        metadata: ['blurhash', 'lqip', 'palette', 'exif'],
+      },
       fields: [
         defineField({
           name: 'alt',
@@ -42,63 +47,86 @@ export const photoSchema = defineType({
     }),
     defineField({
       name: 'series',
-      title: 'Série',
-      type: 'reference',
-      to: [{ type: 'series' }],
+      title: 'Séries',
+      type: 'array',
+      of: [defineArrayMember({ type: 'reference', to: [{ type: 'series' }] })],
       description:
-        'Optionnel. Une photo sans série apparaît dans la vue « Sans série » du Studio.',
-      validation: (Rule) =>
-        Rule.custom((value) => {
-          if (!value) return 'Photo sans série — pense à la rattacher.';
-          return true;
-        }).warning(),
+        'Optionnel, et multiple : une même photo peut appartenir à plusieurs séries. Chaque série garde son propre ordre d’affichage (champ « Ordre des photos » côté série). Une photo sans aucune série apparaît dans la vue « Sans série » du Studio.',
+      validation: (Rule) => [
+        Rule.unique().error('Cette série est déjà rattachée à la photo.'),
+        Rule.custom((value) =>
+          Array.isArray(value) && value.length > 0
+            ? true
+            : 'Photo sans série — pense à la rattacher.'
+        ).warning(),
+      ],
     }),
     defineField({
-      name: 'category',
-      title: 'Type',
-      type: 'string',
-      options: {
-        list: [
-          { title: 'Paysage', value: 'landscape' },
-          { title: 'Architecture', value: 'architecture' },
-          { title: 'Portrait', value: 'portrait' },
-          { title: 'Photo de rue', value: 'streetphotography' },
-        ],
-        layout: 'radio',
-      },
-      validation: (Rule) => Rule.required(),
+      name: 'styles',
+      title: 'Styles (1 à 3)',
+      type: 'array',
+      of: [{ type: 'reference', to: [{ type: 'style' }] }],
+      description:
+        'Jusqu’à 3 styles. La photo apparaît dans chaque groupe de style sur /archives.',
+      // AVERTISSEMENT, pas erreur : une photo peut être importée incomplète et
+      // complétée plus tard. Une erreur bloquerait sa publication depuis le
+      // Studio. Le manque remonte dans les alertes du Tableau de bord.
+      validation: (Rule) => [
+        Rule.max(3).unique().error('3 styles maximum.'),
+        Rule.custom((value) =>
+          Array.isArray(value) && value.length > 0
+            ? true
+            : 'Aucun style — pense à en ajouter au moins un.'
+        ).warning(),
+      ],
+    }),
+    defineField({
+      name: 'camera',
+      title: 'Boîtier',
+      type: 'reference',
+      to: [{ type: 'camera' }],
+      description:
+        'Rempli automatiquement à l’upload (nom de fichier ou EXIF). Optionnel.',
+    }),
+    defineField({
+      name: 'lens',
+      title: 'Objectif',
+      type: 'reference',
+      to: [{ type: 'lens' }],
+      description:
+        'Rempli automatiquement à l’upload (nom de fichier ou EXIF). Les objectifs manuels doivent être donnés dans le nom de fichier. Optionnel.',
     }),
     defineField({
       name: 'year',
       title: 'Année',
       type: 'number',
-      validation: (Rule) => Rule.required().min(1900).max(new Date().getFullYear()),
+      validation: (Rule) => [
+        Rule.min(1900).max(new Date().getFullYear()),
+        Rule.custom((value) =>
+          typeof value === 'number' ? true : 'Année non renseignée.'
+        ).warning(),
+      ],
     }),
     defineField({
       name: 'location',
       title: 'Lieu',
       type: 'string',
-      description: 'Ex : « Paris, France »',
-      validation: (Rule) => Rule.required(),
+      description:
+        'Format « Ville, Pays » — ex. « Paris, France ». /archives groupe par égalité stricte de cette chaîne : « Paris » et « Paris, France » créeraient deux groupes distincts.',
+      validation: (Rule) =>
+        Rule.custom((value) =>
+          typeof value === 'string' && value.trim().length > 0
+            ? true
+            : 'Lieu non renseigné.'
+        ).warning(),
     }),
     defineField({
       name: 'dateTaken',
       title: 'Date de prise de vue',
       type: 'date',
     }),
-    defineField({
-      name: 'onHomepage',
-      title: 'Afficher sur la home',
-      type: 'boolean',
-      initialValue: true,
-    }),
-    defineField({
-      name: 'order',
-      title: 'Ordre (sur la home)',
-      type: 'number',
-      description: 'Plus le nombre est bas, plus la photo apparaît tôt.',
-      initialValue: 100,
-    }),
+    // La sélection home ne vit plus ici : c'est l'array ordonné
+    // `siteSettings.curation` (drag & drop dans Réglages du site).
     defineField({
       name: 'parallaxSpeed',
       title: 'Vitesse parallaxe',
@@ -118,14 +146,14 @@ export const photoSchema = defineType({
   },
   orderings: [
     {
-      title: 'Ordre home',
-      name: 'orderAsc',
-      by: [{ field: 'order', direction: 'asc' }],
-    },
-    {
       title: 'Année (récent → ancien)',
       name: 'yearDesc',
       by: [{ field: 'year', direction: 'desc' }],
+    },
+    {
+      title: 'Titre (A → Z)',
+      name: 'titleAsc',
+      by: [{ field: 'title', direction: 'asc' }],
     },
   ],
 });

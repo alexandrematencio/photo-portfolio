@@ -4,6 +4,8 @@ import {
   type PortableTextReactComponents,
 } from '@portabletext/react';
 import { asset } from '@/lib/utils/asset';
+import { EmailAddressText, ProtectedEmail } from './ProtectedEmail';
+import { EDITORIAL_BODY } from '@/lib/site/typography';
 
 type Variant = 'default' | 'editorial';
 
@@ -28,7 +30,20 @@ const BRAND_LOGO_KEYS = Object.keys(BRAND_LOGOS) as BrandLogoKey[];
 // .test() calls (which silently makes the second span miss a token at offset 0).
 // `String.prototype.split` with a capturing group still returns all matches +
 // the surrounding parts even without the `g` flag.
-const BRAND_LOGO_REGEX = new RegExp(`(${BRAND_LOGO_KEYS.join('|')})`);
+/**
+ * Jeton email : l'éditeur tape littéralement `@EMAIL` dans Studio, le site le
+ * remplace par un lien ProtectedEmail affichant l'adresse assemblée côté
+ * client. L'adresse ne doit JAMAIS être tapée dans le contenu CMS : le
+ * portable text est sérialisé dans le HTML exporté (flight payload), elle y
+ * serait en clair pour les scrapers. Contrairement aux logos (première
+ * occurrence seule), CHAQUE occurrence du jeton est remplacée.
+ */
+const EMAIL_TOKEN = '@EMAIL';
+const EMAIL_MARK = 'protectedEmailToken';
+
+const TOKEN_REGEX = new RegExp(
+  `(${[...BRAND_LOGO_KEYS, EMAIL_TOKEN].join('|')})`
+);
 
 /**
  * Walks the Portable Text value and, for any span containing a BRAND_LOGOS key,
@@ -54,16 +69,20 @@ function injectBrandLogoMarks(value: unknown): unknown {
       const child = rawChild as
         | { _type?: string; text?: string; marks?: string[]; _key?: string }
         | undefined;
+      const hasToken =
+        BRAND_LOGO_KEYS.some(
+          (k) => !consumed.has(k) && child?.text?.includes(k)
+        ) || Boolean(child?.text?.includes(EMAIL_TOKEN));
       if (
         !child ||
         child._type !== 'span' ||
         typeof child.text !== 'string' ||
-        !BRAND_LOGO_KEYS.some((k) => !consumed.has(k) && child.text!.includes(k))
+        !hasToken
       ) {
         newChildren.push(rawChild);
         continue;
       }
-      const parts = child.text.split(BRAND_LOGO_REGEX);
+      const parts = child.text.split(TOKEN_REGEX);
       const baseKey = child._key ?? Math.random().toString(36).slice(2);
       const baseMarks = child.marks ?? [];
       parts.forEach((part, i) => {
@@ -71,13 +90,18 @@ function injectBrandLogoMarks(value: unknown): unknown {
         const asLogo = BRAND_LOGO_KEYS.includes(part as BrandLogoKey)
           ? (part as BrandLogoKey)
           : null;
-        const replace = asLogo !== null && !consumed.has(asLogo);
-        if (replace) consumed.add(asLogo);
+        const replaceLogo = asLogo !== null && !consumed.has(asLogo);
+        if (replaceLogo) consumed.add(asLogo);
+        const isEmail = part === EMAIL_TOKEN;
         newChildren.push({
           ...child,
           _key: `${baseKey}-${i}`,
           text: part,
-          marks: replace ? [...baseMarks, brandLogoMarkKey(asLogo)] : baseMarks,
+          marks: replaceLogo
+            ? [...baseMarks, brandLogoMarkKey(asLogo)]
+            : isEmail
+              ? [...baseMarks, EMAIL_MARK]
+              : baseMarks,
         });
       });
     }
@@ -214,6 +238,14 @@ const SHARED_MARKS: Partial<PortableTextReactComponents['marks']> = {
         renderBrandLogoMark(key, children),
     ])
   ),
+  // Le texte du span est le jeton `@EMAIL` lui-même : on ne le rend PAS
+  // (children ignorés) — il est remplacé par le lien protégé, dont le libellé
+  // (l'adresse) est assemblé côté client (cf. ProtectedEmail.tsx).
+  [EMAIL_MARK]: () => (
+    <ProtectedEmail className="underline underline-offset-4 hover:text-[var(--color-accent)] transition-colors motion-reduce:transition-none">
+      <EmailAddressText />
+    </ProtectedEmail>
+  ),
 };
 
 // Notes for editors:
@@ -255,7 +287,7 @@ const EDITORIAL_COMPONENTS: Partial<PortableTextReactComponents> = {
   block: {
     normal: ({ children, index }) => (
       <p
-        className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)] whitespace-pre-line"
+        className={`${EDITORIAL_BODY} whitespace-pre-line`}
         style={{ marginBottom: '2rem' }}
         data-block-index={index}
       >

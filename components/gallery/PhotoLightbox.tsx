@@ -338,7 +338,7 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
                   setViewerOpen(true);
                 }}
                 aria-label="Open original — pinch or double-click to zoom"
-                className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors motion-reduce:transition-none bg-transparent border-0 p-0 cursor-pointer"
+                className="flex items-center gap-2 text-[10px] uppercase text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors motion-reduce:transition-none bg-transparent border-0 p-0 cursor-pointer"
               >
                 <ExternalLink size={isMobile ? 16 : 12} strokeWidth={2} />
                 {!isMobile && <span>Open original</span>}
@@ -387,13 +387,16 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
         {!isMobile && (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="text-[10px] uppercase tracking-[0.25em] text-[var(--color-fg-muted)] flex items-center max-w-full leading-none"
+            className="text-[10px] uppercase text-[var(--color-fg-muted)] flex items-center max-w-full leading-none"
             style={{ marginTop: CAPTION_GAP }}
           >
             <span className="font-bold text-[var(--color-fg)] truncate">
               {photo.title}
             </span>
-            <span className="mx-2 opacity-50">·</span>
+            {/* marges inline : `mx-2` avalé par le reset global hors @layer. */}
+            <span className="opacity-50" style={{ marginLeft: 8, marginRight: 8 }}>
+              ·
+            </span>
             <span className="truncate">
               {photo.location} · {photo.year}
             </span>

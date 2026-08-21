@@ -12,7 +12,7 @@ export function PageShell({ title, subtitle, children }: Props) {
           {title}
         </h1>
         {subtitle && (
-          <p className="mt-3 text-xs uppercase tracking-[0.3em] text-[var(--color-fg-muted)]">
+          <p className="mt-3 text-xs uppercase text-[var(--color-fg-muted)]">
             {subtitle}
           </p>
         )}

@@ -45,9 +45,13 @@ export function PhotoCard({ photo, onOpen }: Props) {
       ) : (
         <Placeholder title={photo.title} />
       )}
-      <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 p-3 text-[10px] uppercase tracking-[0.2em] text-white bg-gradient-to-t from-black/70 via-black/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 motion-reduce:opacity-100 motion-reduce:bg-black/60">
+      <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 p-3 text-[10px] uppercase text-white bg-gradient-to-t from-black/70 via-black/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 motion-reduce:opacity-100 motion-reduce:bg-black/60">
         {photo.title}
-        <span className="block text-white/70 mt-1 normal-case tracking-normal">
+        {/* marginTop inline : `mt-1` avalé par le reset global hors @layer. */}
+        <span
+          className="block text-white/70 normal-case tracking-normal"
+          style={{ marginTop: 4 }}
+        >
           {photo.location} · {photo.year}
         </span>
       </figcaption>

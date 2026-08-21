@@ -5,7 +5,7 @@ import { buildMetadata } from '@/lib/seo/metadata';
 export const metadata = buildMetadata({
   title: 'Archives',
   description:
-    'Full catalogue: every photograph grouped by year, location or type.',
+    'Full catalogue: every photograph grouped by year, location, style, camera or lens.',
   path: '/archives',
 });
 
@@ -23,8 +23,8 @@ export default async function ArchivesPage() {
         <h1 className="text-[48px] md:text-[64px] font-black uppercase tracking-[-0.04em] leading-none text-[var(--color-fg)]">
           ARCHIVES
         </h1>
-        <p className="text-[11px] uppercase tracking-[0.25em] font-bold text-[var(--color-fg-muted)]">
-          {photos.length} photo{photos.length === 1 ? '' : 's'} · grouped by year, location or type
+        <p className="text-[11px] uppercase font-bold text-[var(--color-fg-muted)]">
+          {photos.length} photo{photos.length === 1 ? '' : 's'} · grouped by year, location, style, camera or lens
         </p>
       </header>
 

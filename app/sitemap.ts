@@ -10,9 +10,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const routes = [
     '/',
     '/about',
+    '/about/digital-agency',
+    '/series',
     '/archives',
     '/contact',
-    '/digital-agency',
     '/socials',
     '/legal',
     '/privacy',

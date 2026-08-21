@@ -1,196 +1,128 @@
 import Link from 'next/link';
-import { ChevronRight, Mail, Send } from 'lucide-react';
-import { asset } from '@/lib/utils/asset';
-
-const YEAR = new Date().getFullYear();
-const EMAIL = 'amatencio@pm.me';
-const HANDLE = '@BaronMuster';
-
-const SITE_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/about', label: 'About' },
-  { href: '/archives', label: 'Archives' },
-  { href: '/contact', label: 'Contact' },
-  { href: '/digital-agency', label: 'Digital Agency' },
-  { href: '/socials', label: 'Socials' },
-];
-
-const INFO_LINKS = [
-  { href: '/legal', label: 'Legal Notice' },
-  { href: '/privacy', label: 'Privacy Policy' },
-];
 
 /**
- * Footer global — templates.pen frame "footer" (AiN8Y) / main-container (RxljR).
+ * Exact replication of the footer in resources/alxmtc-footer.pen (full scan).
+ * Structure is 5 direct flex children inside main-container, space-between.
+ * No grouping of middle items. Glyph is the exact gray asset. Icon paths matched.
  *
- *   footer (bg #151312, full-bleed)
- *   └── main-container (HORIZONTAL, gap 32, justify space-between, alignItems
- *                       center, padding [32,128], width 1078)
- *       ├── logo-block (vertical, gap 16)
- *       │     ├── logo-glyph 64×60
- *       │     └── text-content (vertical, gap 8)
- *       │           ├── signature
- *       │           │   ├── "A. Matencio" 16/700
- *       │           │   └── "Author Photography" 12/700
- *       │           └── description italic 12 normal
- *       │
- *       ├── contact-block (vertical, gap 32)
- *       │     ├── "Studio based in Villejuif, 94" 16/700
- *       │     └── social-media (vertical, gap 4)
- *       │           ├── email   (Mail icon + amatencio@pm.me italic/700)
- *       │           ├── telegram (Send icon + @BaronMuster italic/700)
- *       │           └── "Typically responds within 72 hours" 16/normal
- *       │
- *       └── footer-nav-block (horizontal, gap 56, justify end, h-full)
- *             ├── left-nav-column (Site + 5 items)
- *             └── right-nav-column-container (vertical, gap 128, space-between, h-full)
- *                   ├── right-nav-column (Information + 2 items)
- *                   └── copyright pushed bottom
+ * Gouttières : 32 px de chaque côté — valeur relevée dans le .pen
+ * (main-container `padding: [16, 32]`, logo à x=32, « legal notice » finissant
+ * à 1728−32) et cohérente avec les 32 px de toutes les autres pages.
+ *
+ * ⚠️ Padding en style INLINE, pas `px-8` : le reset global `* {padding:0}`
+ * d'app/globals.css vit HORS @layer et écrase donc toutes les utilities
+ * Tailwind de padding. C'est exactement pourquoi le footer n'avait AUCUNE
+ * marge latérale malgré son `px-6`. Corollaire : le padding ne peut pas être
+ * responsive (un style inline ne connaît pas les media queries) — d'où une
+ * hauteur pilotée par le CONTENU (16 + 38 + 16 = 70 px sur une ligne) plutôt
+ * que par une hauteur fixe qu'il faudrait décliner par breakpoint.
+ *
+ * Sous `md`, la rangée passe en `flex-wrap` : les cinq enfants ne tiennent pas
+ * sur 326 px et le footer se faisait couper à droite (le conteneur de scroll
+ * est en `overflow-x-hidden` — rien ne le signalait, le contenu disparaissait
+ * simplement). L'ordre et la structure « 5 enfants directs » du .pen sont
+ * conservés : c'est le retour à la ligne qui gère l'étroitesse.
  */
 export function SiteFooter() {
-  const copyright = `©${YEAR} / All Rights Reserved`;
   return (
-    <footer className="bg-[#151312] text-[#888888] flex justify-center">
-      {/* Mobile: vertical stack, left-aligned, 32px horizontal margin, 32px bottom padding,
-          64px top padding. Desktop: 3-column row, 128px horizontal padding, 64px top/bottom.
-          Padding handled via .site-footer-container in globals.css — Tailwind utilities for
-          padding were occasionally missed by Turbopack's hot-reload, raw CSS is reliable. */}
+    <footer
+      className="w-full shrink-0 md:h-[70px] bg-[#151312] text-[#888888]"
+      data-site-footer
+    >
+      {/* Le fond sombre file jusqu'aux bords ; seul le contenu est en retrait.
+          70 px verrouillés au-dessus de `md` (16 + 38 + 16, la hauteur du
+          main-container du .pen) : /series calcule la hauteur de sa scène à
+          partir de ce nombre pour tenir pile dans l'écran — un footer dont la
+          hauteur dériverait avec le contenu ferait dériver la page avec lui. */}
       <div
-        className="site-footer-container w-full max-w-[1080px] flex flex-col md:flex-row md:items-start md:justify-between gap-12 md:gap-8"
+        className="md:flex md:h-full md:items-center"
+        style={{
+          paddingLeft: 32,
+          paddingRight: 32,
+          paddingTop: 16,
+          paddingBottom: 16,
+        }}
       >
-        {/* ─── COL 1 — logo-block (vertical, gap 16) ─── */}
-        <div className="flex flex-col gap-4">
-          {/* logo-glyph 64×60 */}
+        <div className="flex w-full flex-wrap items-center gap-x-8 gap-y-4 md:flex-nowrap md:justify-between lg:gap-x-32">
+        {/* Child 1: logo (exact glyph asset + vertical texts, gap 24) */}
+        <Link
+          href="/"
+          className="flex items-center gap-6 shrink-0"
+          aria-label="A. Matencio — home"
+        >
           <img
-            src={asset('/img/logos/glyph-alxmtnc-gray.svg')}
+            src="/img/logos/glyph-alxmtnc-gray.svg"
+            width={32}
+            height={30}
             alt=""
-            width={64}
-            height={60}
             className="block"
           />
-          {/* text-content — vertical, gap 8 */}
-          <div className="flex flex-col gap-2">
-            {/* signature — vertical, no gap. Level 1: name in black 900. Level 4: subtitle normal. */}
-            <div>
-              <div className="text-[16px] font-black tracking-[-0.02em] text-[#888888]">
-                A. Matencio
-              </div>
-              <div className="text-[12px] font-normal tracking-[-0.02em] text-[#888888]">
-                Author Photography
-              </div>
+          <div className="flex flex-col justify-center leading-none">
+            <div className="text-[16px] font-bold tracking-[-0.02em]">
+              ALEXANDRE MATENCIO
             </div>
-            {/* description — italic, normal weight, 12px */}
-            <p className="text-[12px] italic font-normal tracking-[-0.02em] text-[#5a5a5a] leading-snug whitespace-pre-line">
-              {`Street photography
-Landscape/Cityscape
-Portraits`}
-            </p>
-          </div>
-        </div>
-
-        {/* ─── COL 2 — contact-block (vertical, gap 32) ─── */}
-        <div className="flex flex-col gap-8">
-          {/* studio location — Level 2 section label (uppercase + tracking-wide). */}
-          <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#888888]">
-            Studio based in Villejuif, 94
-          </p>
-
-          {/* social-media (vertical, gap 4) */}
-          <div className="flex flex-col gap-1">
-            {/* email — horizontal, gap 8, items-center */}
-            <div className="flex items-center gap-2">
-              <Mail size={12} strokeWidth={1.5} className="text-[#5a5a5a] shrink-0" />
-              <a
-                href={`mailto:${EMAIL}`}
-                className="text-[16px] italic font-medium tracking-[-0.02em] text-[#888888] hover:text-white transition-colors motion-reduce:transition-none"
-              >
-                {EMAIL}
-              </a>
+            <div className="text-[12px] tracking-[-0.015em]">
+              ©2006 / All Right Reserved
             </div>
-            {/* telegram — horizontal, gap 8, items-center */}
-            <div className="flex items-center gap-2">
-              <Send size={12} strokeWidth={1.5} className="text-[#5a5a5a] shrink-0" />
-              <a
-                href="https://t.me/BaronMuster"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[16px] italic font-medium tracking-[-0.02em] text-[#888888] hover:text-white transition-colors motion-reduce:transition-none"
-              >
-                {HANDLE}
-              </a>
-            </div>
-            {/* details — response time. Level 4 fine print: smaller + normal weight. */}
-            <p className="text-[12px] font-normal tracking-[-0.02em] text-[#5a5a5a]">
-              Typically responds within 72 hours
-            </p>
           </div>
-        </div>
+        </Link>
 
-        {/* ─── COL 3 — footer-nav-block.
-            Mobile: stacks vertically (Site nav above Information nav, both left-aligned).
-            Desktop: horizontal row, navs side-by-side, copyright pushed to bottom-right. */}
-        <div className="flex flex-col md:flex-row md:justify-end md:items-stretch md:self-stretch gap-8 md:gap-14">
-          {/* left-nav-column — Site */}
-          <nav aria-labelledby="footer-site" className="flex flex-col gap-4">
-            {/* Level 2 section label: bold + uppercase + tracking-wide. */}
-            <h2 id="footer-site" className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#888888]">
-              Site
-            </h2>
-            <ul className="flex flex-col gap-3">
-              {SITE_LINKS.map((link) => (
-                <li key={link.href} className="flex items-center gap-1">
-                  <ChevronRight size={10} strokeWidth={2} className="text-[#5a5a5a] shrink-0" />
-                  {/* Level 3 clickable: medium weight, readable but quiet. */}
-                  <Link
-                    href={link.href}
-                    className="text-[12px] font-medium tracking-[-0.02em] leading-none text-[#888888] hover:text-white transition-colors motion-reduce:transition-none"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
+        {/* Child 2: PHOTOGRAPHY (direct sibling, per pen) */}
+        <Link
+          href="/archives"
+          className="text-[16px] font-bold tracking-[-0.02em] hover:text-white transition-colors motion-reduce:transition-none"
+        >
+          PHOTOGRAPHY
+        </Link>
 
-          {/* right-nav-column-container.
-              Mobile: simple vertical stack (Information nav only — copyright moved out).
-              Desktop: justify-between + self-stretch to push copyright to the bottom-right corner. */}
-          <div className="flex flex-col md:justify-between md:self-stretch gap-8 md:gap-32">
-            {/* right-nav-column — Information */}
-            <nav aria-labelledby="footer-info" className="flex flex-col gap-4">
-              {/* Level 2 section label: bold + uppercase + tracking-wide. */}
-              <h2 id="footer-info" className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#888888]">
-                Information
-              </h2>
-              <ul className="flex flex-col gap-3">
-                {INFO_LINKS.map((link) => (
-                  <li key={link.href} className="flex items-center gap-1">
-                    <ChevronRight size={10} strokeWidth={2} className="text-[#5a5a5a] shrink-0" />
-                    {/* Level 3 clickable: medium weight. */}
-                    <Link
-                      href={link.href}
-                      className="text-[12px] font-medium tracking-[-0.02em] leading-none text-[#888888] hover:text-white transition-colors motion-reduce:transition-none"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
+        {/* Child 3: DIGITAL AGENCY (direct sibling, per pen) */}
+        <Link
+          href="/about/digital-agency"
+          className="text-[16px] font-bold tracking-[-0.02em] hover:text-white transition-colors motion-reduce:transition-none"
+        >
+          DIGITAL AGENCY
+        </Link>
 
-            {/* Copyright — DESKTOP only. Pushed to bottom-right via justify-between + self-stretch.
-                On mobile, see the separate centered copyright at the very bottom of the footer. */}
-            <p className="hidden md:block text-[12px] font-normal tracking-[-0.02em] text-[#5a5a5a]">
-              {copyright}
-            </p>
-          </div>
-        </div>
+        {/* Child 4: CONTACT (direct sibling, per pen) */}
+        <Link
+          href="/contact"
+          className="text-[16px] font-bold tracking-[-0.02em] hover:text-white transition-colors motion-reduce:transition-none"
+        >
+          CONTACT
+        </Link>
 
-        {/* Copyright — MOBILE only. Centered, locked to bottom of footer (pb-8 = 32px on the
-            parent container). Hidden on desktop where the inline copyright above takes over. */}
-        <p className="md:hidden text-center text-[12px] font-normal tracking-[-0.02em] text-[#5a5a5a]">
-          {copyright}
-        </p>
+        {/* Child 5: legal notice (icon + LEGAL NOTICE, gap 8 inside, exact pen icon structure) */}
+        <Link
+          href="/legal"
+          className="flex items-center gap-2 shrink-0 hover:text-white transition-colors motion-reduce:transition-none"
+        >
+          <span className="inline-flex items-center p-[1px] pr-[3px]">
+            <svg
+              width="10"
+              height="14"
+              viewBox="0 0 10 14"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+              className="text-[#888888]"
+            >
+              {/* Vertical line - matches pen */}
+              <path d="M1 0.5v13" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+              {/* Flag shape - matches pen path geometry */}
+              <path
+                d="M9 7 L1 7 L1 1 L9 1 L6 3.5 L9 7"
+                stroke="currentColor"
+                strokeWidth="1"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+              />
+            </svg>
+          </span>
+          <span className="text-[16px] font-bold tracking-[-0.02em]">
+            LEGAL NOTICE
+          </span>
+        </Link>
+      </div>
       </div>
     </footer>
   );

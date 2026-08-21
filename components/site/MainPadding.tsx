@@ -17,15 +17,34 @@ import type { ReactNode } from 'react';
  *
  * Home (/) exclue : HomeHero est full-viewport, la nav-bar est masquée et le
  * morph gère son propre rythme.
+ *
+ * `flex: 1 0 auto` : c'est la moitié « main » du footer collé en bas (l'autre
+ * moitié est la colonne `min-h-full` de FramedScroll). `1 0 auto` et non
+ * `1 1 0%` — main GRANDIT pour pousser le footer au bas de l'écran quand la
+ * page est courte, mais ne RÉTRÉCIT jamais sous la hauteur de son contenu.
+ *
+ * /series : gouttière basse de 32 px au lieu de 64, pour que l'écart entre les
+ * piles et le footer soit exactement celui du bord gauche (demande explicite —
+ * cette page joue sur l'équilibre des quatre marges, pas sur le rythme
+ * éditorial des pages de texte).
  */
 export function MainPadding({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isHome = pathname === '/';
+  const isSeries = pathname === '/series' || pathname === '/series/';
 
   return (
     <main
       id="main"
-      style={isHome ? undefined : { paddingTop: 64, paddingBottom: 64 }}
+      style={
+        isHome
+          ? undefined
+          : {
+              flex: '1 0 auto',
+              paddingTop: 64,
+              paddingBottom: isSeries ? 32 : 64,
+            }
+      }
     >
       {children}
     </main>

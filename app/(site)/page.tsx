@@ -3,6 +3,7 @@ import { HomeHero } from '@/components/site/HomeHero';
 import { SplashScreen } from '@/components/site/SplashScreen';
 import { getHomepagePhotos, getSiteSettings } from '@/lib/sanity/queries';
 import { resolveMotion } from '@/lib/motion/presets';
+import { resolveHeroImages } from '@/lib/site/hero';
 import { buildMetadata } from '@/lib/seo/metadata';
 
 export const metadata = buildMetadata({
@@ -20,6 +21,7 @@ export default async function HomePage() {
     getSiteSettings(),
   ]);
   const motion = resolveMotion(settings?.motion);
+  const hero = resolveHeroImages(settings?.hero);
 
   return (
     <>
@@ -36,7 +38,7 @@ export default async function HomePage() {
           inchangé. */}
       <SplashScreen verticalMobile />
 
-      <HomeHero />
+      <HomeHero hero={hero} />
 
       <ScrollPhysicsGallery photos={photos} motion={motion} />
     </>

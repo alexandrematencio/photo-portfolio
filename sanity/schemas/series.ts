@@ -1,4 +1,5 @@
-import { defineField, defineType } from 'sanity';
+import { defineArrayMember, defineField, defineType } from 'sanity';
+import { PhotoOrderInput } from '../inputs/PhotoOrderInput';
 
 export const seriesSchema = defineType({
   name: 'series',
@@ -29,6 +30,48 @@ export const seriesSchema = defineType({
       },
       validation: (Rule) => Rule.required(),
     }),
+    // Cover + ordre des photos AVANT les champs de texte : ce sont les deux
+    // réglages que l'éditeur vient chercher, ils ne doivent pas se trouver
+    // sous une Description potentiellement longue (elle poussait « Ordre des
+    // photos » hors de l'écran — le champ existait sans être trouvable).
+    defineField({
+      name: 'coverPhoto',
+      title: 'Photo de couverture',
+      type: 'reference',
+      to: [{ type: 'photo' }],
+      description:
+        'Optionnel. Si vide, le front-end retombera sur la première photo de la série.',
+    }),
+    defineField({
+      name: 'photoOrder',
+      title: 'Ordre des photos',
+      type: 'array',
+      of: [
+        defineArrayMember({
+          type: 'reference',
+          to: [{ type: 'photo' }],
+          options: {
+            // Ne proposer QUE les photos rattachées à cette série. Le champ est
+            // une clé de tri, jamais une liste d'appartenance : on ne doit pas
+            // pouvoir y glisser une photo qui n'est pas dans la série.
+            // `document._id` vaut `drafts.<id>` sur un brouillon, alors que les
+            // photos référencent l'id publié — d'où le strip.
+            // Repli sur '' plutôt que de laisser passer une exception : une
+            // erreur levée ici casserait toute la recherche de références.
+            filter: ({ document }) => ({
+              filter: '$seriesId in series[]._ref',
+              params: {
+                seriesId: (document?._id ?? '').replace(/^drafts\./, ''),
+              },
+            }),
+          },
+        }),
+      ],
+      description:
+        'Glisser-déposer pour choisir l’ordre d’affichage des photos de la série sur le site. Facultatif : les photos que tu n’ajoutes pas ici s’affichent APRÈS celles qui y sont, de la plus récente à la plus ancienne — une photo nouvellement rattachée à la série arrive donc en dernier, à toi de la remonter si tu veux. La 1ʳᵉ photo de cette liste sert aussi de couverture quand « Photo de couverture » est vide. ⚠️ Site statique : les changements n’apparaissent en ligne qu’après « Publish » + redéploiement.',
+      validation: (Rule) => Rule.unique(),
+      components: { input: PhotoOrderInput },
+    }),
     defineField({
       name: 'subtitle',
       title: 'Sous-titre (SEO)',
@@ -44,14 +87,6 @@ export const seriesSchema = defineType({
       of: [{ type: 'block' }],
     }),
     defineField({
-      name: 'coverPhoto',
-      title: 'Photo de couverture',
-      type: 'reference',
-      to: [{ type: 'photo' }],
-      description:
-        'Optionnel. Si vide, le front-end retombera sur la première photo de la série.',
-    }),
-    defineField({
       name: 'year',
       title: 'Année',
       type: 'number',
@@ -60,9 +95,10 @@ export const seriesSchema = defineType({
     }),
     defineField({
       name: 'order',
-      title: 'Ordre',
+      title: 'Ordre (repli)',
       type: 'number',
-      description: 'Plus le nombre est bas, plus la série apparaît tôt.',
+      description:
+        'Repli historique — l’ordre de la page Series se règle désormais au glisser-déposer dans Réglages du site → Ordre des séries, qui GAGNE sur ce nombre. Il ne sert plus qu’à trier les séries absentes de cette liste (plus bas = plus tôt).',
       initialValue: 100,
     }),
   ],

@@ -4,14 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
 import { GlyphLogo } from './GlyphLogo';
-
-const LINKS = [
-  { href: '/about', label: 'About' },
-  { href: '/archives', label: 'Archives' },
-  { href: '/contact', label: 'Contact' },
-  { href: '/digital-agency', label: 'Digital Agency' },
-  { href: '/socials', label: 'Socials' },
-];
+import { NAV_LINKS as LINKS } from '@/lib/site/nav';
 
 /**
  * Nav-bar globale, identique sur toutes les pages publiques.

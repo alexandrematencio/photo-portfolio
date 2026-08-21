@@ -1,12 +1,12 @@
 import { buildMetadata } from '@/lib/seo/metadata';
+import { ProtectedEmail } from '@/components/site/ProtectedEmail';
+import { EDITORIAL_BODY } from '@/lib/site/typography';
 
 export const metadata = buildMetadata({
   title: 'Privacy Policy',
   description: 'How personal data is handled on amatencio.photo.',
   path: '/privacy',
 });
-
-const EMAIL = 'amatencio@pm.me';
 
 export default function PrivacyPage() {
   return (
@@ -20,11 +20,11 @@ export default function PrivacyPage() {
         </h1>
 
         <div className="flex flex-col gap-8">
-          <p className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)]">
+          <p className={EDITORIAL_BODY}>
             Placeholder. Final wording must comply with GDPR (EU 2016/679) and the French CNIL guidelines before going live.
           </p>
 
-          <p className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)]">
+          <p className={EDITORIAL_BODY}>
             amatencio.photo sets no non-essential cookies and collects no personal data without explicit consent. The only data processed is what you voluntarily send by email when getting in touch.
           </p>
 
@@ -32,14 +32,11 @@ export default function PrivacyPage() {
             YOUR RIGHTS
           </h2>
 
-          <p className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)]">
-            Under articles 15 to 22 of the GDPR, you have rights to access, rectification, erasure, objection, restriction and portability of your data. To exercise them, write to{' '}
-            <a
-              href={`mailto:${EMAIL}`}
-              className="underline underline-offset-[6px] decoration-2 hover:opacity-60 transition-opacity motion-reduce:transition-none"
-            >
-              {EMAIL}
-            </a>
+          <p className={EDITORIAL_BODY}>
+            Under articles 15 to 22 of the GDPR, you have rights to access, rectification, erasure, objection, restriction and portability of your data. To exercise them,{' '}
+            <ProtectedEmail className="underline underline-offset-[6px] decoration-2 hover:opacity-60 transition-opacity motion-reduce:transition-none">
+              write to me directly
+            </ProtectedEmail>
             .
           </p>
 
@@ -47,7 +44,7 @@ export default function PrivacyPage() {
             IMAGE RIGHTS
           </h2>
 
-          <p className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)] pb-4 md:pb-8">
+          <p className={`${EDITORIAL_BODY} pb-4 md:pb-8`}>
             If you believe you appear on a published photograph without your consent, contact us to request its removal. Maximum processing time: 30 days.
           </p>
         </div>

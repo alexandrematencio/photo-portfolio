@@ -4,7 +4,7 @@
  * Usage :
  *   npm run audit-series
  *
- * Affiche un tableau trié par catégorie puis par année. Utilise SANITY_API_READ_TOKEN
+ * Affiche un tableau groupé par style principal puis par année. Utilise SANITY_API_READ_TOKEN
  * (ou pas de token du tout si le dataset est public en lecture).
  */
 
@@ -35,16 +35,20 @@ type PhotoRow = {
   _id: string;
   title: string;
   slug: { current: string };
-  category: string;
+  styles: string[] | null;
   year: number;
   location: string;
 };
 
 async function main(): Promise<void> {
   const photos = await client.fetch<PhotoRow[]>(
-    `*[_type == "photo" && !defined(series)] | order(category asc, year desc, _updatedAt desc) {
-      _id, title, slug, category, year, location
+    `*[_type == "photo" && (!defined(series) || count(series) == 0)] | order(year desc, _updatedAt desc) {
+      _id, title, slug, "styles": styles[]->title, year, location
     }`
+  );
+  // Groupé par style principal (le premier de la liste), trié côté client.
+  photos.sort((a, b) =>
+    (a.styles?.[0] ?? '—').localeCompare(b.styles?.[0] ?? '—', 'fr')
   );
 
   const total = await client.fetch<number>(`count(*[_type == "photo"])`);
@@ -58,14 +62,16 @@ async function main(): Promise<void> {
     `${photos.length} / ${total} photos sans série :\n`
   );
 
-  let currentCategory = '';
+  let currentStyle = '';
   for (const photo of photos) {
-    if (photo.category !== currentCategory) {
-      currentCategory = photo.category;
-      console.log(`\n— ${currentCategory.toUpperCase()} —`);
+    const mainStyle = photo.styles?.[0] ?? 'sans style';
+    if (mainStyle !== currentStyle) {
+      currentStyle = mainStyle;
+      console.log(`\n— ${currentStyle.toUpperCase()} —`);
     }
+    const styleList = photo.styles?.join(', ') ?? '—';
     console.log(
-      `  [${photo.year}] ${photo.title} (${photo.location}) — ${photo.slug.current}`
+      `  [${photo.year}] ${photo.title} (${photo.location}) [${styleList}] — ${photo.slug.current}`
     );
   }
 

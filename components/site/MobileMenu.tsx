@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { GlyphLogo } from './GlyphLogo';
+import { MOBILE_NAV_LINKS } from '@/lib/site/nav';
 
 /**
  * Mobile menu — closed state + open drawer.
@@ -20,16 +21,10 @@ import { GlyphLogo } from './GlyphLogo';
  * Rendered once at the layout level — both home and editorial pages share this single instance.
  */
 
-type Link = { href: string; label: string; external?: boolean };
+// Le lien Instagram n'existe que dans ce drawer : il est déclaré à part dans
+// `lib/site/nav.ts` (MOBILE_EXTRA_LINKS) pour ne pas polluer la nav desktop.
 
-const MOBILE_LINKS: Link[] = [
-  { href: '/about', label: 'About' },
-  { href: '/archives', label: 'Archives' },
-  { href: '/contact', label: 'Contact' },
-  { href: '/digital-agency', label: 'Digital Agency' },
-  { href: '/socials', label: 'Socials' },
-  { href: 'https://www.instagram.com/alxmtc', label: 'Instagram', external: true },
-];
+const MOBILE_LINKS = MOBILE_NAV_LINKS;
 
 export function MobileMenu() {
   const [open, setOpen] = useState(false);

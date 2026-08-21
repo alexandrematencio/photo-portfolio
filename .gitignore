@@ -47,12 +47,16 @@ next-env.d.ts
 /portfolio
 /portfolio-backup
 
+# sources design (PSD, etc.) — pas versionnables utilement, lourdes
+/public/img/splashscreen/splash-img-template.psd
+
 # documentation interne (non destinée au repo public)
 /doc
 /brand
 /CLAUDE.md
 /yml-deploy-guide.md
 /screens
+/resources
 
 # éditeurs / IDE
 /.vscode

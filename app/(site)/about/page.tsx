@@ -1,6 +1,7 @@
 import { buildMetadata } from '@/lib/seo/metadata';
 import { getSiteSettings } from '@/lib/sanity/queries';
 import { PortableBody } from '@/components/site/PortableBody';
+import { EDITORIAL_BODY } from '@/lib/site/typography';
 
 export const metadata = buildMetadata({
   title: 'About',
@@ -39,7 +40,7 @@ export default async function AboutPage() {
           value={aboutBody}
           variant="editorial"
           fallback={
-            <p className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)] whitespace-pre-line">
+            <p className={`${EDITORIAL_BODY} whitespace-pre-line`}>
               {BIO_FALLBACK}
             </p>
           }

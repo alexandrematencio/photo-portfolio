@@ -1,4 +1,6 @@
 import { buildMetadata } from '@/lib/seo/metadata';
+import { ProtectedEmail } from '@/components/site/ProtectedEmail';
+import { EDITORIAL_BODY, EDITORIAL_BODY_LINK } from '@/lib/site/typography';
 
 export const metadata = buildMetadata({
   title: 'Contact',
@@ -7,8 +9,6 @@ export const metadata = buildMetadata({
 });
 
 export const revalidate = 300;
-
-const EMAIL = 'amatencio@pm.me';
 
 export default function ContactPage() {
   return (
@@ -22,7 +22,7 @@ export default function ContactPage() {
         </h1>
 
         <div className="flex flex-col gap-8">
-          <p className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)]">
+          <p className={EDITORIAL_BODY}>
             For any enquiry — press, exhibitions, prints, editorial collaboration — write.
           </p>
 
@@ -30,12 +30,9 @@ export default function ContactPage() {
             EMAIL
           </h2>
 
-          <a
-            href={`mailto:${EMAIL}`}
-            className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)] underline underline-offset-[6px] decoration-2 hover:opacity-60 transition-opacity motion-reduce:transition-none w-fit"
-          >
-            {EMAIL}
-          </a>
+          <ProtectedEmail className={EDITORIAL_BODY_LINK}>
+            Write to me
+          </ProtectedEmail>
 
           <div className="flex flex-col pb-4 md:pb-8">
             <h3 className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.375] text-[var(--color-fg)]">

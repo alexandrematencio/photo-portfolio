@@ -11,16 +11,9 @@ import {
   type SplashRevealDetail,
 } from './SplashScreen';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
-import { asset } from '@/lib/utils/asset';
+import type { HeroImages } from '@/lib/site/hero';
+import { NAV_LINKS } from '@/lib/site/nav';
 import { lockBodyScroll, unlockBodyScroll } from '@/lib/utils/scrollLock';
-
-const NAV_LINKS = [
-  { href: '/about', label: 'About' },
-  { href: '/archives', label: 'Archives' },
-  { href: '/contact', label: 'Contact' },
-  { href: '/digital-agency', label: 'Digital Agency' },
-  { href: '/socials', label: 'Socials' },
-];
 
 // Cibles de la transition (≈ taille finale du header)
 const GLYPH_INITIAL = 108;
@@ -39,7 +32,13 @@ const PAD_RIGHT = 64;
 const FADE_FAST_DURATION = 0.15; // photo-profile, arrow, nom : vanish vite
 const MORPH_SLOW_DURATION = 1; // logo + nav items : morph lent, prend toute la timeline
 
-export function HomeHero() {
+type HomeHeroProps = {
+  /** Images du hero définies dans le Studio (siteSettings.hero), résolues en
+      URLs CDN par `resolveHeroImages`. Voir lib/site/hero.ts. */
+  hero: HeroImages;
+};
+
+export function HomeHero({ hero }: HomeHeroProps) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const logoBlockRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLHeadingElement>(null);
@@ -274,13 +273,12 @@ export function HomeHero() {
   }, [reducedMotion]);
 
   // Photo profil — magnifier hover effect.
-  // Layer 1 (default, always visible)   : alex-profile-pic-default.jpg
-  // Layer 2 (revealed under the cursor) : alex-profile-pic-hover-reveal.jpg
+  // Layer 1 (default, always visible)   : hero.defaultSrc  (CMS: siteSettings.hero.defaultImage)
+  // Layer 2 (revealed under the cursor) : hero.revealSrc   (CMS: siteSettings.hero.revealImage)
+  // Les deux images sont choisies dans le Studio (/studio → « Réglages du site »).
   // The cursor itself is hidden inside the photo box; a 96 px circular clip on
   // layer 2 follows the pointer, "peeking" through the default image.
-  const profileSrcDefault = asset('/img/alex-profile-pic-default.jpg');
-  const profileSrcReveal = asset('/img/alex-profile-pic-hover-reveal.jpg');
-  const profileAlt = 'Portrait of A. Matencio';
+  const { defaultSrc: profileSrcDefault, defaultAlt: profileAlt, revealSrc: profileSrcReveal } = hero;
   const photoBoxRef = useRef<HTMLDivElement>(null);
   const revealLayerRef = useRef<HTMLDivElement>(null);
 
@@ -638,33 +636,39 @@ export function HomeHero() {
               WebkitUserSelect: 'none',
             }}
           >
-            {/* Default image — always visible */}
-            <Image
-              src={profileSrcDefault}
-              alt={profileAlt}
-              fill
-              sizes="(max-width: 768px) 14rem, 16rem"
-              className="object-cover pointer-events-none"
-              draggable={false}
-              priority
-            />
-            {/* Reveal image — clipped to a circle that follows the pointer.
-                Initial clip-path collapsed to 0 px so nothing shows until pointer enters. */}
-            <div
-              ref={revealLayerRef}
-              aria-hidden
-              className="absolute inset-0 pointer-events-none"
-              style={{ clipPath: 'circle(0px at 50% 50%)' }}
-            >
+            {/* Default image — always visible. Guard: si le CMS n'a pas encore
+                d'image, on laisse la box vide (bg-elev) plutôt que de crasher. */}
+            {profileSrcDefault && (
               <Image
-                src={profileSrcReveal}
-                alt=""
+                src={profileSrcDefault}
+                alt={profileAlt}
                 fill
                 sizes="(max-width: 768px) 14rem, 16rem"
-                className="object-cover"
+                className="object-cover pointer-events-none"
                 draggable={false}
+                priority
               />
-            </div>
+            )}
+            {/* Reveal image — clipped to a circle that follows the pointer.
+                Initial clip-path collapsed to 0 px so nothing shows until pointer enters.
+                Décorative → alt="" + aria-hidden. */}
+            {profileSrcReveal && (
+              <div
+                ref={revealLayerRef}
+                aria-hidden
+                className="absolute inset-0 pointer-events-none"
+                style={{ clipPath: 'circle(0px at 50% 50%)' }}
+              >
+                <Image
+                  src={profileSrcReveal}
+                  alt=""
+                  fill
+                  sizes="(max-width: 768px) 14rem, 16rem"
+                  className="object-cover"
+                  draggable={false}
+                />
+              </div>
+            )}
           </div>
         </div>
 

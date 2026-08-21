@@ -235,7 +235,7 @@ export function OriginalViewer({
           fades out. Generous padding for breathing room. */}
       <div
         aria-hidden
-        className="pointer-events-none fixed bottom-6 left-1/2 -translate-x-1/2 z-[1] px-6 py-3 text-[11px] uppercase tracking-[0.18em] text-white/90 bg-black/60 backdrop-blur-sm rounded-full"
+        className="pointer-events-none fixed bottom-6 left-1/2 -translate-x-1/2 z-[1] px-6 py-3 text-[11px] uppercase text-white/90 bg-black/60 backdrop-blur-sm rounded-full"
         style={{
           opacity: hintVisible ? 1 : 0,
           transition: hintVisible

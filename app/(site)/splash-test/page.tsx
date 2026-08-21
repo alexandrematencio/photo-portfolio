@@ -3,6 +3,7 @@ import { HomeHeroSplash } from '@/components/site/HomeHeroSplash';
 import { SplashScreen } from '@/components/site/SplashScreen';
 import { getHomepagePhotos, getSiteSettings } from '@/lib/sanity/queries';
 import { resolveMotion } from '@/lib/motion/presets';
+import { resolveHeroImages } from '@/lib/site/hero';
 
 /**
  * /splash-test — sandbox route mirroring the homepage so we can prototype
@@ -32,6 +33,7 @@ export default async function SplashTestPage() {
     getSiteSettings(),
   ]);
   const motion = resolveMotion(settings?.motion);
+  const hero = resolveHeroImages(settings?.hero);
 
   return (
     <>
@@ -40,7 +42,7 @@ export default async function SplashTestPage() {
           d'utiliser le layout horizontal (default). À fusionner sur `/` quand
           le rendu mobile est validé. */}
       <SplashScreen verticalMobile />
-      <HomeHeroSplash />
+      <HomeHeroSplash hero={hero} />
       <ScrollPhysicsGallery photos={photos} motion={motion} />
     </>
   );

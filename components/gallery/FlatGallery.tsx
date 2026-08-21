@@ -4,31 +4,46 @@ import { useEffect, useMemo, useState } from 'react';
 import { PhotoCard } from './PhotoCard';
 import { PhotoLightbox } from './PhotoLightbox';
 import { cn } from '@/lib/utils/cn';
-import type { Photo, PhotoCategory } from '@/lib/sanity/queries';
+import type { Photo } from '@/lib/sanity/queries';
 
-type Mode = 'year' | 'location' | 'type';
+type Mode = 'year' | 'location' | 'style' | 'camera' | 'lens';
 
 const TABS: { id: Mode; label: string }[] = [
   { id: 'year', label: 'Year' },
   { id: 'location', label: 'Location' },
-  { id: 'type', label: 'Type' },
+  { id: 'style', label: 'Style' },
+  { id: 'camera', label: 'Camera' },
+  { id: 'lens', label: 'Lens' },
 ];
 
-const CATEGORY_LABEL: Record<PhotoCategory, string> = {
-  landscape: 'Landscape',
-  architecture: 'Architecture',
-  portrait: 'Portrait',
-  streetphotography: 'Street',
-};
-
-const CATEGORY_ORDER: PhotoCategory[] = [
-  'landscape',
-  'architecture',
-  'portrait',
-  'streetphotography',
-];
+const UNSPECIFIED_KEY = '__unspecified__';
 
 type Group = { key: string; label: string; items: Photo[] };
+
+/** Groupes triés A→Z, le groupe « Unspecified » toujours en dernier. */
+function sortGroups(groups: Group[]): Group[] {
+  return groups.sort((a, b) => {
+    if (a.key === UNSPECIFIED_KEY) return 1;
+    if (b.key === UNSPECIFIED_KEY) return -1;
+    return a.label.localeCompare(b.label, 'en');
+  });
+}
+
+/** Regroupement par boîtier ou objectif (référence optionnelle déréférencée). */
+function groupByGear(
+  photos: Photo[],
+  pick: (p: Photo) => { slug: string; title: string } | null | undefined
+): Group[] {
+  const map = new Map<string, Group>();
+  for (const p of photos) {
+    const gear = pick(p);
+    const key = gear?.slug ?? UNSPECIFIED_KEY;
+    const label = gear?.title ?? 'Unspecified';
+    if (!map.has(key)) map.set(key, { key, label, items: [] });
+    map.get(key)!.items.push(p);
+  }
+  return sortGroups(Array.from(map.values()));
+}
 
 export function FlatGallery({ photos }: { photos: Photo[] }) {
   const [mode, setMode] = useState<Mode>('year');
@@ -63,19 +78,27 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
         .sort((a, b) => a[0].localeCompare(b[0], 'en'))
         .map(([k, items]) => ({ key: k, label: k, items }));
     }
-    // type
-    const map = new Map<PhotoCategory, Photo[]>();
-    for (const cat of CATEGORY_ORDER) map.set(cat, []);
+    if (mode === 'camera') return groupByGear(photos, (p) => p.camera);
+    if (mode === 'lens') return groupByGear(photos, (p) => p.lens);
+    // style — une photo porte 1 à 3 styles et apparaît dans CHAQUE groupe
+    // correspondant (choix produit : « displayed in each individually »).
+    const map = new Map<string, Group>();
     for (const p of photos) {
-      if (p.category && map.has(p.category)) map.get(p.category)!.push(p);
+      const styles = p.styles ?? [];
+      if (styles.length === 0) {
+        const key = UNSPECIFIED_KEY;
+        if (!map.has(key)) map.set(key, { key, label: 'Unclassified', items: [] });
+        map.get(key)!.items.push(p);
+        continue;
+      }
+      for (const style of styles) {
+        if (!map.has(style.slug)) {
+          map.set(style.slug, { key: style.slug, label: style.title, items: [] });
+        }
+        map.get(style.slug)!.items.push(p);
+      }
     }
-    return CATEGORY_ORDER.filter((cat) => (map.get(cat) ?? []).length > 0).map(
-      (cat) => ({
-        key: cat,
-        label: CATEGORY_LABEL[cat],
-        items: map.get(cat) ?? [],
-      })
-    );
+    return sortGroups(Array.from(map.values()));
   }, [mode, photos]);
 
   // Reset to "All" when grouping mode changes.
@@ -123,7 +146,9 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
     setActiveKey(null);
   }
 
-  const totalPhotos = allGroups.reduce((sum, g) => sum + g.items.length, 0);
+  // Nombre réel de photos — pas la somme des groupes (en mode Style une photo
+  // peut appartenir à plusieurs groupes à la fois).
+  const totalPhotos = photos.length;
 
   if (photos.length === 0) {
     return (
@@ -156,7 +181,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
               type="button"
               onClick={() => setMode(tab.id)}
               className={cn(
-                'text-[12px] uppercase tracking-[0.25em] font-bold py-2 cursor-pointer transition-colors motion-reduce:transition-none',
+                'text-[12px] uppercase font-bold py-2 cursor-pointer transition-colors motion-reduce:transition-none',
                 active
                   ? 'text-[var(--color-fg)] underline underline-offset-8 decoration-2'
                   : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
@@ -230,9 +255,18 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
           let flatCursor = 0;
           return visibleGroups.map((group) => (
             <section key={group.key}>
-              <h2 className="text-[11px] uppercase tracking-[0.25em] font-bold text-[var(--color-fg-muted)] mb-6">
+              {/* Marges en inline : `mb-6`/`ml-3` sont avalés par le reset
+                  global hors @layer (cf. CLAUDE.md). Sans interlettrage, le
+                  compteur collé au titre devenait franchement visible. */}
+              <h2
+                className="text-[11px] uppercase font-bold text-[var(--color-fg-muted)]"
+                style={{ marginBottom: 24 }}
+              >
                 {group.label}
-                <span className="ml-3 text-[var(--color-fg-muted)]/60">
+                <span
+                  className="text-[var(--color-fg-muted)]/60"
+                  style={{ marginLeft: 12 }}
+                >
                   ({group.items.length})
                 </span>
               </h2>

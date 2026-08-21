@@ -8,7 +8,8 @@ import { GlyphLogo } from './GlyphLogo';
 import { MagnifierHeading } from './MagnifierHeading';
 import { SPLASH_REVEAL_EVENT, type SplashRevealDetail } from './SplashScreen';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
-import { asset } from '@/lib/utils/asset';
+import type { HeroImages } from '@/lib/site/hero';
+import { NAV_LINKS } from '@/lib/site/nav';
 import { lockBodyScroll, unlockBodyScroll } from '@/lib/utils/scrollLock';
 
 /**
@@ -35,14 +36,6 @@ import { lockBodyScroll, unlockBodyScroll } from '@/lib/utils/scrollLock';
  * ROLLBACK: delete this file. The original HomeHero on `/` is untouched.
  */
 
-const NAV_LINKS = [
-  { href: '/about', label: 'About' },
-  { href: '/archives', label: 'Archives' },
-  { href: '/contact', label: 'Contact' },
-  { href: '/digital-agency', label: 'Digital Agency' },
-  { href: '/socials', label: 'Socials' },
-];
-
 // Mêmes constantes que HomeHero — voir HomeHero.tsx pour l'explication.
 const GLYPH_INITIAL = 108;
 const GLYPH_TARGET = 28;
@@ -54,7 +47,12 @@ const PAD_RIGHT = 64;
 const FADE_FAST_DURATION = 0.15;
 const MORPH_SLOW_DURATION = 1;
 
-export function HomeHeroSplash() {
+type HomeHeroSplashProps = {
+  /** Idem HomeHero : images du hero définies dans le Studio (siteSettings.hero). */
+  hero: HeroImages;
+};
+
+export function HomeHeroSplash({ hero }: HomeHeroSplashProps) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const logoBlockRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLHeadingElement>(null);
@@ -277,9 +275,8 @@ export function HomeHeroSplash() {
   // ════════════════════════════════════════════════════════════════════════
   // Magnifier reveal on the profile photo (identical to HomeHero).
   // ════════════════════════════════════════════════════════════════════════
-  const profileSrcDefault = asset('/img/alex-profile-pic-default.jpg');
-  const profileSrcReveal = asset('/img/alex-profile-pic-hover-reveal.jpg');
-  const profileAlt = 'Portrait of A. Matencio';
+  // Images choisies dans le Studio (/studio → « Réglages du site »), comme HomeHero.
+  const { defaultSrc: profileSrcDefault, defaultAlt: profileAlt, revealSrc: profileSrcReveal } = hero;
   const photoBoxRef = useRef<HTMLDivElement>(null);
   const revealLayerRef = useRef<HTMLDivElement>(null);
 
@@ -544,30 +541,34 @@ export function HomeHeroSplash() {
               WebkitUserSelect: 'none',
             }}
           >
-            <Image
-              src={profileSrcDefault}
-              alt={profileAlt}
-              fill
-              sizes="(max-width: 768px) 14rem, 16rem"
-              className="object-cover pointer-events-none"
-              draggable={false}
-              priority
-            />
-            <div
-              ref={revealLayerRef}
-              aria-hidden
-              className="absolute inset-0 pointer-events-none"
-              style={{ clipPath: 'circle(0px at 50% 50%)' }}
-            >
+            {profileSrcDefault && (
               <Image
-                src={profileSrcReveal}
-                alt=""
+                src={profileSrcDefault}
+                alt={profileAlt}
                 fill
                 sizes="(max-width: 768px) 14rem, 16rem"
-                className="object-cover"
+                className="object-cover pointer-events-none"
                 draggable={false}
+                priority
               />
-            </div>
+            )}
+            {profileSrcReveal && (
+              <div
+                ref={revealLayerRef}
+                aria-hidden
+                className="absolute inset-0 pointer-events-none"
+                style={{ clipPath: 'circle(0px at 50% 50%)' }}
+              >
+                <Image
+                  src={profileSrcReveal}
+                  alt=""
+                  fill
+                  sizes="(max-width: 768px) 14rem, 16rem"
+                  className="object-cover"
+                  draggable={false}
+                />
+              </div>
+            )}
           </div>
         </div>
 

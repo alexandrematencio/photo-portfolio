@@ -4,6 +4,7 @@ import { FramedScroll } from '@/components/site/FramedScroll';
 import { MainPadding } from '@/components/site/MainPadding';
 import { MobileMenu } from '@/components/site/MobileMenu';
 import { CursorInvert } from '@/components/site/CursorInvert';
+import { EmailHoneypot } from '@/components/site/EmailHoneypot';
 import { SiteSessionMarker } from '@/components/site/SiteSessionMarker';
 
 export default function SiteLayout({
@@ -24,6 +25,9 @@ export default function SiteLayout({
           Lives at the layout root (not inside any transformed/isolated container) so the
           mix-blend-mode can blend against everything painted underneath the viewport. */}
       <CursorInvert />
+      {/* Honeypot mailto:trap-* — invisible aux humains, scrapé par les bots HTML naïfs.
+          Couple ça à un filtre ProtonMail "To: contient 'trap-' → trash" pour anti-spam auto. */}
+      <EmailHoneypot />
       <FramedScroll>
         <MainPadding>{children}</MainPadding>
         <SiteFooter />
