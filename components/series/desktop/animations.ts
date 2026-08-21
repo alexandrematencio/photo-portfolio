@@ -57,24 +57,40 @@ export function createGhostLayer(): GhostLayer {
 }
 
 /**
+ * Délai entre le reveal du réel et le début du fondu des clones : la
+ * `transition-opacity` CSS des vignettes réelles (~150 ms) doit être FINIE
+ * avant qu'un clone ne perde son opacité. Tant que le clone est opaque et le
+ * réel monte en dessous, la couverture reste à 100 % ; deux fondus
+ * simultanés, eux, creusaient la couverture combinée à ~85 % au croisement
+ * → ~15 % de fond clair à travers toute la colonne pendant ~120 ms (mesuré),
+ * le « blink » signalé. 0,22 s = 150 ms de transition + marge.
+ */
+export const HANDOFF_DELAY = 0.22;
+
+/**
  * Retrait DOUX d'une couche de clones : fondu, puis suppression.
  *
- * Ne JAMAIS remplacer par un `layer.destroy()` sec. Même quand la géométrie
- * d'arrivée est exacte au pixel (cf. `flyCurved`), il reste un écart de
- * CONTENU entre le clone et l'élément réel — le recadrage `object-fit: cover`
- * se recalcule à la taille de boîte, ce qu'un transform ne sait pas reproduire.
- * Une suppression sèche montre donc cet écart d'un coup ; un fondu le dissout.
+ * Ne JAMAIS remplacer par un `layer.destroy()` sec : même avec un raccord
+ * exact au pixel ET au contenu (vol de boîte, cf. `flyCurved`), il reste des
+ * écarts résiduels possibles (fichier/résolution de l'image réelle ≠ clone,
+ * arrondi de rect) — le fondu les dissout, une coupe les montre.
  *
- * `duration` couvre aussi la `transition-opacity` CSS des vignettes réelles
- * (~150 ms) : les deux se croisent au lieu de se succéder.
+ * Après un reveal d'éléments portant une `transition-opacity` CSS, passer
+ * `delay: HANDOFF_DELAY` : les clones restent INTACTS le temps que le réel
+ * finisse de monter en dessous, PUIS fondent — jamais les deux à la fois.
  */
 export function fadeOutLayer(
   layer: GhostLayer,
-  { duration = 0.28, onComplete }: { duration?: number; onComplete?: () => void } = {}
+  {
+    duration = 0.28,
+    delay = 0,
+    onComplete,
+  }: { duration?: number; delay?: number; onComplete?: () => void } = {}
 ): void {
   gsap.to(layer.el, {
     opacity: 0,
     duration,
+    delay,
     ease: 'power1.out',
     onComplete: () => {
       layer.destroy();
@@ -137,22 +153,21 @@ export type Flight = {
  * l'échelle au dernier quart), et CASCADE INVERSÉE — le dernier vol de
  * l'ouverture part le premier, l'index 0 atterrit en dernier.
  *
- * ⚠️ **L'échelle est NON UNIFORME (`scaleX`/`scaleY`), jamais `scale`** —
- * seul écart assumé avec la démo, dont les vignettes gardent leur ratio.
- * Source et destination n'ont pas le même rapport de forme : les boîtes de la
- * pile font toutes 299×176 (la cover, `object-fit: cover`) alors que chaque
- * vignette de colonne porte le ratio de SA photo. Un scale uniforme fait donc
- * atterrir la bonne largeur avec la hauteur du ratio de la pile — mesuré : 12 px
- * de trop sur l'une, 10 px de moins sur les autres, d'où des vignettes tantôt
- * collées tantôt espacées à l'arrivée, puis un saut sec au retrait des clones.
- * Bug réel signalé. Avec `transformOrigin: 'top left'` + scale par axe, la
- * boîte d'arrivée est exacte au pixel.
- *
- * Contrepartie assumée : le rapport de forme de l'image se déforme PENDANT le
- * vol (le recadrage `cover` ne peut pas être recalculé par un transform). Les
- * images concernées partent cachées sous la cover, ce qu'on voit est donc un
- * morphing depuis derrière la cover — et le résidu de recadrage à l'arrivée est
- * absorbé par le fondu croisé de `fadeOutLayer`, jamais par une coupe franche.
+ * ⚠️ **VOL DE BOÎTE (`width`/`height` animés), jamais un étirement en
+ * transform** — seul écart d'implémentation avec la démo, dont les vignettes
+ * gardent toutes le même ratio (scale uniforme possible chez elle). Source et
+ * destination n'ont pas le même rapport de forme ici : les boîtes de la pile
+ * font toutes 299×176 (la cover, `object-fit: cover`) alors que chaque
+ * vignette de colonne porte le ratio de SA photo. Deux tentatives payées :
+ * un `scale` uniforme atterrit à la MAUVAISE hauteur (±10-12 px, vignettes
+ * tantôt collées tantôt espacées) ; un `scaleX`/`scaleY` par axe atterrit
+ * exact au pixel mais DÉFORME le contenu (le recadrage `cover` ne se
+ * recalcule pas sous un transform — 13 à 19 % d'étirement vertical mesurés à
+ * la pose), et le raccord clone → réel « redressait » l'image d'un coup :
+ * le blink de fin d'ouverture signalé. En animant la boîte elle-même,
+ * `object-fit: cover` recadre à CHAQUE frame : le clone atterrit identique
+ * au réel, au pixel ET au contenu. Coût : un layout par frame sur ~10 clones
+ * `absolute` dans une couche `fixed` hors flux — mesuré sans jank.
  */
 export function flyCurved(
   tl: gsap.core.Timeline,
@@ -173,8 +188,8 @@ export function flyCurved(
   flights.forEach(({ ghost, from, to }, i) => {
     const dx = to.left - from.left;
     const dy = to.top - from.top;
-    const sx = to.width / from.width;
-    const sy = to.height / from.height;
+    const dw = to.width - from.width;
+    const dh = to.height - from.height;
 
     // Offsets ABSOLUS de la démo (pas des fractions) : 2,5 px restants sur
     // l'axe de la glissade, 25 px parcourus sur l'autre. Bornés au trajet
@@ -187,23 +202,22 @@ export function flyCurved(
         ? {
             x: dx - nudgeX,
             y: nudgeY,
-            scaleX: 1 + (sx - 1) * 0.75,
-            scaleY: 1 + (sy - 1) * 0.75,
+            width: from.width + dw * 0.75,
+            height: from.height + dh * 0.75,
           }
         : {
             x: nudgeX,
             y: dy - nudgeY,
-            scaleX: 1 + (sx - 1) * 0.25,
-            scaleY: 1 + (sy - 1) * 0.25,
+            width: from.width + dw * 0.25,
+            height: from.height + dh * 0.25,
           };
-    const end = { x: dx, y: dy, scaleX: sx, scaleY: sy };
+    const end = { x: dx, y: dy, width: to.width, height: to.height };
 
     tl.to(
       ghost,
       {
         duration,
         ease: EASE,
-        transformOrigin: 'top left',
         motionPath: {
           path: [mid, end],
           curviness: 0.25,

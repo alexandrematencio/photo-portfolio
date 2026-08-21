@@ -16,6 +16,7 @@ import { FolderStack } from './FolderStack';
 import { OpenSeriesView } from './OpenSeriesView';
 import {
   DUR,
+  HANDOFF_DELAY,
   STAGGER,
   createGhostLayer,
   fadeOutLayer,
@@ -264,11 +265,11 @@ export function DesktopSeries({
             autoAlpha: 1,
           });
           // Les vignettes réelles portent une transition-opacity CSS (150 ms) :
-          // un autoAlpha "instantané" fond quand même. Les clones ne sont donc
-          // pas retirés d'un coup — ils se fondent PAR-DESSUS le réel qui
-          // apparaît, sinon tout clignote (bug réel signalé) et l'écart de
-          // recadrage clone/réel sauterait aux yeux.
-          fadeOutLayer(layer, { onComplete: done });
+          // un autoAlpha "instantané" fond quand même. Les clones restent donc
+          // INTACTS le temps de ce fondu (HANDOFF_DELAY) — deux fondus
+          // simultanés creusaient la couverture à ~85 % au croisement, tout le
+          // fond transparaissait d'un coup (blink mesuré, bug réel signalé).
+          fadeOutLayer(layer, { delay: HANDOFF_DELAY, onComplete: done });
         });
       },
       paused: true,
@@ -421,9 +422,9 @@ export function DesktopSeries({
           // Même garde anti-clignotement que runOpen : couvrir le fondu CSS.
           // La couche capturée (ancienne série) est déjà sortie par la droite,
           // on la retire sans fondu supplémentaire ; seule la couche entrante
-          // se dissout par-dessus le réel.
+          // se dissout par-dessus le réel, une fois son fondu CSS terminé.
           captured?.layer.destroy();
-          fadeOutLayer(layer, { onComplete: done });
+          fadeOutLayer(layer, { delay: HANDOFF_DELAY, onComplete: done });
         });
       },
       paused: true,
@@ -538,7 +539,10 @@ export function DesktopSeries({
               gsap.set([centerWrap, inThumb].filter(Boolean), {
                 clearProps: 'opacity,visibility',
               });
+              // inThumb ([data-col-item]) porte la transition-opacity CSS :
+              // même séquençage que runOpen, clones intacts pendant sa montée.
               fadeOutLayer(layer, {
+                delay: HANDOFF_DELAY,
                 onComplete: () => {
                   animating.current = false;
                 },
