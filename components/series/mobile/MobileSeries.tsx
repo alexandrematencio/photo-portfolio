@@ -12,6 +12,7 @@ import { Flip } from 'gsap/Flip';
 import { urlFor } from '@/lib/sanity/image';
 import type { PreparedSeries } from '@/lib/site/series';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
+import { useMdUp } from '../shared/useMdUp';
 import { pushModalHistory } from '@/lib/utils/modalHistory';
 import { cn } from '@/lib/utils/cn';
 import { SeriesMeta } from '../shared/SeriesMeta';
@@ -80,6 +81,7 @@ export function MobileSeries({
   const stripRef = useRef<HTMLDivElement>(null);
   const flipStateRef = useRef<Flip.FlipState | null>(null);
   const reduced = useReducedMotion();
+  const mdUp = useMdUp();
   const openSlug = openSeries?.slug ?? null;
 
   // ── Flip à l'ouverture (état capturé DANS le handler, avant re-rendu) ────
@@ -313,10 +315,14 @@ export function MobileSeries({
                           wide ? 'snap-start' : 'snap-center'
                         )}
                       >
+                        {/* eager pour les 3 premières SEULEMENT si cette
+                            branche est visible : rendue cachée (viewport
+                            desktop), une eager télécharge quand même —
+                            mesuré : 3×1100 px par ouverture (cf. useMdUp). */}
                         <img
                           src={src}
                           alt={photo.image?.alt ?? photo.title}
-                          loading={i < 3 ? 'eager' : 'lazy'}
+                          loading={!mdUp && i < 3 ? 'eager' : 'lazy'}
                           data-flip-id={isCover ? `cover-${s.slug}` : undefined}
                           className="block h-full w-auto max-w-none object-contain"
                           style={{ aspectRatio: String(ratio) }}

@@ -489,10 +489,8 @@ export function DesktopSeries({
       // photo entrante dans la cellule, centré — même règle que le CSS
       // (max-width / maxHeight / flex center). L'écart éventuel d'un pixel se
       // résorbe au raccord, l'image réelle prenant le relais du clone.
-      const maxH = centerRect.height === 0 ? cellRect.height : Math.max(
-        centerRect.height,
-        Math.min(cellRect.height, centerRect.height)
-      );
+      // rectOf garantit centerRect.height > 0 (rect nul → early return).
+      const maxH = centerRect.height;
       const ratio =
         (next.image?.dimensions?.aspectRatio ?? 4 / 3);
       let w = Math.min(cellRect.width, maxH * ratio);

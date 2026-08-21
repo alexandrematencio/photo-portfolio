@@ -50,8 +50,12 @@ export type GhostLayer = {
 export function createGhostLayer(): GhostLayer {
   const el = document.createElement('div');
   el.setAttribute('data-series-ghosts', '');
+  // `contain: strict` : les vols de boîte (width/height, cf. flyCurved)
+  // provoquent un layout par frame — le containment le borne à cette couche
+  // au lieu de laisser le navigateur invalider plus large. Sûr ici : couche
+  // dimensionnée par inset, enfants en absolute, overflow déjà masqué.
   el.style.cssText =
-    'position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden;';
+    'position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden;contain:strict;';
   document.body.appendChild(el);
   return { el, destroy: () => el.remove() };
 }

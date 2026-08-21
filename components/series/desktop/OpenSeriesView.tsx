@@ -2,6 +2,7 @@ import { urlFor } from '@/lib/sanity/image';
 import type { PreparedSeries } from '@/lib/site/series';
 import { cn } from '@/lib/utils/cn';
 import { SeriesMeta } from '../shared/SeriesMeta';
+import { useMdUp } from '../shared/useMdUp';
 
 /**
  * État ouvert desktop (spec §5) : trois zones —
@@ -48,6 +49,7 @@ export function OpenSeriesView({
   onSwitch: (slug: string) => void;
   onSelect: (index: number) => void;
 }) {
+  const mdUp = useMdUp();
   const active = displayed.photos[activeIndex] ?? displayed.photos[0];
   const centerSrc = active.image
     ? (urlFor(active.image)?.width(1600).quality(82).auto('format').url() ?? '')
@@ -121,9 +123,15 @@ export function OpenSeriesView({
           {/* aspect-ratio + width calculée : le layout est complet AVANT le
               chargement du fichier — les vols mesurent des rects justes même
               sur image froide (bug réel : rects nuls → aucun fantôme). */}
+          {/* `lazy` quand la branche est cachée (viewport mobile) : cette vue
+              est quand même rendue à l'ouverture, et une <img> eager en
+              display:none télécharge son fichier — 1600 px pour rien, sur
+              cellulaire (cf. useMdUp). Lazy sans boîte = jamais chargée. */}
           <img
             src={centerSrc}
             alt={active.image?.alt ?? active.title}
+            loading={mdUp ? 'eager' : 'lazy'}
+            decoding="async"
             data-center-img
             className="block max-w-full object-contain"
             style={{

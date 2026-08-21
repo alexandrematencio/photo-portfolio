@@ -123,6 +123,10 @@ export function FolderStack({
               alt={i === 0 ? (photo.image?.alt ?? photo.title) : ''}
               loading="lazy"
               decoding="async"
+              // Sous-images (invisibles derrière la cover, sources des vols
+              // uniquement) : priorité réseau basse — 45 requêtes qui
+              // concouraient à égalité avec les covers au chargement.
+              fetchPriority={i === 0 ? undefined : 'low'}
               data-pile-item={photo._id}
               className="absolute inset-0 h-full w-full object-cover"
               style={{
