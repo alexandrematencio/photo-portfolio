@@ -531,7 +531,7 @@ export function HomeHeroSplash({ hero }: HomeHeroSplashProps) {
           // opacity: 0 initial — entrance unfurls via clipPath, opacity is set to 1 by gsap.
           // Format : carré jusqu'à `lg`, 3:2 paysage (2x3/4x6) à partir de `lg`
           // — même hauteur, élargi sur les côtés. Voir HomeHero.tsx.
-          className="pointer-events-none relative size-56 md:size-64 lg:h-64 lg:w-96 overflow-hidden bg-[var(--color-bg-elev)] isolate"
+          className="pointer-events-none relative size-[16.94rem] md:size-64 lg:h-64 lg:w-96 overflow-hidden bg-[var(--color-bg-elev)] isolate"
           style={{ opacity: 0 }}
         >
           <div
@@ -548,7 +548,7 @@ export function HomeHeroSplash({ hero }: HomeHeroSplashProps) {
                 src={profileSrcDefault}
                 alt={profileAlt}
                 fill
-                sizes="(max-width: 768px) 14rem, (max-width: 1024px) 16rem, 24rem"
+                sizes="(max-width: 768px) 16.94rem, (max-width: 1024px) 16rem, 24rem"
                 className="object-cover pointer-events-none"
                 draggable={false}
                 priority
@@ -565,7 +565,7 @@ export function HomeHeroSplash({ hero }: HomeHeroSplashProps) {
                   src={profileSrcReveal}
                   alt=""
                   fill
-                  sizes="(max-width: 768px) 14rem, (max-width: 1024px) 16rem, 24rem"
+                  sizes="(max-width: 768px) 16.94rem, (max-width: 1024px) 16rem, 24rem"
                   className="object-cover"
                   draggable={false}
                 />

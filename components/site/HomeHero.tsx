@@ -646,7 +646,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
           // n'élargit que les côtés (w-96 = 384 = 256 × 1,5). La hauteur ne
           // doit pas changer entre breakpoints de la même plage : le morph et
           // l'entrance mesurent photoBottom au mount.
-          className="pointer-events-none relative size-56 md:size-64 lg:h-64 lg:w-96 overflow-hidden bg-[var(--color-bg-elev)] isolate"
+          className="pointer-events-none relative size-[16.94rem] md:size-64 lg:h-64 lg:w-96 overflow-hidden bg-[var(--color-bg-elev)] isolate"
           style={{ opacity: 0 }}
         >
           {/* Inner box owns the pointer events. On touch devices we also kill native
@@ -668,7 +668,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
                 src={profileSrcDefault}
                 alt={profileAlt}
                 fill
-                sizes="(max-width: 768px) 14rem, (max-width: 1024px) 16rem, 24rem"
+                sizes="(max-width: 768px) 16.94rem, (max-width: 1024px) 16rem, 24rem"
                 className="object-cover pointer-events-none"
                 draggable={false}
                 priority
@@ -688,7 +688,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
                   src={profileSrcReveal}
                   alt=""
                   fill
-                  sizes="(max-width: 768px) 14rem, (max-width: 1024px) 16rem, 24rem"
+                  sizes="(max-width: 768px) 16.94rem, (max-width: 1024px) 16rem, 24rem"
                   className="object-cover"
                   draggable={false}
                 />
