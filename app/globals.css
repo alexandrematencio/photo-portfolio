@@ -419,17 +419,21 @@ body img {
   .photo-meta {
     width: 100%;
     /* Empilé, la colonne n'est plus tendue : le `gap` redevient l'écart
-       réel entre le titre et la fiche technique. */
-    gap: 24px;
+       réel entre le titre et la fiche technique. 12 px et non 24 —
+       moitié demandée par Alexandre (2026-08-22) sur capture. C'est LE
+       seul écart de la légende empilée : le ≤ 767 le reprend tel quel,
+       les deux bandes ne peuvent donc pas diverger. */
+    gap: 12px;
   }
 }
 
-/* Mobile : la légende est UN SEUL bloc de texte, pas trois groupes empilés
-   (demande Alexandre, 2026-08-22). Deux conséquences, indissociables — le
-   `gap` seul laisserait un rythme irrégulier, et le pas unique seul laisserait
-   les gouttières entre groupes :
+/* Mobile : la légende se lit comme un bloc de texte, pas comme trois groupes
+   empilés (demande Alexandre, 2026-08-22) :
 
-   1. Plus aucune gouttière entre le titre, la série et la fiche technique.
+   1. AUCUNE gouttière à l'intérieur du bloc de tête — numéro, titre et série
+      s'enchaînent sans respiration. La seule qui subsiste sépare ce bloc de la
+      fiche technique, et elle est réglée une fois pour toutes dans la requête
+      ≤ 1023 px ci-dessus (12 px, moitié de la valeur d'origine).
    2. UN SEUL pas vertical pour toutes les lignes. Le pas ne peut pas venir
       d'un facteur d'interligne commun : les corps diffèrent (16 px pour le
       numéro, 30 pour le titre, 20 pour le reste), un même facteur donnerait
@@ -440,7 +444,9 @@ body img {
       commun n'est possible ; la mise en groupes y reste la bonne. */
 @media (max-width: 767px) {
   .photo-meta {
-    gap: 0;
+    /* `gap` volontairement absent : la valeur vient de la requête ≤ 1023 px
+       ci-dessus, pour qu'il n'existe qu'UN seul écart de groupe dans toute
+       la légende empilée. */
     /* La colonne n'est plus tendue à la hauteur d'une photo posée à côté :
        `space-between` n'a plus rien à répartir et pousserait la fiche
        technique au loin si un jour la légende était contrainte en hauteur. */
