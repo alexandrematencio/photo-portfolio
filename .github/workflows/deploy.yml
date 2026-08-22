@@ -7,6 +7,11 @@
 # Le montage « le calcul chez bfast » (docs/deploy/) reste documenté mais
 # n'est plus le chemin nominal.
 #
+# ⚠️ ÉTAT AU 2026-08-22 : ce workflow NE DÉMARRE PAS. Vérifié sur un run réel
+# (32585366582) — job arrêté en 3 secondes, zéro étape,
+# « The job was not started because your account is locked due to a billing
+# issue ». Le fichier est juste ; c'est le compte qui bloque.
+#
 # ⚠️ Ce workflow ne DÉMARRE que si le compte GitHub propriétaire du repo n'est
 # pas verrouillé pour facturation. Un verrou de compte arrête les jobs en
 # amont de tout : ni la visibilité publique du repo ni
@@ -21,9 +26,14 @@
 # ─────────────────────────────────────────────────────────────────────────────
 name: Deploy AMATENCIO PHOTO
 
+# PAS de déclencheur `push` — retiré le 2026-08-22 après vérification en
+# conditions réelles : le compte étant verrouillé, chaque push produisait un
+# run qui échouait en 3 secondes, sans une seule étape exécutée. Un voyant
+# rouge permanent sur chaque commit finit par ne plus rien vouloir dire. Le
+# jour où la facturation est régularisée, remettre :
+#   push:
+#     branches: [main]
 on:
-  push:
-    branches: [main]
   # Publication à la demande (bouton « Run workflow »).
   workflow_dispatch:
   # Crochet pour le webhook Sanity : un publish dans Studio déclenchera ceci,
