@@ -1,0 +1,75 @@
+# Deploy vers GitHub Pages.
+#
+# Rétabli le 2026-08-22, après avoir été retiré le 2026-05-25 au motif d'une
+# facturation Actions bloquante — motif erroné : le repo est PUBLIC, donc les
+# minutes Actions y sont illimitées et gratuites, y compris sur un compte free.
+#
+# Pourquoi il compte : le site est en `output: 'export'` avec les data Sanity
+# figées au build (CLAUDE.md §8.4). Sans ce workflow, chaque publish dans
+# Studio réclame qu'un développeur ouvre un laptop et relance `npm run deploy`.
+# Ici, un `workflow_dispatch` suffit — et un webhook Sanity pourra le
+# déclencher automatiquement le jour venu.
+#
+# Les URLs canoniques ne sont PAS injectées ici : elles viennent de
+# `.env.production`, commité, pour qu'un build local ne puisse pas non plus
+# publier autre chose. Une seule source, pas deux qui dérivent.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build static export
+        run: npm run build
+        env:
+          # Sanity — Repository Variables (Settings → Secrets and variables →
+          # Actions → Variables). Aucun secret : le build ne lit que le dataset
+          # publié, via des variables NEXT_PUBLIC_*.
+          NEXT_PUBLIC_SANITY_PROJECT_ID: ${{ vars.NEXT_PUBLIC_SANITY_PROJECT_ID }}
+          NEXT_PUBLIC_SANITY_DATASET: ${{ vars.NEXT_PUBLIC_SANITY_DATASET || 'production' }}
+          NEXT_PUBLIC_SANITY_API_VERSION: ${{ vars.NEXT_PUBLIC_SANITY_API_VERSION || '2026-01-01' }}
+
+      # `public/.nojekyll` est déjà commité et copié dans /out ; ce filet couvre
+      # le cas où il disparaîtrait — sans lui, GH Pages ignore `_next/*`.
+      - name: Add .nojekyll (skip GH Pages Jekyll processing)
+        run: touch out/.nojekyll
+
+      - uses: actions/configure-pages@v4
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
