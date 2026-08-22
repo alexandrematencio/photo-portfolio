@@ -20,6 +20,7 @@ import { lockBodyScroll, unlockBodyScroll } from '@/lib/utils/scrollLock';
  * enough to fully roll back. See the rollback note in app/(site)/splash-test.
  *
  * Honors `prefers-reduced-motion` (skips straight to onComplete). Escape skips.
+ * A scroll gesture hands the playhead over to the user — see MANUAL SCRUB.
  */
 
 const SPLASH_PHOTOS = [
@@ -27,6 +28,43 @@ const SPLASH_PHOTOS = [
   '/img/splashscreen/splash-active-2.jpg',
   '/img/splashscreen/splash-active-3.jpg',
 ] as const;
+
+// ── Manual scrub tuning (see the MANUAL SCRUB block in the effect) ────────
+/**
+ * Timeline seconds gained per pixel of scroll input. The choreography lasts
+ * ~4.1 s, so ~2400 px of gesture takes you from the first letter to the glyph
+ * landing — a few firm trackpad flicks, roughly two screen-heights of scroll.
+ * A single wheel notch (100 px ≈ 0.18 s) reads as a nudge.
+ *
+ * Deliberately HALF of what feels "responsive" in isolation: a trackpad flick
+ * carries hundreds of pixels, and at twice this rate the intro jumped ~10×
+ * its own speed on one gesture — a hard cut wearing the costume of a scrub,
+ * out of step with the rest of the site's motion. The gesture is meant to
+ * hurry the intro along, not to skip it.
+ */
+const SCRUB_SECONDS_PER_PX = 0.00175;
+/** Below this, the delta is trackpad noise (or a horizontal-ish gesture). */
+const SCRUB_MIN_DELTA_PX = 1;
+/** Playhead catch-up per frame — the inertia of a ScrollTrigger `scrub`. */
+const SCRUB_EASE = 0.18;
+/** Close enough to the target to snap onto it and stop the rAF loop. */
+const SCRUB_SNAP_SECONDS = 0.004;
+/** Idle time after the last gesture before automatic playback resumes. */
+const SCRUB_IDLE_RESUME_MS = 700;
+/**
+ * Damping of the speed readout. Heavy on purpose: the raw playhead rate
+ * swings wildly inside a single trackpad flick, and a digit that dances is
+ * exactly the kind of thing the splash is supposed not to do. At this value
+ * the readout settles on one number for most of a gesture.
+ */
+const SPEED_SMOOTHING = 0.08;
+/** Readout bounds. Floor: below ×2 it isn't worth announcing. Ceiling: keeps
+ *  the label two characters wide, so it never changes width mid-gesture. */
+const SPEED_MIN = 2;
+const SPEED_MAX = 9;
+
+/** The GSAP timeline type, without importing gsap eagerly for it. */
+type SplashTimeline = ReturnType<(typeof import('gsap'))['default']['timeline']>;
 
 /**
  * Event dispatched on `window` when the splash exits — either because the
@@ -246,6 +284,7 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
   const slotRef = useRef<HTMLDivElement>(null);
   const photoRefs = useRef<(HTMLDivElement | null)[]>([]);
   const glyphRef = useRef<HTMLDivElement>(null);
+  const speedRef = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
   // Guarantees SPLASH_REVEAL_EVENT fires AT MOST ONCE per mount — Esc pressed
   // after the glyph has already landed, for instance, must not re-dispatch.
@@ -389,6 +428,201 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
     let cancelled = false;
     let cleanup: (() => void) | null = null;
 
+    // ────────────────────────────────────────────────────────────────────
+    // MANUAL SCRUB — « quand elle me fait chier, je scrolle »
+    //
+    // A scroll gesture (wheel, trackpad, touch drag) suspends automatic
+    // playback and hands the playhead to the hand: pixels scrolled become
+    // timeline seconds, followed with a little inertia (same feel as a
+    // ScrollTrigger `scrub`). The whole choreography still runs — the glyph
+    // still lands on the hero, the seam is preserved — it just runs at the
+    // user's speed.
+    //
+    // Four things this is deliberately NOT, each one a way to break it:
+    //
+    //  1. NOT a dead end. Stop scrolling and, after SCRUB_IDLE_RESUME_MS,
+    //     automatic playback picks up from wherever the playhead was left.
+    //     A pure scrub would strand the splash half-played (overlay frozen,
+    //     body still locked) on a single wheel notch followed by a pause.
+    //  2. NOT bidirectional. Scrubbing back would re-cross the reveal point
+    //     — already fired and deduped, so the hero would keep its entrance
+    //     while the splash rewound OVER it. The gesture means "get on with
+    //     it", not "replay it": negative deltas are ignored.
+    //  3. NOT dependent on the timeline existing yet. Image preload + fonts
+    //     can take a second on a cold load; a gesture arriving before that
+    //     is banked and applied at hand-over, never swallowed.
+    //  4. NOT reliant on the timeline's own callbacks. `.time()` seeks are
+    //     event-suppressed in GSAP, so the reveal hand-off and the end of
+    //     the splash are driven explicitly from `afterSeek`.
+    //
+    // The gestures reach us even though the body is locked: the lock kills
+    // the scroll, not the events. It swallows them in the CAPTURE phase on
+    // `window` (so Lenis can't bank them, cf. lib/utils/scrollLock) with
+    // `stopPropagation`, not `stopImmediatePropagation` — which is exactly
+    // why our own capture-phase listener below still fires, whatever the
+    // registration order between the two.
+    // ────────────────────────────────────────────────────────────────────
+    let scrubTl: SplashTimeline | null = null;
+    let scrubFinish: (() => void) | null = null;
+    let revealTime = Number.POSITIVE_INFINITY;
+    let manual = false;
+    let scrubTarget = 0;
+    let bankedPx = 0;
+    let scrubRaf = 0;
+    let idleTimer = 0;
+    let touchY: number | null = null;
+
+    // Speed readout ("×3") — how much faster than real time the playhead is
+    // currently running. Written straight to the DOM: this updates on a rAF,
+    // React state would re-render the whole splash sixty times a second.
+    let smoothRate = 0;
+    let lastRateMs = 0;
+    let shownRate = 0;
+
+    const showReadout = (visible: boolean) => {
+      const el = speedRef.current;
+      if (el) el.style.opacity = visible ? '1' : '0';
+    };
+
+    const updateReadout = (advancedSeconds: number) => {
+      const el = speedRef.current;
+      if (!el) return;
+      const nowMs = performance.now();
+      const dt = lastRateMs ? (nowMs - lastRateMs) / 1000 : 0;
+      lastRateMs = nowMs;
+      // First frame has no dt, and a hitch (tab throttling, a long task)
+      // would report a fake rate — skip both rather than flash a wrong number.
+      if (!(dt > 0 && dt < 0.1)) return;
+      const rate = advancedSeconds / dt;
+      smoothRate =
+        smoothRate === 0 ? rate : smoothRate + (rate - smoothRate) * SPEED_SMOOTHING;
+      const shown = Math.max(SPEED_MIN, Math.min(SPEED_MAX, Math.round(smoothRate)));
+      if (shown !== shownRate) {
+        shownRate = shown;
+        el.textContent = `×${shown}`;
+      }
+    };
+
+    const resumeAuto = () => {
+      idleTimer = 0;
+      if (!manual || !scrubTl) return;
+      manual = false;
+      showReadout(false);
+      if (scrubRaf) {
+        cancelAnimationFrame(scrubRaf);
+        scrubRaf = 0;
+      }
+      scrubTl.play();
+    };
+
+    // The two moments the timeline would normally announce itself, checked by
+    // hand because seeking suppresses them. Both targets are idempotent
+    // (`dispatchReveal` dedups, `finish` guards), so the automatic path
+    // reaching them too costs nothing.
+    const afterSeek = (t: number) => {
+      if (t >= revealTime) dispatchReveal(false);
+      if (scrubTl && t >= scrubTl.duration() - SCRUB_SNAP_SECONDS) {
+        scrubFinish?.();
+      }
+    };
+
+    const stepScrub = () => {
+      scrubRaf = 0;
+      const tl = scrubTl;
+      if (!tl || !manual) return;
+      const now = tl.time();
+      const remaining = scrubTarget - now;
+      const next =
+        remaining < SCRUB_SNAP_SECONDS
+          ? scrubTarget
+          : now + remaining * SCRUB_EASE;
+      const t = Math.min(next, tl.duration());
+      tl.time(t);
+      updateReadout(t - now);
+      afterSeek(t);
+      if (remaining >= SCRUB_SNAP_SECONDS && manual) {
+        scrubRaf = requestAnimationFrame(stepScrub);
+      }
+    };
+
+    const onScrollIntent = (px: number) => {
+      if (!(px >= SCRUB_MIN_DELTA_PX)) return; // NaN-safe, forward-only
+      const tl = scrubTl;
+      if (!tl) {
+        bankedPx += px;
+        return;
+      }
+      if (!manual) {
+        manual = true;
+        tl.pause();
+        scrubTarget = tl.time();
+        smoothRate = 0;
+        lastRateMs = 0;
+        shownRate = SPEED_MIN;
+        if (speedRef.current) speedRef.current.textContent = `×${SPEED_MIN}`;
+        showReadout(true);
+      }
+      scrubTarget = Math.min(
+        tl.duration(),
+        scrubTarget + px * SCRUB_SECONDS_PER_PX
+      );
+      if (idleTimer) window.clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(resumeAuto, SCRUB_IDLE_RESUME_MS);
+      if (!scrubRaf) scrubRaf = requestAnimationFrame(stepScrub);
+    };
+
+    /**
+     * Hand the built timeline over to the controller. Called at the very end
+     * of the build, where `TRAVEL_END` and `duration()` are final — and where
+     * the playhead is still at 0, the whole build being synchronous.
+     */
+    const attachScrub = (
+      tl: SplashTimeline,
+      finish: () => void,
+      revealAt: number
+    ) => {
+      scrubTl = tl;
+      scrubFinish = finish;
+      revealTime = revealAt;
+      if (bankedPx > 0) {
+        const px = bankedPx;
+        bankedPx = 0;
+        onScrollIntent(px);
+      }
+    };
+
+    // deltaMode: 0 = pixels, 1 = lines (Firefox), 2 = pages.
+    const onWheel = (e: WheelEvent) => {
+      const unit =
+        e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1;
+      onScrollIntent(e.deltaY * unit);
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      touchY = e.touches[0]?.clientY ?? null;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY;
+      if (y === undefined || touchY === null) return;
+      onScrollIntent(touchY - y); // finger travelling up = moving forward
+      touchY = y;
+    };
+    const onTouchEnd = () => {
+      touchY = null;
+    };
+
+    // Capture phase + passive: we only READ the deltas here. Cancelling them
+    // is the scroll lock's job (and it is already holding, this component
+    // locks on mount).
+    const gestureOpts: AddEventListenerOptions = {
+      capture: true,
+      passive: true,
+    };
+    window.addEventListener('wheel', onWheel, gestureOpts);
+    window.addEventListener('touchstart', onTouchStart, gestureOpts);
+    window.addEventListener('touchmove', onTouchMove, gestureOpts);
+    window.addEventListener('touchend', onTouchEnd, gestureOpts);
+    window.addEventListener('touchcancel', onTouchEnd, gestureOpts);
+
     // Preload all splash images so the cycle is smooth on first paint. Raw
     // JPEGs in /public/ can be 3-13 MB each (test-grade source files); without
     // preload the wipe-in reveals would render half-blank frames.
@@ -520,13 +754,18 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
         .filter(({ rect }) => rect.width > 50)
         .sort((a, b) => b.rect.width - a.rect.width)[0];
 
-      const tl = gsap.timeline({
-        onComplete: () => {
-          if (cancelled) return;
-          onComplete?.();
-          setMounted(false);
-        },
-      });
+      // Single exit door, shared by the automatic playhead and the manual
+      // scrub (which seeks with `.time()` and therefore never triggers the
+      // timeline's own onComplete). Idempotent — both can reach it.
+      let finished = false;
+      const finish = () => {
+        if (cancelled || finished) return;
+        finished = true;
+        onComplete?.();
+        setMounted(false);
+      };
+
+      const tl = gsap.timeline({ onComplete: finish });
 
       // 1 — Letters rise + fade in together.
       tl.fromTo(
@@ -639,6 +878,8 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
       // glyph, so the handoff reads as one continuous element.
       tl.to(overlay, { opacity: 0, duration: 0.4, ease: 'power2.in' }, TRAVEL_END);
 
+      attachScrub(tl, finish, TRAVEL_END);
+
       cleanup = () => {
         tl.kill();
       };
@@ -647,6 +888,13 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
     return () => {
       cancelled = true;
       cleanup?.();
+      window.removeEventListener('wheel', onWheel, gestureOpts);
+      window.removeEventListener('touchstart', onTouchStart, gestureOpts);
+      window.removeEventListener('touchmove', onTouchMove, gestureOpts);
+      window.removeEventListener('touchend', onTouchEnd, gestureOpts);
+      window.removeEventListener('touchcancel', onTouchEnd, gestureOpts);
+      if (scrubRaf) cancelAnimationFrame(scrubRaf);
+      if (idleTimer) window.clearTimeout(idleTimer);
       // Restore the browser's native scroll restoration so subsequent reloads
       // (which SKIP the splash) keep their position as before.
       if (prevScrollRestoration !== null) {
@@ -679,7 +927,8 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
           // entre ALX et MTNC) tout en laissant un gap visible à la fin de
           // l'expansion. gap-0 faisait littéralement toucher les glyphs aux
           // bords du slot, ce qui paraissait trop tight visuellement.
-          'flex items-center gap-2 leading-none',
+          // `relative` : positioning context for the speed readout below.
+          'relative flex items-center gap-2 leading-none',
           // verticalMobile: stack ALX / slot / MTNC vertically on < md. The
           // column shrinks to its widest child (MTNC), `items-start` aligns
           // ALX and the slot on that left edge. The OUTER overlay's
@@ -740,6 +989,33 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
         >
           MTNC
         </span>
+
+        {/* Speed readout — only visible while the user is scrubbing the intro
+            by hand (see MANUAL SCRUB). ABSOLUTE on purpose, not a flex child:
+            the glyph's travel target is measured from the slot's rect at
+            mount, so anything able to reflow the row AFTER that measurement
+            would land the glyph beside its hero position. Out of flow, the
+            composition stays put whether the readout is there or not — and it
+            can appear mid-animation without shifting a single pixel.
+            No positive letter-spacing (CLAUDE.md §4): the skip link remains
+            the only place on the site that carries one. */}
+        <div
+          ref={speedRef}
+          className={cn(
+            'absolute top-full left-1/2 -translate-x-1/2',
+            'mt-[clamp(16px,3.5vw,36px)]',
+            'font-mono text-[clamp(11px,1.1vw,14px)] leading-none',
+            'text-[var(--color-fg-muted)] select-none',
+            'transition-opacity duration-200 ease-out',
+            // Vertical mobile stacks ALX / slot / MTNC left-aligned
+            // (items-start), so the readout follows that edge rather than the
+            // block's centre — otherwise it floats off on its own axis.
+            verticalMobile && 'max-md:left-0 max-md:translate-x-0'
+          )}
+          style={{ opacity: 0 }}
+        >
+          ×2
+        </div>
       </div>
 
       {/* Glyph wrapper — fixed-positioned sibling of the row so the travel
