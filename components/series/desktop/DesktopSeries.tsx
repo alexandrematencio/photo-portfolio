@@ -71,6 +71,14 @@ const FOOTER_REVEAL_DUR = 0.26;
 const NAV_MIN_INTERVAL_MS = 80;
 const SWAP_MIN_DUR = 0.22;
 
+/**
+ * Plancher de durée d'un CHANGEMENT DE SÉRIE. Même doctrine que
+ * SWAP_MIN_DUR : la transition accélère avec le rythme des demandes, elle
+ * n'est jamais sautée. 0,3 s garde le même rapport au plafond que 0,22 s sur
+ * un échange de 0,45 s — le vol reste lisible comme un mouvement.
+ */
+const SWITCH_MIN_DUR = 0.3;
+
 type Captured = {
   layer: GhostLayer;
   colGhosts: HTMLImageElement[];
@@ -121,6 +129,52 @@ type SwapChain = {
   epoch: number;
 };
 
+/**
+ * Chaîne de CHANGEMENTS DE SÉRIE — transposition stricte de la chaîne
+ * d'échanges de photos ci-dessus (demande Alexandre du 2026-08-22, qui
+ * remplace la règle « un changement de série est bloquant » décidée la
+ * veille : on n'attend plus la fin de la transition pour enchaîner).
+ *
+ * Les trois mêmes principes :
+ *   1. un vol commencé se joue EN ENTIER — il ACCÉLÈRE (timeScale), il n'est
+ *      jamais coupé ;
+ *   2. politique « retarget » : une demande pendant un vol ÉCRASE la cible en
+ *      attente — on file droit à la dernière série demandée, les
+ *      intermédiaires sont sautées ;
+ *   3. le raccord clone → réel n'a lieu qu'UNE fois, à la fin de la traîne.
+ *      Conséquence directe : le CENTRE est cloné lui aussi. Avant la chaîne,
+ *      l'image centrale réelle se révélait pendant le vol, ce qui obligeait à
+ *      attendre son fichier (`preloadCapped`, jusqu'à 350 ms) avant même de
+ *      jouer — exactement le temps mort qu'on supprime ici.
+ */
+type SwitchChain = {
+  /** Couche des clones de COUVERTURE (z 61, au-dessus des sortants). */
+  layer: GhostLayer;
+  /** Clones posés sur la colonne à l'issue du dernier vol. */
+  cover: HTMLImageElement[];
+  /** Clone posé sur l'image centrale. */
+  centerGhost: HTMLImageElement | null;
+  /** Couche des sortants du vol en cours (1er vol : clones du réel). */
+  outLayer: GhostLayer | null;
+  /**
+   * Un vol a déjà couvert l'écran de clones. Décide qui fournit les SORTANTS
+   * du prochain vol : le réel (faux — capture avant le re-render) ou la
+   * couverture (vrai — recopie). La chaîne existe avant son premier vol, ce
+   * booléen est donc le seul test valable.
+   */
+  started: boolean;
+  /** Vol en l'air (null = en traîne : raccord/fondu de fin). */
+  tl: gsap.core.Timeline | null;
+  /** Série où la chaîne SE REND (dernier vol parti ou cible en attente). */
+  headSlug: string;
+  /** Cible en attente, ÉCRASÉE par chaque nouvelle demande (retarget). */
+  pending: { slug: string; index: number } | null;
+  /** Durée du prochain vol (suit le rythme des demandes). */
+  nextDur: number;
+  /** Invalidation des continuations asynchrones de traîne. */
+  epoch: number;
+};
+
 export function DesktopSeries({
   series,
   openSeries,
@@ -153,6 +207,11 @@ export function DesktopSeries({
   // vie, `animating` reste vrai (clics et molette gelés comme pour tout vol),
   // mais le CLAVIER, lui, continue d'être admis selon la politique.
   const chainRef = useRef<SwapChain | null>(null);
+  // Chaîne de changements de série en cours (voir le type SwitchChain). Même
+  // régime que ci-dessus : `animating` reste vrai (clics de vignette et molette
+  // gelés), mais ↑ / ↓ et les noms de la colonne de gauche restent vivants.
+  const switchChainRef = useRef<SwitchChain | null>(null);
+  const lastSwitchRef = useRef(0);
   // Index LOGIQUE : là où l'UI est ou SE REND (cible du vol en cours). Le
   // clavier raisonne dessus — la prop `activeIndex`, elle, a un re-render de
   // retard quand un vol vient d'être committé dans le même tick.
@@ -288,7 +347,19 @@ export function DesktopSeries({
       const photo = displayed.photos[i];
       if (photo) void warmHq(centerSrcFor(photo));
     }
-  }, [phase, displayed, activeIndex, warmHq]);
+    // Séries VOISINES (↑ / ↓) : leur première photo, pour que le clone central
+    // d'un changement de série parte net. Le vol ne l'attend plus (il joue
+    // aussitôt et s'affine en place) — c'est la chauffe qui rend la netteté
+    // gratuite, plus le temps mort qu'elle remplace.
+    const si = series.findIndex((s) => s.slug === displayed.slug);
+    if (si < 0) return;
+    for (const d of [1, -1]) {
+      const s = series[(si + d + series.length) % series.length];
+      if (!s || s.slug === displayed.slug) continue;
+      const p = s.photos[0];
+      if (p) void warmHq(centerSrcFor(p));
+    }
+  }, [phase, displayed, activeIndex, series, warmHq]);
 
   /**
    * Colonne de vignettes : en haut par défaut, défilée pour montrer la
@@ -393,8 +464,15 @@ export function DesktopSeries({
       setPhase('closing');
     } else if (prev && target) {
       // Capturer l'ANCIENNE colonne MAINTENANT, avant que React ne re-rende
-      // la vue avec la nouvelle série.
-      capturedRef.current = captureOpenGhosts(sceneRef.current);
+      // la vue avec la nouvelle série. Sauf en CHAÎNE : le réel y est masqué
+      // depuis le premier vol, ce qui est à l'écran ce sont les clones de
+      // couverture — runSwitch les recopie lui-même (cf. SwitchChain).
+      // ⚠️ Le test porte sur `started`, PAS sur l'existence de la chaîne : elle
+      // est créée par `requestSwitchTo`, donc AVANT ce passage, dès le premier
+      // vol — qui a besoin, lui, des clones du réel.
+      capturedRef.current = switchChainRef.current?.started
+        ? null
+        : captureOpenGhosts(sceneRef.current);
       pendingRef.current = { type: 'switch' };
       setDisplayed(target);
       setPhase('switching');
@@ -430,14 +508,19 @@ export function DesktopSeries({
         animating.current = false;
       });
     } else if (pending.type === 'switch' && displayed) {
-      runSwitch(scene, capturedRef.current, displayed, () => {
-        capturedRef.current = null;
-        setPhase('open');
-        animating.current = false;
-      });
+      const captured = capturedRef.current;
+      capturedRef.current = null;
+      // Pas de `done` ici : un switch est un MAILLON de chaîne, c'est sa
+      // traîne (switchTail) qui rend la main — au plus tôt à la fin du
+      // dernier vol enchaîné.
+      runSwitch(scene, captured, displayed);
     }
+    // `displayed` dans les deps, et pas seulement `phase` : deux changements de
+    // série qui s'enchaînent laissent `phase` sur 'switching', l'effet ne
+    // rejouerait pas et le vol suivant ne partirait jamais. Les autres commits
+    // de `displayed` sortent par le early-return de `pendingRef`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
+  }, [phase, displayed]);
 
   // ── Les quatre vols ───────────────────────────────────────────────────────
 
@@ -622,20 +705,61 @@ export function DesktopSeries({
     tl.to(otherStacks, { autoAlpha: 1, y: 0, duration: DUR.fade }, DUR.close - 0.3);
   }
 
+  /**
+   * UN MAILLON de la chaîne de changements de série (cf. SwitchChain).
+   *
+   * `captured` n'est fourni que pour le PREMIER vol de la chaîne (clones du
+   * réel, pris avant que React ne re-rende la colonne). Pour les suivants, les
+   * sortants sont des RECOPIES des clones de couverture à leur position
+   * courante : un clone déjà volé n'est jamais réutilisé pour un second vol,
+   * ses transforms composeraient faux (même règle qu'en `chainFlight`).
+   */
   function runSwitch(
     scene: HTMLElement,
     captured: Captured | null,
-    target: PreparedSeries,
-    done: () => void
+    target: PreparedSeries
   ) {
-    const layer = createGhostLayer();
+    const chain =
+      switchChainRef.current ?? beginSwitchChain(target.slug, DUR.switch);
+    chain.epoch++;
+    const layer = chain.layer;
     const centerWrap = q('[data-center-wrap]');
-    const colItems = scene.querySelectorAll('[data-col-item]');
+    const colItems = Array.from(scene.querySelectorAll('[data-col-item]'));
+    // Le réel reste masqué toute la vie de la chaîne — CENTRE COMPRIS. Il se
+    // révélait en vol jusqu'ici, ce qui imposait d'attendre son fichier avant
+    // de jouer ; il n'est plus dévoilé qu'à la traîne. Pré-paint : pas de flash.
     gsap.set([centerWrap, ...colItems].filter(Boolean), { autoAlpha: 0 });
 
     // Colonne posée AVANT toute mesure (voir settleColScroll).
     settleColScroll();
 
+    // ── Sortants ────────────────────────────────────────────────────────────
+    const outCols: HTMLImageElement[] = [];
+    let outCenter: HTMLImageElement | null = null;
+    if (captured) {
+      outCols.push(...captured.colGhosts);
+      outCenter = captured.centerGhost;
+    } else {
+      for (const g of chain.cover) {
+        const r = rectOf(g);
+        if (r) outCols.push(spawnGhost(layer, g, r));
+        g.remove();
+      }
+      if (chain.centerGhost) {
+        const r = rectOf(chain.centerGhost);
+        if (r) {
+          outCenter = spawnGhost(layer, chain.centerGhost, r);
+          outCenter.style.objectFit = 'contain';
+        }
+        chain.centerGhost.remove();
+      }
+    }
+    chain.cover = [];
+    chain.centerGhost = null;
+    chain.outLayer = captured?.layer ?? null;
+    chain.started = true;
+
+    // ── Entrants ────────────────────────────────────────────────────────────
     // Point d'apparition : la POSITION DE LA SÉRIE au moment du clic — son
     // nom dans la colonne de gauche (seule incarnation visible de la série en
     // vue ouverte). Les photos en jaillissent, glissent le long de l'horizon
@@ -667,52 +791,260 @@ export function DesktopSeries({
       const ghost = spawnGhost(layer, img, from);
       ghost.style.opacity = '0';
       flights.push({ ghost, from, to });
+      chain.cover.push(ghost);
     });
 
-    const tl = gsap.timeline({
-      onComplete: () => {
-        const settleImgs: (HTMLImageElement | null)[] = [
-          q<HTMLImageElement>('[data-center-img]'),
-        ];
-        scene
-          .querySelectorAll<HTMLImageElement>('[data-col-img]')
-          .forEach((img) => {
-            const r = rectOf(img);
-            if (r && isOnScreen(r)) settleImgs.push(img);
-          });
-        void whenSettled(settleImgs).then(() => {
-          gsap.set([centerWrap, ...colItems].filter(Boolean), { autoAlpha: 1 });
-          // Même garde anti-clignotement que runOpen : couvrir le fondu CSS.
-          // La couche capturée (ancienne série) est déjà sortie par la droite,
-          // on la retire sans fondu supplémentaire ; seule la couche entrante
-          // se dissout par-dessus le réel, une fois son fondu CSS terminé.
-          captured?.layer.destroy();
-          fadeOutLayer(layer, { delay: HANDOFF_DELAY, onComplete: done });
+    // Clone du centre : il prend la place que la vraie image occupait dans la
+    // recette d'origine. Sa source suit la règle de netteté des échanges : le
+    // 1600 px s'il est DÉJÀ décodé, sinon l'URL 280 px de la vignette de la
+    // colonne (strictement la même chaîne que le clone entrant correspondant —
+    // une URL unique, donc un seul fichier CDN), et il s'affine en place dès
+    // que le 1600 px est décodé.
+    const centerImg = q<HTMLImageElement>('[data-center-img]');
+    const centerRect = rectOf(centerImg);
+    const active = target.photos[activeIndex] ?? target.photos[0];
+    const hqSrc = active ? centerSrcFor(active) : '';
+    let centerGhost: HTMLImageElement | null = null;
+    if (centerImg && centerRect) {
+      // L'image réelle est déjà affichable (série revisitée) → on la garde ;
+      // sinon la meilleure source décodée, sinon la vignette de colonne.
+      const loaded = centerImg.complete && centerImg.naturalWidth > 0;
+      const seed = loaded
+        ? ''
+        : hqReadyRef.current.has(hqSrc)
+          ? hqSrc
+          : (colImg(activeIndex)?.src ?? '');
+      centerGhost = spawnGhost(layer, centerImg, centerRect);
+      // Le rect cloné porte exactement le ratio de la photo (aspect-ratio posé
+      // depuis Sanity), mais la source d'amorce, elle, peut être la vignette :
+      // `contain` garantit qu'aucun recadrage ne s'invite le temps du vol.
+      centerGhost.style.objectFit = 'contain';
+      if (seed) centerGhost.src = seed;
+      centerGhost.style.opacity = '0';
+      chain.centerGhost = centerGhost;
+      if (hqSrc && seed !== hqSrc) {
+        void warmHq(hqSrc).then((ok) => {
+          if (ok && centerGhost?.isConnected) centerGhost.src = hqSrc;
         });
-      },
-      paused: true,
-    });
-    if (captured) {
-      flyOutRight(tl, captured.colGhosts, { at: 0 });
-      if (captured.centerGhost) {
-        tl.to(captured.centerGhost, { autoAlpha: 0, duration: DUR.fade }, 0);
       }
     }
+
+    // ── Vol ─────────────────────────────────────────────────────────────────
+    // Les temps de la recette suivent la durée demandée : cascade, fondus et
+    // décalage d'entrée sont mis à l'échelle ensemble, sans quoi un vol
+    // accéléré verrait sa cascade dépasser sa propre durée.
+    const dur = chain.nextDur;
+    const k = dur / DUR.switch;
+
+    const tl = gsap.timeline({
+      paused: true,
+      onComplete: () => {
+        chain.tl = null;
+        // Les sortants ont fini leur course (glissés hors champ ou fondus) :
+        // ils ne couvrent plus rien, on les retire tout de suite. La
+        // COUVERTURE, elle, reste posée jusqu'à la traîne.
+        if (chain.outLayer) chain.outLayer.destroy();
+        else {
+          for (const g of outCols) g.remove();
+          outCenter?.remove();
+        }
+        chain.outLayer = null;
+        const next = chain.pending;
+        chain.pending = null;
+        // `next.slug === target.slug` : aller-retour ↓ puis ↑ pendant le vol —
+        // la série demandée est déjà celle qu'on affiche. Sans ce test, le
+        // `onOpen` ne changerait rien, la réconciliation sortirait par son
+        // early-return et la chaîne resterait suspendue sans traîne.
+        if (next && next.slug !== target.slug) {
+          indexRef.current = next.index;
+          onOpen(next.slug, next.index);
+        } else {
+          switchTail(chain);
+        }
+      },
+    });
+    if (outCols.length) {
+      flyOutRight(tl, outCols, {
+        duration: dur * 0.75,
+        stagger: 0.015 * k,
+        at: 0,
+      });
+    }
+    if (outCenter) tl.to(outCenter, { autoAlpha: 0, duration: DUR.fade * k }, 0);
     // Fondu d'apparition calé sur la cascade des vols (même STAGGER).
     flights.forEach(({ ghost }, i) =>
-      tl.to(ghost, { opacity: 1, duration: 0.12 }, 0.12 + i * STAGGER)
+      tl.to(ghost, { opacity: 1, duration: 0.12 * k }, (0.12 + i * STAGGER) * k)
     );
-    flyCurved(tl, flights, { duration: DUR.switch, at: 0.12 });
-    if (centerWrap) {
-      tl.fromTo(
-        centerWrap,
-        { autoAlpha: 0 },
-        { autoAlpha: 1, duration: DUR.fade },
-        0.25
-      );
+    flyCurved(tl, flights, {
+      duration: dur,
+      stagger: STAGGER * k,
+      at: 0.12 * k,
+    });
+    if (centerGhost) {
+      tl.to(centerGhost, { opacity: 1, duration: DUR.fade * k }, 0.25 * k);
     }
-    const centerSrc = q<HTMLImageElement>('[data-center-img]')?.src ?? '';
-    void preloadCapped(centerSrc).then(() => tl.play());
+    chain.tl = tl;
+
+    if (captured) {
+      // Vol ISOLÉ (premier de la chaîne) : on laisse une chance courte au
+      // 1600 px d'être décodé, pour que le centre parte net comme avant. En
+      // CHAÎNE, plus aucune attente — c'est tout l'objet du chantier : le
+      // clone démarre sur ce qui est disponible et s'affine en vol.
+      void Promise.race([
+        warmHq(hqSrc),
+        new Promise<void>((r) => setTimeout(r, 300)),
+      ]).then(() => tl.play());
+    } else {
+      tl.play();
+    }
+  }
+
+  // ── Chaîne de changements de série (voir le type SwitchChain) ────────────
+
+  function beginSwitchChain(headSlug: string, dur: number): SwitchChain {
+    const chain: SwitchChain = {
+      // z 61 : la couverture passe au-dessus des sortants quel que soit
+      // l'ordre de création des couches (cf. createGhostLayer).
+      layer: createGhostLayer(61),
+      cover: [],
+      centerGhost: null,
+      outLayer: null,
+      started: false,
+      tl: null,
+      headSlug,
+      pending: null,
+      nextDur: dur,
+      epoch: 0,
+    };
+    switchChainRef.current = chain;
+    return chain;
+  }
+
+  /**
+   * Point d'entrée UNIQUE d'un changement de série — clic sur un nom de la
+   * colonne de gauche comme flèches ↑ / ↓, et débordement de série par ← / →.
+   * Pas de chaîne → nouveau vol. Vol en l'air → la cible en attente est
+   * ÉCRASÉE (retarget) et le vol en cours ACCÉLÈRE ; il n'est jamais coupé.
+   * Traîne de fin → reprise directe de la chaîne.
+   */
+  function requestSwitchTo(slug: string, index = 0) {
+    if (!displayed) return;
+    const chain = switchChainRef.current;
+    // La tête de chaîne, pas `displayed` : pendant un vol, la série demandée
+    // se calcule depuis là où l'on SE REND, pas depuis ce qui est affiché.
+    const head = chain?.headSlug ?? displayed.slug;
+    if (slug === head) return;
+    // Mouvement réduit / branche cachée : pas de vol, donc pas de chaîne.
+    if (reduced || sceneRef.current?.offsetParent === null) {
+      indexRef.current = index;
+      onOpen(slug, index);
+      return;
+    }
+    const now = performance.now();
+    const dur = Math.min(
+      DUR.switch,
+      Math.max(SWITCH_MIN_DUR, (now - lastSwitchRef.current) / 1000)
+    );
+    lastSwitchRef.current = now;
+
+    if (!chain) {
+      // Ouverture / fermeture / chaîne d'échanges en cours : on laisse finir.
+      if (animating.current) return;
+      animating.current = true;
+      beginSwitchChain(slug, dur);
+      indexRef.current = index;
+      onOpen(slug, index);
+      return;
+    }
+    chain.headSlug = slug;
+    chain.nextDur = dur;
+    if (chain.tl) {
+      chain.pending = { slug, index }; // écrase : on file à la dernière demandée
+      chain.tl.timeScale(Math.min(3, chain.tl.timeScale() * 1.6));
+    } else {
+      switchResume(chain);
+      indexRef.current = index;
+      onOpen(slug, index);
+    }
+  }
+
+  /**
+   * Reprise depuis la traîne : le fondu de la couche est tué et son opacité
+   * REMISE À 1 — un fondu à moitié fait laisserait les clones translucides et
+   * le fond transparaîtrait (même famille de bug que le blink de couverture).
+   * Le réel révélé par la traîne est re-masqué par le runSwitch suivant, en
+   * pré-paint.
+   */
+  function switchResume(chain: SwitchChain) {
+    chain.epoch++;
+    gsap.killTweensOf(chain.layer.el);
+    chain.layer.el.style.opacity = '1';
+  }
+
+  /**
+   * Traîne de fin de chaîne — le SEUL raccord clone → réel de toute la
+   * chaîne : décodage du centre et des vignettes visibles, reveal du réel
+   * SOUS les clones intacts, PUIS fondu de la couche (HANDOFF_DELAY).
+   */
+  function switchTail(chain: SwitchChain) {
+    const scene = sceneRef.current;
+    const myEpoch = ++chain.epoch;
+    const settleImgs: (HTMLImageElement | null)[] = [
+      q<HTMLImageElement>('[data-center-img]'),
+    ];
+    scene
+      ?.querySelectorAll<HTMLImageElement>('[data-col-img]')
+      .forEach((img) => {
+        const r = rectOf(img);
+        if (r && isOnScreen(r)) settleImgs.push(img);
+      });
+    void whenSettled(settleImgs, 4000).then(() => {
+      if (switchChainRef.current !== chain || chain.epoch !== myEpoch) return;
+      revealOpenReals();
+      fadeOutLayer(chain.layer, {
+        delay: HANDOFF_DELAY,
+        onComplete: () => {
+          if (switchChainRef.current !== chain) return;
+          switchChainRef.current = null;
+          animating.current = false;
+          setPhase('open');
+        },
+      });
+    });
+  }
+
+  /**
+   * Rend au centre et aux vignettes leur apparence de feuille de style.
+   * `clearProps` et non `autoAlpha: 1` : la vignette active porte une classe
+   * `opacity-40` qu'une opacité inline écraserait — elle resterait pleine
+   * jusqu'au premier échange.
+   */
+  function revealOpenReals() {
+    const scene = sceneRef.current;
+    const targets = [
+      q('[data-center-wrap]'),
+      ...Array.from(scene?.querySelectorAll('[data-col-item]') ?? []),
+    ].filter(Boolean);
+    if (targets.length) gsap.set(targets, { clearProps: 'opacity,visibility' });
+  }
+
+  /**
+   * Pose l'état de la chaîne D'UN COUP (Échap) : vol tué, clones retirés, réel
+   * révélé, main rendue. Réservé à la fermeture — pour la navigation, un vol
+   * commencé se joue toujours en entier.
+   */
+  function abortSwitchChain() {
+    const chain = switchChainRef.current;
+    if (!chain) return;
+    chain.epoch++;
+    chain.tl?.kill();
+    gsap.killTweensOf(chain.layer.el);
+    chain.outLayer?.destroy();
+    chain.layer.destroy();
+    revealOpenReals();
+    switchChainRef.current = null;
+    animating.current = false;
+    setPhase('open');
   }
 
   // ── Chaîne d'échanges clavier (voir le type SwapChain) ───────────────────
@@ -981,22 +1313,26 @@ export function DesktopSeries({
   }
 
   // Passage de série : MÊME transition que le clic sur un nom de la colonne
-  // de gauche (runSwitch via la réconciliation openSeries → displayed).
+  // de gauche — les deux passent par `requestSwitchTo`, donc par la chaîne.
   // L'ordre est celui de la rangée (seriesOrder), cyclique. `entry` : 'last'
   // quand on entre à reculons (flèche gauche depuis la 1re photo).
   function goToSeries(dir: 1 | -1, entry: 'first' | 'last') {
     if (!displayed) return;
-    const i = series.findIndex((s) => s.slug === displayed.slug);
+    // Le pas se compte depuis la TÊTE de chaîne : trois ↓ d'affilée doivent
+    // descendre de trois séries, même si aucun vol n'a eu le temps de se poser.
+    const base = switchChainRef.current?.headSlug ?? displayed.slug;
+    const i = series.findIndex((s) => s.slug === base);
     if (i < 0) return;
     const target = series[(i + dir + series.length) % series.length];
     const index = entry === 'last' ? Math.max(0, target.photos.length - 1) : 0;
     // Série unique : le tour cyclique retombe sur elle-même — simple échange.
-    if (target.slug === displayed.slug) {
-      if (index !== indexRef.current) handleSelect(index);
+    if (target.slug === base) {
+      if (!switchChainRef.current && index !== indexRef.current) {
+        handleSelect(index);
+      }
       return;
     }
-    indexRef.current = index;
-    onOpen(target.slug, index);
+    requestSwitchTo(target.slug, index);
   }
   useEffect(() => {
     goToSeriesRef.current = goToSeries;
@@ -1007,16 +1343,21 @@ export function DesktopSeries({
   // taps, ↑ / ↓ passent à la série précédente / suivante (le sens suit la
   // colonne de noms : ↓ descend vers la série d'en dessous). Dépasser un bout
   // de série avec ← / → continue dans la voisine — à reculons, sur sa
-  // DERNIÈRE photo. Un changement de série se joue toujours EN ENTIER,
-  // touches ignorées pendant la transition, qu'importe la direction (décision
-  // Alexandre 2026-08-22) ; demandé pendant une chaîne d'échanges, il part
-  // dès qu'elle s'est posée.
+  // DERNIÈRE photo.
+  //
+  // Le changement de série suit désormais EXACTEMENT le régime de l'échange
+  // de photo (décision Alexandre 2026-08-22, qui remplace le « bloquant » de
+  // la veille) : le clavier reste vivant pendant la transition, le vol en
+  // cours accélère, la cible est retargetée. D'où la phase 'switching' admise
+  // ici. Demandé pendant une chaîne d'ÉCHANGES, il part encore à la fin de sa
+  // traîne — couper un échange en cours casserait son raccord.
   useEffect(() => {
-    if (phase !== 'open') return;
+    if (phase !== 'open' && phase !== 'switching') return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        // Une fermeture part d'un état posé : la chaîne est posée d'un coup.
+        // Une fermeture part d'un état posé : les chaînes sont posées d'un coup.
         abortChain();
+        abortSwitchChain();
         if (!animating.current) onClose();
         return;
       }
@@ -1041,18 +1382,24 @@ export function DesktopSeries({
       const dur = Math.min(DUR.swap, Math.max(SWAP_MIN_DUR, interval / 1000));
 
       const chain = chainRef.current;
-      // Switch / ouverture / fermeture en cours : on laisse finir.
-      if (!chain && animating.current) return;
 
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         const dir: 1 | -1 = e.key === 'ArrowDown' ? 1 : -1;
+        // Chaîne d'échanges en cours : le changement part à la fin de sa
+        // traîne. `goToSeries` gère tout le reste (chaîne de switch en cours,
+        // ouverture/fermeture qu'on laisse finir).
         if (chain) chain.pendingSwitch ??= { dir, entry: 'first' };
         else goToSeries(dir, 'first');
         return;
       }
 
       const dir: 1 | -1 = e.key === 'ArrowRight' ? 1 : -1;
-      if (chain?.pendingSwitch) return; // on quitte déjà la série
+      // On quitte déjà la série : les échanges attendent que le changement
+      // soit posé (sa colonne de destination n'existe pas encore).
+      if (switchChainRef.current) return;
+      // Ouverture / fermeture en cours : on laisse finir.
+      if (!chain && animating.current) return;
+      if (chain?.pendingSwitch) return;
       const head = chain ? chain.headIndex : indexRef.current;
       const to = head + dir;
       if (to < 0 || to >= displayed.photos.length) {
@@ -1290,7 +1637,11 @@ export function DesktopSeries({
           data-open-root
           className={cn(
             'absolute inset-0',
-            phase !== 'open' && 'pointer-events-none'
+            // 'switching' garde la main : la colonne de noms est le seul
+            // élément encore visible et cliquable pendant un changement (le
+            // centre et les vignettes sont masqués par les vols), et cliquer un
+            // autre nom doit retarger la chaîne — équivalent souris de ↓ ↓.
+            phase !== 'open' && phase !== 'switching' && 'pointer-events-none'
           )}
           // paddingTop 24 (et non 48) : la scène ne fait plus toute la hauteur
           // visible depuis que le footer y tient, et le chrome de l'image
@@ -1304,7 +1655,7 @@ export function DesktopSeries({
             displayed={displayed}
             activeIndex={activeIndex}
             onClose={guard(onClose)}
-            onSwitch={(slug) => guard(() => onOpen(slug))()}
+            onSwitch={(slug) => requestSwitchTo(slug)}
             onSelect={handleSelect}
           />
         </div>
