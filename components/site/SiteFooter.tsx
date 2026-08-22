@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { asset } from '@/lib/utils/asset';
 
 /**
  * Exact replication of the footer in resources/alxmtc-footer.pen (full scan).
@@ -51,7 +52,7 @@ export function SiteFooter() {
           aria-label="A. Matencio — home"
         >
           <img
-            src="/img/logos/glyph-alxmtnc-gray.svg"
+            src={asset('/img/logos/glyph-alxmtnc-gray.svg')}
             width={32}
             height={30}
             alt=""
