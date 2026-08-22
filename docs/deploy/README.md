@@ -51,6 +51,27 @@ Le compte déployeur est **`bfastdev`** (compte utilisateur, vérifié existant)
 Trois des quatre étapes le réclament, et l'agent ne l'a pas : sa session `gh`
 est authentifiée en `alexandrematencio`.
 
+> **Raccourci — état au 2026-08-22.** L'étape 1 est **faite** : la clé
+> `160970399` est posée en read-write sur le repo du site, sa moitié privée est
+> dans `~/.ssh/amatencio-gh-pages-deploy`. Les étapes 2 à 4 sont scriptées dans
+> **`bootstrap-deployer.sh`**, à côté de ce fichier. Deux commandes :
+>
+> ```
+> gh auth login --scopes "repo,workflow"   # en bfastdev
+> ./docs/deploy/bootstrap-deployer.sh
+> ```
+>
+> Le script est idempotent (il saute ce qui existe déjà), refuse de partir si le
+> compte actif n'est pas `bfastdev` ou si le token n'a pas le scope `workflow`
+> — sans lui, pousser un fichier dans `.github/workflows` est refusé — et se
+> termine par la seule vérification qui prouve quelque chose : le SHA de
+> `gh-pages` a bougé ET le canonical servi n'est pas `localhost`.
+>
+> Reviens à ton compte habituel après : `gh auth switch --user alexandrematencio`.
+>
+> Les étapes détaillées ci-dessous restent la référence — à lire si le script
+> s'arrête, ou pour comprendre ce qu'il fait.
+
 **1. Clé de déploiement.** Sur ta machine :
 
 ```
