@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 
-// Deploy via gh-pages package (local, pas GitHub Actions). Voir yml-deploy-guide.md.
+// Deploy via GitHub Actions (`.github/workflows/deploy.yml`) depuis le 2026-08-22 ;
+// `npm run deploy` (gh-pages, local) reste branché en secours. Voir yml-deploy-guide.md.
 // - `output: 'export'` → produit /out (Next.js statique) — UNIQUEMENT en prod.
 //   En dev, on garde le runtime dynamique : sinon le catch-all `/studio/[[...tool]]`
 //   du Sanity Studio explose en 500 dès qu'on navigue dans la SPA (Next dev enforce

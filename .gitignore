@@ -32,6 +32,11 @@ yarn-error.log*
 # env files
 .env*
 !.env.example
+# Versionnés à dessein : ils ne portent QUE l'URL canonique publique, et
+# celle-ci ne doit pas dépendre de la machine qui construit (un build local
+# a longtemps publié `http://localhost:3010` en canonical — voir .env.production).
+!.env.production
+!.env.development
 
 # vercel
 .vercel
