@@ -38,6 +38,11 @@ export default async function HomePage() {
           inchangé. */}
       <SplashScreen verticalMobile />
 
+      {/* H1 de la home. Invisible parce que le titre VISUEL de la page est le
+          glyph ALXMTNC du hero : sans lui, le document commençait au H2
+          « Selected Works » — hiérarchie amputée (CLAUDE.md §5.4). */}
+      <h1 className="sr-only">A. Matencio — street, landscape and portrait photography</h1>
+
       <HomeHero hero={hero} />
 
       <ScrollPhysicsGallery photos={photos} motion={motion} />

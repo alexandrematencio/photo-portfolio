@@ -9,10 +9,21 @@
   --color-line: #e5e2dc;
   --color-accent: #0013ff;
 
-  /* Inter pour tout — chargé via next/font/google dans app/layout.tsx.
-     Aucune typo serif ou cursive nulle part sur le site. */
-  --font-sans: var(--font-inter), -apple-system, "Helvetica Neue", system-ui, sans-serif;
-  --font-display: var(--font-inter), -apple-system, "Helvetica Neue", system-ui, sans-serif;
+  /* DEUX familles depuis le 2026-08-22 (demande Alexandre), et une seule
+     frontière : `--font-display` (Helvetica) partout, `--font-sans` (Inter)
+     pour le SEUL corps de texte éditorial. Titres, sous-titres, items de
+     menu, titres de photo, labels (« 01 »), métadonnées : Helvetica.
+     Paragraphes longs des pages éditoriales : Inter — la frontière est
+     tenue par `EDITORIAL_BODY` (lib/site/typography.ts), qui porte
+     `font-sans`. Aucune autre classe ne doit rebasculer sur Inter.
+
+     Helvetica n'est PAS chargée : c'est une fonte système (Helvetica Neue
+     sur macOS/iOS, Arial ailleurs — mêmes métriques). Zéro requête, donc
+     zéro question RGPD et zéro coût de chargement. Inter, elle, reste
+     self-hostée via next/font/google dans app/layout.tsx.
+     Toujours aucune serif, aucune cursive. */
+  --font-sans: var(--font-inter), -apple-system, system-ui, sans-serif;
+  --font-display: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
 
   --shadow-soft: 0 8px 40px rgba(10, 10, 10, 0.08);
 }
@@ -26,7 +37,9 @@
 html {
   background-color: var(--color-bg);
   color: var(--color-fg);
-  font-family: var(--font-sans);
+  /* Helvetica par défaut sur TOUT le site ; Inter est l'exception, réservée
+     au corps éditorial (voir le commentaire des variables plus haut). */
+  font-family: var(--font-display);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /* No `scroll-behavior: smooth` here on purpose: it's a documented conflict
@@ -225,66 +238,184 @@ body img {
   }
 }
 
-/* ScrollPhysicsGallery base (porté depuis html-script-reference.md, adouci) */
+/* ── Curation home — bloc « photo à gauche, texte à droite » ────────────────
+   Mockup : resources/homepage-image-component.pen (frame `4qlrb`).
+
+   Trois nombres pilotent la composition et bougent ensemble :
+   - `--text-col`  largeur FIXE de la colonne de texte. Fixe, et non fluide,
+     pour deux raisons : la mesure de lecture ne change pas d'un bloc à
+     l'autre, et la colonne sert d'ANCRE — elle tombe toujours au même x,
+     quel que soit le format de la photo. C'est cette verticale stable qui
+     tient la page au défilement.
+   - `--pair-gap`  gouttière minimale entre la photo et le texte.
+   - `--img-max-h` plafond de hauteur de la photo. C'est lui qui garantit
+     qu'une image entre ENTIÈREMENT dans l'écran : rien à recentrer au
+     scroll pour la lire (demande Alexandre, 2026-08-22).
+
+   La photo garde son ratio natif — jamais de recadrage (CLAUDE.md §3.4) :
+   sa largeur est le min entre la place disponible et ce que le plafond de
+   hauteur autorise. Un portrait est donc plus étroit que la colonne image et
+   laisse du blanc avant le texte. Assumé : c'est le prix de la colonne
+   stable, et ce blanc-là est du silence visuel, pas un trou. */
 .gallery-stage {
   position: relative;
   width: 100%;
-  padding: 8vh 0 20vh 0;
-  perspective: 1200px;
+  /* Pas de `margin: auto` : sur très large écran la page reste calée à
+     gauche et laisse le blanc à droite (brand book §6.2). */
+  max-width: 1920px;
+  /* Le padding haut est porté par `.gallery-heading`, qui vit HORS du stage
+     (il doit être centré sur l'ÉCRAN, pas dans la colonne calée à gauche). */
+  padding: 128px 32px 20vh 32px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 3vh;
+  align-items: flex-start;
+  gap: 128px;
+
+  /* Proportions du mockup, transposées : à 1920 px de large il pose une
+     photo de 1200, une gouttière de 96 et une colonne de texte de 560 dans
+     1856 px utiles. Les deux `clamp` reproduisent ces parts (30 % / 5 %) et
+     retombent sur des valeurs tenables aux largeurs intermédiaires. */
+  --text-col: clamp(300px, 29vw, 560px);
+  /* 72 px de gouttière en haut de course, et non les 96 du mockup
+     (arbitrage Alexandre, 2026-08-22 : le texte se rattache mieux à sa
+     photo). Les 24 px libérés reviennent à l'image. */
+  --pair-gap: clamp(40px, 3.75vw, 72px);
+  --img-max-h: 76vh;
+}
+
+/* « Selected Works » — centré sur l'ÉCRAN (demande Alexandre, 2026-08-22).
+   D'où sa sortie du stage : le stage est plafonné à 1680 px et calé à
+   gauche, y centrer le titre l'aurait décalé de 120 px sur un écran 1920. */
+.gallery-heading {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 16vh 32px 0 32px;
 }
 
 .photo-item {
-  position: relative;
-  /* Le ratio natif de la photo est injecté via la variable --ratio (default 4/5). */
-  aspect-ratio: var(--ratio, 4 / 5);
-  /* Largeur : on prend le min entre une cible visuelle et ce que la hauteur autorise. */
-  width: min(45vw, calc(75vh * var(--ratio, 0.8)));
-  max-width: 720px;
-  max-height: 75vh;
-  transform-style: preserve-3d;
-}
-.photo-item:nth-child(odd) {
-  transform: translateX(-15vw);
-}
-.photo-item:nth-child(even) {
-  transform: translateX(15vw);
+  display: flex;
+  width: 100%;
+  /* `stretch` (défaut) et non `flex-start` : c'est ce qui TEND la colonne de
+     texte à la hauteur de la photo, condition pour que la fiche technique se
+     cale sur le bas de l'image (mockup `xhHMr`). La photo, elle, refuse
+     l'étirement — cf. `align-self` sur `.photo-figure`. */
+  /* Le texte SUIT la photo, à gouttière constante — il n'est pas ancré au
+     bord droit. Ancré, un portrait (plus étroit, plafonné en hauteur)
+     laissait 460 px de blanc entre l'image et son texte : les deux ne se
+     lisaient plus comme un même bloc (mesuré, capture à l'appui). Le prix
+     est un bord droit irrégulier et une colonne de texte qui se déplace d'un
+     bloc à l'autre — invisible en pratique : un bloc fait presque la hauteur
+     de l'écran, on n'en voit jamais deux à la fois. */
+  justify-content: flex-start;
+  gap: var(--pair-gap);
 }
 
-.photo-inner {
-  position: absolute;
-  inset: 0;
+.photo-figure {
+  position: relative;
+  flex: 0 0 auto;
+  /* Sans ça, l'étirement de la rangée imposerait une hauteur à la photo et
+     écraserait son ratio dès que le texte est plus haut qu'elle. */
+  align-self: flex-start;
+  aspect-ratio: var(--ratio, 4 / 5);
+  width: min(
+    calc(100% - var(--text-col) - var(--pair-gap)),
+    calc(var(--img-max-h) * var(--ratio, 0.8))
+  );
   overflow: hidden;
-  will-change: transform;
-  transform-origin: center center;
   background: var(--color-bg-elev);
 }
 
-.photo-inner img {
+/* Grain de transition (demande Alexandre, 2026-08-22 : « un fade in / fade
+   out noisy »). `--grain` est piloté par frame depuis ScrollPhysicsGallery et
+   culmine à MI-fondu : la photo émerge du grain puis s'y redissout.
+
+   Coût : une seule image de bruit, rasterisée UNE fois par le navigateur
+   (data-URI SVG feTurbulence, aucune requête réseau, ~400 octets) puis
+   répétée en mosaïque. Pas de filtre SVG animé — un `feTurbulence` recalculé
+   à chaque frame sur une image de 900 px coûte des dizaines de ms. Ici, seule
+   l'opacité d'un calque déjà composité change : gratuit sur le GPU.
+   À `--grain: 0` (l'état de 29 blocs sur 31) le calque ne coûte rien. */
+.photo-figure::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  opacity: var(--grain, 0);
+}
+
+.photo-figure img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
-  will-change: transform;
 }
 
-@media (max-width: 768px) {
-  .photo-item {
-    width: min(85vw, calc(65vh * var(--ratio, 0.8)));
-    max-height: 65vh;
-  }
-  .photo-item:nth-child(odd),
-  .photo-item:nth-child(even) {
-    transform: none;
+.photo-meta {
+  flex: 0 0 auto;
+  width: var(--text-col);
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  /* Les deux moitiés aux extrémités : titre en haut, fiche technique calée
+     sur le bas de la photo. Le `gap` n'est ici qu'un plancher, pour le cas
+     rare où le texte est plus haut que l'image. */
+  justify-content: space-between;
+  gap: 32px;
+}
+
+/* Numéro + titre + série : un seul groupe, sans écart entre ses lignes —
+   l'interligne des textes suffit à les séparer (mockup + demande Alexandre
+   du 2026-08-22 sur le numéro collé au titre). */
+.photo-meta-head,
+.photo-meta-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Fiche technique : AUCUN `gap`. L'écart entre les lignes doit être celui
+   d'un corps de texte, c'est-à-dire la seule différence entre le corps et
+   l'interligne (20 px × 1,5 = 30 px de pas). Un `gap` par-dessus ajoutait un
+   écart qui n'existe dans aucun paragraphe et donnait une liste, pas un bloc
+   de texte (demande Alexandre, 2026-08-22). */
+.photo-meta-facts {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  color: var(--color-fg);
+}
+
+/* Empilement sous 1024 px, et non sous 768 : la colonne de texte a un
+   plancher de 280 px (lisibilité), si bien qu'entre 768 et 1024 il ne restait
+   que ~360 px de large pour la photo — l'image n'était plus le sujet. */
+@media (max-width: 1023px) {
+  .gallery-heading {
+    padding: 12vh 32px 0 32px;
   }
   .gallery-stage {
-    /* Gap vertical FIXE de 80 px entre photos sur mobile. Valeur précise pour
-       garantir un espacement constant à toute hauteur de viewport. */
-    gap: 80px;
-    padding: 6vh 0 15vh 0;
+    /* Gouttières à 32 px comme partout ailleurs (brand book §6.1) : le
+       texte tombe sur la même verticale que le footer. */
+    padding: 96px 32px 15vh 32px;
+    gap: 96px;
+    --pair-gap: 20px;
+    --img-max-h: 70vh;
+  }
+  .photo-item {
+    flex-direction: column;
+    gap: 20px;
+  }
+  .photo-figure {
+    width: min(100%, calc(var(--img-max-h) * var(--ratio, 0.8)));
+  }
+  .photo-meta {
+    width: 100%;
+    /* Empilé, la colonne n'est plus tendue : le `gap` redevient l'écart
+       réel entre le titre et la fiche technique. */
+    gap: 24px;
   }
 }

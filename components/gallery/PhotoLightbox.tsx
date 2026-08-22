@@ -280,7 +280,7 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
         >
           <span
             style={{
-              fontFamily: 'var(--font-sans)',
+              fontFamily: 'var(--font-display)',
               fontWeight: 400,
               fontSize: 16,
               lineHeight: 1,

@@ -30,7 +30,15 @@
  * une taille réduite.
  */
 export const EDITORIAL_BODY =
-  'text-[19px] md:text-[28px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)]';
+  'font-sans text-[19px] md:text-[28px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)]';
+
+/**
+ * ⚠️ `font-sans` en tête : depuis le passage à deux familles (2026-08-22),
+ * Helvetica est la fonte par défaut du site et Inter n'est PLUS héritée.
+ * Cette constante est la SEULE frontière entre les deux — c'est elle qui
+ * rebascule le corps éditorial sur Inter. La retirer ferait glisser toutes
+ * les pages éditoriales en Helvetica sans autre signal.
+ */
 
 /** Corps de texte + lien : même échelle, soulignement épais du brand. */
 export const EDITORIAL_BODY_LINK = `${EDITORIAL_BODY} underline underline-offset-[6px] decoration-2 hover:opacity-60 transition-opacity motion-reduce:transition-none w-fit`;

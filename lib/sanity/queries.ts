@@ -40,6 +40,15 @@ export type Photo = {
    * et un tableau. C'est ce qui a permis de migrer sans casser le site en ligne.
    */
   series?: { _ref: string }[] | null;
+  /**
+   * Séries d'appartenance déréférencées pour l'AFFICHAGE (bloc texte de la
+   * home, où le nom de série est un lien vers `/series#<slug>`). `series`
+   * reste la source de vérité relationnelle ; on ne dérive ici qu'un libellé
+   * et son ancre. `series[]->` sur une photo legacy dont `series` est une
+   * référence unique (non migrée) rend `null` sans casser la requête — d'où
+   * l'optionnalité.
+   */
+  seriesLinks?: { title: string; slug: string }[] | null;
 };
 
 export type Series = {
@@ -94,6 +103,7 @@ export type SiteSettings = {
 
 const photoProjection = groq`
   _id, title, slug, caption, year, location, dateTaken, parallaxSpeed, series,
+  "seriesLinks": series[]->{ title, "slug": slug.current },
   "styles": styles[]->{ _id, title, "slug": slug.current },
   "camera": camera->{ _id, title, "slug": slug.current },
   "lens": lens->{ _id, title, "slug": slug.current },

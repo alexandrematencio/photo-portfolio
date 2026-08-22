@@ -49,7 +49,7 @@ export function PhotoCard({ photo, onOpen }: Props) {
         <button
           type="button"
           onClick={() => onOpen?.()}
-          className="grid-gallery-image cursor-zoom-in text-left"
+          className="grid-gallery-image cursor-pointer text-left"
           aria-label={`Open “${photo.title}” fullscreen`}
         >
           <Image
