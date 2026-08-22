@@ -190,11 +190,59 @@ export function ScrollPhysicsGallery({ photos }: Props) {
             sur 100svh + la course du morph, la galerie ne commence qu'après.
             H2 et non H1 — le H1 de la home est son titre sr-only (§5.4). */}
         <header className="gallery-heading">
-          <h2
-            id="selected-works"
-            className="text-[32px] md:text-[48px] font-bold uppercase tracking-[-0.02em] leading-[0.9] text-[var(--color-fg)]"
-          >
-            Selected Works
+          <h2 id="selected-works" className="gallery-title">
+            {/* Le texte LISIBLE (SEO, lecteurs d'écran) reste du texte : les
+                deux SVG ci-dessous n'en sont que le rendu, d'où leur
+                `aria-hidden`. */}
+            <span className="sr-only">Selected Works</span>
+
+            {/* PLEINE LARGEUR À TOUTES LES LARGEURS, sans JS et sans mesure.
+                Le SVG est en `width: 100%`, son `viewBox` lui donne son ratio
+                (donc sa hauteur), et `textLength` FORCE la chasse du texte à
+                la largeur du viewBox : le remplissage est garanti par
+                construction, pas calculé.
+
+                Pourquoi pas un `calc()` sur une constante mesurée : le titre
+                hérite de `--font-display`, qui est une pile SYSTÈME
+                (Helvetica Neue sur macOS, Arial sur Windows, Roboto sur
+                Android). Leurs chasses diffèrent — une constante calibrée sur
+                l'une déborderait sur l'autre, et un débord ici, c'est du
+                scroll horizontal. `textLength` ne dépend d'aucune métrique.
+
+                `lengthAdjust="spacing"` et jamais `spacingAndGlyphs` : c'est
+                l'interlettrage qui absorbe l'écart, les glyphes ne sont
+                jamais déformés.
+
+                Les `viewBox` sont calibrés sur Helvetica Bold pour que la
+                correction soit nulle sur macOS : chasses cumulées de 9445/1000
+                em pour la ligne entière et 5334/1000 pour « SELECTED », moins
+                l'interlettrage de -0,02 em par caractère → 9,165 em et
+                5,174 em. La hauteur de boîte est la hauteur de capitale
+                (0,714 em). `overflow: visible` en garde-fou : si la fonte
+                servie a une capitale plus haute, elle déborde dans les 16vh
+                de padding au lieu d'être rognée. */}
+
+            {/* DEUX LIGNES À TOUTES LES LARGEURS (arbitrage Alexandre,
+                2026-08-22) — pas de variante une-ligne, donc pas de bascule
+                au point de rupture. Les deux lignes partagent la MÊME taille,
+                si bien que c'est « SELECTED », le mot le plus long, qui
+                commande le remplissage ; « WORKS » s'arrête à ~72 % de la
+                largeur. C'est la contrepartie assumée du corps commun.
+
+                ⚠️ Ne PAS réintroduire une seconde variante masquée en
+                `hidden` / `md:hidden` : la règle `.gallery-title svg` de
+                `globals.css` pose `display: block` HORS `@layer`, donc elle
+                écrase les utilities `display` de Tailwind (même piège que le
+                reset `* { padding: 0 }`, CLAUDE.md §7.6). Les deux SVG
+                s'affichaient à la suite — bug réel payé le jour même. */}
+            <svg viewBox="0 0 1000 312" aria-hidden="true" focusable="false">
+              <text x="0" y="138" fontSize="193.28" textLength="1000" lengthAdjust="spacing">
+                SELECTED
+              </text>
+              <text x="0" y="312" fontSize="193.28">
+                WORKS
+              </text>
+            </svg>
           </h2>
         </header>
         <div ref={stageRef} className="gallery-stage">

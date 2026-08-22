@@ -132,13 +132,24 @@ export const PhotoBlock = forwardRef<HTMLDivElement, Props>(
           <figcaption className="photo-meta">
             <div className="photo-meta-head">
               <div className="photo-meta-title">
-                {/* 16 px : le mockup pose le numéro à 24 pour un corps de
-                    texte à 32 ; le corps étant redescendu à 20, le label
-                    suit la même proportion — sinon il passerait devant lui. */}
-                <span className="text-[16px] font-normal tracking-[0.15em] leading-none text-[var(--color-fg)]">
+                {/* 14 px : le cran sous 16 sur l'échelle typo du brand book
+                    (11 / 14 / 16 / 18 / 24 / 32 / 48 / 64, déduite de la
+                    tracking ladder §5.4). Descendu le 2026-08-22 pour que le
+                    label redevienne subordonné au corps de la légende — à
+                    16 contre 18, l'écart ne se lisait plus.
+                    L'interlettrage à 0,05 em est un arbitrage Alexandre du
+                    même jour : il DÉROGE aux 0,25 em que §5.3 prescrit pour
+                    les sub-labels. Ne pas le « corriger » vers le brand
+                    book sans le lui redemander. */}
+                <span className="text-[14px] font-normal tracking-[0.05em] leading-none text-[var(--color-fg)]">
                   {number}
                 </span>
-                <h3 className="text-[30px] md:text-[48px] 2xl:text-[64px] font-bold tracking-[-0.02em] 2xl:tracking-[-0.04em] leading-none text-[var(--color-fg)]">
+                {/* 24 / 32 / 48 — trois pas de l'échelle typo, là où le
+                    26 / 40 / 54 précédent tombait ENTRE les pas à chaque
+                    palier. Le `2xl:tracking-[-0.04em]` a sauté avec : la
+                    tracking ladder (§5.4) ne passe à -0,04 em qu'à partir
+                    de 64 px, et le palier 2xl est redescendu à 48. */}
+                <h3 className="text-[24px] md:text-[32px] 2xl:text-[48px] font-bold tracking-[-0.02em] leading-none text-[var(--color-fg)]">
                   {photo.title}
                 </h3>
               </div>
@@ -153,7 +164,7 @@ export const PhotoBlock = forwardRef<HTMLDivElement, Props>(
                    au pixel sur le premier, sans retrait à deviner. Insécable
                    dans les deux cas : le mot et le nom qu'il introduit ne
                    doivent jamais se retrouver sur deux lignes. */
-                <p className="photo-meta-series text-[20px] leading-[1.5] font-normal text-[var(--color-fg)]">
+                <p className="photo-meta-series text-[18px] leading-[1.5] font-normal text-[var(--color-fg)]">
                   <span className="text-[var(--color-fg-muted)]">
                     Series{'\u00A0'}
                   </span>
@@ -184,7 +195,7 @@ export const PhotoBlock = forwardRef<HTMLDivElement, Props>(
                 L'origine en gris, le matériel en noir ; l'objectif porte le
                 « + » du mockup, qui le rattache au boîtier de la ligne
                 au-dessus. */}
-            <ul className="photo-meta-facts font-sans text-[20px] leading-[1.5] font-normal">
+            <ul className="photo-meta-facts font-sans text-[18px] leading-[24px] font-normal">
               {origin && (
                 <li className="text-[var(--color-fg-muted)]">{origin}</li>
               )}

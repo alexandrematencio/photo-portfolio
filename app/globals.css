@@ -283,14 +283,45 @@ body img {
   --img-max-h: 76vh;
 }
 
-/* « Selected Works » — centré sur l'ÉCRAN (demande Alexandre, 2026-08-22).
-   D'où sa sortie du stage : le stage est plafonné à 1680 px et calé à
-   gauche, y centrer le titre l'aurait décalé de 120 px sur un écran 1920. */
+/* « Selected Works » — PLEINE LARGEUR, à toutes les largeurs (demande
+   Alexandre, 2026-08-22). Le centrage écran d'origine n'a plus d'objet : un
+   titre qui remplit sa boîte est centré par construction.
+
+   Mêmes bornes que `.gallery-stage` — 1920 de plafond, calé à gauche, 32 px
+   de gouttière — pour que le titre tombe exactement sur le bord gauche des
+   photos. Sous 1920 (dont les 1728 points d'un MacBook Pro 16", cas de
+   référence), la page est fluide de bout en bout et le plafond ne mord
+   jamais ; au-delà, titre et photos restent alignés et le blanc part à
+   droite. Ne PAS remettre de `margin: auto` : ça les désolidariserait. */
 .gallery-heading {
-  display: flex;
-  justify-content: center;
   width: 100%;
+  max-width: 1920px;
   padding: 16vh 32px 0 32px;
+}
+
+.gallery-title {
+  color: var(--color-fg);
+}
+
+/* `display: block` et pas l'inline par défaut : sinon le SVG est traité comme
+   du texte et traîne le creux sous la ligne de base. */
+.gallery-title svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.gallery-title text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  /* Point de DÉPART, pas valeur finale : `textLength` corrige ensuite pour
+     tomber pile sur la largeur. Sur Helvetica Neue la correction est nulle
+     (c'est sur elle que les `viewBox` sont calibrés) ; sur une autre fonte,
+     l'interlettrage rendu s'écarte un peu de -0,02 em. C'est le prix du
+     remplissage garanti. */
+  letter-spacing: -0.02em;
+  fill: currentColor;
 }
 
 .photo-item {
@@ -358,9 +389,16 @@ body img {
   flex: 0 0 auto;
   width: var(--text-col);
   /* Pas vertical unique de la légende empilée (cf. la requête ≤ 767 px) :
-     le corps de la légende est à 20 px × 1,5, toutes les autres lignes s'y
-     alignent — y compris le titre, qui fait justement 30 px sous `md`. */
-  --meta-line: 30px;
+     le corps de la légende est à 18 px × 1,5, toutes les autres lignes s'y
+     alignent — y compris le titre, qui fait 24 px sous `md` et y tient donc
+     sans rogner (hauteur de capitale = 0,714 em, la ligne est à 1,0).
+
+     Ce nombre SUIT le pas de la fiche technique, qui est la référence du
+     bloc : 30 → 27 (corps 20 → 18) puis 27 → 24 (interligne resserré, cf.
+     `.photo-meta-facts`). Sur mobile il gouverne TOUTES les lignes de la
+     légende — c'est l'invariant du « pas unique » : resserrer la seule fiche
+     technique y est impossible sans le casser. */
+  --meta-line: 24px;
   align-self: stretch;
   display: flex;
   flex-direction: column;
@@ -383,9 +421,15 @@ body img {
 
 /* Fiche technique : AUCUN `gap`. L'écart entre les lignes doit être celui
    d'un corps de texte, c'est-à-dire la seule différence entre le corps et
-   l'interligne (20 px × 1,5 = 30 px de pas). Un `gap` par-dessus ajoutait un
-   écart qui n'existe dans aucun paragraphe et donnait une liste, pas un bloc
-   de texte (demande Alexandre, 2026-08-22). */
+   l'interligne. Un `gap` par-dessus ajoutait un écart qui n'existe dans aucun
+   paragraphe et donnait une liste, pas un bloc de texte (demande Alexandre,
+   2026-08-22).
+
+   Le pas est passé de 27 px (18 × 1,5) à 24 px le même jour. Le 1,5 du brand
+   book §5.5 est donné POUR de la prose au long cours ; ces trois lignes sont
+   courtes et empilées, cas que la même échelle traite en 1,375 (« tight
+   enough to chunk with its sub-list »). 24 plutôt que les 24,75 littéraux :
+   c'est un pas préféré de §6.5, 24,75 ne tombe nulle part. */
 .photo-meta-facts {
   list-style: none;
   display: flex;
@@ -411,7 +455,19 @@ body img {
   }
   .photo-item {
     flex-direction: column;
-    gap: 20px;
+    /* Écart photo ↔ légende, empilés. Descendu de 20 à 16 le 2026-08-22
+       (demande Alexandre : « un cran de moins »). Le cran est celui de
+       l'échelle du brand book §6.5 — pas préférés 4/8/16/24/32/56/64/96 —
+       et non une division arbitraire : 20 n'était déjà pas sur l'échelle.
+       Descendu ENCORE à 8 dans la foulée (16 laissait encore trop d'air,
+       arbitrage Alexandre) : la légende se lit désormais comme la suite
+       immédiate de sa photo.
+       ⚠️ L'écart INTERNE de la légende (`.photo-meta`, 12 px juste en
+       dessous) est resté à 12 : il est donc désormais PLUS GRAND que celui
+       qui sépare la légende de sa photo. Hiérarchie inversée, assumée pour
+       l'instant faute d'arbitrage — si elle se voit, c'est 4 px qu'il faut
+       y mettre (pas préféré immédiatement sous 8, brand book §6.5). */
+    gap: 8px;
   }
   .photo-figure {
     width: min(100%, calc(var(--img-max-h) * var(--ratio, 0.8)));
@@ -435,13 +491,14 @@ body img {
       fiche technique, et elle est réglée une fois pour toutes dans la requête
       ≤ 1023 px ci-dessus (12 px, moitié de la valeur d'origine).
    2. UN SEUL pas vertical pour toutes les lignes. Le pas ne peut pas venir
-      d'un facteur d'interligne commun : les corps diffèrent (16 px pour le
-      numéro, 30 pour le titre, 20 pour le reste), un même facteur donnerait
+      d'un facteur d'interligne commun : les corps diffèrent (14 px pour le
+      numéro, 24 pour le titre, 18 pour le reste), un même facteur donnerait
       trois pas différents. C'est donc une valeur ABSOLUE, celle du corps de
-      texte (20 × 1,5). Le titre y tient sans rogner : il fait exactement
-      30 px sous `md` — d'où la borne à 767 px et pas à 1023 comme
-      l'empilement. Entre les deux, le titre passe à 48 px et aucun pas
-      commun n'est possible ; la mise en groupes y reste la bonne. */
+      texte (24 px, cf. `.photo-meta-facts`). Le titre y tient sans rogner :
+      il fait 24 px
+      sous `md` — d'où la borne à 767 px et pas à 1023 comme l'empilement.
+      Entre les deux, le titre passe à 32 px et aucun pas commun n'est
+      possible ; la mise en groupes y reste la bonne. */
 @media (max-width: 767px) {
   .photo-meta {
     /* `gap` volontairement absent : la valeur vient de la requête ≤ 1023 px
