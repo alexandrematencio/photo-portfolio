@@ -276,10 +276,23 @@ body img {
      1856 px utiles. Les deux `clamp` reproduisent ces parts (30 % / 5 %) et
      retombent sur des valeurs tenables aux largeurs intermédiaires. */
   --text-col: clamp(300px, 29vw, 560px);
-  /* 72 px de gouttière en haut de course, et non les 96 du mockup
-     (arbitrage Alexandre, 2026-08-22 : le texte se rattache mieux à sa
-     photo). Les 24 px libérés reviennent à l'image. */
-  --pair-gap: clamp(40px, 3.75vw, 72px);
+  /* Gouttière photo ↔ légende, DESKTOP uniquement (sous 1024 les deux
+     s'empilent et `.photo-item` impose son propre écart vertical de 8 px —
+     cette variable n'y sert plus à rien).
+
+     Valeur FIXE de 16 px depuis le 2026-08-22, et non plus le
+     `clamp(40px, 3.75vw, 72px)` qui transposait les parts du mockup
+     (30 % de colonne de texte, 5 % de gouttière). Même trajectoire que sur
+     mobile : 96 au mockup → 72 → 16, chaque cran demandé par Alexandre sur
+     capture, toujours pour la même raison — le texte doit se lire comme la
+     suite de sa photo, pas comme une colonne posée à côté. Le clamp saute
+     avec : une gouttière de 16 px n'a plus de raison de respirer avec la
+     largeur d'écran, elle est au plancher de l'échelle §6.5.
+
+     Conséquence à connaître : la photo étant presque toujours plafonnée en
+     HAUTEUR (`--img-max-h`), les 56 px libérés ne l'élargissent pas — ils
+     rapprochent le texte. C'est bien l'effet visé. */
+  --pair-gap: 16px;
   --img-max-h: 76vh;
 }
 
@@ -450,7 +463,10 @@ body img {
        texte tombe sur la même verticale que le footer. */
     padding: 96px 32px 15vh 32px;
     gap: 96px;
-    --pair-gap: 20px;
+    /* Pas de `--pair-gap` ici : empilés, ni `.photo-item` (écart explicite
+       de 8 px) ni `.photo-figure` (largeur en `min(100%, …)`) ne le lisent.
+       Le redéclarer donnerait une valeur morte qui se lit comme le réglage
+       de l'écart mobile — elle a existé à 20 px, elle induisait en erreur. */
     --img-max-h: 70vh;
   }
   .photo-item {
