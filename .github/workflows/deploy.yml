@@ -1,0 +1,85 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Publication du site — build sur Actions, publication sur la branche
+# `gh-pages`, servie par la plomberie interne de Pages (`build_type: legacy`).
+#
+# Ce workflow tourne SUR CE REPO, avec le jeton fourni par Actions : aucune
+# clé de déploiement, aucun repo tiers, aucune dépendance à un autre compte.
+# Le montage « le calcul chez bfast » (docs/deploy/) reste documenté mais
+# n'est plus le chemin nominal.
+#
+# ⚠️ Ce workflow ne DÉMARRE que si le compte GitHub propriétaire du repo n'est
+# pas verrouillé pour facturation. Un verrou de compte arrête les jobs en
+# amont de tout : ni la visibilité publique du repo ni
+# `actions/permissions.enabled: true` n'y changent quoi que ce soit. Symptôme :
+# un run qui échoue en quelques secondes sur « The job was not started because
+# your account is locked due to a billing issue ». Dans ce cas, la voie qui
+# marche est `npm run deploy` en local — elle produit exactement le même site.
+#
+# Pages reste en mode BRANCHE (et pas en mode « GitHub Actions ») exprès :
+# c'est ce qui garde `npm run deploy` opérationnel comme voie de secours, les
+# deux poussant sur la même branche.
+# ─────────────────────────────────────────────────────────────────────────────
+name: Deploy AMATENCIO PHOTO
+
+on:
+  push:
+    branches: [main]
+  # Publication à la demande (bouton « Run workflow »).
+  workflow_dispatch:
+  # Crochet pour le webhook Sanity : un publish dans Studio déclenchera ceci,
+  # et Alexandre republiera sans qu'un développeur ouvre un laptop.
+  #   curl -X POST -H "Authorization: Bearer <PAT>" \
+  #        -H "Accept: application/vnd.github+json" \
+  #        https://api.github.com/repos/alexandrematencio/photo-portfolio/dispatches \
+  #        -d '{"event_type":"sanity-publish"}'
+  repository_dispatch:
+    types: [sanity-publish]
+
+# Le strict nécessaire : écrire sur la branche `gh-pages` de ce repo.
+permissions:
+  contents: write
+
+concurrency:
+  group: amatencio-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Aucune variable d'environnement ici, VOLONTAIREMENT : `.env.production`
+      # est commité et porte toute la config publique (URL canonique +
+      # coordonnées du dataset Sanity). Redéclarer une de ces valeurs ici en
+      # ferait une seconde source de vérité, et c'est exactement ce qui a fait
+      # publier `http://localhost:3010` en canonical pendant trois mois.
+      - run: npm run build
+
+      # Écrit à la main plutôt qu'avec une action tierce : dix lignes lisibles
+      # valent mieux qu'une dépendance de chaîne d'approvisionnement pour un
+      # `git push`.
+      - name: Publier sur gh-pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd out
+          # Sans ce fichier, GH Pages passe le site à Jekyll et ignore `_next/*`.
+          touch .nojekyll
+          git init -q
+          git checkout -qb gh-pages
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -qm "chore(deploy): publish static export (${GITHUB_SHA::7})"
+          # Force : `gh-pages` est une branche de SORTIE, jamais une histoire à
+          # préserver — même geste que le paquet `gh-pages` en local.
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
