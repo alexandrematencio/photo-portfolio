@@ -145,24 +145,37 @@ export const PhotoBlock = forwardRef<HTMLDivElement, Props>(
 
               {series.length > 0 && (
                 /* « Series » en gris, sans deux-points, puis le nom en noir
-                   (demande Alexandre, 2026-08-22). L'espace est INSÉCABLE :
-                   le mot et le nom qu'il introduit ne doivent pas se
-                   retrouver sur deux lignes. */
-                <p className="text-[20px] leading-[1.5] font-normal text-[var(--color-fg)]">
-                  <span className="text-[var(--color-fg-muted)]">Series</span>
-                  {'\u00A0'}
-                  {series.map((s, i) => (
-                    <Fragment key={s.slug}>
-                      {i > 0 && ', '}
-                      <Link
-                        href={`/series#${s.slug}`}
-                        className="no-underline hover:opacity-60 transition-opacity motion-reduce:transition-none"
-                      >
-                        {s.title}
-                        <ArrowUpRight />
-                      </Link>
-                    </Fragment>
-                  ))}
+                   (demande Alexandre, 2026-08-22). L'espace insécable vit
+                   DANS le libellé, et non entre les deux <span> : sous `md`
+                   les noms passent en colonne (un par ligne) et le libellé
+                   devient une colonne à part entière — son retrait vaut donc
+                   exactement « Series » + son espace, ce qui aligne les noms
+                   au pixel sur le premier, sans retrait à deviner. Insécable
+                   dans les deux cas : le mot et le nom qu'il introduit ne
+                   doivent jamais se retrouver sur deux lignes. */
+                <p className="photo-meta-series text-[20px] leading-[1.5] font-normal text-[var(--color-fg)]">
+                  <span className="text-[var(--color-fg-muted)]">
+                    Series{'\u00A0'}
+                  </span>
+                  <span className="photo-meta-series-names">
+                    {series.map((s, i) => (
+                      <Fragment key={s.slug}>
+                        {i > 0 && (
+                          /* Séparateur du seul rendu en ligne (≥ md) —
+                             masqué en colonne, où le retour à la ligne fait
+                             le travail. */
+                          <span className="photo-meta-series-sep">, </span>
+                        )}
+                        <Link
+                          href={`/series#${s.slug}`}
+                          className="no-underline hover:opacity-60 transition-opacity motion-reduce:transition-none"
+                        >
+                          {s.title}
+                          <ArrowUpRight />
+                        </Link>
+                      </Fragment>
+                    ))}
+                  </span>
                 </p>
               )}
             </div>

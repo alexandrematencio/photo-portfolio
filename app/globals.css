@@ -357,6 +357,10 @@ body img {
 .photo-meta {
   flex: 0 0 auto;
   width: var(--text-col);
+  /* Pas vertical unique de la légende empilée (cf. la requête ≤ 767 px) :
+     le corps de la légende est à 20 px × 1,5, toutes les autres lignes s'y
+     alignent — y compris le titre, qui fait justement 30 px sous `md`. */
+  --meta-line: 30px;
   align-self: stretch;
   display: flex;
   flex-direction: column;
@@ -417,5 +421,50 @@ body img {
     /* Empilé, la colonne n'est plus tendue : le `gap` redevient l'écart
        réel entre le titre et la fiche technique. */
     gap: 24px;
+  }
+}
+
+/* Mobile : la légende est UN SEUL bloc de texte, pas trois groupes empilés
+   (demande Alexandre, 2026-08-22). Deux conséquences, indissociables — le
+   `gap` seul laisserait un rythme irrégulier, et le pas unique seul laisserait
+   les gouttières entre groupes :
+
+   1. Plus aucune gouttière entre le titre, la série et la fiche technique.
+   2. UN SEUL pas vertical pour toutes les lignes. Le pas ne peut pas venir
+      d'un facteur d'interligne commun : les corps diffèrent (16 px pour le
+      numéro, 30 pour le titre, 20 pour le reste), un même facteur donnerait
+      trois pas différents. C'est donc une valeur ABSOLUE, celle du corps de
+      texte (20 × 1,5). Le titre y tient sans rogner : il fait exactement
+      30 px sous `md` — d'où la borne à 767 px et pas à 1023 comme
+      l'empilement. Entre les deux, le titre passe à 48 px et aucun pas
+      commun n'est possible ; la mise en groupes y reste la bonne. */
+@media (max-width: 767px) {
+  .photo-meta {
+    gap: 0;
+    /* La colonne n'est plus tendue à la hauteur d'une photo posée à côté :
+       `space-between` n'a plus rien à répartir et pousserait la fiche
+       technique au loin si un jour la légende était contrainte en hauteur. */
+    justify-content: flex-start;
+  }
+  .photo-meta,
+  .photo-meta * {
+    line-height: var(--meta-line);
+  }
+
+  /* Une série par ligne, toutes alignées sous la première : le libellé
+     « Series » devient une colonne, les noms l'autre. Le retrait n'est donc
+     jamais saisi à la main — il vaut la largeur rendue du libellé, quelle
+     que soit la fonte servie. */
+  .photo-meta-series {
+    display: flex;
+    align-items: flex-start;
+  }
+  .photo-meta-series-names {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .photo-meta-series-sep {
+    display: none;
   }
 }
