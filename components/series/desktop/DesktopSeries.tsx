@@ -1338,12 +1338,20 @@ export function DesktopSeries({
     goToSeriesRef.current = goToSeries;
   });
 
-  // Clavier en vue ouverte (spec §5 — de bout en bout) : Échap ferme, ← / →
-  // reculent/avancent dans la série avec des vols ACCÉLÉRÉS au rythme des
-  // taps, ↑ / ↓ passent à la série précédente / suivante (le sens suit la
-  // colonne de noms : ↓ descend vers la série d'en dessous). Dépasser un bout
-  // de série avec ← / → continue dans la voisine — à reculons, sur sa
-  // DERNIÈRE photo.
+  // Clavier en vue ouverte (spec §5 — de bout en bout) : Échap ferme, ↑ / ↓
+  // reculent/avancent dans la SÉRIE COURANTE avec des vols ACCÉLÉRÉS au rythme
+  // des taps, ← / → passent à la série précédente / suivante. Dépasser un bout
+  // de série avec ↑ / ↓ continue dans la voisine — à reculons, sur sa DERNIÈRE
+  // photo.
+  //
+  // ⚠️ Les deux axes ont été ÉCHANGÉS le 2026-08-22 (demande Alexandre) : les
+  // flèches horizontales portaient les photos et les verticales les séries.
+  // Chaque comportement a gardé son sens (→ prend ce que faisait ↓, ↓ prend ce
+  // que faisait →), seules les touches ont permuté. L'axe vertical épouse
+  // désormais la COLONNE DE VIGNETTES qu'il parcourt, et l'axe horizontal le
+  // déplacement latéral d'une série à l'autre. Les flèches de la rangée fermée
+  // (défilement horizontal) ne sont pas concernées : elles vivent dans l'état
+  // fermé, où il n'y a ni photo courante ni série ouverte.
   //
   // Le changement de série suit désormais EXACTEMENT le régime de l'échange
   // de photo (décision Alexandre 2026-08-22, qui remplace le « bloquant » de
@@ -1383,8 +1391,9 @@ export function DesktopSeries({
 
       const chain = chainRef.current;
 
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        const dir: 1 | -1 = e.key === 'ArrowDown' ? 1 : -1;
+      // ── ← / → : changement de SÉRIE ────────────────────────────────────
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const dir: 1 | -1 = e.key === 'ArrowRight' ? 1 : -1;
         // Chaîne d'échanges en cours : le changement part à la fin de sa
         // traîne. `goToSeries` gère tout le reste (chaîne de switch en cours,
         // ouverture/fermeture qu'on laisse finir).
@@ -1393,7 +1402,8 @@ export function DesktopSeries({
         return;
       }
 
-      const dir: 1 | -1 = e.key === 'ArrowRight' ? 1 : -1;
+      // ── ↑ / ↓ : photo précédente / suivante DANS la série ───────────────
+      const dir: 1 | -1 = e.key === 'ArrowDown' ? 1 : -1;
       // On quitte déjà la série : les échanges attendent que le changement
       // soit posé (sa colonne de destination n'existe pas encore).
       if (switchChainRef.current) return;

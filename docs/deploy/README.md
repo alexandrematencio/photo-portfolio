@@ -29,7 +29,7 @@ Le partage est donc : **le calcul chez bfast, l'hébergement chez Alexandre.**
 
 ```
   repo du site (PUBLIC)                repo déployeur (chez bfast)
-  alexandrematencio/photo-portfolio    <bfast>/amatencio-deploy
+  alexandrematencio/photo-portfolio    bfastdev/amatencio-deploy
   ├── code + .env.production ──────────► checkout (lecture publique)
   │                                     │  npm ci && npm run build
   │                                     │  (aucune variable côté runner :
@@ -47,8 +47,9 @@ Seule la machine qui construit change.
 
 ## Runbook — à faire une fois
 
-Trois des quatre étapes réclament le compte bfast, que l'agent n'a pas :
-sa session `gh` est authentifiée en `alexandrematencio`.
+Le compte déployeur est **`bfastdev`** (compte utilisateur, vérifié existant).
+Trois des quatre étapes le réclament, et l'agent ne l'a pas : sa session `gh`
+est authentifiée en `alexandrematencio`.
 
 **1. Clé de déploiement.** Sur ta machine :
 
@@ -72,7 +73,7 @@ supprimer la clé dans Settings → Deploy keys.
 
 ```
 gh auth login          # se connecter en bfast
-gh repo create <bfast>/amatencio-deploy --private --clone
+gh repo create bfastdev/amatencio-deploy --private --clone
 ```
 
 Privé : sur un compte gratuit, 2 000 minutes/mois, soit ~600 builds de 3 min.
@@ -83,15 +84,15 @@ ailleurs :
 
 ```
 gh secret set AMATENCIO_DEPLOY_KEY \
-  --repo <bfast>/amatencio-deploy < ~/.ssh/amatencio-gh-pages-deploy
+  --repo bfastdev/amatencio-deploy < ~/.ssh/amatencio-gh-pages-deploy
 ```
 
 **4. Le workflow.** Copier `docs/deploy/bfast-deployer.yml` de ce repo vers
 `.github/workflows/deploy.yml` du repo déployeur, commiter, pousser. Puis :
 
 ```
-gh workflow run "Deploy AMATENCIO PHOTO" --repo <bfast>/amatencio-deploy
-gh run watch --repo <bfast>/amatencio-deploy
+gh workflow run "Deploy AMATENCIO PHOTO" --repo bfastdev/amatencio-deploy
+gh run watch --repo bfastdev/amatencio-deploy
 ```
 
 Vérification (elle doit rendre l'URL github.io, jamais `localhost`) :
@@ -105,7 +106,7 @@ curl -s https://alexandrematencio.github.io/photo-portfolio/ \
 
 | Voie | Commande | Quand |
 |---|---|---|
-| CI bfast | `gh workflow run "Deploy AMATENCIO PHOTO" --repo <bfast>/amatencio-deploy` | par défaut |
+| CI bfast | `gh workflow run "Deploy AMATENCIO PHOTO" --repo bfastdev/amatencio-deploy` | par défaut |
 | Local, secours | `npm run deploy` | CI indisponible, ou build à inspecter |
 
 Les deux produisent le même site : elles font le même `next build` et poussent

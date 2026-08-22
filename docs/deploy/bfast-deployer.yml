@@ -34,7 +34,7 @@ on:
   # et Alexandre republiera enfin sans qu'un développeur ouvre un laptop.
   #   curl -X POST -H "Authorization: Bearer <PAT>" \
   #        -H "Accept: application/vnd.github+json" \
-  #        https://api.github.com/repos/<bfast>/<repo>/dispatches \
+  #        https://api.github.com/repos/bfastdev/amatencio-deploy/dispatches \
   #        -d '{"event_type":"sanity-publish"}'
   repository_dispatch:
     types: [sanity-publish]
