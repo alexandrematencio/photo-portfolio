@@ -47,7 +47,14 @@ export type GhostLayer = {
   destroy: () => void;
 };
 
-export function createGhostLayer(): GhostLayer {
+/**
+ * `zIndex` : deux couches coexistent pendant un changement de série — les
+ * SORTANTS (clones du réel capturés avant le re-render) et la COUVERTURE
+ * (clones entrants, qui survivent au vol). La couverture doit rester au-dessus
+ * quel que soit l'ordre de création, d'où le paramètre plutôt qu'un ordre
+ * d'insertion implicite.
+ */
+export function createGhostLayer(zIndex = 60): GhostLayer {
   const el = document.createElement('div');
   el.setAttribute('data-series-ghosts', '');
   // `contain: strict` : les vols de boîte (width/height, cf. flyCurved)
@@ -55,7 +62,7 @@ export function createGhostLayer(): GhostLayer {
   // au lieu de laisser le navigateur invalider plus large. Sûr ici : couche
   // dimensionnée par inset, enfants en absolute, overflow déjà masqué.
   el.style.cssText =
-    'position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden;contain:strict;';
+    `position:fixed;inset:0;pointer-events:none;z-index:${zIndex};overflow:hidden;contain:strict;`;
   document.body.appendChild(el);
   return { el, destroy: () => el.remove() };
 }
@@ -431,7 +438,11 @@ export function flyCrossingLegacy(
 export function flyOutRight(
   tl: gsap.core.Timeline,
   ghosts: HTMLImageElement[],
-  { duration = DUR.switch * 0.75, at = 0 }: { duration?: number; at?: number } = {}
+  {
+    duration = DUR.switch * 0.75,
+    stagger = 0.015,
+    at = 0,
+  }: { duration?: number; stagger?: number; at?: number } = {}
 ): void {
   tl.to(
     ghosts,
@@ -440,7 +451,7 @@ export function flyOutRight(
       ease: 'power2.in',
       x: '+=320',
       opacity: 0,
-      stagger: 0.015,
+      stagger,
     },
     at
   );
