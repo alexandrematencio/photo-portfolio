@@ -1,0 +1,101 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# COPIE DE RÉFÉRENCE. Ce fichier ne s'exécute PAS depuis ce repo.
+#
+# Sa place réelle : `.github/workflows/deploy.yml` du repo déployeur, chez
+# bfast. Il est versionné ICI pour que la mécanique de publication reste
+# lisible dans le projet qu'elle publie — un workflow qu'on ne voit nulle part
+# est un workflow que personne ne maintient. Toute modification se fait ici
+# PUIS se recopie là-bas (cf. docs/deploy/README.md).
+#
+# Pourquoi le calcul est chez bfast et pas chez Alexandre : son compte GitHub
+# est verrouillé pour raison de facturation, ce qui empêche tout job Actions de
+# DÉMARRER (« your account is locked due to a billing issue » — run du
+# 2026-08-22 sur son repo). Le verrou porte sur le compte, pas sur le repo :
+# ni la visibilité publique ni `actions/permissions.enabled: true` n'y changent
+# quoi que ce soit.
+#
+# Ce qui NE bouge pas, et c'est le point du montage : le repo, GitHub Pages et
+# l'URL publique restent chez Alexandre. Seule la machine qui construit change.
+# Un transfert de repo aurait déplacé l'URL avec le propriétaire
+# (`<owner>.github.io/photo-portfolio`), donc cassé canonicals, sitemap et
+# liens entrants — pour un portfolio dont l'enjeu est d'être trouvé, non.
+#
+# La publication passe par la branche `gh-pages`, servie par la plomberie
+# interne de Pages (`pages-build-deployment`, event `dynamic`). Elle ne
+# consomme aucune minute Actions : c'est elle qui continue de fonctionner sous
+# le verrou, vérifié le 2026-08-22.
+# ─────────────────────────────────────────────────────────────────────────────
+name: Deploy AMATENCIO PHOTO
+
+on:
+  # Publication à la demande (bouton « Run workflow »).
+  workflow_dispatch:
+  # Crochet pour le webhook Sanity : un publish dans Studio déclenchera ceci,
+  # et Alexandre republiera enfin sans qu'un développeur ouvre un laptop.
+  #   curl -X POST -H "Authorization: Bearer <PAT>" \
+  #        -H "Accept: application/vnd.github+json" \
+  #        https://api.github.com/repos/<bfast>/<repo>/dispatches \
+  #        -d '{"event_type":"sanity-publish"}'
+  repository_dispatch:
+    types: [sanity-publish]
+
+# Aucun droit nécessaire sur CE repo : la lecture du site se fait en public,
+# l'écriture chez Alexandre passe par une clé de déploiement dédiée.
+permissions: {}
+
+concurrency:
+  group: amatencio-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Repo PUBLIC : aucun jeton pour le lire.
+      - name: Checkout du site
+        uses: actions/checkout@v4
+        with:
+          repository: alexandrematencio/photo-portfolio
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Aucune variable d'environnement ici, VOLONTAIREMENT : `.env.production`
+      # est commité dans le repo du site et porte toute la config publique
+      # (URL canonique + coordonnées du dataset Sanity). Redéclarer une de ces
+      # valeurs ici en ferait une seconde source de vérité, et c'est exactement
+      # ce qui a fait publier `http://localhost:3010` en canonical pendant
+      # trois mois.
+      - run: npm run build
+
+      # Push de /out sur la branche `gh-pages` d'Alexandre, via une clé de
+      # déploiement en écriture posée sur SON repo (portée : ce repo seul, pas
+      # son compte). Écrit à la main plutôt qu'avec une action tierce : dix
+      # lignes lisibles valent mieux qu'une dépendance de chaîne
+      # d'approvisionnement pour un `git push`.
+      - name: Publier sur gh-pages
+        env:
+          DEPLOY_KEY: ${{ secrets.AMATENCIO_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          cd out
+          # Sans ce fichier, GH Pages passe le site à Jekyll et ignore `_next/*`.
+          touch .nojekyll
+          git init -q
+          git checkout -qb gh-pages
+          git config user.name  'bfast deployer'
+          git config user.email 'deploy@bfast.dev'
+          git add -A
+          git commit -qm 'chore(deploy): publish static export (CI bfast)'
+          # Force : `gh-pages` est une branche de SORTIE, jamais une histoire à
+          # préserver — même geste que le paquet `gh-pages` en local.
+          git push -qf git@github.com:alexandrematencio/photo-portfolio.git gh-pages
