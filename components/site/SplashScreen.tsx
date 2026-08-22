@@ -503,8 +503,16 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
       }
     };
 
+    /**
+     * Give the playhead back to automatic playback, from wherever the scrub
+     * left it. Two callers: the idle timer (the user stopped scrolling) and
+     * the reveal hand-off (see `afterSeek`).
+     */
     const resumeAuto = () => {
-      idleTimer = 0;
+      if (idleTimer) {
+        window.clearTimeout(idleTimer);
+        idleTimer = 0;
+      }
       if (!manual || !scrubTl) return;
       manual = false;
       showReadout(false);
@@ -520,7 +528,22 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
     // (`dispatchReveal` dedups, `finish` guards), so the automatic path
     // reaching them too costs nothing.
     const afterSeek = (t: number) => {
-      if (t >= revealTime) dispatchReveal(false);
+      if (t >= revealTime && !revealedRef.current) {
+        // THE SCRUB OWNS THE INTRO, NOT THE HAND-OFF. The glyph has just
+        // landed on the hero: `dispatchReveal` starts the hero entrance, a
+        // fixed 1.6 s choreography that cannot be scrubbed. What is left of
+        // OUR timeline is the 0.4 s overlay fade that uncovers it — and
+        // leaving those under the gesture is what produced the pause and the
+        // washed-out flash: the fade would stall part-way (asymptotic settle,
+        // or the user simply stopped scrolling and had to wait out the 700 ms
+        // idle timer) with the hero showing through a half-opaque background.
+        // `power2.in` made it worse — an ease-in barely moves at first, so a
+        // slowly-scrubbed fade reads as frozen, then rushes.
+        // So the moment the reveal fires, the tail goes back to automatic and
+        // plays at 1×, exactly as it does when the splash was never touched.
+        dispatchReveal(false);
+        resumeAuto();
+      }
       if (scrubTl && t >= scrubTl.duration() - SCRUB_SNAP_SECONDS) {
         scrubFinish?.();
       }
@@ -547,6 +570,12 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
 
     const onScrollIntent = (px: number) => {
       if (!(px >= SCRUB_MIN_DELTA_PX)) return; // NaN-safe, forward-only
+      // Past the reveal the splash is only a fade over a hero entrance that
+      // is already running — there is nothing left worth scrubbing, and
+      // grabbing it back would re-open the stall described in `afterSeek`.
+      // Covers the automatic path too: `revealedRef` is set by whichever of
+      // the two fired it.
+      if (revealedRef.current) return;
       const tl = scrubTl;
       if (!tl) {
         bankedPx += px;
