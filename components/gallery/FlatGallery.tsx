@@ -306,7 +306,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
         <div
           role="tablist"
           aria-label="Grouping mode"
-          className="flex min-w-0 flex-wrap items-center justify-start gap-x-10 gap-y-2 md:gap-x-14"
+          className="flex min-w-0 flex-wrap items-center justify-start gap-x-4 gap-y-2"
           style={{ paddingTop: 24, paddingBottom: 24, paddingRight: 32 }}
         >
           {TABS.map((tab) => {
@@ -327,7 +327,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
                 // globals.css vit hors @layer et avale les utilities Tailwind
                 // de padding (cf. CLAUDE.md §7.6) — c'est d'ailleurs pour ça
                 // que le `py-2` qui était ici n'avait jamais rien fait.
-                style={{ padding: '4px 10px' }}
+                style={{ padding: '4px 24px' }}
                 className={cn(
                   'text-[12px] uppercase font-bold cursor-pointer transition-colors motion-reduce:transition-none',
                   active
