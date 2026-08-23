@@ -15,6 +15,7 @@ import { useMdUp } from '../shared/useMdUp';
 import { pushModalHistory } from '@/lib/utils/modalHistory';
 import { SeriesMeta } from '../shared/SeriesMeta';
 import { MICRO_LABEL } from '@/lib/site/typography';
+import { SeriesWordmark } from '../shared/SeriesWordmark';
 
 gsap.registerPlugin(Flip);
 
@@ -51,6 +52,24 @@ gsap.registerPlugin(Flip);
 
 /** Marge latérale : gouttière de la liste ET retrait de la photo en plein écran. */
 const SIDE = 20;
+
+/**
+ * Respiration de la liste d'accueil (demande Alexandre, 2026-08-24) : 72 px
+ * entre deux séries, 96 entre le lettrage et la première photo.
+ *
+ * Les deux vont ensemble et se lisent ensemble : le titre n'est pas une ligne
+ * de la liste, il l'ANNONCE, et l'écart qui l'en sépare doit être franchement
+ * plus grand que celui qui sépare deux séries — sinon la page se lit comme une
+ * liste de sept items dont le premier serait écrit en gros.
+ *
+ * `TITLE_GAP` est mesuré depuis le BAS DES GLYPHES : la boîte du lettrage est
+ * exactement sa hauteur de capitale (cf. `SeriesWordmark`), donc l'écart de
+ * mise en page est aussi l'écart vu. Le complément est porté en padding sur le
+ * titre, pas dans le `rowGap` — un écart de titre n'a pas à valoir entre deux
+ * séries.
+ */
+const ROW_GAP = 72;
+const TITLE_GAP = 96;
 
 /**
  * Hauteur soustraite à l'écran avant de plafonner la photo : nav-bar (64),
@@ -374,31 +393,23 @@ export function MobileSeries({
           Tailwind de padding/margin, qui sont eux dans un @layer. */}
       <div
         ref={listRef}
-        className="flex flex-col gap-8"
-        style={{ paddingLeft: SIDE, paddingRight: SIDE }}
+        className="flex flex-col"
+        style={{ paddingLeft: SIDE, paddingRight: SIDE, rowGap: ROW_GAP }}
       >
-        {/* Titre pleine largeur, recette de « Selected Works » : le `viewBox`
-            donne le ratio, `textLength` FORCE la chasse à la largeur de la
-            boîte. Le remplissage est donc garanti par construction et ne
-            dépend d'aucune métrique de fonte — `--font-display` est une pile
-            SYSTÈME (Helvetica Neue / Arial / Roboto), dont les chasses
-            diffèrent. Cotes : « SERIES » en Helvetica Bold pèse 3,668 em,
-            moins 0,02 em d'interlettrage par caractère → 3,548 em ; d'où
-            fontSize 281,8 pour 1000 de large, et une hauteur de boîte égale à
-            la capitale (0,714 em = 201). */}
-        <h1 className="series-title" style={{ paddingBottom: 8 }}>
+        {/* Titre pleine largeur — même lettrage que la branche desktop, au
+            composant près (cf. `SeriesWordmark` pour la recette et les cotes).
+            Ici il ne bouge JAMAIS : le dépliage mobile est un autre geste que
+            l'ouverture desktop, et la liste défile sous un titre stable.
+
+            Le complément d'écart au-dessus de la première photo est porté ici
+            et pas par le `rowGap` de la colonne : c'est un écart de TITRE, il
+            n'a pas de raison de valoir aussi entre deux séries. */}
+        <h1
+          className="series-title"
+          style={{ paddingBottom: TITLE_GAP - ROW_GAP }}
+        >
           <span className="sr-only">Series</span>
-          <svg viewBox="0 0 1000 201" aria-hidden="true" focusable="false">
-            <text
-              x="0"
-              y="201"
-              fontSize="281.8"
-              textLength="1000"
-              lengthAdjust="spacing"
-            >
-              SERIES
-            </text>
-          </svg>
+          <SeriesWordmark />
         </h1>
 
         {series.map((s) => {

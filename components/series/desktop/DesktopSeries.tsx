@@ -13,10 +13,16 @@ import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { cn } from '@/lib/utils/cn';
 import { centerSrcFor } from '../shared/photoSrc';
 import { colLeadReserve } from '../shared/colLead';
+import {
+  SeriesWordmark,
+  seriesWordmarkWidthFor,
+} from '../shared/SeriesWordmark';
+import { PAGE_TITLE_SIZE_MD } from '@/lib/site/typography';
 import { FolderStack } from './FolderStack';
 import { OpenSeriesView } from './OpenSeriesView';
 import {
   DUR,
+  EASE,
   HANDOFF_DELAY,
   STAGGER,
   createGhostLayer,
@@ -48,6 +54,32 @@ import {
  */
 
 type Phase = 'closed' | 'opening' | 'open' | 'closing' | 'switching';
+
+/**
+ * LE LETTRAGE « SERIES », ses deux tailles et le trajet entre les deux.
+ *
+ * **Grand (état d'accueil)** : 58 % de la largeur utile de la page. Ce n'est
+ * pas un chiffre rond posé à l'œil, c'est un RAPPORT avec la home. « Selected
+ * Works » y remplit toute la largeur, ce qui lui donne une capitale de
+ * 0,138 × largeur utile (mesuré : 190 px à 1440, 256 à 1920). Le lettrage d'ici
+ * étant sur UNE ligne et de six lettres, le même remplissage donnerait une
+ * capitale d'environ 277 px à 1440 — une fois et demie la home, sur une page
+ * qui a déjà une rangée de piles à tenir dans la même hauteur d'écran. À 58 %,
+ * la capitale retombe à 0,845 fois celle de la home : la parenté se lit, la
+ * hiérarchie aussi. La page la plus complexe porte le titre le plus modeste.
+ *
+ * Le plafond de 1 076 px est le même 58 % pris sur la largeur utile MAXIMALE de
+ * la home (1 856 px, son `max-width: 1920` moins les gouttières) : au-delà de
+ * 1920, les deux titres cessent de grandir ensemble.
+ *
+ * **Petit (série ouverte)** : exactement la taille du titre d'`/archives` —
+ * d'où la largeur DÉDUITE de `PAGE_TITLE_SIZE_MD` plutôt qu'un rapport
+ * transcrit à la main. Une série ouverte est une page de consultation comme
+ * `/archives` : son titre se range au même corps, au même coin.
+ */
+const TITLE_WIDTH_PCT = '58%';
+const TITLE_MAX_WIDTH = 1076;
+const TITLE_OPEN_WIDTH = seriesWordmarkWidthFor(PAGE_TITLE_SIZE_MD);
 
 /**
  * Durée du glissement du footer. Court exprès : le footer n'est pas un
@@ -230,6 +262,7 @@ export function DesktopSeries({
 }) {
   const sceneRef = useRef<HTMLElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLSpanElement>(null);
   const [displayed, setDisplayed] = useState<PreparedSeries | null>(null);
   const [phase, setPhase] = useState<Phase>('closed');
   const animating = useRef(false);
@@ -456,6 +489,65 @@ export function DesktopSeries({
     (i: number) => q<HTMLImageElement>(`[data-col-img="${i}"]`),
     [q]
   );
+
+  // ── Échelle du lettrage ──────────────────────────────────────────────────
+
+  /**
+   * Le titre se réduit à la taille de celui d'`/archives` PENDANT le vol
+   * d'ouverture, et regrandit pendant celui de fermeture. Même durée, même
+   * `expo.inOut` que les vols : la page n'a qu'une seule signature de
+   * mouvement, le titre ne s'en invente pas une seconde.
+   *
+   * `useLayoutEffect` et pas `useEffect` : les vols partent eux aussi d'un
+   * layout effect, sur le commit de la même phase. Un effet passif jouerait une
+   * frame plus tard — assez pour que le titre parte en retard sur des vols de
+   * 0,9 s, et assez pour se voir.
+   *
+   * C'est un `transform: scale` et jamais une largeur animée. L'origine est le
+   * coin haut-gauche, donc le mot se replie vers l'angle où le petit titre doit
+   * atterrir, et rien ne repasse par le layout à chaque frame.
+   *
+   * ⚠️ L'échelle cible se recalcule à chaque commit ET au redimensionnement :
+   * elle est le rapport d'une largeur FIXE (celle du petit titre, en px) sur
+   * une largeur PROPORTIONNELLE (58 % de la page). Figée une fois, elle
+   * afficherait le petit titre à une taille fausse dès que la fenêtre change —
+   * et c'est précisément l'état où l'on reste le plus longtemps.
+   *
+   * `offsetWidth` et pas `getBoundingClientRect` : le premier donne la largeur
+   * de LAYOUT, celle que le transform n'a pas touchée. Le second rendrait la
+   * largeur déjà réduite, et l'échelle se composerait avec elle-même à chaque
+   * passage.
+   */
+  useLayoutEffect(() => {
+    const el = titleRef.current;
+    // Largeur nulle = branche cachée (viewport mobile) : rien à mettre à
+    // l'échelle, et surtout pas de division par zéro.
+    if (!el || !el.offsetWidth) return;
+
+    const small = phase !== 'closed' && phase !== 'closing';
+    const flying = phase === 'opening' || phase === 'closing';
+
+    const apply = () => {
+      const w = el.offsetWidth;
+      if (!w) return;
+      gsap.to(el, {
+        scale: small ? TITLE_OPEN_WIDTH / w : 1,
+        duration: flying && !reduced ? DUR[small ? 'open' : 'close'] : 0,
+        ease: EASE,
+        overwrite: 'auto',
+      });
+    };
+    apply();
+
+    // Au redimensionnement, on RE-POSE l'échelle sans la rejouer : le geste de
+    // l'utilisateur est le redimensionnement, pas une ouverture.
+    const onResize = () => {
+      const w = el.offsetWidth;
+      if (w) gsap.set(el, { scale: small ? TITLE_OPEN_WIDTH / w : 1 });
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [phase, reduced]);
 
   // ── Réconciliation displayed ← openSeries ────────────────────────────────
 
@@ -1641,7 +1733,35 @@ export function DesktopSeries({
       // est simplement plus haute que l'écran de 70 px.
       style={{ height: 'calc(100dvh - 160px)', minHeight: 460 }}
     >
-      <h1 className="sr-only">Series</h1>
+      {/* ── Lettrage ──────────────────────────────────────────────────────
+          En FLUX, tout en haut de la scène : la hauteur de celle-ci est fixée
+          en `calc()`, le titre ne pousse donc rien — la rangée est en
+          `absolute bottom-0` et la vue ouverte en `absolute inset-0`. Il se
+          pose ainsi à la même ligne que le titre d'`/archives` (haut de
+          `<main>`), ce qui est exactement là où il finit sa course.
+
+          `pointer-events: none` : réduit, il chevauche de ~20 px la colonne
+          centrale de la vue ouverte. Il ne doit jamais intercepter un clic
+          destiné à ce qui se trouve dessous. */}
+      <h1
+        className="series-title"
+        style={{ paddingLeft: 32, paddingRight: 32, pointerEvents: 'none' }}
+      >
+        <span className="sr-only">Series</span>
+        <span
+          ref={titleRef}
+          aria-hidden
+          style={{
+            display: 'block',
+            width: TITLE_WIDTH_PCT,
+            maxWidth: TITLE_MAX_WIDTH,
+            transformOrigin: '0 0',
+            willChange: 'transform',
+          }}
+        >
+          <SeriesWordmark />
+        </span>
+      </h1>
 
       {/* ── Rangée fermée ─────────────────────────────────────────────────── */}
       <div

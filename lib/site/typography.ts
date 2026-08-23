@@ -117,3 +117,19 @@ export const MICRO_LABEL = 'text-[11px] uppercase font-bold tabular-nums';
 
 /** Le même cran en dessous — métadonnées de photo, légende de lightbox. */
 export const MICRO_LABEL_XS = 'text-[10px] uppercase font-bold tabular-nums';
+
+/**
+ * TITRE DE PAGE — le H1 en gros lettrage des pages de catalogue (`/archives`
+ * aujourd'hui). 48 px sur téléphone, 64 au-dessus de `md`.
+ *
+ * ⚠️ La taille desktop est exportée à côté parce qu'une AUTRE page en dépend :
+ * le lettrage « SERIES » de `/series` se réduit exactement à cette taille quand
+ * une série s'ouvre (CLAUDE.md §3.7). Le rapport d'échelle n'est donc pas
+ * transcrit à la main — il se déduit de ce nombre. Changer 64 ici change les
+ * deux pages ensemble, ce qui est le but ; le réécrire en dur là-bas les
+ * laisserait diverger sans le moindre signal.
+ */
+export const PAGE_TITLE_SIZE_MD = 64;
+
+export const PAGE_TITLE =
+  'text-[48px] md:text-[64px] font-black uppercase tracking-[-0.04em] leading-none text-[var(--color-fg)]';
