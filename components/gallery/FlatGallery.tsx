@@ -16,8 +16,16 @@ gsap.registerPlugin(Flip);
 type Mode = 'year' | 'location' | 'style' | 'camera' | 'lens';
 
 /** Paliers de densité de la démo Codrops — le nombre de colonnes par palier
-    vit dans globals.css (.grid-gallery[data-size-grid]). */
-const GRID_SIZES = ['50%', '75%', '100%', '125%', '150%'] as const;
+    vit dans globals.css (.grid-gallery[data-size-grid]).
+
+    Le palier 150 % de la démo a été retiré le 2026-08-23 : 4 colonnes de
+    ~446 px, ce n'est plus une planche-contact mais un diaporama — or regarder
+    une photo en grand, c'est le travail de la lightbox. C'était accessoirement
+    le seul palier où la loupe de survol (×1,15) dépassait la résolution de la
+    source servie (800 px) : 446 px de carte × 2 (DPR) × 1,15 = 1026 px demandés.
+    Le palier restant, 125 %, tient (289 × 2 × 1,15 = 665 px). Toucher à cette
+    liste, ou remonter l'échelle de la loupe, = refaire ce calcul. */
+const GRID_SIZES = ['50%', '75%', '100%', '125%'] as const;
 type GridSize = (typeof GRID_SIZES)[number];
 
 const TABS: { id: Mode; label: string }[] = [
@@ -66,7 +74,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
   // Single carousel instance for the whole flat gallery — initialIndex is the
   // photo's position in the currently-visible flat ordering.
   const [openIndex, setOpenIndex] = useState<number | null>(null);
-  // Densité de la grille (boutons 50→150 %). 75 % = défaut de la démo.
+  // Densité de la grille (boutons 50→125 %). 75 % = défaut de la démo.
   const [gridSize, setGridSize] = useState<GridSize>('75%');
   const reducedMotion = useReducedMotion();
   // Conteneur des groupes : cible du filtre blur/brightness pendant le Flip,

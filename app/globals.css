@@ -299,7 +299,7 @@ body img {
 /* Grille des Archives — recette de la démo 2 Codrops « Grid Layout Transitions »
    (tympanus.net/Tutorials/GridLayoutTransitions/index2.html, style.css), reprise
    telle quelle : la densité est pilotée par l'attribut data-size-grid (boutons
-   50→150 % dans FlatGallery), chaque palier fixe son nombre de colonnes, avec
+   50→125 % dans FlatGallery), chaque palier fixe son nombre de colonnes, avec
    les overrides tablette de la démo et le verrou 3 colonnes sous 768px (où les
    boutons sont sans effet, comme dans la démo). La transition entre paliers est
    un Flip GSAP (FlatGallery.changeGridSize), pas une transition CSS. */
@@ -321,9 +321,6 @@ body img {
 .grid-gallery[data-size-grid='125%'] {
   grid-template-columns: repeat(6, 1fr);
 }
-.grid-gallery[data-size-grid='150%'] {
-  grid-template-columns: repeat(4, 1fr);
-}
 
 .grid-gallery-item {
   will-change: auto;
@@ -332,19 +329,62 @@ body img {
 }
 
 /* Boîte image : le ratio natif de la photo vient de --aspect-ratio (posé en
-   inline par PhotoCard). Assombrie au repos, pleine lumière au survol — le
-   hover de la démo, à la place du zoom 1.03 de l'ancienne masonry. */
+   inline par PhotoCard). C'est ELLE le cadre de la loupe ci-dessous —
+   `overflow: hidden` garantit que le grossissement ne déborde jamais sur les
+   voisines : les dimensions de la photo font le cadre.
+
+   AUCUN assombrissement. Le voile `brightness(0.8)` du repos (hérité de la
+   démo Codrops) a été retiré le 2026-08-23 : il « dévoilait » la photo au
+   survol, donc il la montrait dégradée le reste du temps — contraire à
+   « l'image d'abord » (CLAUDE.md §3.1). La mise en avant se fait maintenant
+   par la loupe, qui n'enlève rien à personne. */
 .grid-gallery-image {
   position: relative;
   width: 100%;
   aspect-ratio: var(--aspect-ratio, 4 / 5);
   overflow: hidden;
   background: var(--color-bg-elev);
-  filter: brightness(0.8);
-  transition: filter 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
-.grid-gallery-image:hover {
-  filter: brightness(1);
+
+/* Loupe — le calque intérieur grossit SUR PLACE, son origine de transformation
+   suivant le curseur (`--loupe-x` / `--loupe-y`, posées par PhotoCard).
+
+   Pourquoi l'origine et pas un translate tracké : avec l'origine posée à
+   l'INTÉRIEUR de la boîte et un scale ≥ 1, l'image couvre mathématiquement
+   toujours la boîte entière, à n'importe quelle échelle — y compris pendant la
+   montée et la descente. Zéro bord vide possible. Un translate, lui, découvre
+   le fond dès qu'on se trompe d'un pixel dans le clamp.
+
+   Le contenu se déplace à (1,15 − 1) / 1,15 ≈ 0,13× la vitesse du curseur : la
+   photo GLISSE sous la loupe au lieu d'y coller. C'est ce ratio qui donne la
+   résistance, pas la durée de la transition — et il DÉCOULE de l'échelle, il
+   ne se règle pas à part. Baisser le grossissement calme donc aussi le suivi.
+
+   `transform-origin` n'est volontairement pas dans la liste des propriétés
+   transitionnées : le suivi doit être immédiat (c'est le curseur qui porte le
+   lissage), seule l'échelle s'anime. */
+.grid-gallery-zoom {
+  position: absolute;
+  inset: 0;
+  transform: scale(var(--loupe-scale, 1));
+  transform-origin: var(--loupe-x, 50%) var(--loupe-y, 50%);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Souris uniquement — sur tactile il n'y a pas de survol, et PhotoCard n'y
+   pose même pas d'écouteur (`pointerType === 'mouse'`). */
+@media (hover: hover) and (pointer: fine) {
+  .grid-gallery-image:hover .grid-gallery-zoom {
+    --loupe-scale: 1.15;
+  }
+}
+
+/* Chemin `instant` (CLAUDE.md §3.2) : le grossissement s'applique d'un coup,
+   la loupe reste utilisable, plus rien ne bouge tout seul. */
+@media (prefers-reduced-motion: reduce) {
+  .grid-gallery-zoom {
+    transition: none;
+  }
 }
 
 @media (max-width: 768px) {
@@ -364,9 +404,6 @@ body img {
   }
   .grid-gallery[data-size-grid='125%'] {
     grid-template-columns: repeat(5, 1fr);
-  }
-  .grid-gallery[data-size-grid='150%'] {
-    grid-template-columns: repeat(3, 1fr);
   }
 }
 
