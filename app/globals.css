@@ -101,6 +101,25 @@ header svg path,
   box-sizing: border-box;
 }
 
+/* Respiration verticale du footer — 24 px sous md, 16 px au-dessus, où les
+   70 px de hauteur sont verrouillés (16 + 38 + 16) et servent au calcul de
+   scène de /series. Elle vit ICI, et pas en utility Tailwind ni en style
+   inline, pour deux raisons qui se contredisent ailleurs :
+   - le reset `* {padding:0}` juste au-dessus est HORS @layer, il bat donc
+     toutes les utilities Tailwind de padding (voir SiteFooter.tsx) ;
+   - un style inline y échapperait mais ne connaît pas les media queries.
+   Une règle unlayered de spécificité (0,1,1) posée APRÈS le reset satisfait
+   les deux. */
+[data-site-footer] > div {
+  padding-block: 24px;
+}
+
+@media (min-width: 48rem) {
+  [data-site-footer] > div {
+    padding-block: 16px;
+  }
+}
+
 html {
   background-color: var(--color-bg);
   color: var(--color-fg);
