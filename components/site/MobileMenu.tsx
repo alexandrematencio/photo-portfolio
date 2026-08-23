@@ -7,8 +7,8 @@ import { X } from 'lucide-react';
 import { GlyphLogo } from './GlyphLogo';
 import { cn } from '@/lib/utils/cn';
 import {
-  ACTIVE_FILL_INSET,
-  ACTIVE_FILL_PADDING,
+  ACTIVE_FILL_MOBILE,
+  ACTIVE_FILL_PADDING_MOBILE,
   CONTROL_RADIUS,
 } from '@/lib/site/controls';
 import {
@@ -127,12 +127,13 @@ export function MobileMenu() {
           {/* Nav items — bottom-left aligned via `justify-between` on the parent.
               paddingBottom 32 + gouttière de 32 px (per Pencil mockup `jPTyJ`).
 
-              ⚠️ La gouttière est amputée de `ACTIVE_FILL_INSET` et rendue par le
-              padding des items : c'est le TEXTE qui doit tomber sur les 32 px,
-              pas la boîte qui le porte. Et l'écart vertical descend de 32 à 22
-              pour la même raison — les 10 px de padding haut+bas s'ajoutent
-              sinon à l'écart, et la colonne s'aère de 10 px par item par rapport
-              au mockup.
+              ⚠️ La gouttière est amputée de l'inset du surlignage et rendue par
+              le padding des items : c'est le TEXTE qui doit tomber sur les 32 px,
+              pas la boîte qui le porte. Et l'écart vertical se réduit d'autant
+              que le padding haut+bas, pour la même raison — il s'ajoute sinon à
+              l'écart, et la colonne s'aère par rapport au mockup. Les deux se
+              DÉRIVENT d'`ACTIVE_FILL_MOBILE` : élargir le surlignage sans elles
+              décale toute la colonne, sans le moindre signal.
 
               Le padding est posé sur TOUS les items, le fond sur le seul actif
               (CLAUDE.md §7.7). L'exception « actif seulement » de la nav-bar
@@ -142,17 +143,17 @@ export function MobileMenu() {
             aria-label="Mobile navigation"
             className="flex flex-col"
             style={{
-              paddingLeft: 32 - ACTIVE_FILL_INSET,
+              paddingLeft: 32 - ACTIVE_FILL_MOBILE.inset,
               paddingBottom: 32,
               paddingRight: 32,
-              rowGap: 22,
+              rowGap: 32 - ACTIVE_FILL_MOBILE.top - ACTIVE_FILL_MOBILE.bottom,
             }}
           >
             {MOBILE_LINKS.map((link) => {
               // Le lien externe (Instagram) n'est jamais « la page courante ».
               const active = !link.external && isSamePage(link.href, pathname);
               const itemStyle = {
-                padding: ACTIVE_FILL_PADDING,
+                padding: ACTIVE_FILL_PADDING_MOBILE,
                 borderRadius: CONTROL_RADIUS,
               };
               const itemClass = cn(

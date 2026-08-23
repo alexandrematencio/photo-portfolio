@@ -38,17 +38,36 @@ export const CONTROL_RADIUS = 1;
  * ont le leur, 4/24, arbitré sur capture). Ce qu'ils partagent, c'est le rayon
  * et la couleur — c'est-à-dire la grammaire, pas la mesure.
  *
- * ⚠️ Dans la nav-bar DESKTOP, ce padding n'est posé que sur l'item ACTIF : la
- * rangée doit atterrir au pixel près sur l'état final du morph du hero de la
- * home, qui n'a aucun item actif (CLAUDE.md §3.6 invariant 6). Partout
- * ailleurs, il se pose sur TOUS les items et seul le fond bascule — sinon la
- * rangée ou la colonne se décale sous les yeux de l'utilisateur à chaque clic
- * (CLAUDE.md §7.7).
+ * ⚠️ Ce padding n'est posé que sur l'item ACTIF de la nav-bar : la rangée doit
+ * atterrir au pixel près sur l'état final du morph du hero de la home, qui n'a
+ * aucun item actif (CLAUDE.md §3.6 invariant 6). Partout ailleurs, il se pose
+ * sur TOUS les items et seul le fond bascule — sinon la rangée ou la colonne
+ * se décale sous les yeux de l'utilisateur à chaque clic (CLAUDE.md §7.7).
+ *
+ * ⚠️ Il ne vaut QUE pour la nav-bar desktop. Le tiroir mobile a le sien
+ * ci-dessous : ses libellés font 48 px contre 14, la même boîte y colle au
+ * texte. Ne pas les refusionner « pour n'avoir qu'un nombre » — c'est la
+ * grammaire qui est commune (fond plein, rayon, libellé noir), pas la mesure.
  */
 export const ACTIVE_FILL_PADDING = '4px 12px 6px 12px';
 
-/** Retrait horizontal de `ACTIVE_FILL_PADDING`, à soustraire de la gouttière
- *  du conteneur quand le padding est posé sur TOUS les items : sans ça, la
- *  colonne entière se décale de 12 px et le texte quitte la gouttière de 32.
- *  Dérivé du padding lui-même, jamais réécrit à la main. */
-export const ACTIVE_FILL_INSET = 12;
+/**
+ * Même surlignage, mesure du TIROIR MOBILE (demande Alexandre, 2026-08-23 :
+ * « ça laisse le texte du bouton de menu respirer »). Les libellés y sont à
+ * 48 px bold : le 12/4/6 de la nav-bar desktop, calibré sur du 14 px, s'y
+ * lisait comme un liseré collé au texte. 16/6/8 lui rend de l'air. Le desktop,
+ * lui, ne peut PAS suivre — sa géométrie est celle d'arrivée du morph du hero.
+ *
+ * Le bas reste 2 px plus profond que le haut, pour la même raison qu'en
+ * desktop : « About », « Series », « Archives » n'ont aucun jambage.
+ *
+ * Les trois nombres vivent ICI et pas dans la chaîne, parce que deux autres
+ * mesures du tiroir en dérivent et se décaleraient en silence sans eux :
+ * la gouttière (`32 − inset` — c'est le TEXTE qui doit tomber sur les 32 px de
+ * la page, pas la boîte qui le porte) et l'écart vertical (`32 − top − bottom`
+ * — les paddings s'ajoutent sinon à l'écart, et la colonne s'aère d'autant par
+ * item par rapport au mockup).
+ */
+export const ACTIVE_FILL_MOBILE = { top: 6, bottom: 8, inset: 16 } as const;
+
+export const ACTIVE_FILL_PADDING_MOBILE = `${ACTIVE_FILL_MOBILE.top}px ${ACTIVE_FILL_MOBILE.inset}px ${ACTIVE_FILL_MOBILE.bottom}px ${ACTIVE_FILL_MOBILE.inset}px`;
