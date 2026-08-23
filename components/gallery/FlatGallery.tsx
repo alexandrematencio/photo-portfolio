@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils/cn';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import type { Photo } from '@/lib/sanity/queries';
 import { StateDot, StateDotBalance } from '@/components/site/StateDot';
+import { CONTROL_RADIUS } from '@/lib/site/controls';
+import { MICRO_LABEL } from '@/lib/site/typography';
 
 gsap.registerPlugin(Flip);
 
@@ -327,7 +329,11 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
                 // globals.css vit hors @layer et avale les utilities Tailwind
                 // de padding (cf. CLAUDE.md §7.6) — c'est d'ailleurs pour ça
                 // que le `py-2` qui était ici n'avait jamais rien fait.
-                style={{ padding: '4px 24px' }}
+                // Le RAYON vient de la constante partagée : le même fond
+                // plein disait « c'est celui-là » avec trois géométries
+                // différentes sur le site (rectangle vif ici, rayon 1 dans la
+                // nav-bar, disque sur le module sombre). Cf. lib/site/controls.
+                style={{ padding: '4px 24px', borderRadius: CONTROL_RADIUS }}
                 className={cn(
                   'text-[12px] uppercase font-bold cursor-pointer transition-colors motion-reduce:transition-none',
                   active
@@ -399,7 +405,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
                 whiteSpace: 'nowrap',
               }}
               className={cn(
-                'inline-flex items-center justify-center text-[12px] font-bold cursor-pointer transition-colors motion-reduce:transition-none',
+                'inline-flex items-center justify-center text-[12px] font-bold tabular-nums cursor-pointer transition-colors motion-reduce:transition-none',
                 size === gridSize
                   ? 'text-[var(--color-fg)] bg-[var(--color-active-bg)]'
                   : 'text-[var(--color-fg-muted-dark)] hover:text-[var(--color-bg)]'
@@ -411,14 +417,23 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
         </div>
       </nav>
 
-      {/* Filter chips — pill buttons per Pencil "filter-button" spec.
-          "All" chip at the start = reset (re-selects everything).
+      {/* Filter chips — "All" chip at the start = reset (re-selects everything).
           Per-value chips toggle their group's visibility.
           État coché = châssis orange + voyant allumé, libellé NOIR. La
           pastille garde donc son trait fin là où les onglets prennent un
           fond plein : deux rôles différents (filtre vs mode), deux marques
-          différentes — et un fond plein derrière une bordure arrondie
-          alourdirait une rangée qui compte jusqu'à vingt éléments.
+          différentes — et un fond plein derrière vingt éléments alourdirait
+          la rangée.
+
+          ⚠️ CAPSULE ABANDONNÉE (2026-08-23). Le `rounded-full` venait du
+          mockup Pencil `filter-button`, dessiné AVANT le virage Teenage
+          Engineering de la console. Il restait le seul de son espèce : une
+          seule rangée mettait côte à côte un rectangle vif (onglets), une
+          capsule à filet (ici) et un disque (densité), soit trois géométries
+          pour deux plans. Les pastilles prennent donc le rayon commun des
+          commandes posées sur une surface claire — un panneau de matériel
+          n'a pas de capsules, il a des touches. Le disque du module sombre
+          reste, lui, l'exception assumée (cf. lib/site/controls.ts).
 
           Cette rangée est le DEUXIÈME PONT de la console, d'une valeur à
           elle : la même que la rangée d'axes mettait deux commandes de rôles
@@ -447,9 +462,9 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
           type="button"
           onClick={selectAll}
           aria-pressed={allSelected}
-          style={{ paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4, gap: 6 }}
+          style={{ paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4, gap: 6, borderRadius: CONTROL_RADIUS }}
           className={cn(
-            'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border cursor-pointer transition-colors motion-reduce:transition-none',
+            'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] tabular-nums border cursor-pointer transition-colors motion-reduce:transition-none',
             allSelected
               ? 'text-[var(--color-fg)] border-[var(--color-link)]'
               : 'text-[var(--color-fg-muted-plate-low)] border-[var(--color-line-plate-low)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
@@ -473,9 +488,9 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
               type="button"
               onClick={() => activateOrReset(g.key)}
               aria-pressed={isSelected}
-              style={{ paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4, gap: 6 }}
+              style={{ paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4, gap: 6, borderRadius: CONTROL_RADIUS }}
               className={cn(
-                'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border cursor-pointer transition-colors motion-reduce:transition-none',
+                'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] tabular-nums border cursor-pointer transition-colors motion-reduce:transition-none',
                 isSelected
                   ? 'text-[var(--color-fg)] border-[var(--color-link)]'
                   : 'text-[var(--color-fg-muted-plate-low)] border-[var(--color-line-plate-low)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
@@ -509,7 +524,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
                   global hors @layer (cf. CLAUDE.md). Sans interlettrage, le
                   compteur collé au titre devenait franchement visible. */}
               <h2
-                className="text-[11px] uppercase font-bold text-[var(--color-fg-muted)]"
+                className={`${MICRO_LABEL} text-[var(--color-fg-muted)]`}
                 style={{ marginBottom: 24 }}
               >
                 {group.label}

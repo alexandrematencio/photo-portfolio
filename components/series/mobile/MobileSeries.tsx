@@ -14,6 +14,7 @@ import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { useMdUp } from '../shared/useMdUp';
 import { pushModalHistory } from '@/lib/utils/modalHistory';
 import { SeriesMeta } from '../shared/SeriesMeta';
+import { MICRO_LABEL } from '@/lib/site/typography';
 
 gsap.registerPlugin(Flip);
 
@@ -27,11 +28,17 @@ gsap.registerPlugin(Flip);
  *    Works » sur la home), puis une rangée par série : cover à gauche, titre et
  *    année à droite. Défilement vertical natif, rien d'autre.
  *
- * 2. IMMERSION — au tap, un calque plein écran sur fond `--color-immersive-bg`
- *    recouvre tout : les autres séries disparaissent. Le chrome du site (logo,
- *    bouton MENU) passe au blanc via `data-immersive` sur `<html>` et RESTE
- *    cliquable — le calque est en z-40, sous le header (z-50) et sous le bouton
- *    menu (z-55). Aucune exception à coder : c'est l'empilement qui la fait.
+ * 2. PLEIN ÉCRAN — au tap, un calque plein écran recouvre tout : les autres
+ *    séries disparaissent. Le chrome du site (logo, bouton MENU) RESTE cliquable
+ *    — le calque est en z-40, sous le header (z-50) et sous le bouton menu
+ *    (z-55). Aucune exception à coder : c'est l'empilement qui la fait.
+ *
+ *    ⚠️ Le calque était NOIR jusqu'au 2026-08-23, et repeignait tout le chrome
+ *    du site en blanc via `data-immersive` sur `<html>` (glyph compris). La
+ *    « salle obscure » est abandonnée (demande Alexandre) : le calque est sur
+ *    le papier, les encres ne basculent plus, le glyph reste cobalt. Il ne
+ *    reste donc AUCUN mécanisme d'inversion dans le site — ne pas le
+ *    réintroduire ici sans rouvrir la question côté brand book.
  *
  * Dimensionnement des photos : CALÉ SUR LA LARGEUR, entier à l'écran. Un
  * portrait prend donc toute la hauteur qu'il peut, un panoramique reste petit —
@@ -42,7 +49,7 @@ gsap.registerPlugin(Flip);
  * l'écran), bouton retour du téléphone. Les quatre passent par requestClose().
  */
 
-/** Marge latérale : gouttière de la liste ET retrait de la photo en immersion. */
+/** Marge latérale : gouttière de la liste ET retrait de la photo en plein écran. */
 const SIDE = 20;
 
 /**
@@ -66,7 +73,7 @@ const CLOSE_DUR = 0.45;
  * Sortie au geste vertical — fraction de la hauteur d'écran à parcourir.
  * Le seuil est volontairement de l'ordre d'un écran : sortir doit être VOULU.
  * Mesuré sur le mouvement du doigt (touchstart → touchmove), pas sur un
- * `scrollTop` : en immersion il n'y a plus rien qui défile verticalement.
+ * `scrollTop` : en plein écran il n'y a plus rien qui défile verticalement.
  */
 const SCROLL_CLOSE_RATIO = 0.6;
 const SCROLL_CLOSE_MIN_PX = 320;
@@ -144,10 +151,12 @@ function CarouselDots({ total, index }: { total: number; index: number }) {
 
 /**
  * Les deux branches (desktop / mobile) sont TOUJOURS montées — c'est le CSS
- * qui en affiche une seule. Leurs écouteurs GLOBAUX (document, historique,
- * `<html>`) doivent donc vérifier que leur branche est visible : sans ce
- * garde, ouvrir une série sur desktop passerait tout le site en blanc sur
- * noir. `offsetParent === null` ⇔ display:none quelque part dans les ancêtres.
+ * qui en affiche une seule. Leurs écouteurs GLOBAUX (document, historique)
+ * doivent donc vérifier que leur branche est visible : sans ce garde, une
+ * ouverture desktop empilerait une entrée d'historique que rien ne consomme, et
+ * la branche cachée fermerait le dossier au clic sur une vignette desktop (bug
+ * réel payé, cf. CLAUDE.md §3.7 invariant 3).
+ * `offsetParent === null` ⇔ display:none quelque part dans les ancêtres.
  */
 function isVisible(el: HTMLElement | null): boolean {
   return Boolean(el && el.offsetParent !== null);
@@ -274,21 +283,6 @@ export function MobileSeries({
     // recaler la bande à ce moment-là annulerait le geste de l'utilisateur.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openSlug, reduced]);
-
-  // ── Thème immersif : le chrome du site passe au blanc ────────────────────
-  // Un attribut sur <html>, et les tokens `--color-fg` / `--color-bg` basculent
-  // en CSS (globals.css). Le logo est un SVG inline branché sur `--color-logo` :
-  // aucun fichier à échanger. Gardé par la visibilité de CETTE branche, sinon
-  // une ouverture desktop repeindrait tout le site.
-
-  useEffect(() => {
-    if (!openSlug || !isVisible(listRef.current)) return;
-    const root = document.documentElement;
-    root.dataset.immersive = 'true';
-    return () => {
-      delete root.dataset.immersive;
-    };
-  }, [openSlug]);
 
   // ── Historique : le bouton retour ramène à la liste ──────────────────────
 
@@ -444,14 +438,14 @@ export function MobileSeries({
                   </span>
                   {s.year && (
                     <span
-                      className="block text-[11px] uppercase font-bold text-[var(--color-fg-muted)]"
+                      className={`block ${MICRO_LABEL} text-[var(--color-fg-muted)]`}
                       style={{ marginTop: 6 }}
                     >
                       {s.year}
                     </span>
                   )}
                   <span
-                    className="block text-[11px] uppercase font-bold text-[var(--color-fg-muted)] opacity-60"
+                    className={`block ${MICRO_LABEL} text-[var(--color-fg-muted)] opacity-60`}
                     style={{ marginTop: 4 }}
                   >
                     {s.photos.length} photo{s.photos.length === 1 ? '' : 's'}
@@ -473,7 +467,9 @@ export function MobileSeries({
           ref={overlayRef}
           className="fixed inset-0 z-40 flex flex-col md:hidden"
           style={{
-            background: 'var(--color-immersive-bg)',
+            // Le papier, comme le reste du site : le calque n'a plus à
+            // inverser quoi que ce soit, il masque simplement la liste.
+            background: 'var(--color-bg)',
             // Le calque n'a rien à faire défiler ; la bande, elle, ne défile
             // qu'horizontalement. Un geste vertical n'emporte donc jamais la
             // page cachée derrière — et nous reste lisible.

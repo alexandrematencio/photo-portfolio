@@ -6,6 +6,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
 import { Placeholder } from './Placeholder';
+import { MICRO_LABEL } from '@/lib/site/typography';
 
 /* Nom court affiché sous chaque photo (demande d'Alexandre, 2026-08-21) —
    mappé sur le slug du document `camera`. Un boîtier hors de cette liste
@@ -116,8 +117,15 @@ export function PhotoCard({ photo, onOpen }: Props) {
       )}
       {cameraName && (
         // marginTop inline : `mt-*` avalé par le reset global hors @layer.
+        //
+        // Cette légende rejoint la famille des capitales micro du site (année,
+        // fiche technique, titre de groupe) : c'est une ÉTIQUETTE de photo, elle
+        // n'a pas de raison d'être la seule à parler autrement. Changement
+        // VISIBLE — 200 cartes en bas-de-casse passent en petites capitales
+        // espacées ; c'est justement la question « est-ce que toute la page
+        // appartient à sa console ».
         <figcaption
-          className="text-[11px] font-normal text-left text-[var(--color-fg-muted)]"
+          className={`${MICRO_LABEL} text-left text-[var(--color-fg-muted)]`}
           style={{ marginTop: 6 }}
         >
           {cameraName}

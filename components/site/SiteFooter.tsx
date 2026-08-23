@@ -36,7 +36,7 @@ import { asset } from '@/lib/utils/asset';
  *
  * SURVOL EN ORANGE (`--color-link`), et non plus en blanc — 2026-08-23,
  * brand book §4.3. Le pied de page est la seule surface sombre permanente du
- * site : l'orange y monte à 4,94:1 sur le #151312, donc au-dessus du seuil AA
+ * site : l'orange y monte à 4,94:1 sur la dalle, donc au-dessus du seuil AA
  * du petit texte, ce qui n'est vrai NULLE PART ailleurs (sur le papier il
  * plafonne à 3,59:1 et n'a le droit qu'aux traits et aux fonds). C'est aussi
  * le seul endroit du site où l'orange a le droit d'écrire un mot en 14 px.
@@ -44,7 +44,7 @@ import { asset } from '@/lib/utils/asset';
 export function SiteFooter() {
   return (
     <footer
-      className="w-full shrink-0 md:h-[70px] bg-[#151312] text-[#888888]"
+      className="w-full shrink-0 md:h-[70px] bg-[var(--color-bg-footer)] text-[var(--color-fg-muted-footer)]"
       data-site-footer
     >
       {/* Le fond sombre file jusqu'aux bords ; seul le contenu est en retrait.
@@ -133,7 +133,6 @@ export function SiteFooter() {
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
               aria-hidden="true"
-              className="text-[#888888]"
             >
               {/* Vertical line - matches pen */}
               <path d="M1 0.5v13" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />

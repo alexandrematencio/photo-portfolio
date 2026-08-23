@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
+import { ACTIVE_FILL_PADDING, CONTROL_RADIUS } from '@/lib/site/controls';
 import { GlyphLogo } from './GlyphLogo';
 import {
   NAV_LINKS as LINKS,
@@ -53,9 +54,10 @@ export function SiteHeader() {
             aria-label="A. Matencio — home"
           >
             {/* Couleur héritée du token, pas figée : `--color-logo` vaut le
-                cobalt brand par défaut et passe au blanc pendant l'immersion
-                de /series (`:root[data-immersive]`, globals.css). Le SVG est
-                inline, il n'y a donc aucun fichier à échanger. */}
+                cobalt brand, et le SVG étant inline il n'y a aucun fichier à
+                échanger le jour où une surface en demanderait un autre. Il ne
+                bascule plus au blanc : le mode immersif de /series (mobile) a
+                été retiré le 2026-08-23 et le glyph est cobalt partout. */}
             <GlyphLogo
               size={28}
               color="var(--color-logo)"
@@ -86,7 +88,7 @@ export function SiteHeader() {
                 // surlignage collerait au texte.
                 style={
                   active
-                    ? { padding: '4px 12px 6px 12px', borderRadius: 1 }
+                    ? { padding: ACTIVE_FILL_PADDING, borderRadius: CONTROL_RADIUS }
                     : undefined
                 }
                 className={cn(

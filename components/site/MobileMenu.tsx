@@ -5,6 +5,12 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { GlyphLogo } from './GlyphLogo';
+import { cn } from '@/lib/utils/cn';
+import {
+  ACTIVE_FILL_INSET,
+  ACTIVE_FILL_PADDING,
+  CONTROL_RADIUS,
+} from '@/lib/site/controls';
 import {
   MOBILE_NAV_LINKS,
   isSamePage,
@@ -17,7 +23,7 @@ import {
  *
  * - Closed: a 16/700 "MENU" text button with a 1 px black border. Position: fixed top-8 right-8
  *   (32 px from the viewport edges, matching the 32 px margin rule of the open menu).
- * - Open: full-screen overlay on bg #f5f2f0. Top bar 32 px padding all sides with the cobalt
+ * - Open: full-screen overlay on the `--color-bg-raised` rung. Top bar 32 px padding all sides with the cobalt
  *   glyph on the left and an X close icon on the right. Nav items pushed to bottom-left with
  *   32 px padding (left + bottom), gap 32 px, 48 px / bold.
  * - Items: About, Archives, Contact, Digital Agency, Socials, Instagram (external link).
@@ -76,7 +82,7 @@ export function MobileMenu() {
         </button>
       </div>
 
-      {/* OPEN — full-screen drawer on bg #f5f2f0.
+      {/* OPEN — full-screen drawer, posé sur le barreau « calque » de l'échelle.
           `justify-between` on the column flex pushes the top bar to the top
           edge and the nav to the bottom edge (per Pencil mockup `jPTyJ`). */}
       {open && (
@@ -85,13 +91,15 @@ export function MobileMenu() {
           role="dialog"
           aria-modal="true"
           aria-label="Mobile menu"
-          // Le tiroir peint SON PROPRE fond clair : il doit donc reprendre
-          // l'encre sombre même quand le site est en mode immersif (où
-          // `--color-fg` passe au blanc). Sans ce marqueur, texte et croix de
-          // fermeture disparaissaient sur le beige — bug réel signalé.
-          data-scheme="light"
+          // Le tiroir est un calque POSÉ sur le papier : c'est le barreau 1 de
+          // l'échelle de valeurs, le même que le fond de la lightbox desktop.
+          // Il portait `#f5f2f0` en dur, la lightbox `#F7F3F1` — 0,4 point de
+          // L* d'écart, donc le même barreau écrit deux fois, avec deux teintes
+          // différentes. Le marqueur `data-scheme="light"` qui l'accompagnait a
+          // disparu avec le mode immersif : plus rien n'inverse les encres du
+          // site, il n'y a donc plus d'inversion à laquelle échapper.
           className="fixed inset-0 z-[60] md:hidden flex flex-col justify-between"
-          style={{ backgroundColor: '#f5f2f0' }}
+          style={{ backgroundColor: 'var(--color-bg-raised)' }}
         >
           {/* Top bar — 32 px padding all sides, glyph left + X close right */}
           <div
@@ -117,21 +125,53 @@ export function MobileMenu() {
           </div>
 
           {/* Nav items — bottom-left aligned via `justify-between` on the parent.
-              gap 32 between items, paddingLeft 32 + paddingBottom 32 (per Pencil mockup). */}
+              paddingBottom 32 + gouttière de 32 px (per Pencil mockup `jPTyJ`).
+
+              ⚠️ La gouttière est amputée de `ACTIVE_FILL_INSET` et rendue par le
+              padding des items : c'est le TEXTE qui doit tomber sur les 32 px,
+              pas la boîte qui le porte. Et l'écart vertical descend de 32 à 22
+              pour la même raison — les 10 px de padding haut+bas s'ajoutent
+              sinon à l'écart, et la colonne s'aère de 10 px par item par rapport
+              au mockup.
+
+              Le padding est posé sur TOUS les items, le fond sur le seul actif
+              (CLAUDE.md §7.7). L'exception « actif seulement » de la nav-bar
+              desktop ne vaut QUE là-bas, où la géométrie de la rangée est celle
+              d'arrivée du morph du hero. */}
           <nav
             aria-label="Mobile navigation"
-            className="flex flex-col gap-8"
-            style={{ paddingLeft: 32, paddingBottom: 32, paddingRight: 32 }}
+            className="flex flex-col"
+            style={{
+              paddingLeft: 32 - ACTIVE_FILL_INSET,
+              paddingBottom: 32,
+              paddingRight: 32,
+              rowGap: 22,
+            }}
           >
-            {MOBILE_LINKS.map((link) =>
-              link.external ? (
+            {MOBILE_LINKS.map((link) => {
+              // Le lien externe (Instagram) n'est jamais « la page courante ».
+              const active = !link.external && isSamePage(link.href, pathname);
+              const itemStyle = {
+                padding: ACTIVE_FILL_PADDING,
+                borderRadius: CONTROL_RADIUS,
+              };
+              const itemClass = cn(
+                'text-[48px] font-bold tracking-[-0.02em] leading-none text-[var(--color-fg)] active:opacity-60 w-fit',
+                // Même marque que la nav-bar desktop : fond plein, libellé qui
+                // reste noir (7,26:1 dessus). Le tiroir n'avait AUCUNE marque
+                // d'état alors que la nav desktop en a une — même navigation,
+                // deux grammaires.
+                active && 'bg-[var(--color-active-bg)]'
+              );
+              return link.external ? (
                 <a
                   key={link.href}
                   href={link.href}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setOpen(false)}
-                  className="text-[48px] font-bold tracking-[-0.02em] leading-none text-[var(--color-fg)] active:opacity-60 w-fit"
+                  style={itemStyle}
+                  className={itemClass}
                 >
                   {link.label}
                 </a>
@@ -139,6 +179,7 @@ export function MobileMenu() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  aria-current={active ? 'page' : undefined}
                   onClick={() => {
                     setOpen(false);
                     // Même règle que la nav-bar desktop : le lien de la page
@@ -147,12 +188,13 @@ export function MobileMenu() {
                       notifySamePageNav(link.href);
                     }
                   }}
-                  className="text-[48px] font-bold tracking-[-0.02em] leading-none text-[var(--color-fg)] active:opacity-60 w-fit"
+                  style={itemStyle}
+                  className={itemClass}
                 >
                   {link.label}
                 </Link>
-              )
-            )}
+              );
+            })}
           </nav>
         </div>
       )}

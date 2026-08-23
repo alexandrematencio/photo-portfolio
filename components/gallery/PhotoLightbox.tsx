@@ -15,7 +15,7 @@
  * `(photos, initialIndex)` to PhotoLightbox.
  *
  * Layout:
- *   • Desktop (≥ 768 px): F7F3F1 outer bg + 32 px gutter + 32 px white
+ *   • Desktop (≥ 768 px): `--color-bg-raised` outer bg + 32 px gutter + 32 px white
  *     "polaroid" frame around the image. Prev / next arrow buttons pinned to
  *     the left and right viewport edges (mix-blend-mode: difference). Hidden
  *     by default — fade in on mousemove, fade out after 500 ms of idle cursor.
@@ -39,6 +39,11 @@ import { X, ArrowLeft, ArrowRight } from 'lucide-react';
 import { urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
 import { pushModalHistory } from '@/lib/utils/modalHistory';
+import { cn } from '@/lib/utils/cn';
+import {
+  MICRO_LABEL_RIGHT_TRIM,
+  MICRO_LABEL_XS,
+} from '@/lib/site/typography';
 
 type Props = {
   photos: Photo[];
@@ -46,9 +51,15 @@ type Props = {
   onClose: () => void;
 };
 
-const BG_DESKTOP = '#F7F3F1';
-const BG_MOBILE = '#FFFFFF';
-const FRAME_COLOR = '#FFFFFF';
+/* Fonds de la lightbox — posés sur l'échelle de valeurs de globals.css, plus
+   en hex ici. Desktop : le barreau « calque posé sur le papier », commun au
+   tiroir du menu mobile (les deux valaient deux hex distincts à 0,4 point de
+   L* l'un de l'autre, c'est-à-dire le même barreau écrit deux fois).
+   Mobile : pas de cadre, le viewport EST le cadre — le fond prend donc la
+   couleur du CADRE et non celle du calque. */
+const BG_DESKTOP = 'var(--color-bg-raised)';
+const BG_MOBILE = 'var(--color-frame)';
+const FRAME_COLOR = 'var(--color-frame)';
 const FRAME_THICKNESS = 32; // desktop only
 const OUTER_GUTTER = 32; // desktop only
 const MOBILE_PADDING = 24;
@@ -313,7 +324,7 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
                 // seconde, puis elle disparaît. Le mot « loading » au-dessus
                 // reste en `--color-fg`.
                 // Contraste : la barre est un élément GRAPHIQUE (seuil 3:1),
-                // à 3,40:1 sur le backdrop desktop (#F7F3F1) et 3,75:1 sur le
+                // à 3,39:1 sur le backdrop desktop (barreau 1) et 3,75:1 sur le
                 // blanc mobile. Passer le MOT en orange, lui, serait hors des
                 // clous — 16 px en graisse normale demandent 4,5:1.
                 backgroundColor: 'var(--color-link)',
@@ -353,17 +364,26 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
         {!isMobile && (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="text-[10px] uppercase text-[var(--color-fg-muted)] flex items-center max-w-full leading-none"
-            style={{ marginTop: CAPTION_GAP }}
+            className={cn(
+              MICRO_LABEL_XS,
+              'text-[var(--color-fg-muted)] flex items-center max-w-full leading-none'
+            )}
+            // La légende est CENTRÉE sous le cadre : le blanc de fin
+            // d'interlettrage la décale d'un demi-cran vers la gauche. Le
+            // retrait rend la boîte à sa largeur optique, donc le centrage
+            // exact — même correction que pour un alignement à droite.
+            style={{ marginTop: CAPTION_GAP, ...MICRO_LABEL_RIGHT_TRIM }}
           >
-            <span className="font-bold text-[var(--color-fg)] truncate">
+            <span className="text-[var(--color-fg)] truncate">
               {photo.title}
             </span>
-            {/* marges inline : `mx-2` avalé par le reset global hors @layer. */}
-            <span className="opacity-50" style={{ marginLeft: 8, marginRight: 8 }}>
+            {/* marges inline : `mx-2` avalé par le reset global hors @layer.
+                Le titre garde le gras de la constante, le reste redescend en
+                normal : c'est la seule hiérarchie de cette ligne. */}
+            <span className="font-normal opacity-50" style={{ marginLeft: 8, marginRight: 8 }}>
               ·
             </span>
-            <span className="truncate">
+            <span className="font-normal truncate">
               {photo.location} · {photo.year}
             </span>
           </div>

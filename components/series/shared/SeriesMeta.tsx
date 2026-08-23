@@ -1,5 +1,9 @@
 import type { Photo } from '@/lib/sanity/queries';
 import { cn } from '@/lib/utils/cn';
+import {
+  MICRO_LABEL_RIGHT_TRIM,
+  MICRO_LABEL_XS,
+} from '@/lib/site/typography';
 
 /**
  * Bloc de métadonnées de la photo affichée : année, lieu, boîtier, objectif.
@@ -40,10 +44,14 @@ export function SeriesMeta({
     return (
       <p
         className={cn(
-          'text-[10px] uppercase font-bold leading-[1.8] text-[var(--color-fg-muted)]',
+          MICRO_LABEL_XS,
+          'leading-[1.8] text-[var(--color-fg-muted)]',
           className
         )}
-        style={style}
+        // Même retrait que la variante desktop ci-dessous : cette fiche-là est
+        // posée en `text-right` par la bande mobile, elle a donc exactement le
+        // même bord droit à respecter.
+        style={{ ...MICRO_LABEL_RIGHT_TRIM, ...style }}
       >
         {rows.join(' · ')}
       </p>
@@ -53,10 +61,16 @@ export function SeriesMeta({
   return (
     <p
       className={cn(
-        'text-right text-[10px] uppercase font-bold leading-[1.8] text-[var(--color-fg-muted)]',
+        MICRO_LABEL_XS,
+        'text-right leading-[1.8] text-[var(--color-fg-muted)]',
         className
       )}
-      style={style}
+      // Le retrait de fin d'interlettrage vient EN PREMIER : une marge droite
+      // passée par l'appelant doit pouvoir l'emporter. Sans lui, la fiche —
+      // calée sur le bord droit de l'image centrale — s'en décollerait de
+      // 0,25 em, soit 2,5 px à cette taille, sur le seul alignement que l'œil
+      // vérifie vraiment sur cette page.
+      style={{ ...MICRO_LABEL_RIGHT_TRIM, ...style }}
     >
       {rows.map((row) => (
         <span key={row} className="block">

@@ -83,3 +83,47 @@ export const EDITORIAL_LINK_DECORATION =
  * héritée.)
  */
 export const EDITORIAL_BODY_LINK = cn(EDITORIAL_BODY, EDITORIAL_LINK_DECORATION, 'w-fit');
+
+/**
+ * CAPITALE MICRO — l'étiquette du site : titre de groupe, sous-titre de page,
+ * année, compteur, fiche technique, légende de lightbox.
+ *
+ * **Ce qu'elle répare.** Le brand book prescrit `+0.25em` d'interlettrage sur
+ * le sous-label de 11 px (§5.3 / §5.4). `grep tracking-\[0.25em\]` ne le
+ * trouvait NULLE PART dans le repo : toute la couche des micro-étiquettes était
+ * en interlettrage nul, du titre de groupe des Archives à la légende de la
+ * lightbox. C'est le plus gros écart entre le site et sa propre spec — et la
+ * petite capitale largement espacée est précisément la signature typographique
+ * de la référence Teenage Engineering. Elle fait appartenir tout le site à la
+ * console des Archives sans poser une seule plaque.
+ *
+ * **Où elle s'applique, où elle ne s'applique pas.** La frontière est le rôle,
+ * pas la taille :
+ * - ÉTIQUETTE (on la lit, on ne la clique pas) → interlettrage large. C'est ici.
+ * - COMMANDE (onglet, pastille de filtre, bouton de densité, nom de série
+ *   cliquable) → interlettrage serré, `tracking-[-0.02em]`. Le brand book le
+ *   dit déjà des pastilles : « ce sont des contrôles interactifs, pas des
+ *   micro-labels ». Élargir une commande qui porte « Djerba, Tunisia (54) »
+ *   ferait déborder la rangée bien avant d'apporter quoi que ce soit.
+ *
+ * `tabular-nums` est inclus : ces étiquettes sont pleines de nombres qui
+ * changent en place — compteurs `(54)`, années, ouvertures, focales. En
+ * chiffres proportionnels, une colonne de métadonnées frémit d'un chiffre à
+ * l'autre. C'est aussi gratuit : Helvetica et Inter ont les deux jeux.
+ */
+export const MICRO_LABEL =
+  'text-[11px] uppercase font-bold tracking-[0.25em] tabular-nums';
+
+/** Le même cran en dessous — métadonnées de photo, légende de lightbox. */
+export const MICRO_LABEL_XS =
+  'text-[10px] uppercase font-bold tracking-[0.25em] tabular-nums';
+
+/**
+ * ⚠️ À POSER SUR UNE CAPITALE MICRO ALIGNÉE À DROITE (ou centrée sur un bord).
+ *
+ * `letter-spacing` ajoute son blanc APRÈS chaque lettre, la dernière comprise.
+ * Un label aligné à droite se retrouve donc décalé de 0,25 em vers la gauche de
+ * son bord — visible dès qu'il doit s'aligner sur autre chose, et c'est le cas
+ * de la fiche technique de `/series`, calée sur le bord droit de l'image.
+ */
+export const MICRO_LABEL_RIGHT_TRIM = { marginRight: '-0.25em' } as const;

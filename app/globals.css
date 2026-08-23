@@ -1,9 +1,63 @@
 @import "tailwindcss";
 
 @theme {
+  /* ══ ÉCHELLE DE VALEURS ═══════════════════════════════════════════════════
+     UNE seule échelle pour toutes les surfaces du site, six barreaux. Elle est
+     née des trois valeurs de la console des Archives (2026-08-23) et s'arrêtait
+     au bord de cette page : le reste du site comptait cinq clairs répartis sur
+     six points de L*, dont trois écrits en hex dans des composants. Deux
+     surfaces à 1,6 point l'une de l'autre ne se lisent pas comme une marche,
+     elles se lisent comme un accident — or c'est exactement la discipline que
+     la référence Teenage Engineering demande : peu de barreaux, tous voulus.
+
+     | barreau | L*   | C*   | métier                                        |
+     |---------|------|------|-----------------------------------------------|
+     | 0       | 98,2 | 1,02 | le papier — fond de toutes les pages          |
+     | 1       | 95,9 | 1,24 | un calque POSÉ sur le papier (lightbox, menu) |
+     | 2       | 92,1 | 2,32 | la plaque + les boîtes d'image en attente     |
+     | 3       | 84,3 | 3,33 | le pont bas de la console                     |
+     | 4       | 20,9 | 4,94 | le module encastré                            |
+     | 5       |  6,0 | 1,08 | la dalle du pied de page                      |
+
+     ⚠️ LA CHROMA MONTE QUAND LA VALEUR DESCEND (1,0 → 1,2 → 2,3 → 3,3 → 4,9).
+     C'est elle qui tient la famille : un gris qui se neutralise en descendant
+     sonne écran, pas plastique moulé. Le barreau 4 valait `#323232`, soit une
+     chroma de 0,00 — la seule marche qui sortait de la famille, et justement
+     celle qui devait la porter le plus. Reteinté à L* constant : les contrastes
+     ne bougent pas (module ↔ `--color-fg-muted-dark` 4,98 → 4,97 ; module ↔
+     châssis orange 4,70 → 4,69).
+
+     ⚠️ Le barreau 5 rompt la montée (1,08). En dessous de L* 20 la chroma
+     n'est plus perceptible et le 8 bits ne la représente presque plus : la
+     règle s'arrête là, volontairement. Cette valeur vient du .pen du footer.
+
+     Les barreaux ne se lisent JAMAIS directement dans un composant : chaque
+     token sémantique ci-dessous en désigne un. Ajouter une surface, c'est la
+     poser sur un barreau existant — pas en inventer un septième. */
+  --surface-0: #fafaf8;
+  --surface-1: #f5f3f1;
+  --surface-2: #ebe8e4;
+  --surface-3: #d5d2cc;
+  --surface-4: #35322b;
+  --surface-5: #151312;
+
+  /* Le papier du TIRAGE, et non une surface d'interface : le cadre polaroid de
+     la lightbox, et le plein écran mobile où le viewport EST le cadre. Blanc
+     pur, hors échelle, exprès — c'est du papier photo, pas du plastique. */
+  --color-frame: #ffffff;
+
   /* Palette « gallery paper » — fond blanc cassé, ink noir, accent cobalt depuis le glyph ALXMTNC. */
-  --color-bg: #fafaf8;
-  --color-bg-elev: #eeedea;
+  --color-bg: var(--surface-0);
+  /* Calque posé SUR le papier : fond de lightbox desktop et tiroir du menu
+     mobile. Les deux vivaient en hex dans leur composant (`#F7F3F1` et
+     `#f5f2f0`), à 0,4 point de L* l'un de l'autre — le même barreau écrit deux
+     fois, avec deux teintes différentes. */
+  --color-bg-raised: var(--surface-1);
+  /* Boîtes d'image en attente (grille des Archives, blocs de la home, hero).
+     Fusionné avec la plaque : les deux valaient 93,7 et 92,1, un écart
+     imperceptible pour deux métiers distincts. Le nom sémantique survit, la
+     valeur non. */
+  --color-bg-elev: var(--surface-2);
   --color-fg: #0a0a0a;
   --color-fg-muted: #6e6960;
   --color-line: #e5e2dc;
@@ -27,10 +81,14 @@
 
   --shadow-soft: 0 8px 40px rgba(10, 10, 10, 0.08);
 
-  /* Fond du mode immersif de /series (mobile) — « un noir pas complètement
-     noir » (arbitrage Alexandre, 2026-08-23). Sert de fond au calque ET de
-     `--color-bg` pendant toute l'immersion. */
-  --color-immersive-bg: #0e0e0e;
+  /* Le mode immersif de /series (mobile) — calque noir + chrome repeint en
+     blanc — est ABANDONNÉ (demande Alexandre, 2026-08-23). Le calque garde sa
+     mécanique et son plein écran, mais sur le papier : plus de token de fond
+     dédié, plus de bascule de `--color-bg` / `--color-fg`, et le glyph reste
+     cobalt en permanence. Le site n'a donc plus AUCUNE surface qui inverse ses
+     encres — les deux seules surfaces sombres qui restent (module de densité,
+     dalle du pied de page) portent leurs propres encres, elles ne repeignent
+     pas la page. */
 
   /* Gris de la ligne d'origine (« année, pays ») dans la légende de la home.
      Plus clair que `--color-fg-muted` (#6e6960) : demande Alexandre du
@@ -106,7 +164,7 @@
      d'un cheveu. Ce ton-ci tient 4,74:1. Réservé à ce qui est POSÉ SUR la
      plaque — les pastilles de filtre, elles, sont sur le papier et gardent
      `--color-fg-muted` (5,22:1). */
-  --color-bg-plate: #ebe8e4;
+  --color-bg-plate: var(--surface-2);
   --color-fg-muted-plate: #6a655c;
 
   /* DEUXIÈME PONT de la console — la rangée de pastilles, proposée par
@@ -129,7 +187,7 @@
      13,12:1. Si le critère doit être tenu à la lettre un jour, c'est l'orange
      du voyant qu'il faudra foncer sur cette surface, pas le pont qu'il faudra
      éclaircir. */
-  --color-bg-plate-low: #d5d2cc;
+  --color-bg-plate-low: var(--surface-3);
   /* 4,90:1 sur le pont bas. `--color-fg-muted` y tomberait à 3,61:1 et
      `--color-fg-muted-plate` à 3,85:1 — les deux sous AA pour du 12 px. */
   --color-fg-muted-plate-low: #5a554d;
@@ -139,66 +197,41 @@
 
   /* Module sombre du sélecteur de densité — le contraste franc est demandé :
      la densité de grille est le seul réglage qui change ce qu'on VOIT, il ne
-     se confond plus avec le choix d'axe de groupement. Valeur donnée par
-     Alexandre. Le libellé actif y garde le châssis orange (4,70:1 contre la
-     plaque sombre, texte noir dessus à 7,26:1). */
-  --color-bg-plate-dark: #323232;
+     se confond plus avec le choix d'axe de groupement. Le libellé actif y garde
+     le châssis orange (4,69:1 contre la plaque sombre, texte noir dessus à
+     7,26:1).
+
+     La valeur donnée par Alexandre était `#323232`, un gris NEUTRE (chroma
+     0,00) : la seule marche de l'échelle qui sortait de la famille, alors que
+     c'est la plus profonde et donc celle qui devait la porter le plus.
+     Reteintée sur la teinte commune (h 88°) à L* constant — l'écart de
+     contraste est de 0,01 point sur les deux encres qu'elle porte. */
+  --color-bg-plate-dark: var(--surface-4);
   --color-fg-muted-dark: #a5a19a;
+
+  /* Dalle du pied de page. Vivait en hex dans `SiteFooter.tsx` — une valeur de
+     surface dans un composant, alors qu'aucune couleur n'a le droit d'y vivre
+     (CLAUDE.md §7.7). C'est le barreau le plus profond de l'échelle, et la
+     seule surface sombre PERMANENTE du site. */
+  --color-bg-footer: var(--surface-5);
+  /* Encre du pied de page — 5,23:1 sur la dalle. Même raison que ci-dessus :
+     elle vivait en hex dans le composant. Chaque surface sombre porte SON
+     encre atténuée (`-plate`, `-plate-low`, `-dark`, `-footer`), parce qu'un
+     seul gris ne peut pas tenir AA sur quatre valeurs de fond. */
+  --color-fg-muted-footer: #888888;
 }
 
-/* ── Mode immersif ─────────────────────────────────────────────────────────
-   Posé par la branche mobile de /series (`data-immersive` sur <html>) quand
-   une série est ouverte : le calque recouvre la page, et le chrome qui flotte
-   au-dessus (logo, bouton MENU) doit se relire sur fond sombre.
+/* Couleur du glyph. Le token reste, même s'il ne vaut plus qu'une seule chose :
+   c'est lui que `<GlyphLogo />` consomme, et le SVG étant inline il n'y a aucun
+   fichier à échanger le jour où une surface aurait besoin d'un autre glyph.
 
-   Un attribut sur la racine plutôt qu'un prop passé de composant en composant :
-   le header et le menu vivent dans le layout, à trois niveaux de la page qui
-   décide. Le sélecteur d'attribut l'emporte sur le `:root` généré par `@theme`
-   sans `!important` — c'est la spécificité qui tranche, pas un forçage.
-
-   ⚠️ Ne JAMAIS poser cet attribut depuis la branche desktop : elle est montée
-   en permanence (le CSS seul en masque une), et une ouverture desktop
-   repeindrait tout le site en blanc sur noir. Le garde est côté JS
-   (`isVisible`), pas ici. */
+   Le mode immersif de /series (mobile) qui le faisait passer au blanc est
+   RETIRÉ (2026-08-23) : plus de `:root[data-immersive]`, donc plus d'échappatoire
+   `[data-scheme='light']` pour les surfaces claires posées par-dessus (le tiroir
+   du menu était son seul client), et plus de fondu de couleur sur le chrome —
+   il n'a plus rien à traverser. */
 :root {
   --color-logo: var(--color-accent);
-}
-
-:root[data-immersive] {
-  --color-bg: var(--color-immersive-bg);
-  --color-fg: #ffffff;
-  --color-fg-muted: rgba(255, 255, 255, 0.62);
-  --color-logo: #ffffff;
-}
-
-/* Échappatoire au mode immersif : toute surface qui peint SON PROPRE fond clair
-   redéclare les tokens d'origine pour elle et ses descendants (les variables
-   CSS cascadent). Le tiroir du menu mobile est le premier client — il est en
-   beige `#f5f2f0`, et sans ça son texte et sa croix passaient au blanc avec le
-   reste du site, donc invisibles. Toute future surface claire posée par-dessus
-   l'immersion doit porter ce marqueur, pas re-déclarer ses couleurs à la main. */
-[data-scheme='light'] {
-  --color-bg: #fafaf8;
-  --color-fg: #0a0a0a;
-  --color-fg-muted: #6e6960;
-  --color-logo: var(--color-accent);
-}
-
-/* La bascule se fait en fondu, jamais d'un coup : le calque, lui, apparaît
-   par-dessus la liste, et un chrome qui claquerait au blanc pendant que le
-   fond arrive se verrait deux fois. */
-header a,
-header svg path,
-[data-mobile-menu-button] {
-  transition: color 320ms ease, fill 320ms ease;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  header a,
-  header svg path,
-  [data-mobile-menu-button] {
-    transition: none;
-  }
 }
 
 * {

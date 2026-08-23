@@ -1,6 +1,7 @@
 import { FlatGallery } from '@/components/gallery/FlatGallery';
 import { getAllPhotos } from '@/lib/sanity/queries';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { MICRO_LABEL } from '@/lib/site/typography';
 
 export const metadata = buildMetadata({
   title: 'Archives',
@@ -23,7 +24,7 @@ export default async function ArchivesPage() {
         <h1 className="text-[48px] md:text-[64px] font-black uppercase tracking-[-0.04em] leading-none text-[var(--color-fg)]">
           ARCHIVES
         </h1>
-        <p className="text-[11px] uppercase font-bold text-[var(--color-fg-muted)]">
+        <p className={`${MICRO_LABEL} text-[var(--color-fg-muted)]`}>
           {photos.length} photo{photos.length === 1 ? '' : 's'} · grouped by year, location, style, camera or lens
         </p>
       </header>
