@@ -323,7 +323,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
                 // globals.css vit hors @layer et avale les utilities Tailwind
                 // de padding (cf. CLAUDE.md §7.6) — c'est d'ailleurs pour ça
                 // que le `py-2` qui était ici n'avait jamais rien fait.
-                style={{ padding: '2px 6px' }}
+                style={{ padding: '4px 10px' }}
                 className={cn(
                   'text-[12px] uppercase font-bold cursor-pointer transition-colors motion-reduce:transition-none',
                   active
@@ -362,11 +362,40 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
               type="button"
               onClick={() => changeGridSize(size)}
               aria-pressed={size === gridSize}
-              // Même famille de contrôle que les onglets de gauche, donc même
-              // recette exactement (padding partout, surlignage sur l'actif).
-              style={{ padding: '2px 6px' }}
+              // PASTILLE RONDE, là où les onglets de gauche prennent un
+              // rectangle (demande Alexandre, 2026-08-23) : le châssis épouse
+              // ici la forme d'un bouton de matériel, pas d'un surlignage de
+              // texte. Le padding vertical (10) dépasse l'horizontal (7) parce
+              // que le libellé est plus large que haut — c'est lui qui rend la
+              // boîte à peu près carrée, donc le rayon plein à peu près rond.
+              //
+              // La recette d'état, elle, ne change pas : padding sur TOUS les
+              // boutons, seul le fond bascule. Ne le poser que sur l'actif
+              // décalerait la rangée à chaque clic (CLAUDE.md §7.7).
+              // DISQUE, pas un padding : les quatre libellés n'ont pas la
+              // même largeur (« 50% » mesure 27,5 px, « 125% » 33,5 px). Au
+              // seul padding — 10/7, la proportion trouvée par Alexandre sur
+              // « 75% » — cette pastille-là sortait ronde (42,5 × 34) et
+              // celle de 125 % franchement ovale (47,5 × 34) : la marque
+              // changeait de forme selon le palier. Une boîte carrée fixe,
+              // dimensionnée sur le libellé le plus large, tient la même
+              // proportion pour les quatre.
+              //
+              // 44 px vient de là : 33,5 px de libellé + ~5 px de part et
+              // d'autre. Ajouter un palier plus large (« 200% ») = remesurer,
+              // sinon le texte touche le bord du disque.
+              //
+              // `nowrap` : dans une boîte de largeur fixe, un libellé au
+              // chouïa trop large se couperait en deux lignes au lieu de
+              // déborder — un défaut bien plus difficile à voir venir.
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                whiteSpace: 'nowrap',
+              }}
               className={cn(
-                'text-[12px] font-bold cursor-pointer transition-colors motion-reduce:transition-none',
+                'inline-flex items-center justify-center text-[12px] font-bold cursor-pointer transition-colors motion-reduce:transition-none',
                 size === gridSize
                   ? 'text-[var(--color-fg)] bg-[var(--color-active-bg)]'
                   : 'text-[var(--color-fg-muted-dark)] hover:text-[var(--color-bg)]'

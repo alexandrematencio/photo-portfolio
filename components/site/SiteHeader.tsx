@@ -86,7 +86,7 @@ export function SiteHeader() {
                 // surlignage collerait au texte.
                 style={
                   active
-                    ? { padding: '2px 8px 4px 8px', borderRadius: 1 }
+                    ? { padding: '4px 12px 6px 12px', borderRadius: 1 }
                     : undefined
                 }
                 className={cn(
