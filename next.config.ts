@@ -6,12 +6,16 @@ import type { NextConfig } from 'next';
 //   En dev, on garde le runtime dynamique : sinon le catch-all `/studio/[[...tool]]`
 //   du Sanity Studio explose en 500 dès qu'on navigue dans la SPA (Next dev enforce
 //   `generateStaticParams` exhaustif quand output:'export' est actif).
-// - `basePath` = "/photo-portfolio" en prod, vide en dev (pour que `next dev` reste à la racine)
+// - `basePath` vient de `NEXT_PUBLIC_BASE_PATH` (`.env.production` / `.env.development`),
+//   PAS d'un littéral : `lib/utils/asset.ts` a besoin de la même valeur pour préfixer les
+//   assets de `/public/`, et deux littéraux à garder d'accord, c'est un jour de migration
+//   où l'un des deux est oublié. Vider la variable = site à la racine (domaine propre).
 // - `assetPrefix` doit matcher basePath sinon les <link>/<script>/<img> 404
 // - `trailingSlash: true` car GH Pages ne réécrit pas /carte → /carte/index.html
 // - `images.unoptimized: true` car pas de runtime serveur
 const isProd = process.env.NODE_ENV === 'production';
-const basePath = isProd ? '/photo-portfolio' : '';
+// Source unique du basePath, partagée avec `lib/utils/asset.ts`.
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 
 const nextConfig: NextConfig = {
   ...(isProd ? { output: 'export' as const } : {}),
