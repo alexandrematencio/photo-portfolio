@@ -1,4 +1,10 @@
 import { defineArrayMember, defineField, defineType } from 'sanity';
+import {
+  CameraSelectInput,
+  LensSelectInput,
+  SeriesSelectInput,
+  StylesSelectInput,
+} from '../inputs/photoRefSelects';
 
 export const photoSchema = defineType({
   name: 'photo',
@@ -60,6 +66,9 @@ export const photoSchema = defineType({
             : 'Photo sans série — pense à la rattacher.'
         ).warning(),
       ],
+      // Liste déroulante directe : ouvrir + choisir. L'input natif enferme le
+      // changement derrière « ⋯ → Replace » (cf. quickRefInput.tsx).
+      components: { input: SeriesSelectInput },
     }),
     defineField({
       name: 'styles',
@@ -79,6 +88,7 @@ export const photoSchema = defineType({
             : 'Aucun style — pense à en ajouter au moins un.'
         ).warning(),
       ],
+      components: { input: StylesSelectInput },
     }),
     defineField({
       name: 'camera',
@@ -87,6 +97,7 @@ export const photoSchema = defineType({
       to: [{ type: 'camera' }],
       description:
         'Rempli automatiquement à l’upload (nom de fichier ou EXIF). Optionnel.',
+      components: { input: CameraSelectInput },
     }),
     defineField({
       name: 'lens',
@@ -95,6 +106,7 @@ export const photoSchema = defineType({
       to: [{ type: 'lens' }],
       description:
         'Rempli automatiquement à l’upload (nom de fichier ou EXIF). Les objectifs manuels doivent être donnés dans le nom de fichier. Optionnel.',
+      components: { input: LensSelectInput },
     }),
     defineField({
       name: 'year',
