@@ -263,6 +263,10 @@ export function DesktopSeries({
   const sceneRef = useRef<HTMLElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLSpanElement>(null);
+  const titleBoxRef = useRef<HTMLHeadingElement>(null);
+  // Distance entre le bas du lettrage et le bas de la scène, à l'état
+  // d'accueil. Mesurée et non écrite : voir l'effet ci-dessous.
+  const [titleBottom, setTitleBottom] = useState(0);
   const [displayed, setDisplayed] = useState<PreparedSeries | null>(null);
   const [phase, setPhase] = useState<Phase>('closed');
   const animating = useRef(false);
@@ -490,7 +494,32 @@ export function DesktopSeries({
     [q]
   );
 
-  // ── Échelle du lettrage ──────────────────────────────────────────────────
+  // ── Position et échelle du lettrage ──────────────────────────────────────
+
+  /**
+   * Le lettrage se POSE SUR LA RANGÉE à l'état d'accueil : son bord bas est le
+   * bord haut de la boîte de la rangée (demande Alexandre, 2026-08-24). Le
+   * grand blanc de la page passe donc AU-DESSUS du titre, au lieu d'être
+   * coupé en deux par lui.
+   *
+   * `bottom = row.clientHeight`, mesuré, et pas un nombre écrit : la rangée
+   * fait la hauteur d'une pile (176) plus son bloc de libellés plus son
+   * `paddingTop` de 48 — trois valeurs dont deux dépendent de la fonte rendue.
+   * L'écart visible entre le bas des glyphes et la ligne « OPEN ↗ » est donc
+   * exactement ce `paddingTop` : un seul nombre, déjà écrit une fois, qui sert
+   * aux deux. Un `ResizeObserver` parce que ce sont des lignes de texte — elles
+   * changent de hauteur avec la fonte servie, après le premier rendu.
+   */
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    const measure = () => setTitleBottom(row.clientHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(row);
+    return () => ro.disconnect();
+  }, []);
+
 
   /**
    * Le titre se réduit à la taille de celui d'`/archives` PENDANT le vol
@@ -503,9 +532,15 @@ export function DesktopSeries({
    * frame plus tard — assez pour que le titre parte en retard sur des vols de
    * 0,9 s, et assez pour se voir.
    *
-   * C'est un `transform: scale` et jamais une largeur animée. L'origine est le
-   * coin haut-gauche, donc le mot se replie vers l'angle où le petit titre doit
-   * atterrir, et rien ne repasse par le layout à chaque frame.
+   * C'est un `transform` et jamais une largeur animée : l'origine étant le coin
+   * haut-gauche, `scale` replie le mot vers cet angle et `y` emmène l'angle
+   * lui-même en haut de page. Le petit titre atterrit ainsi exactement là où le
+   * titre d'`/archives` se pose sur sa page — même corps, même coin. Rien ne
+   * repasse par le layout à chaque frame.
+   *
+   * `y` se déduit de l'`offsetTop` de la BOÎTE (le `<h1>`), jamais de celui du
+   * lettrage : le transform vit sur le lettrage, mesurer sa position reviendrait
+   * à lire ce qu'on est en train d'écrire. La boîte, elle, ne bouge pas.
    *
    * ⚠️ L'échelle cible se recalcule à chaque commit ET au redimensionnement :
    * elle est le rapport d'une largeur FIXE (celle du petit titre, en px) sur
@@ -527,27 +562,35 @@ export function DesktopSeries({
     const small = phase !== 'closed' && phase !== 'closing';
     const flying = phase === 'opening' || phase === 'closing';
 
-    const apply = () => {
+    const target = () => {
       const w = el.offsetWidth;
-      if (!w) return;
+      if (!w) return null;
+      return small
+        ? { scale: TITLE_OPEN_WIDTH / w, y: -(titleBoxRef.current?.offsetTop ?? 0) }
+        : { scale: 1, y: 0 };
+    };
+
+    const to = target();
+    if (to)
       gsap.to(el, {
-        scale: small ? TITLE_OPEN_WIDTH / w : 1,
+        ...to,
         duration: flying && !reduced ? DUR[small ? 'open' : 'close'] : 0,
         ease: EASE,
         overwrite: 'auto',
       });
-    };
-    apply();
 
-    // Au redimensionnement, on RE-POSE l'échelle sans la rejouer : le geste de
+    // Au redimensionnement, on RE-POSE la cible sans la rejouer : le geste de
     // l'utilisateur est le redimensionnement, pas une ouverture.
     const onResize = () => {
-      const w = el.offsetWidth;
-      if (w) gsap.set(el, { scale: small ? TITLE_OPEN_WIDTH / w : 1 });
+      const next = target();
+      if (next) gsap.set(el, next);
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [phase, reduced]);
+    // `titleBottom` : la position d'accueil arrive après le premier rendu (elle
+    // est mesurée) et bouge avec la fonte servie. Sans elle dans les deps, `y`
+    // resterait calculé sur une boîte encore collée en haut de page.
+  }, [phase, reduced, titleBottom]);
 
   // ── Réconciliation displayed ← openSeries ────────────────────────────────
 
@@ -1563,7 +1606,7 @@ export function DesktopSeries({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, displayed, reduced, onClose, onSelectPhoto, keepThumbVisible]);
 
-  // Molette verticale → défilement horizontal de la rangée (spec §5).
+  // Molette → défilement horizontal de la rangée (spec §5), sur LES DEUX AXES.
   //
   // Écoutée sur le CONTENEUR DE SCROLL DE LA PAGE, plus sur la seule rangée :
   // toute la surface de la page répond au geste, pas uniquement la bande de
@@ -1573,8 +1616,20 @@ export function DesktopSeries({
   // et le seul défilement vertical possible est la révélation du footer en
   // bout de rangée.
   //
-  // Non-passive : on doit pouvoir preventDefault. Le trackpad horizontal passe
-  // nativement (deltaX dominant) — on ne touche qu'au deltaY.
+  // Les DEUX AXES mènent à la rangée (demande Alexandre, 2026-08-24) : molette
+  // de souris comme geste horizontal de trackpad, c'est à l'utilisateur de
+  // choisir. On retient l'axe DOMINANT du geste et on l'applique tel quel — un
+  // geste vers le bas ou vers la droite avance dans la rangée, vers le haut ou
+  // vers la gauche recule. Les deux passent par la même butée de footer : la
+  // fin de rangée est un temps d'arrêt quel que soit le geste qui y mène,
+  // sinon l'un des deux ferait surgir le footer là où l'autre s'arrête.
+  //
+  // ⚠️ L'axe horizontal était jusqu'ici laissé au natif (`deltaX` dominant →
+  // early return). Le laisser passer maintenant le ferait jouer DEUX fois
+  // au-dessus de la rangée, qui est elle-même en `overflow-x-auto` : d'où le
+  // `preventDefault` sur les deux axes.
+  //
+  // Non-passive : on doit pouvoir preventDefault.
   useEffect(() => {
     const cont = scrollContainer();
     const row = rowRef.current;
@@ -1598,7 +1653,12 @@ export function DesktopSeries({
         return;
       }
 
-      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      // Axe dominant du geste. Un trackpad renvoie presque toujours un peu des
+      // deux ; prendre le plus grand évite qu'une diagonale involontaire
+      // annule le geste voulu.
+      const delta =
+        Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (!delta) return;
       e.preventDefault();
 
       const maxLeft = row.scrollWidth - row.clientWidth;
@@ -1606,18 +1666,18 @@ export function DesktopSeries({
       // (zoom, DPR non entier) et une égalité stricte ne serait jamais vraie.
       const atEnd = row.scrollLeft >= maxLeft - 1;
 
-      if (e.deltaY > 0) {
-        // Vers le bas → vers la droite. Le footer n'apparaît qu'une fois la
-        // rangée DÉJÀ au bout : arriver au bout ne le déclenche pas, il faut un
-        // cran de plus. La butée est ainsi un temps d'arrêt, pas un mur, et le
-        // footer ne surgit jamais par inadvertance.
+      if (delta > 0) {
+        // Vers le bas ou vers la droite → on avance. Le footer n'apparaît
+        // qu'une fois la rangée DÉJÀ au bout : arriver au bout ne le déclenche
+        // pas, il faut un cran de plus. La butée est ainsi un temps d'arrêt,
+        // pas un mur, et le footer ne surgit jamais par inadvertance.
         if (atEnd) showFooter(true);
-        else row.scrollLeft = Math.min(maxLeft, row.scrollLeft + e.deltaY);
+        else row.scrollLeft = Math.min(maxLeft, row.scrollLeft + delta);
       } else {
-        // Vers le haut → vers la gauche, mais le footer se range d'abord :
-        // il occupe le cran qui l'avait fait venir.
+        // Vers le haut ou vers la gauche → on recule, mais le footer se range
+        // d'abord : il occupe le cran qui l'avait fait venir.
         if (footerShown.current) showFooter(false);
-        else row.scrollLeft = Math.max(0, row.scrollLeft + e.deltaY);
+        else row.scrollLeft = Math.max(0, row.scrollLeft + delta);
       }
     };
 
@@ -1734,18 +1794,30 @@ export function DesktopSeries({
       style={{ height: 'calc(100dvh - 160px)', minHeight: 460 }}
     >
       {/* ── Lettrage ──────────────────────────────────────────────────────
-          En FLUX, tout en haut de la scène : la hauteur de celle-ci est fixée
-          en `calc()`, le titre ne pousse donc rien — la rangée est en
-          `absolute bottom-0` et la vue ouverte en `absolute inset-0`. Il se
-          pose ainsi à la même ligne que le titre d'`/archives` (haut de
-          `<main>`), ce qui est exactement là où il finit sa course.
+          POSÉ SUR LA RANGÉE, comme elle en `absolute` : son bord bas est le
+          bord haut de la boîte des piles. Tout le blanc de la page est donc
+          au-dessus de lui, d'un seul tenant.
 
-          `pointer-events: none` : réduit, il chevauche de ~20 px la colonne
-          centrale de la vue ouverte. Il ne doit jamais intercepter un clic
-          destiné à ce qui se trouve dessous. */}
+          En absolu et pas en flux : c'est le bas qui est ancré, pas le haut, et
+          la hauteur de la scène est fixée en `calc()`. Rien à pousser de toute
+          façon — la rangée et la vue ouverte sont elles aussi en `absolute`.
+
+          `pointer-events: none` — deux raisons, chacune suffisante : à
+          l'accueil il recouvre la zone de padding haut de la rangée, qui doit
+          rester saisissable au cliquer-glisser ; replié, il déborde d'une
+          vingtaine de pixels sur la colonne centrale de la vue ouverte. */}
       <h1
+        ref={titleBoxRef}
         className="series-title"
-        style={{ paddingLeft: 32, paddingRight: 32, pointerEvents: 'none' }}
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: titleBottom,
+          paddingLeft: 32,
+          paddingRight: 32,
+          pointerEvents: 'none',
+        }}
       >
         <span className="sr-only">Series</span>
         <span
