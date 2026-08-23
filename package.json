@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start -p 3010",
     "lint": "next lint",
+    "backup": "bash scripts/backup-client-files.sh",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next out",
     "predeploy": "npm run clean && npm run build",
