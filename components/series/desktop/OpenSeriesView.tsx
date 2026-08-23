@@ -1,3 +1,4 @@
+import { Undo2 } from 'lucide-react';
 import { urlFor } from '@/lib/sanity/image';
 import type { PreparedSeries } from '@/lib/site/series';
 import { cn } from '@/lib/utils/cn';
@@ -8,24 +9,24 @@ import { useMdUp } from '../shared/useMdUp';
 /**
  * État ouvert desktop (spec §5) : trois zones —
  *   gauche  : noms des séries (navigation directe, sans repasser par la rangée)
- *   centre  : image affichée + « Close » au coin haut-gauche + métadonnées
+ *   centre  : image affichée + « Back to All Series » au coin haut-gauche + métadonnées
  *             collées en bas à droite de l'image
  *   droite  : colonne de vignettes, défilement natif à la molette
  *
  * Chrome ancré à l'IMAGE, pas au conteneur (règle §3.4 du CLAUDE.md) : le
- * wrapper `w-fit` épouse l'image, Close et Meta se positionnent contre lui.
+ * wrapper `w-fit` épouse l'image, le bouton retour et Meta se positionnent contre lui.
  *
  * Les attributs data-* sont les points de mesure des vols (animations.ts).
  */
 
 /**
- * Le chrome ancré à l'image — « ✕ Close » au-dessus, métadonnées en dessous —
+ * Le chrome ancré à l'image — le retour au-dessus, métadonnées en dessous —
  * est en `absolute`, donc HORS FLUX : la place qu'on ne lui réserve pas, il la
  * prend sous le footer, sans un mot (bug réel : les métadonnées se sont
  * retrouvées coupées le jour où la scène a perdu 30 px pour laisser voir le
  * footer). On la lui réserve donc explicitement, en padding sur la cellule.
  */
-const CHROME_TOP = 32; // ligne « ✕ Close » + son marginBottom de 12
+const CHROME_TOP = 32; // ligne « Back to All Series » + son marginBottom de 12
 const CHROME_BOTTOM = 84; // bloc SeriesMeta : jusqu'à 4 lignes + marginTop 12
 
 /**
@@ -115,10 +116,16 @@ export function OpenSeriesView({
             type="button"
             onClick={onClose}
             data-open-close
-            className="absolute left-0 bottom-full cursor-pointer text-[11px] uppercase font-bold text-[var(--color-fg)] hover:opacity-60 transition-opacity motion-reduce:transition-none"
-            style={{ marginBottom: 12 }}
+            className="absolute left-0 bottom-full flex items-center cursor-pointer text-[11px] uppercase font-bold text-[var(--color-fg)] hover:opacity-60 transition-opacity motion-reduce:transition-none"
+            style={{ marginBottom: 12, gap: 8 }}
           >
-            ✕ Close
+            {/* Demi-tour et non la flèche simple « ← » (demande Alexandre,
+                2026-08-23) : une flèche gauche dit « à gauche », le u-turn dit
+                « on revient d'où l'on vient » — c'est le second sens qui est
+                juste ici. `aria-hidden` : le libellé porte déjà tout le message
+                pour un lecteur d'écran. */}
+            <Undo2 size={14} strokeWidth={2} aria-hidden />
+            Back to All Series
           </button>
 
           {/* aspect-ratio + width calculée : le layout est complet AVANT le

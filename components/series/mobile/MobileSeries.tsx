@@ -5,7 +5,6 @@ import {
   useEffect,
   useLayoutEffect,
   useRef,
-  useState,
 } from 'react';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
@@ -14,52 +13,144 @@ import type { PreparedSeries } from '@/lib/site/series';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { useMdUp } from '../shared/useMdUp';
 import { pushModalHistory } from '@/lib/utils/modalHistory';
-import { cn } from '@/lib/utils/cn';
 import { SeriesMeta } from '../shared/SeriesMeta';
 
 gsap.registerPlugin(Flip);
 
 /**
- * Branche mobile de /series (spec §6) — liste verticale, PAS le dossier
- * qui se déplie du desktop : sur un écran de téléphone, l'effet coûterait
- * à l'image la place qui lui revient.
+ * Branche mobile de /series — refonte du 2026-08-23 (demande Alexandre).
  *
- * - Repos : cover carrée à gauche (recadrée via hotspot), titre + année à
- *   droite. Largeur en FRACTION de l'écran (jamais de px figés) → 3-4
- *   rangées entières visibles sur tout appareil.
- * - Dépliage : la rangée s'étire à ~75dvh, la cover vient se centrer en
- *   grandissant (GSAP Flip, ~300 ms), la page se recale sur la rangée.
- * - Parcours : bande horizontale native (snap), voisines qui débordent.
- * - Sorties (spec §6, une seule porte) : bouton retour du téléphone
- *   (modalHistory), tap hors de la bande, scroll vertical franc (~90 px).
- *   Les trois passent par onClose() ; modalHistory réconcilie l'historique.
+ * Le dépliage EN PLACE (la rangée qui s'étirait à 76dvh au milieu de la liste)
+ * est abandonné. À la place, deux états francs :
+ *
+ * 1. LISTE — titre « SERIES » pleine largeur (même technique que « Selected
+ *    Works » sur la home), puis une rangée par série : cover à gauche, titre et
+ *    année à droite. Défilement vertical natif, rien d'autre.
+ *
+ * 2. IMMERSION — au tap, un calque plein écran sur fond `--color-immersive-bg`
+ *    recouvre tout : les autres séries disparaissent. Le chrome du site (logo,
+ *    bouton MENU) passe au blanc via `data-immersive` sur `<html>` et RESTE
+ *    cliquable — le calque est en z-40, sous le header (z-50) et sous le bouton
+ *    menu (z-55). Aucune exception à coder : c'est l'empilement qui la fait.
+ *
+ * Dimensionnement des photos : CALÉ SUR LA LARGEUR, entier à l'écran. Un
+ * portrait prend donc toute la hauteur qu'il peut, un panoramique reste petit —
+ * c'est la contrepartie assumée (arbitrage Alexandre). La boîte, elle, ne bouge
+ * jamais : c'est l'écran. Rien ne remue en swipant.
+ *
+ * Sorties : tap sur une photo, tap dans le noir, long geste vertical (60 % de
+ * l'écran), bouton retour du téléphone. Les quatre passent par requestClose().
  */
 
-const EXPAND_DUR = 0.3;
-const SCROLL_CLOSE_PX = 90;
+/** Marge latérale : gouttière de la liste ET retrait de la photo en immersion. */
+const SIDE = 20;
+
+/**
+ * Hauteur soustraite à l'écran avant de plafonner la photo : nav-bar (64),
+ * frise de points (56), titre + fiche technique collés à l'image avec leurs
+ * écarts (56), et 32 de respiration. Une seule constante parce que ces cinq
+ * nombres n'ont de sens qu'ensemble — en changer un sans les autres, c'est
+ * une photo rognée ou une frise poussée hors de l'écran.
+ */
+const PHOTO_V_RESERVE = 208;
+
+/** Frise de points — fenêtre glissante façon carousel Instagram. */
+const DOT = 6;
+const DOT_GAP = 8;
+const DOT_WINDOW = 5;
+
+const OPEN_DUR = 0.5;
+const CLOSE_DUR = 0.45;
+
+/**
+ * Sortie au geste vertical — fraction de la hauteur d'écran à parcourir.
+ * Le seuil est volontairement de l'ordre d'un écran : sortir doit être VOULU.
+ * Mesuré sur le mouvement du doigt (touchstart → touchmove), pas sur un
+ * `scrollTop` : en immersion il n'y a plus rien qui défile verticalement.
+ */
+const SCROLL_CLOSE_RATIO = 0.6;
+const SCROLL_CLOSE_MIN_PX = 320;
+
+/**
+ * Frise de position — fenêtre glissante de 5 points.
+ *
+ * Pourquoi pas tous les points : la plus grosse série en compte 38 (Street
+ * Photography, vérifié en base). À 6 px de diamètre et 8 px d'écart, 38 points
+ * font 524 px de large — un iPhone en fait 390. Il faudrait descendre à 4 px
+ * pour les caser, soit une poussière de 12 pixels réels en DPR 3, et une frise
+ * dont la longueur changerait du tout au tout d'une série à l'autre.
+ *
+ * Les 38 points sont donc TOUS rendus, mais la rangée est translatée et ceux
+ * qui sortent de la fenêtre sont mis à l'échelle 0. Leur emplacement, lui,
+ * reste réservé : la géométrie ne bouge pas, la translation reste exacte, et
+ * le glissement s'anime tout seul en CSS. Un point de bord passe à 0,6 quand
+ * il reste des photos au-delà — et reprend sa taille pleine quand on touche le
+ * début ou la fin, ce qui est le signal « il n'y a plus rien après ».
+ *
+ * Jauge et NON contrôle : `pointer-events: none`. Sur ce calque un tap ferme la
+ * série ; un point cliquable créerait une zone où le doigt fait autre chose
+ * sans que rien ne l'annonce.
+ */
+function CarouselDots({ total, index }: { total: number; index: number }) {
+  const win = Math.min(DOT_WINDOW, total);
+  const slot = DOT + DOT_GAP;
+  const start = Math.max(
+    0,
+    Math.min(index - Math.floor(win / 2), total - win)
+  );
+  const end = start + win - 1;
+  return (
+    <div
+      aria-hidden
+      style={{
+        width: win * slot - DOT_GAP,
+        marginLeft: 'auto',
+        marginRight: 'auto',
+        overflow: 'hidden',
+        pointerEvents: 'none',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          gap: DOT_GAP,
+          transform: `translateX(${-start * slot}px)`,
+          transition: 'transform 250ms ease',
+        }}
+      >
+        {Array.from({ length: total }, (_, i) => {
+          const inWindow = i >= start && i <= end;
+          const edgeWithMore =
+            (i === start && start > 0) || (i === end && end < total - 1);
+          return (
+            <span
+              key={i}
+              style={{
+                flex: `0 0 ${DOT}px`,
+                height: DOT,
+                borderRadius: 999,
+                background: 'var(--color-fg)',
+                opacity: !inWindow ? 0 : i === index ? 1 : 0.4,
+                transform: `scale(${!inWindow ? 0 : edgeWithMore ? 0.6 : 1})`,
+                transition: 'transform 250ms ease, opacity 250ms ease',
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Les deux branches (desktop / mobile) sont TOUJOURS montées — c'est le CSS
- * qui en affiche une seule (spec §4). Leurs écouteurs GLOBAUX (document,
- * historique, scroll) doivent donc vérifier que leur branche est visible :
- * sans ce garde, le tap-extérieur de la branche mobile CACHÉE fermait le
- * dossier quand on cliquait une vignette desktop (bug réel, vu en capture).
- * `offsetParent === null` ⇔ display:none quelque part dans les ancêtres.
+ * qui en affiche une seule. Leurs écouteurs GLOBAUX (document, historique,
+ * `<html>`) doivent donc vérifier que leur branche est visible : sans ce
+ * garde, ouvrir une série sur desktop passerait tout le site en blanc sur
+ * noir. `offsetParent === null` ⇔ display:none quelque part dans les ancêtres.
  */
 function isVisible(el: HTMLElement | null): boolean {
   return Boolean(el && el.offsetParent !== null);
-}
-
-function scrollParentOf(el: HTMLElement): HTMLElement {
-  let p = el.parentElement;
-  while (p) {
-    const s = getComputedStyle(p);
-    if (/(auto|scroll)/.test(s.overflowY) && p.scrollHeight > p.clientHeight) {
-      return p;
-    }
-    p = p.parentElement;
-  }
-  return (document.scrollingElement as HTMLElement) ?? document.documentElement;
 }
 
 export function MobileSeries({
@@ -73,18 +164,30 @@ export function MobileSeries({
   series: PreparedSeries[];
   openSeries: PreparedSeries | null;
   activeIndex: number;
-  onOpen: (slug: string) => void;
+  onOpen: (slug: string, photoIndex?: number) => void;
   onClose: () => void;
   onSelectPhoto: (index: number) => void;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
   const flipStateRef = useRef<Flip.FlipState | null>(null);
+  const closingStateRef = useRef<{
+    slug: string;
+    state: Flip.FlipState;
+  } | null>(null);
   const reduced = useReducedMotion();
   const mdUp = useMdUp();
   const openSlug = openSeries?.slug ?? null;
 
-  // ── Flip à l'ouverture (état capturé DANS le handler, avant re-rendu) ────
+  const openSlugRef = useRef<string | null>(null);
+  openSlugRef.current = openSlug;
+
+  // ── Ouverture ────────────────────────────────────────────────────────────
+  // L'index d'arrivée est celui de la COVER, pas 0 : une série dont la cover
+  // est la 5ᵉ photo s'ouvre sur cette 5ᵉ photo, au milieu de la bande, une
+  // voisine visible de chaque côté. C'est ce qui dit à l'œil qu'on peut aller
+  // à gauche COMME à droite.
 
   const handleOpen = useCallback(
     (s: PreparedSeries) => {
@@ -94,85 +197,161 @@ export function MobileSeries({
         );
         if (coverEl) flipStateRef.current = Flip.getState(coverEl);
       }
-      onOpen(s.slug);
+      const coverIndex = Math.max(
+        0,
+        s.photos.findIndex((p) => p._id === s.cover._id)
+      );
+      onOpen(s.slug, coverIndex);
     },
     [onOpen, reduced]
   );
 
+  /**
+   * Porte unique de sortie. On y capture l'état Flip de la photo de couverture
+   * TANT QU'ELLE EST ENCORE DANS LA BANDE : après le re-rendu elle n'existe
+   * plus, et le vol de retour n'aurait plus de point de départ. Si la cover a
+   * été emmenée hors champ par le défilement horizontal, pas de vol — un vol
+   * depuis le hors-écran serait pire que pas de vol du tout.
+   */
+  const requestClose = useCallback(() => {
+    const slug = openSlugRef.current;
+    const strip = stripRef.current;
+    if (slug && strip && !reduced) {
+      const cover = strip.querySelector<HTMLElement>(
+        `[data-flip-id="cover-${slug}"]`
+      );
+      const r = cover?.getBoundingClientRect();
+      if (cover && r && r.right > 0 && r.left < window.innerWidth) {
+        closingStateRef.current = { slug, state: Flip.getState(cover) };
+      }
+    }
+    onClose();
+  }, [onClose, reduced]);
+
+  // ── Bande calée sur la cover, PUIS vol ──────────────────────────────────
+  // L'ordre n'est pas négociable : le vol vise le rect de la photo d'arrivée,
+  // et ce rect n'est juste qu'une fois la bande défilée. Voler d'abord, c'est
+  // atterrir à côté puis sauter.
+
   useLayoutEffect(() => {
+    // ── Retour à la liste ──────────────────────────────────────────────────
+    const closing = closingStateRef.current;
+    closingStateRef.current = null;
+    if (!openSlug) {
+      if (closing && !reduced) {
+        Flip.from(closing.state, {
+          targets: `[data-flip-id="cover-${closing.slug}"]`,
+          duration: CLOSE_DUR,
+          ease: 'power2.inOut',
+          scale: true,
+        });
+      }
+      return;
+    }
+
+    // ── Vers l'immersion ───────────────────────────────────────────────────
     const state = flipStateRef.current;
     flipStateRef.current = null;
-    if (!openSlug) return;
+    const strip = stripRef.current;
+    if (strip) {
+      const slide = strip.querySelectorAll<HTMLElement>('[data-strip-item]')[
+        activeIndex
+      ];
+      // `scrollLeft` posé À LA MAIN et sans animation : `scrollIntoView` aurait
+      // fait défiler AUSSI le conteneur de page, et son `behavior: 'smooth'`
+      // aurait couru en même temps que le vol.
+      if (slide) strip.scrollLeft = slide.offsetLeft;
+    }
     if (state && !reduced) {
       Flip.from(state, {
         targets: `[data-flip-id="cover-${openSlug}"]`,
-        duration: EXPAND_DUR,
-        ease: 'power2.out',
-        absolute: true,
+        duration: OPEN_DUR,
+        ease: 'power2.inOut',
         scale: true,
       });
     }
-    // Recalage : la rangée dépliée occupe le champ de vision. `scroll-mt`
-    // sur la rangée compense la nav fixe.
-    const row = listRef.current?.querySelector<HTMLElement>(
-      `[data-series-row="${openSlug}"]`
-    );
-    row?.scrollIntoView({
-      behavior: reduced ? 'auto' : 'smooth',
-      block: 'start',
-    });
+    // `activeIndex` volontairement hors deps : il change à chaque swipe, et
+    // recaler la bande à ce moment-là annulerait le geste de l'utilisateur.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openSlug, reduced]);
 
-  // ── Historique : le bouton retour replie (modalHistory, porte unique) ────
+  // ── Thème immersif : le chrome du site passe au blanc ────────────────────
+  // Un attribut sur <html>, et les tokens `--color-fg` / `--color-bg` basculent
+  // en CSS (globals.css). Le logo est un SVG inline branché sur `--color-logo` :
+  // aucun fichier à échanger. Gardé par la visibilité de CETTE branche, sinon
+  // une ouverture desktop repeindrait tout le site.
 
   useEffect(() => {
     if (!openSlug || !isVisible(listRef.current)) return;
-    const cleanup = pushModalHistory(onClose);
+    const root = document.documentElement;
+    root.dataset.immersive = 'true';
+    return () => {
+      delete root.dataset.immersive;
+    };
+  }, [openSlug]);
+
+  // ── Historique : le bouton retour ramène à la liste ──────────────────────
+
+  useEffect(() => {
+    if (!openSlug || !isVisible(listRef.current)) return;
+    const cleanup = pushModalHistory(requestClose);
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openSlug]);
 
-  // ── Scroll vertical franc → repli (spec §6) ──────────────────────────────
-  // Pas d'interception : la page défile nativement, on observe le débord.
-  // En dessous du seuil (swipe diagonal, ajustement), rien ne se passe.
+  // ── Geste vertical long → retour à la liste ──────────────────────────────
+  // En immersion plus rien ne défile verticalement (`touch-action: none` sur le
+  // calque, `pan-x` sur la bande), donc on lit le déplacement du DOIGT depuis
+  // son point de contact. Un seul geste continu doit couvrir 60 % de l'écran :
+  // ni un effleurement ni l'inertie ne peuvent y arriver par accident.
 
   useEffect(() => {
-    if (!openSlug || !isVisible(listRef.current) || !listRef.current) return;
-    const scroller = scrollParentOf(listRef.current);
-    let anchor: number | null = null;
-    // L'ancre se pose une fois le recalage (smooth scroll) terminé.
-    const settle = window.setTimeout(() => {
-      anchor = scroller.scrollTop;
-    }, 450);
-    const onScroll = () => {
-      if (anchor === null) return;
-      if (Math.abs(scroller.scrollTop - anchor) > SCROLL_CLOSE_PX) onClose();
-    };
-    scroller.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      window.clearTimeout(settle);
-      scroller.removeEventListener('scroll', onScroll);
-    };
-  }, [openSlug, onClose]);
+    const el = overlayRef.current;
+    if (!openSlug || !el || !isVisible(listRef.current)) return;
+    const limit = () =>
+      Math.max(SCROLL_CLOSE_MIN_PX, window.innerHeight * SCROLL_CLOSE_RATIO);
+    let startY: number | null = null;
+    let fired = false;
+    let wheelAcc = 0;
 
-  // ── Tap hors de la bande → repli (capture : n'ouvre pas une autre série) ─
-
-  useEffect(() => {
-    if (!openSlug || !isVisible(listRef.current) || !listRef.current) return;
-    const list = listRef.current;
-    const onTap = (e: Event) => {
-      const row = list.querySelector(`[data-series-row="${openSlug}"]`);
-      if (row && !row.contains(e.target as Node)) {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose();
+    const onStart = (e: TouchEvent) => {
+      startY = e.touches[0]?.clientY ?? null;
+      fired = false;
+    };
+    const onMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY;
+      if (startY === null || fired || y === undefined) return;
+      if (Math.abs(y - startY) > limit()) {
+        fired = true;
+        requestClose();
       }
     };
-    document.addEventListener('click', onTap, true);
-    return () => document.removeEventListener('click', onTap, true);
-  }, [openSlug, onClose]);
+    const onEnd = () => {
+      startY = null;
+    };
+    // Molette : même seuil, accumulé. Sert au test au trackpad en fenêtre
+    // étroite ; sur téléphone c'est le tactile qui parle.
+    const onWheel = (e: WheelEvent) => {
+      wheelAcc += e.deltaY;
+      if (Math.abs(wheelAcc) > limit()) {
+        wheelAcc = 0;
+        requestClose();
+      }
+    };
 
-  // ── Index actif dérivé du snap de la bande ───────────────────────────────
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: true });
+    el.addEventListener('touchend', onEnd, { passive: true });
+    el.addEventListener('wheel', onWheel, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('wheel', onWheel);
+    };
+  }, [openSlug, requestClose]);
+
+  // ── Photo courante déduite du snap de la bande ───────────────────────────
 
   const onStripScroll = useCallback(() => {
     const strip = stripRef.current;
@@ -181,48 +360,65 @@ export function MobileSeries({
       const mid = strip.scrollLeft + strip.clientWidth / 2;
       let best = 0;
       let bestDist = Infinity;
-      strip.querySelectorAll<HTMLElement>('[data-strip-item]').forEach((el, i) => {
-        const center = el.offsetLeft + el.offsetWidth / 2;
-        const d = Math.abs(center - mid);
-        if (d < bestDist) {
-          bestDist = d;
-          best = i;
-        }
-      });
+      strip
+        .querySelectorAll<HTMLElement>('[data-strip-item]')
+        .forEach((el, i) => {
+          const d = Math.abs(el.offsetLeft + el.offsetWidth / 2 - mid);
+          if (d < bestDist) {
+            bestDist = d;
+            best = i;
+          }
+        });
       if (best !== activeIndex) onSelectPhoto(best);
     });
   }, [openSeries, activeIndex, onSelectPhoto]);
 
   return (
-    // Espacements en style inline — convention du projet : le reset global
-    // `* { padding: 0 }` (hors @layer, globals.css) écrase les utilitaires
-    // Tailwind de padding/margin, qui sont eux dans un @layer.
-    <div
-      ref={listRef}
-      className="flex flex-col gap-8"
-      style={{ paddingLeft: 20, paddingRight: 20 }}
-    >
-      <h1 className="sr-only">Series</h1>
-      {series.map((s) => {
-        const isOpen = s.slug === openSlug;
-        // SANS crop (demande du 2026-08-20) : ratio natif préservé, largeur
-        // fixe 42 %. Les rangées n'ont donc plus une hauteur uniforme — choix
-        // assumé au détriment de la garantie « 3-4 dossiers visibles ».
-        const coverRatio = s.cover.image?.dimensions?.aspectRatio ?? 4 / 3;
-        const coverSrc = s.cover.image
-          ? (urlFor(s.cover.image)
-              ?.width(560)
-              .quality(75)
-              .auto('format')
-              .url() ?? '')
-          : '';
-        return (
-          <article
-            key={s.slug}
-            data-series-row={s.slug}
-            className="scroll-mt-20"
-          >
-            {!isOpen ? (
+    <>
+      {/* Espacements en style inline — convention du projet : le reset global
+          `* { padding: 0 }` (hors @layer, globals.css) écrase les utilitaires
+          Tailwind de padding/margin, qui sont eux dans un @layer. */}
+      <div
+        ref={listRef}
+        className="flex flex-col gap-8"
+        style={{ paddingLeft: SIDE, paddingRight: SIDE }}
+      >
+        {/* Titre pleine largeur, recette de « Selected Works » : le `viewBox`
+            donne le ratio, `textLength` FORCE la chasse à la largeur de la
+            boîte. Le remplissage est donc garanti par construction et ne
+            dépend d'aucune métrique de fonte — `--font-display` est une pile
+            SYSTÈME (Helvetica Neue / Arial / Roboto), dont les chasses
+            diffèrent. Cotes : « SERIES » en Helvetica Bold pèse 3,668 em,
+            moins 0,02 em d'interlettrage par caractère → 3,548 em ; d'où
+            fontSize 281,8 pour 1000 de large, et une hauteur de boîte égale à
+            la capitale (0,714 em = 201). */}
+        <h1 className="series-title" style={{ paddingBottom: 8 }}>
+          <span className="sr-only">Series</span>
+          <svg viewBox="0 0 1000 201" aria-hidden="true" focusable="false">
+            <text
+              x="0"
+              y="201"
+              fontSize="281.8"
+              textLength="1000"
+              lengthAdjust="spacing"
+            >
+              SERIES
+            </text>
+          </svg>
+        </h1>
+
+        {series.map((s) => {
+          const isOpen = s.slug === openSlug;
+          const coverRatio = s.cover.image?.dimensions?.aspectRatio ?? 4 / 3;
+          const coverSrc = s.cover.image
+            ? (urlFor(s.cover.image)
+                ?.width(560)
+                .quality(75)
+                .auto('format')
+                .url() ?? '')
+            : '';
+          return (
+            <article key={s.slug} data-series-row={s.slug}>
               <button
                 type="button"
                 onClick={() => handleOpen(s)}
@@ -234,18 +430,18 @@ export function MobileSeries({
                   alt={s.cover.image?.alt ?? s.title}
                   loading="lazy"
                   decoding="async"
-                  data-flip-id={`cover-${s.slug}`}
+                  // L'identifiant de vol est RETIRÉ tant que la série est
+                  // ouverte : sa jumelle vit alors dans la bande immersive, et
+                  // deux éléments portant le même `data-flip-id` feraient
+                  // voler les DEUX.
+                  data-flip-id={isOpen ? undefined : `cover-${s.slug}`}
                   className="block w-[42%] shrink-0 h-auto"
                   style={{ aspectRatio: String(coverRatio) }}
                 />
                 <span className="min-w-0">
-                  {/* Un titre long casse sur plusieurs lignes — interligne
-                      aéré (1.7) pour que la casse reste élégante. */}
                   <span className="block text-[14px] uppercase leading-[1.7] font-bold text-[var(--color-fg)]">
                     {s.title}
                   </span>
-                  {/* marginTop inline : `mt-1` est avalé par le reset global
-                      hors @layer (les lignes se collaient au titre). */}
                   {s.year && (
                     <span
                       className="block text-[11px] uppercase font-bold text-[var(--color-fg-muted)]"
@@ -262,89 +458,148 @@ export function MobileSeries({
                   </span>
                 </span>
               </button>
-            ) : (
-              <div style={{ height: '76dvh' }} className="flex flex-col">
-                <p
-                  className="text-[12px] uppercase font-bold text-[var(--color-fg)]"
-                  style={{ paddingBottom: 8 }}
-                >
-                  {s.title}
-                  {s.year && (
-                    <span
-                      className="text-[var(--color-fg-muted)]"
-                      style={{ marginLeft: 10 }}
-                    >
-                      {s.year}
-                    </span>
-                  )}
-                </p>
-                {/* Bande horizontale native : snap, voisines qui débordent,
-                    léger retrait des bords (gestes système, spec §6). */}
+            </article>
+          );
+        })}
+      </div>
+
+      {/* ── Calque immersif ─────────────────────────────────────────────────
+          `md:hidden` : les deux branches sont montées en permanence, sans ce
+          garde une ouverture desktop poserait un calque noir sur la page.
+          z-40 : SOUS le header (z-50) et le bouton MENU (z-55), qui restent
+          donc cliquables sans qu'on ait à les exempter du tap-pour-fermer. */}
+      {openSeries && (
+        <div
+          ref={overlayRef}
+          className="fixed inset-0 z-40 flex flex-col md:hidden"
+          style={{
+            background: 'var(--color-immersive-bg)',
+            // Le calque n'a rien à faire défiler ; la bande, elle, ne défile
+            // qu'horizontalement. Un geste vertical n'emporte donc jamais la
+            // page cachée derrière — et nous reste lisible.
+            touchAction: 'none',
+          }}
+          onClick={requestClose}
+        >
+          {/* Réserve de la nav-bar : le logo et MENU flottent au-dessus. */}
+          <div aria-hidden style={{ height: 64 }} className="shrink-0" />
+
+          {/* Une diapo = un écran plein, SANS entrevue des voisines (arbitrage
+              Alexandre, 2026-08-23) : c'est la frise de points qui dit
+              désormais où l'on se trouve dans la série. La photo garde ses 20 px
+              de retrait, mais à l'INTÉRIEUR de sa diapo — la voisine reste donc
+              intégralement hors champ. */}
+          <div
+            ref={stripRef}
+            onScroll={onStripScroll}
+            className="flex min-h-0 flex-1 snap-x snap-mandatory items-center overflow-x-auto overscroll-x-contain"
+            style={{ touchAction: 'pan-x', scrollbarWidth: 'none' }}
+          >
+            {openSeries.photos.map((photo, i) => {
+              const ratio = photo.image?.dimensions?.aspectRatio ?? 4 / 3;
+              const src = photo.image
+                ? (urlFor(photo.image)
+                    ?.width(1100)
+                    .quality(80)
+                    .auto('format')
+                    .url() ?? '')
+                : '';
+              const isCover = photo._id === openSeries.cover._id;
+              const isActive = i === activeIndex;
+              return (
                 <div
-                  ref={stripRef}
-                  onScroll={onStripScroll}
-                  className="flex min-h-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain"
-                  style={{
-                    paddingLeft: 'max(env(safe-area-inset-left), 8px)',
-                    paddingRight: 'max(env(safe-area-inset-right), 8px)',
-                  }}
+                  key={photo._id}
+                  data-strip-item
+                  className="flex h-full w-screen shrink-0 snap-center flex-col items-center justify-center"
+                  style={{ paddingLeft: SIDE, paddingRight: SIDE }}
                 >
-                  {s.photos.map((photo, i) => {
-                    const src = photo.image
-                      ? (urlFor(photo.image)
-                          ?.width(1100)
-                          .quality(80)
-                          .auto('format')
-                          .url() ?? '')
-                      : '';
-                    const isCover = photo._id === s.cover._id;
-                    const ratio =
-                      photo.image?.dimensions?.aspectRatio ?? 4 / 3;
-                    // Hauteur COMMUNE maximale pour toutes les photos : une
-                    // horizontale prend la pleine hauteur de bande et sa
-                    // largeur déborde de l'écran vers la droite (sens du
-                    // scroll) — d'où snap-start (alignée au bord gauche)
-                    // plutôt que centrée. Les verticales restent centrées.
-                    const wide = ratio >= 1;
-                    return (
-                      <div
-                        key={photo._id}
-                        data-strip-item
-                        className={cn(
-                          'flex h-full w-auto shrink-0 items-center',
-                          wide ? 'snap-start' : 'snap-center'
-                        )}
+                  {/* Titre et fiche technique vivent DANS la diapo, pas dans le
+                      calque : c'est la seule façon de les coller aux bords de
+                      l'image sans mesurer quoi que ce soit — le bloc est une
+                      colonne centrée, la photo lui donne sa hauteur, le texte
+                      la suit. Ils ne sont opaques que sur la diapo active :
+                      deux photos de hauteurs différentes portent leurs textes à
+                      deux hauteurs différentes, et on les verrait se croiser
+                      pendant le swipe. Le fondu bascule au passage de la
+                      moitié, quand `activeIndex` change. */}
+                  <p
+                    className="w-full shrink-0 text-[12px] uppercase font-bold text-[var(--color-fg)]"
+                    style={{
+                      paddingBottom: 10,
+                      opacity: isActive ? 1 : 0,
+                      transition: 'opacity 200ms ease',
+                    }}
+                  >
+                    {openSeries.title}
+                    {openSeries.year && (
+                      <span
+                        className="text-[var(--color-fg-muted)]"
+                        style={{ marginLeft: 10 }}
                       >
-                        {/* eager pour les 3 premières SEULEMENT si cette
-                            branche est visible : rendue cachée (viewport
-                            desktop), une eager télécharge quand même —
-                            mesuré : 3×1100 px par ouverture (cf. useMdUp). */}
-                        <img
-                          src={src}
-                          alt={photo.image?.alt ?? photo.title}
-                          loading={!mdUp && i < 3 ? 'eager' : 'lazy'}
-                          data-flip-id={isCover ? `cover-${s.slug}` : undefined}
-                          className="block h-full w-auto max-w-none object-contain"
-                          style={{ aspectRatio: String(ratio) }}
-                        />
-                      </div>
-                    );
-                  })}
+                        {openSeries.year}
+                      </span>
+                    )}
+                  </p>
+
+                  {/* Dimensions INTRINSÈQUES déclarées (attributs width/height
+                      depuis Sanity) : la boîte est juste avant même que le
+                      fichier arrive, donc le vol vise un rect réel et non un
+                      rect nul. Les deux plafonds font le reste — largeur
+                      d'abord, hauteur en garde-fou pour les portraits les plus
+                      hauts — et le ratio est préservé, c'est le comportement
+                      défini des éléments remplacés. */}
+                  <img
+                    src={src}
+                    alt={photo.image?.alt ?? photo.title}
+                    width={1100}
+                    height={Math.round(1100 / ratio)}
+                    loading={
+                      !mdUp && Math.abs(i - activeIndex) <= 1 ? 'eager' : 'lazy'
+                    }
+                    decoding="async"
+                    data-flip-id={
+                      isCover ? `cover-${openSeries.slug}` : undefined
+                    }
+                    className="block shrink-0"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: `calc(100dvh - ${PHOTO_V_RESERVE}px)`,
+                    }}
+                  />
+
+                  <SeriesMeta
+                    photo={photo}
+                    inline
+                    className="w-full shrink-0 text-right"
+                    style={{
+                      paddingTop: 10,
+                      opacity: isActive ? 1 : 0,
+                      transition: 'opacity 200ms ease',
+                    }}
+                  />
                 </div>
-                <div
-                  className="flex h-16 items-start justify-end"
-                  style={{ paddingTop: 12 }}
-                >
-                  <SeriesMeta photo={s.photos[activeIndex] ?? s.photos[0]} />
-                </div>
-              </div>
-            )}
-          </article>
-        );
-      })}
-      {/* Respiration en fin de liste : le dernier dossier peut se recaler
-          en haut de l'écran une fois déplié. */}
-      <div aria-hidden style={{ height: '30dvh' }} />
-    </div>
+              );
+            })}
+          </div>
+
+          {/* Frise FIXE, seul élément qui ne suit pas la photo : elle décrit la
+              SÉRIE, pas l'image courante. Une jauge qui saute de 200 px entre
+              un portrait et un panoramique serait une jauge qu'on doit
+              chercher. */}
+          <div
+            className="shrink-0"
+            style={{
+              paddingTop: 20,
+              paddingBottom: 'max(env(safe-area-inset-bottom), 24px)',
+            }}
+          >
+            <CarouselDots
+              total={openSeries.photos.length}
+              index={activeIndex}
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 }

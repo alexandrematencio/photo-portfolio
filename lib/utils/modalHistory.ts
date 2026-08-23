@@ -127,13 +127,26 @@ export function pushModalHistory(close: CloseFn): () => void {
   if (pendingPop > 0) pendingPop--;
   else window.history.pushState({ modal: true }, '');
 
+  // Chemin au moment de l'ouverture. Le démontage peut venir de DEUX causes
+  // très différentes : la modale se ferme (on reste sur la page), ou
+  // l'utilisateur NAVIGUE ailleurs (clic sur le logo, sur un lien du menu).
+  // Dans le second cas, retirer l'entrée poussée revient à faire un
+  // `history.back()` juste après la navigation — donc à l'ANNULER. Bug réel :
+  // en immersion sur /series, le clic sur le logo repartait vers « / » puis
+  // revenait aussitôt sur /series#slug, qui rouvrait la série au début.
+  const pathAtPush =
+    typeof window !== 'undefined' ? window.location.pathname : '';
+
   const entry: StackEntry = { close, viaPopState: { current: false } };
   stack.push(entry);
   attachListener();
   return () => {
     const idx = stack.indexOf(entry);
     if (idx >= 0) stack.splice(idx, 1);
-    if (!entry.viaPopState.current && typeof window !== 'undefined') {
+    const navigated =
+      typeof window !== 'undefined' &&
+      window.location.pathname !== pathAtPush;
+    if (!entry.viaPopState.current && !navigated && typeof window !== 'undefined') {
       // Fermeture par l'interface (X, Échap, fond, balayage) : on retire
       // l'entrée poussée à l'ouverture pour que le retour navigateur reste
       // cohérent ensuite. Différé d'un tick — un remontage immédiat l'annule.

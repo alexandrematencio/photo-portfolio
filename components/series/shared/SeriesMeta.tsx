@@ -13,10 +13,19 @@ export function SeriesMeta({
   photo,
   className,
   style,
+  inline = false,
 }: {
   photo: Photo;
   className?: string;
   style?: React.CSSProperties;
+  /**
+   * Une seule ligne, valeurs séparées par des points médians. Réservé au
+   * mobile : collée sous une photo dont la hauteur varie, une pile de quatre
+   * lignes ferait varier la fiche de 18 à 72 px — donc la hauteur du bloc
+   * entier, donc la taille maximale de la photo, d'une photo à l'autre. Une
+   * ligne unique rend cette hauteur constante par construction.
+   */
+  inline?: boolean;
 }) {
   const rows = [
     photo.year ? String(photo.year) : null,
@@ -26,6 +35,20 @@ export function SeriesMeta({
   ].filter((r): r is string => Boolean(r));
 
   if (rows.length === 0) return null;
+
+  if (inline) {
+    return (
+      <p
+        className={cn(
+          'text-[10px] uppercase font-bold leading-[1.8] text-[var(--color-fg-muted)]',
+          className
+        )}
+        style={style}
+      >
+        {rows.join(' · ')}
+      </p>
+    );
+  }
 
   return (
     <p

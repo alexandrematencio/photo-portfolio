@@ -35,7 +35,7 @@
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ExternalLink, ArrowLeft, ArrowRight } from 'lucide-react';
+import { X, ArrowLeft, ArrowRight } from 'lucide-react';
 import { urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
 import { pushModalHistory } from '@/lib/utils/modalHistory';
@@ -210,7 +210,17 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
   const previewSrc = builder?.quality(88).auto('format').url();
   // Le viseur zoomable montre la même image que l'aperçu — jamais l'asset nu.
   // Avant : `builder.url()`, sans largeur, donc l'original pleine résolution.
-  const originalSrc = builder?.quality(88).auto('format').url();
+  // Plus de lien « pleine résolution » (demande Alexandre, 2026-08-23) : le
+  // site ne propose plus l'image en grand format, quel qu'il soit. La mesure
+  // qui portait le sujet reste le plafond `MAX_PHOTO_WIDTH` de `urlFor` ; ceci
+  // en retire simplement l'affordance.
+
+  /** Taille de la croix — doublée (20 → 40). */
+  const closeSize = isMobile ? 36 : 40;
+  // Plus aucune réserve horizontale à prévoir : la croix ne vit plus à côté du
+  // cadre mais au niveau de l'écran, dans la bande de la nav-bar. La largeur
+  // de l'image redevient donc pleine — les 24 px qu'on lui prenait pour loger
+  // la croix lui sont rendus.
 
   const imgW = photo.image?.dimensions?.width ?? 2400;
   const imgH = photo.image?.dimensions?.height ?? 1800;
@@ -317,63 +327,6 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
           {/* Chrome wrappers: an outer span/div handles the load-driven fade
               (delayed 420 ms so it lands after the image's 500 ms scale-in),
               the inner element keeps its native hover transition. */}
-          {/* Open in new tab — 4 px above-left of frame, aligned to frame left.
-              Un vrai lien, pas un bouton : le libellé promet un nouvel onglet,
-              il faut donc que le clic milieu, le Cmd/Ctrl-clic et « ouvrir dans
-              un nouvel onglet » du menu contextuel fonctionnent — ce qu'un
-              <button> avec window.open ne donne jamais.
-              L'image pointée est celle de l'aperçu, plafonnée à MAX_PHOTO_WIDTH :
-              ce n'est plus l'asset nu (cf. urlFor). */}
-          {originalSrc && (
-            <span
-              className="absolute left-0 z-20"
-              style={{
-                bottom: 'calc(100% + 4px)',
-                opacity: loaded ? 1 : 0,
-                pointerEvents: loaded ? 'auto' : 'none',
-                transition: loaded
-                  ? 'opacity 280ms ease-out 420ms'
-                  : 'opacity 160ms ease-out',
-              }}
-            >
-              <a
-                href={originalSrc}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                aria-label="Open in new tab"
-                className="flex items-center gap-2 text-[10px] uppercase text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors motion-reduce:transition-none no-underline cursor-pointer"
-              >
-                <ExternalLink size={isMobile ? 16 : 12} strokeWidth={2} />
-                {!isMobile && <span>Open in new tab</span>}
-              </a>
-            </span>
-          )}
-          {/* Close — 4 px above-right of frame, aligned to frame right. */}
-          <span
-            className="absolute right-0 z-20"
-            style={{
-              bottom: 'calc(100% + 4px)',
-              opacity: loaded ? 1 : 0,
-              pointerEvents: loaded ? 'auto' : 'none',
-              transition: loaded
-                ? 'opacity 280ms ease-out 420ms'
-                : 'opacity 160ms ease-out',
-            }}
-          >
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose();
-              }}
-              aria-label="Close"
-              className="flex items-center justify-center text-[var(--color-fg)] hover:opacity-60 transition-opacity motion-reduce:transition-none"
-            >
-              <X size={isMobile ? 18 : 20} strokeWidth={2} />
-            </button>
-          </span>
-
           {isMobile ? (
             <div data-carousel-frame>{imgEl}</div>
           ) : (
@@ -406,6 +359,44 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
             </span>
           </div>
         )}
+      </div>
+
+      {/* Close — AU NIVEAU DE L'ÉCRAN, plus ancrée au cadre (demande Alexandre,
+          2026-08-23). La lightbox occupe tout l'écran : c'est une page qu'on
+          ferme, pas un panneau posé sur une autre. La croix va donc là où l'œil
+          va chercher une fermeture de page — en haut à droite, dans la bande de
+          64 px de la nav-bar, exactement où vit le bouton MENU (`top-0 right-0`,
+          `h-16`, 32 px de retrait) sur toutes les autres pages.
+
+          Deux bénéfices en prime : plus besoin de réserver de la largeur à
+          l'image pour loger la croix dans la gouttière (elle récupère ses 24 px
+          en desktop), et le même geste ferme sur les deux tailles d'écran.
+
+          Encre du site (`--color-fg`) et PAS de `mix-blend-mode` : la croix est
+          noire, comme demandé. */}
+      <div
+        className="fixed top-0 right-0 h-16 flex items-center"
+        style={{
+          paddingRight: 32,
+          zIndex: 110,
+          opacity: loaded ? 1 : 0,
+          pointerEvents: loaded ? 'auto' : 'none',
+          transition: loaded
+            ? 'opacity 280ms ease-out 420ms'
+            : 'opacity 160ms ease-out',
+        }}
+      >
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          aria-label="Close"
+          className="flex items-center justify-center text-[var(--color-fg)] hover:opacity-60 transition-opacity motion-reduce:transition-none cursor-pointer"
+        >
+          <X size={closeSize} strokeWidth={2} />
+        </button>
       </div>
 
       {/* Desktop prev/next arrows — pinned to left/right viewport edges,

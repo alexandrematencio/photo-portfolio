@@ -165,7 +165,10 @@ export const PhotoBlock = forwardRef<HTMLDivElement, Props>(
                    dans les deux cas : le mot et le nom qu'il introduit ne
                    doivent jamais se retrouver sur deux lignes. */
                 <p className="photo-meta-series text-[18px] leading-[1.5] font-normal text-[var(--color-fg)]">
-                  <span className="text-[var(--color-fg-muted)]">
+                  {/* Même gris que la ligne d'origine de la fiche technique
+                      (`--color-fg-faint`) : les deux libellés secondaires de la
+                      légende doivent s'accorder. */}
+                  <span className="text-[var(--color-fg-faint)]">
                     Series{'\u00A0'}
                   </span>
                   <span className="photo-meta-series-names">
@@ -197,7 +200,7 @@ export const PhotoBlock = forwardRef<HTMLDivElement, Props>(
                 au-dessus. */}
             <ul className="photo-meta-facts font-sans text-[18px] leading-[24px] font-normal">
               {origin && (
-                <li className="text-[var(--color-fg-muted)]">{origin}</li>
+                <li className="text-[var(--color-fg-faint)]">{origin}</li>
               )}
               {photo.camera?.title && <li>{photo.camera.title}</li>}
               {photo.lens?.title && <li>+ {lensLabel(photo.lens.title)}</li>}

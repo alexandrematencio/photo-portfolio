@@ -43,6 +43,28 @@ const SPLASH_PHOTOS = [
  * hurry the intro along, not to skip it.
  */
 const SCRUB_SECONDS_PER_PX = 0.00175;
+/**
+ * Cadence propre au DOIGT — 2,4× celle de la molette (demande Alexandre,
+ * 2026-08-23 : « il me faut environ 5 scrolls, je voudrais 2 »).
+ *
+ * Ce n'est pas un caprice de réglage, les deux entrées ne fournissent pas la
+ * même matière. Un pavé tactile ou une molette envoient des `deltaY` gonflés
+ * par l'inertie du système : un seul geste porte des centaines de pixels
+ * APRÈS que la main s'est arrêtée. Un doigt, ici, n'en porte aucun : le body
+ * est verrouillé, il ne défile rien, donc aucune inertie n'est produite et
+ * `touchmove` ne rend que le déplacement RÉEL du pouce — au mieux la hauteur
+ * de l'écran par balayage.
+ *
+ * L'arithmétique : la chorégraphie dure ~4,2 s jusqu'à l'atterrissage du
+ * glyph. À 0,00175 s/px il fallait ~2400 px de pouce, soit cinq balayages
+ * fermes — exactement ce qu'Alexandre a mesuré à la main. À 0,0042 s/px il en
+ * faut ~1000, soit deux.
+ *
+ * ⚠️ Ne PAS remonter la cadence molette pour autant : le commentaire
+ * ci-dessus documente qu'à son double, un flick de trackpad faisait bondir
+ * l'intro de 10× sa vitesse — une coupe franche déguisée en scrub.
+ */
+const SCRUB_SECONDS_PER_PX_TOUCH = 0.0042;
 /** Below this, the delta is trackpad noise (or a horizontal-ish gesture). */
 const SCRUB_MIN_DELTA_PX = 1;
 /** Playhead catch-up per frame — the inertia of a ScrollTrigger `scrub`. */
@@ -568,7 +590,10 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
       }
     };
 
-    const onScrollIntent = (px: number) => {
+    const onScrollIntent = (
+      px: number,
+      secPerPx: number = SCRUB_SECONDS_PER_PX
+    ) => {
       if (!(px >= SCRUB_MIN_DELTA_PX)) return; // NaN-safe, forward-only
       // Past the reveal the splash is only a fade over a hero entrance that
       // is already running — there is nothing left worth scrubbing, and
@@ -578,7 +603,11 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
       if (revealedRef.current) return;
       const tl = scrubTl;
       if (!tl) {
-        bankedPx += px;
+        // Mis en réserve en pixels ÉQUIVALENTS-MOLETTE : la timeline n'existe
+        // pas encore, donc on ne peut pas convertir en secondes, et le rejeu
+        // de `attachScrub` se fera à la cadence par défaut. Convertir ici
+        // garde le geste tactile à sa juste valeur.
+        bankedPx += (px * secPerPx) / SCRUB_SECONDS_PER_PX;
         return;
       }
       if (!manual) {
@@ -591,10 +620,7 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
         if (speedRef.current) speedRef.current.textContent = `×${SPEED_MIN}`;
         showReadout(true);
       }
-      scrubTarget = Math.min(
-        tl.duration(),
-        scrubTarget + px * SCRUB_SECONDS_PER_PX
-      );
+      scrubTarget = Math.min(tl.duration(), scrubTarget + px * secPerPx);
       if (idleTimer) window.clearTimeout(idleTimer);
       idleTimer = window.setTimeout(resumeAuto, SCRUB_IDLE_RESUME_MS);
       if (!scrubRaf) scrubRaf = requestAnimationFrame(stepScrub);
@@ -632,7 +658,8 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
     const onTouchMove = (e: TouchEvent) => {
       const y = e.touches[0]?.clientY;
       if (y === undefined || touchY === null) return;
-      onScrollIntent(touchY - y); // finger travelling up = moving forward
+      // Doigt qui monte = on avance. Cadence tactile : cf. SCRUB_SECONDS_PER_PX_TOUCH.
+      onScrollIntent(touchY - y, SCRUB_SECONDS_PER_PX_TOUCH);
       touchY = y;
     };
     const onTouchEnd = () => {

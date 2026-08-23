@@ -54,3 +54,32 @@ export const MOBILE_NAV_LINKS: NavLink[] = [
   ...NAV_LINKS,
   ...MOBILE_EXTRA_LINKS,
 ];
+
+/**
+ * Clic sur un lien de nav qui pointe vers la page DÉJÀ affichée.
+ *
+ * Next ne remonte pas la page dans ce cas — c'est voulu et c'est ce qui rend
+ * la navigation instantanée — mais l'état interne de la page, lui, survit
+ * intact. Sur `/series`, cliquer « Series » depuis une série ouverte ne
+ * ramenait donc nulle part : la série restait ouverte. Aucun signal du routeur
+ * ne permet de le détecter (le `pathname` ne change pas, `pushState` n'émet
+ * pas de `popstate`), d'où cet événement, émis par les composants de nav et
+ * écouté par la page qui a un état à remettre à zéro.
+ */
+export const SAME_PAGE_NAV_EVENT = 'nav:same-page';
+
+/** Compare deux chemins sans se soucier du slash final (`trailingSlash: true`). */
+function stripSlash(path: string): string {
+  return path.length > 1 ? path.replace(/\/+$/, '') : path;
+}
+
+export function isSamePage(href: string, pathname: string): boolean {
+  return stripSlash(href) === stripSlash(pathname);
+}
+
+export function notifySamePageNav(href: string): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent(SAME_PAGE_NAV_EVENT, { detail: { href: stripSlash(href) } })
+  );
+}

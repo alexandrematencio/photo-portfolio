@@ -4,7 +4,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
 import { GlyphLogo } from './GlyphLogo';
-import { NAV_LINKS as LINKS } from '@/lib/site/nav';
+import {
+  NAV_LINKS as LINKS,
+  isSamePage,
+  notifySamePageNav,
+} from '@/lib/site/nav';
 
 /**
  * Nav-bar globale, identique sur toutes les pages publiques.
@@ -48,18 +52,32 @@ export function SiteHeader() {
             className="flex items-center shrink-0"
             aria-label="A. Matencio — home"
           >
-            <GlyphLogo size={28} title="A. Matencio — home" />
+            {/* Couleur héritée du token, pas figée : `--color-logo` vaut le
+                cobalt brand par défaut et passe au blanc pendant l'immersion
+                de /series (`:root[data-immersive]`, globals.css). Le SVG est
+                inline, il n'y a donc aucun fichier à échanger. */}
+            <GlyphLogo
+              size={28}
+              color="var(--color-logo)"
+              title="A. Matencio — home"
+            />
           </Link>
 
           {/* 4 nav-links : visibles sur desktop, distribuées par space-between.
               `data-cursor-invert` déclenche le disque d'inversion (CursorInvert.tsx). */}
           {LINKS.map((link) => {
-            const active = pathname === link.href;
+            const active = isSamePage(link.href, pathname);
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 aria-current={active ? 'page' : undefined}
+                // Cliquer le lien de la page courante doit la RAMENER À SON
+                // ÉTAT D'ACCUEIL (cf. notifySamePageNav) : Next ne remonte pas
+                // la page, son état interne survivrait sinon intact.
+                onClick={() => {
+                  if (active) notifySamePageNav(link.href);
+                }}
                 data-cursor-invert
                 className={cn(
                   // Specs Pencil nav item : fontSize 32, fontWeight 700, letterSpacing -1.28 (= -0.04em).

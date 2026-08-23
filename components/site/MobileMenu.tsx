@@ -5,7 +5,11 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { GlyphLogo } from './GlyphLogo';
-import { MOBILE_NAV_LINKS } from '@/lib/site/nav';
+import {
+  MOBILE_NAV_LINKS,
+  isSamePage,
+  notifySamePageNav,
+} from '@/lib/site/nav';
 
 /**
  * Mobile menu — closed state + open drawer.
@@ -65,6 +69,7 @@ export function MobileMenu() {
           aria-label="Open menu"
           aria-expanded={open}
           aria-controls="mobile-menu"
+          data-mobile-menu-button
           className="text-[16px] font-bold tracking-[-0.02em] uppercase text-[var(--color-fg)]"
         >
           MENU
@@ -80,6 +85,11 @@ export function MobileMenu() {
           role="dialog"
           aria-modal="true"
           aria-label="Mobile menu"
+          // Le tiroir peint SON PROPRE fond clair : il doit donc reprendre
+          // l'encre sombre même quand le site est en mode immersif (où
+          // `--color-fg` passe au blanc). Sans ce marqueur, texte et croix de
+          // fermeture disparaissaient sur le beige — bug réel signalé.
+          data-scheme="light"
           className="fixed inset-0 z-[60] md:hidden flex flex-col justify-between"
           style={{ backgroundColor: '#f5f2f0' }}
         >
@@ -129,7 +139,14 @@ export function MobileMenu() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    setOpen(false);
+                    // Même règle que la nav-bar desktop : le lien de la page
+                    // courante la ramène à son état d'accueil.
+                    if (isSamePage(link.href, pathname)) {
+                      notifySamePageNav(link.href);
+                    }
+                  }}
                   className="text-[48px] font-bold tracking-[-0.02em] leading-none text-[var(--color-fg)] active:opacity-60 w-fit"
                 >
                   {link.label}

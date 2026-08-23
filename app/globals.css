@@ -26,6 +26,73 @@
   --font-display: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
 
   --shadow-soft: 0 8px 40px rgba(10, 10, 10, 0.08);
+
+  /* Fond du mode immersif de /series (mobile) — « un noir pas complètement
+     noir » (arbitrage Alexandre, 2026-08-23). Sert de fond au calque ET de
+     `--color-bg` pendant toute l'immersion. */
+  --color-immersive-bg: #0e0e0e;
+
+  /* Gris de la ligne d'origine (« année, pays ») dans la légende de la home.
+     Plus clair que `--color-fg-muted` (#6e6960) : demande Alexandre du
+     2026-08-23. Token dédié et non un hex posé dans PhotoBlock — la règle du
+     projet est qu'aucune couleur ne vit dans un composant. Valeur à reporter
+     dans le brand book. */
+  --color-fg-faint: #a19c91;
+}
+
+/* ── Mode immersif ─────────────────────────────────────────────────────────
+   Posé par la branche mobile de /series (`data-immersive` sur <html>) quand
+   une série est ouverte : le calque recouvre la page, et le chrome qui flotte
+   au-dessus (logo, bouton MENU) doit se relire sur fond sombre.
+
+   Un attribut sur la racine plutôt qu'un prop passé de composant en composant :
+   le header et le menu vivent dans le layout, à trois niveaux de la page qui
+   décide. Le sélecteur d'attribut l'emporte sur le `:root` généré par `@theme`
+   sans `!important` — c'est la spécificité qui tranche, pas un forçage.
+
+   ⚠️ Ne JAMAIS poser cet attribut depuis la branche desktop : elle est montée
+   en permanence (le CSS seul en masque une), et une ouverture desktop
+   repeindrait tout le site en blanc sur noir. Le garde est côté JS
+   (`isVisible`), pas ici. */
+:root {
+  --color-logo: var(--color-accent);
+}
+
+:root[data-immersive] {
+  --color-bg: var(--color-immersive-bg);
+  --color-fg: #ffffff;
+  --color-fg-muted: rgba(255, 255, 255, 0.62);
+  --color-logo: #ffffff;
+}
+
+/* Échappatoire au mode immersif : toute surface qui peint SON PROPRE fond clair
+   redéclare les tokens d'origine pour elle et ses descendants (les variables
+   CSS cascadent). Le tiroir du menu mobile est le premier client — il est en
+   beige `#f5f2f0`, et sans ça son texte et sa croix passaient au blanc avec le
+   reste du site, donc invisibles. Toute future surface claire posée par-dessus
+   l'immersion doit porter ce marqueur, pas re-déclarer ses couleurs à la main. */
+[data-scheme='light'] {
+  --color-bg: #fafaf8;
+  --color-fg: #0a0a0a;
+  --color-fg-muted: #6e6960;
+  --color-logo: var(--color-accent);
+}
+
+/* La bascule se fait en fondu, jamais d'un coup : le calque, lui, apparaît
+   par-dessus la liste, et un chrome qui claquerait au blanc pendant que le
+   fond arrive se verrait deux fois. */
+header a,
+header svg path,
+[data-mobile-menu-button] {
+  transition: color 320ms ease, fill 320ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  header a,
+  header svg path,
+  [data-mobile-menu-button] {
+    transition: none;
+  }
 }
 
 * {
@@ -312,20 +379,23 @@ body img {
   padding: 16vh 32px 0 32px;
 }
 
-.gallery-title {
+.gallery-title,
+.series-title {
   color: var(--color-fg);
 }
 
 /* `display: block` et pas l'inline par défaut : sinon le SVG est traité comme
    du texte et traîne le creux sous la ligne de base. */
-.gallery-title svg {
+.gallery-title svg,
+.series-title svg {
   display: block;
   width: 100%;
   height: auto;
   overflow: visible;
 }
 
-.gallery-title text {
+.gallery-title text,
+.series-title text {
   font-family: var(--font-display);
   font-weight: 700;
   /* Point de DÉPART, pas valeur finale : `textLength` corrige ensuite pour
@@ -545,5 +615,24 @@ body img {
   }
   .photo-meta-series-sep {
     display: none;
+  }
+
+  /* Fiche technique d'un cran en dessous du reste de la légende (demande
+     Alexandre, 2026-08-23). Elle était déjà à 18 px comme la ligne « Series » ;
+     ce qui la faisait paraître plus grosse, c'est sa fonte : Inter (`font-sans`)
+     a une hauteur d'œil nettement plus haute qu'Helvetica à corps égal. 16 px
+     la ramène donc à la MÊME taille apparente, pas plus petite.
+     `line-height` sans unité pour rester exactement proportionnel : 1,3333,
+     soit le rapport 24/18 d'origine, ce qui donne 21,33 px à 16 px de corps.
+
+     ⚠️ Ces deux lignes sont la SEULE exception au pas vertical unique de
+     `--meta-line` posé juste au-dessus. Elle est voulue, pas un oubli : le
+     bloc continu de la légende mobile reste la règle pour tout le reste.
+     Le sélecteur vise aussi les `li` — sans quoi `.photo-meta *` (même
+     spécificité, déclaré plus haut) leur rendrait les 24 px. */
+  .photo-meta-facts,
+  .photo-meta-facts li {
+    font-size: 16px;
+    line-height: 1.3333;
   }
 }

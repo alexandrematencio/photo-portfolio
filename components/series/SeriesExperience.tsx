@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PreparedSeries } from '@/lib/site/series';
 import { seriesSlugFromHash } from '@/lib/site/series';
+import { SAME_PAGE_NAV_EVENT } from '@/lib/site/nav';
 import { DesktopSeries } from './desktop/DesktopSeries';
 import { MobileSeries } from './mobile/MobileSeries';
 
@@ -63,6 +64,23 @@ export function SeriesExperience({ series }: { series: PreparedSeries[] }) {
     setOpenSlug(null);
     syncHash(null);
   }, [syncHash]);
+
+  /**
+   * Clic sur « Series » alors qu'on est DÉJÀ sur /series → retour à l'accueil
+   * de la page : la rangée de covers en bas d'écran en desktop, la liste en
+   * mobile. Next ne remonte pas la page pour une navigation vers elle-même,
+   * donc sans cet écouteur la série ouverte le restait et le menu semblait
+   * ne rien faire (signalé le 2026-08-23). Passe par `close()`, donc l'ancre
+   * `#slug` est retirée de l'URL au passage.
+   */
+  useEffect(() => {
+    const onSamePage = (e: Event) => {
+      const href = (e as CustomEvent<{ href?: string }>).detail?.href;
+      if (href === '/series') close();
+    };
+    window.addEventListener(SAME_PAGE_NAV_EVENT, onSamePage);
+    return () => window.removeEventListener(SAME_PAGE_NAV_EVENT, onSamePage);
+  }, [close]);
 
   const openSeries = openSlug
     ? (series.find((s) => s.slug === openSlug) ?? null)
