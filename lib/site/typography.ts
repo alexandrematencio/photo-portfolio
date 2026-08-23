@@ -88,42 +88,32 @@ export const EDITORIAL_BODY_LINK = cn(EDITORIAL_BODY, EDITORIAL_LINK_DECORATION,
  * CAPITALE MICRO — l'étiquette du site : titre de groupe, sous-titre de page,
  * année, compteur, fiche technique, légende de lightbox.
  *
- * **Ce qu'elle répare.** Le brand book prescrit `+0.25em` d'interlettrage sur
- * le sous-label de 11 px (§5.3 / §5.4). `grep tracking-\[0.25em\]` ne le
- * trouvait NULLE PART dans le repo : toute la couche des micro-étiquettes était
- * en interlettrage nul, du titre de groupe des Archives à la légende de la
- * lightbox. C'est le plus gros écart entre le site et sa propre spec — et la
- * petite capitale largement espacée est précisément la signature typographique
- * de la référence Teenage Engineering. Elle fait appartenir tout le site à la
- * console des Archives sans poser une seule plaque.
+ * **AUCUN INTERLETTRAGE POSITIF. La question est tranchée, ne pas la rouvrir.**
  *
- * **Où elle s'applique, où elle ne s'applique pas.** La frontière est le rôle,
- * pas la taille :
- * - ÉTIQUETTE (on la lit, on ne la clique pas) → interlettrage large. C'est ici.
- * - COMMANDE (onglet, pastille de filtre, bouton de densité, nom de série
- *   cliquable) → interlettrage serré, `tracking-[-0.02em]`. Le brand book le
- *   dit déjà des pastilles : « ce sont des contrôles interactifs, pas des
- *   micro-labels ». Élargir une commande qui porte « Djerba, Tunisia (54) »
- *   ferait déborder la rangée bien avant d'apporter quoi que ce soit.
+ * Le brand book prescrivait `+0.25em` à 11 px (§5.3 / §5.4) ; le code, lui, ne
+ * le portait NULLE PART. Ce n'était pas un oubli : c'est Alexandre qui l'avait
+ * retiré de toute la couche des étiquettes dans `b3d8cef`, puis qui avait
+ * descendu le dernier survivant de 0,15 à 0,05 em dans `c7f5cc5`. Le seul
+ * interlettrage positif encore vivant sur le site est ce `0.05em` du numéro de
+ * bloc de la home (`PhotoBlock`), et c'est le plafond.
  *
- * `tabular-nums` est inclus : ces étiquettes sont pleines de nombres qui
- * changent en place — compteurs `(54)`, années, ouvertures, focales. En
- * chiffres proportionnels, une colonne de métadonnées frémit d'un chiffre à
- * l'autre. C'est aussi gratuit : Helvetica et Inter ont les deux jeux.
+ * Réappliqué ici le 2026-08-23 en suivant le brand book plutôt que le code,
+ * puis retiré le jour même sur rappel d'Alexandre. Le brand book a été corrigé
+ * dans la foulée — si tu lis un jour `+0.25em` quelque part, c'est le document
+ * qui a régressé, pas le code.
+ *
+ * **Ce que la constante sert encore** : la même étiquette était écrite à la
+ * main partout (11 px, capitales, gras) avec les dérives que ça suppose, et
+ * aucune ne portait de chiffres tabulaires — or ces libellés sont pleins de
+ * nombres qui changent EN PLACE : compteurs `(54)`, années, ouvertures,
+ * focales. En chiffres proportionnels, une colonne de métadonnées frémit d'un
+ * chiffre à l'autre. C'est gratuit : Helvetica et Inter ont les deux jeux.
+ *
+ * ⚠️ Réservé aux ÉTIQUETTES (on les lit, on ne les clique pas). Les COMMANDES —
+ * onglets, pastilles de filtre, boutons de densité, noms de série cliquables —
+ * gardent leur `tracking-[-0.02em]` propre.
  */
-export const MICRO_LABEL =
-  'text-[11px] uppercase font-bold tracking-[0.25em] tabular-nums';
+export const MICRO_LABEL = 'text-[11px] uppercase font-bold tabular-nums';
 
 /** Le même cran en dessous — métadonnées de photo, légende de lightbox. */
-export const MICRO_LABEL_XS =
-  'text-[10px] uppercase font-bold tracking-[0.25em] tabular-nums';
-
-/**
- * ⚠️ À POSER SUR UNE CAPITALE MICRO ALIGNÉE À DROITE (ou centrée sur un bord).
- *
- * `letter-spacing` ajoute son blanc APRÈS chaque lettre, la dernière comprise.
- * Un label aligné à droite se retrouve donc décalé de 0,25 em vers la gauche de
- * son bord — visible dès qu'il doit s'aligner sur autre chose, et c'est le cas
- * de la fiche technique de `/series`, calée sur le bord droit de l'image.
- */
-export const MICRO_LABEL_RIGHT_TRIM = { marginRight: '-0.25em' } as const;
+export const MICRO_LABEL_XS = 'text-[10px] uppercase font-bold tabular-nums';

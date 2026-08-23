@@ -109,15 +109,7 @@ export function prepareSeries(
   return applyOrder(prepared, seriesOrderRefs);
 }
 
-/**
- * `#boats` → `boats` si le slug existe dans la liste, sinon null.
- * Une ancre inconnue est ignorée (spec §3) — jamais d'erreur.
- */
-export function seriesSlugFromHash(
-  hash: string,
-  series: Pick<PreparedSeries, 'slug'>[]
-): string | null {
-  const slug = hash.replace(/^#/, '').trim();
-  if (!slug) return null;
-  return series.some((s) => s.slug === slug) ? slug : null;
-}
+/* `seriesSlugFromHash` vivait ici : `#boats` → `boats` si le slug existait.
+   Retiré le 2026-08-23 avec le contrat d'ancre de /series (cf.
+   SeriesExperience) — l'URL n'ouvre plus de série, il n'y a donc plus rien à
+   lire dans le fragment. */

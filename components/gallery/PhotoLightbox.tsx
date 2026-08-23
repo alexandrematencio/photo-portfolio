@@ -40,10 +40,7 @@ import { urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
 import { pushModalHistory } from '@/lib/utils/modalHistory';
 import { cn } from '@/lib/utils/cn';
-import {
-  MICRO_LABEL_RIGHT_TRIM,
-  MICRO_LABEL_XS,
-} from '@/lib/site/typography';
+import { MICRO_LABEL_XS } from '@/lib/site/typography';
 
 type Props = {
   photos: Photo[];
@@ -368,11 +365,7 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
               MICRO_LABEL_XS,
               'text-[var(--color-fg-muted)] flex items-center max-w-full leading-none'
             )}
-            // La légende est CENTRÉE sous le cadre : le blanc de fin
-            // d'interlettrage la décale d'un demi-cran vers la gauche. Le
-            // retrait rend la boîte à sa largeur optique, donc le centrage
-            // exact — même correction que pour un alignement à droite.
-            style={{ marginTop: CAPTION_GAP, ...MICRO_LABEL_RIGHT_TRIM }}
+            style={{ marginTop: CAPTION_GAP }}
           >
             <span className="text-[var(--color-fg)] truncate">
               {photo.title}

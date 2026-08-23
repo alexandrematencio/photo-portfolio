@@ -216,7 +216,6 @@ export function DesktopSeries({
   openSeries,
   activeIndex,
   hydrated,
-  initialSlug,
   onOpen,
   onClose,
   onSelectPhoto,
@@ -225,7 +224,6 @@ export function DesktopSeries({
   openSeries: PreparedSeries | null;
   activeIndex: number;
   hydrated: boolean;
-  initialSlug: string | null;
   onOpen: (slug: string, photoIndex?: number) => void;
   onClose: () => void;
   onSelectPhoto: (index: number) => void;
@@ -466,14 +464,16 @@ export function DesktopSeries({
     const target = openSeries;
     if ((prev?.slug ?? null) === (target?.slug ?? null)) return;
 
-    // Arrivée par ancre (lien partagé), mouvement réduit, ou branche cachée
-    // (viewport mobile : le CSS masque cette branche mais elle reste montée —
-    // spec §4) : pas de vol, on saute directement à l'état cible.
+    // Mouvement réduit, ou branche cachée (viewport mobile : le CSS masque
+    // cette branche mais elle reste montée — spec §4) : pas de vol, on saute
+    // directement à l'état cible.
+    //
+    // Le troisième cas — arrivée par ancre `/series#slug` — a disparu avec
+    // l'ancre elle-même (cf. SeriesExperience) : la page ne peut plus s'ouvrir
+    // sur une série au chargement, donc la toute première transition est
+    // forcément un GESTE de l'utilisateur, et un geste s'anime.
     const hidden = sceneRef.current?.offsetParent === null;
-    const instant =
-      reduced ||
-      hidden ||
-      (firstTransition.current && target?.slug === initialSlug);
+    const instant = reduced || hidden;
     firstTransition.current = false;
 
     if (instant) {
