@@ -12,6 +12,7 @@ import type { PreparedSeries } from '@/lib/site/series';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { cn } from '@/lib/utils/cn';
 import { centerSrcFor } from '../shared/photoSrc';
+import { colLeadReserve } from '../shared/colLead';
 import { FolderStack } from './FolderStack';
 import { OpenSeriesView } from './OpenSeriesView';
 import {
@@ -54,6 +55,34 @@ type Phase = 'closed' | 'opening' | 'open' | 'closing' | 'switching';
  * long pour ne pas claquer, assez court pour ne pas se faire remarquer.
  */
 const FOOTER_REVEAL_DUR = 0.26;
+
+/**
+ * Pose la vignette `item` sur sa LIGNE DE POSE dans la colonne : la vignette
+ * active tombe librement tant qu'elle est au-dessus, puis s'y arrête et c'est
+ * la colonne qui roule sous elle (`colLead.ts` pour le pourquoi et la mesure
+ * de la réserve).
+ *
+ * Deux bornes, dans cet ordre de priorité :
+ *   1. l'active ne descend jamais sous la ligne de pose ;
+ *   2. mais elle ne sort JAMAIS par le haut non plus — le vol de chaîne
+ *      mesure son rect juste après, et un rect hors écran ne vole pas.
+ * D'où le `min` : sur une série de verticales où une seule vignette occupe
+ * presque toute la colonne, c'est la visibilité qui gagne, pas la ligne.
+ *
+ * Le défilement se clampe tout seul sur la course disponible — queue vide
+ * comprise. C'est ce clamp qui fabrique le vide de fin de série : la dernière
+ * vignette atteint la ligne de pose, et sous elle il n'y a plus que la queue.
+ */
+function pinThumb(col: HTMLElement, item: HTMLElement) {
+  const reserve = colLeadReserve(col);
+  const c = col.getBoundingClientRect();
+  const r = item.getBoundingClientRect();
+  const delta = Math.min(
+    Math.max(0, r.bottom - (c.bottom - reserve)),
+    r.top - c.top
+  );
+  col.scrollTop += delta;
+}
 
 /**
  * Cadence clavier. NAV_MIN_INTERVAL_MS borne le coût d'une touche MAINTENUE
@@ -378,21 +407,16 @@ export function DesktopSeries({
     const item = scene.querySelector<HTMLElement>(
       '[data-col-item][aria-current]'
     );
-    if (!item) return;
-    const r = item.getBoundingClientRect();
-    const top = r.top - col.getBoundingClientRect().top;
-    if (top + r.height > col.clientHeight) {
-      col.scrollTop = top - (col.clientHeight - r.height) / 2;
-    }
+    if (item) pinThumb(col, item);
   }, []);
 
   /**
-   * Ajustement MINIMAL de la colonne pour rendre la vignette `i` visible —
-   * appelé AVANT la mesure d'un vol de chaîne (une vignette hors écran n'a
-   * pas de rect exploitable). Par index et non par aria-current : le commit
-   * React du nouvel index n'a pas encore peint au moment de la mesure. Pas
-   * de scrollIntoView : il pourrait défiler AUSSI le conteneur de page — qui
-   * ne doit jamais bouger tout seul (invariant 14).
+   * Ajustement MINIMAL de la colonne pour amener la vignette `i` SUR SA LIGNE
+   * DE POSE — appelé AVANT la mesure d'un vol de chaîne (une vignette hors
+   * écran n'a pas de rect exploitable). Par index et non par aria-current :
+   * le commit React du nouvel index n'a pas encore peint au moment de la
+   * mesure. Pas de scrollIntoView : il pourrait défiler AUSSI le conteneur de
+   * page — qui ne doit jamais bouger tout seul (invariant 14).
    */
   const keepThumbVisible = useCallback((i: number) => {
     const scene = sceneRef.current;
@@ -400,10 +424,7 @@ export function DesktopSeries({
     const col = scene.querySelector<HTMLElement>('[data-open-col]');
     const item = scene.querySelector<HTMLElement>(`[data-col-item="${i}"]`);
     if (!col || !item) return;
-    const c = col.getBoundingClientRect();
-    const r = item.getBoundingClientRect();
-    if (r.bottom > c.bottom) col.scrollTop += r.bottom - c.bottom;
-    else if (r.top < c.top) col.scrollTop -= c.top - r.top;
+    pinThumb(col, item);
   }, []);
 
   // ── Sélecteurs DOM (points de mesure des vols) ────────────────────────────

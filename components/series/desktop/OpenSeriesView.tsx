@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import { Undo2 } from 'lucide-react';
 import { urlFor } from '@/lib/sanity/image';
 import type { PreparedSeries } from '@/lib/site/series';
@@ -5,6 +6,7 @@ import { cn } from '@/lib/utils/cn';
 import { SeriesMeta } from '../shared/SeriesMeta';
 import { centerSrcFor } from '../shared/photoSrc';
 import { useMdUp } from '../shared/useMdUp';
+import { colLeadReserve } from '../shared/colLead';
 import { StateDot } from '@/components/site/StateDot';
 
 /**
@@ -53,11 +55,33 @@ export function OpenSeriesView({
   onSelect: (index: number) => void;
 }) {
   const mdUp = useMdUp();
+  const colRef = useRef<HTMLDivElement>(null);
+  const tailRef = useRef<HTMLDivElement>(null);
   const active = displayed.photos[activeIndex] ?? displayed.photos[0];
   // Source unique de l'URL 1600 px (partagée avec le préchargement et
   // l'affinage des clones — voir photoSrc.ts).
   const centerSrc = centerSrcFor(active);
   const activeRatio = active.image?.dimensions?.aspectRatio ?? 4 / 3;
+
+  // Hauteur de la queue vide = réserve sous la ligne de pose. Remesurée à
+  // chaque série (les ratios changent) et à chaque redimensionnement de la
+  // colonne. En effet de LAYOUT : la course de défilement doit être bonne
+  // avant que `settleColScroll` ne pose la colonne pour les vols.
+  useLayoutEffect(() => {
+    const col = colRef.current;
+    const tail = tailRef.current;
+    if (!col || !tail) return;
+    const apply = () => {
+      const px = `${Math.round(colLeadReserve(col))}px`;
+      if (tail.style.height !== px) tail.style.height = px;
+    };
+    apply();
+    // La queue ne change que la hauteur DÉFILANTE, jamais la boîte de la
+    // colonne (hauteur imposée par la grille) : pas de boucle d'observation.
+    const ro = new ResizeObserver(apply);
+    ro.observe(col);
+    return () => ro.disconnect();
+  }, [displayed.slug, displayed.photos.length]);
 
   return (
     <div
@@ -198,6 +222,7 @@ export function OpenSeriesView({
 
       {/* ── Colonne de vignettes ────────────────────────────────────────── */}
       <div
+        ref={colRef}
         data-open-col
         className="flex h-full flex-col gap-2 overflow-y-auto overscroll-contain"
         style={{ paddingRight: 4 }}
@@ -237,6 +262,14 @@ export function OpenSeriesView({
             </button>
           );
         })}
+        {/* Queue vide : la course de défilement qui manque pour que la
+            DERNIÈRE vignette puisse elle aussi se poser sur la ligne de pose,
+            au lieu de rester collée au bord bas. C'est ce vide qui remonte en
+            fin de série et annonce la sortie. Hauteur mesurée (colLead.ts) —
+            un vrai élément et non un `padding-bottom` : la fin de padding
+            d'un conteneur flex défilant n'est pas comptée dans la course de
+            défilement par tous les moteurs, un enfant l'est toujours. */}
+        <div ref={tailRef} aria-hidden className="shrink-0" />
       </div>
     </div>
   );
