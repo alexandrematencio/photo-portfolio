@@ -109,6 +109,34 @@
   --color-bg-plate: #ebe8e4;
   --color-fg-muted-plate: #6a655c;
 
+  /* DEUXIÈME PONT de la console — la rangée de pastilles, proposée par
+     Alexandre le 2026-08-23. L'échelle complète se lit en L* : papier 98,2 →
+     pont haut 92,1 → pont bas 84,3 → module sombre 20,8. Deux marches de 6 et
+     8 points dans le clair, puis la chute : c'est la signature Teenage
+     Engineering (plusieurs gris voisins, un seul creux profond).
+
+     ⚠️ La CHROMA doit monter quand la valeur descend : 1,01 → 2,31 → 3,32.
+     La proposition d'origine (#d5d2d0) redescendait à 1,50, donc vers le gris
+     neutre — et un gris neutre à cette valeur sonne écran, pas plastique. Une
+     marche qui se déneutralise casse la famille à elle seule.
+
+     ⚠️ Ce pont-ci est trop sombre pour `--color-link` : le voyant y tombe à
+     2,49:1, sous les 3:1 de WCAG 2.2 §1.4.11. Garder l'orange à 3:1 imposerait
+     de ne pas descendre sous #e8e6e2 (L* 91,3), soit un pont indiscernable du
+     précédent — l'un ou l'autre, pas les deux. Arbitré en faveur de l'échelle :
+     l'état allumé reste porté par `aria-pressed`, par l'APPARITION du voyant
+     (présence/absence, pas teinte) et par le libellé qui passe de 4,90:1 à
+     13,12:1. Si le critère doit être tenu à la lettre un jour, c'est l'orange
+     du voyant qu'il faudra foncer sur cette surface, pas le pont qu'il faudra
+     éclaircir. */
+  --color-bg-plate-low: #d5d2cc;
+  /* 4,90:1 sur le pont bas. `--color-fg-muted` y tomberait à 3,61:1 et
+     `--color-fg-muted-plate` à 3,85:1 — les deux sous AA pour du 12 px. */
+  --color-fg-muted-plate-low: #5a554d;
+  /* Filet des pastilles éteintes. `--color-fg-faint` y tombe à 1,81:1, soit un
+     contour qui disparaît ; celui-ci tient 2,34:1 — discret, mais présent. */
+  --color-line-plate-low: #8d887c;
+
   /* Module sombre du sélecteur de densité — le contraste franc est demandé :
      la densité de grille est le seul réglage qui change ce qu'on VOIT, il ne
      se confond plus avec le choix d'axe de groupement. Valeur donnée par

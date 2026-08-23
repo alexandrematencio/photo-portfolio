@@ -420,22 +420,27 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
           différentes — et un fond plein derrière une bordure arrondie
           alourdirait une rangée qui compte jusqu'à vingt éléments.
 
-          Cette rangée est SUR LE PAPIER, pas sur la plaque : elle filtre à
-          l'intérieur de l'axe choisi au-dessus, elle ne le choisit pas. Lui
-          donner le fond de la plaque mettait les deux rôles sur la même
-          valeur et effaçait la marche qui détache la console.
+          Cette rangée est le DEUXIÈME PONT de la console, d'une valeur à
+          elle : la même que la rangée d'axes mettait deux commandes de rôles
+          différents — choisir l'axe, filtrer dedans — sur un seul plan et
+          effaçait la marche. Le papier, lui, ne revient qu'à la grille.
 
           ⚠️ L'état éteint n'a PLUS d'`opacity-50`. Elle s'appliquait au bouton
           entier : le libellé y composait à ~1,9:1 contre le fond, très en
           dessous des 4,5:1 dus à du texte de 12 px (CLAUDE.md §4). Le retrait
-          d'état passe maintenant par les COULEURS — libellé en `fg-muted`
-          (5,22:1 sur le papier), filet en `--color-fg-faint` — donc sans
+          d'état passe maintenant par les COULEURS — libellé et filet
+          calibrés pour le pont bas (4,90:1 et 2,34:1) — donc sans
           délaver le texte. Ne pas réintroduire d'opacité globale ici. */}
       <div
         role="group"
         aria-label={`Filter by ${mode}`}
-        className="flex flex-wrap gap-x-3 gap-y-2"
-        style={{ paddingLeft: 32, paddingRight: 32, paddingTop: 32 }}
+        className="flex flex-wrap gap-x-3 gap-y-2 bg-[var(--color-bg-plate-low)]"
+        style={{
+          paddingLeft: 32,
+          paddingRight: 32,
+          paddingTop: 24,
+          paddingBottom: 24,
+        }}
       >
         {/* All — reset chip */}
         <button
@@ -447,7 +452,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
             'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border cursor-pointer transition-colors motion-reduce:transition-none',
             allSelected
               ? 'text-[var(--color-fg)] border-[var(--color-link)]'
-              : 'text-[var(--color-fg-muted)] border-[var(--color-fg-faint)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
+              : 'text-[var(--color-fg-muted-plate-low)] border-[var(--color-line-plate-low)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
           )}
         >
           <StateDot on={allSelected} />
@@ -473,7 +478,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
                 'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border cursor-pointer transition-colors motion-reduce:transition-none',
                 isSelected
                   ? 'text-[var(--color-fg)] border-[var(--color-link)]'
-                  : 'text-[var(--color-fg-muted)] border-[var(--color-fg-faint)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
+                  : 'text-[var(--color-fg-muted-plate-low)] border-[var(--color-line-plate-low)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
               )}
             >
               <StateDot on={isSelected} />
