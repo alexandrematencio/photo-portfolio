@@ -84,6 +84,38 @@
      et le bloc est large, mais si le critère doit être tenu au pied de la
      lettre, `#f75c33` (3,08:1) est le voisin le plus proche qui passe. */
   --color-active-bg: #fd7251;
+
+  /* ── CONSOLE DE CONTRÔLE (/archives) ────────────────────────────────────
+     Deux plans de surface, demande Alexandre du 2026-08-23 après comparaison
+     de cinq variantes en capture. La console des Archives cesse d'être « du
+     texte posé sur le papier » pour devenir une PLAQUE, référence Teenage
+     Engineering : des gris voisins qui se distinguent par un écart petit mais
+     assumé, et un seul module sombre qui tranche.
+
+     ⚠️ Les hex lus dans une capture d'écran ne sont PAS des valeurs CSS. Le
+     profil du moniteur d'Alexandre (Samsung LF24T450F) comprime le haut de
+     l'échelle : `--color-bg` (#fafaf8) s'y capture en #ececec, tandis que les
+     noirs sortent exacts (#0a0a0a → #0a0a0a). La plaque retenue se lisait
+     #dbdbdb dans sa capture ; recalée sur ces deux points d'ancrage, la valeur
+     CSS qui la produit est #e8e8e8 — puis réchauffée de trois points pour
+     rester dans la famille du papier (le neutre pur sonnait écran, pas ABS
+     moulé). Reposer un jour la valeur lue en capture rendrait la plaque
+     nettement plus sombre que celle qui a été validée.
+
+     `--color-fg-muted-plate` : #6e6960 tombe à 4,46:1 sur la plaque, sous AA
+     d'un cheveu. Ce ton-ci tient 4,74:1 sur la plaque et 5,54:1 sur le papier,
+     donc il sert AUSSI aux pastilles de filtre — dont le texte était jusqu'ici
+     du muted à `opacity-50`, soit ~1,9:1. */
+  --color-bg-plate: #ebe8e4;
+  --color-fg-muted-plate: #6a655c;
+
+  /* Module sombre du sélecteur de densité — le contraste franc est demandé :
+     la densité de grille est le seul réglage qui change ce qu'on VOIT, il ne
+     se confond plus avec le choix d'axe de groupement. Valeur donnée par
+     Alexandre. Le libellé actif y garde le châssis orange (4,70:1 contre la
+     plaque sombre, texte noir dessus à 7,26:1). */
+  --color-bg-plate-dark: #323232;
+  --color-fg-muted-dark: #a5a19a;
 }
 
 /* ── Mode immersif ─────────────────────────────────────────────────────────

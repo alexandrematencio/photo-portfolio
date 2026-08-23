@@ -270,17 +270,40 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
 
   return (
     <div>
-      {/* Sticky bar — grouping axis tabs (left) + grid density switch (right).
+      {/* CONSOLE DE CONTRÔLE — rangée d'axes (gauche) + module de densité
+          (droite), sur une PLAQUE continue qui englobe aussi la rangée de
+          pastilles juste dessous : un seul bloc de commande, pas deux étages
+          de boutons flottant sur le papier (arbitrage Alexandre, 2026-08-23).
+          Seule cette rangée-ci est `sticky` — les pastilles, jusqu'à une
+          vingtaine, mangeraient le viewport si elles collaient avec elle ;
+          elles glissent donc sous une plaque de même valeur, sans couture.
+
+          Aucune bordure : c'est l'écart de valeur plaque/papier qui sépare.
+
+          ⚠️ Le padding vertical est porté par les DEUX enfants, pas par la
+          nav : le module sombre doit occuper toute la hauteur de la rangée
+          (`items-stretch`) et venir à fond perdu contre le bord droit. Le
+          remonter sur la nav le réduirait à une étiquette flottante.
+
+          ⚠️ La nav ne WRAP PAS, c'est la rangée d'axes qui wrappe en interne
+          (`flex-wrap` + `min-w-0`). Laisser wrapper la nav renvoyait le module
+          sombre à la ligne : il y perdait son fond perdu ET sa pleine hauteur,
+          et devenait une barre noire flottant au milieu de la plaque (vu au
+          rendu à 800 px). En wrappant à l'intérieur, la rangée d'axes prend
+          deux lignes et le module s'étire d'autant — ce qu'`items-stretch`
+          fait tout seul.
+
           Sous 768px la grille est verrouillée à 3 colonnes (CSS), les boutons
           de densité y sont sans effet — comme dans la démo Codrops. */}
       <nav
-        className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-x-10 gap-y-4 border-b border-[var(--color-line)] bg-[var(--color-bg)]"
-        style={{ paddingLeft: 32, paddingRight: 32, paddingTop: 24, paddingBottom: 24 }}
+        className="sticky top-0 z-30 flex items-stretch justify-between bg-[var(--color-bg-plate)]"
+        style={{ paddingLeft: 32 }}
       >
         <div
           role="tablist"
           aria-label="Grouping mode"
-          className="flex justify-start gap-10 md:gap-14"
+          className="flex min-w-0 flex-wrap items-center justify-start gap-x-10 gap-y-2 md:gap-x-14"
+          style={{ paddingTop: 24, paddingBottom: 24, paddingRight: 32 }}
         >
           {TABS.map((tab) => {
             const active = tab.id === mode;
@@ -305,7 +328,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
                   'text-[12px] uppercase font-bold cursor-pointer transition-colors motion-reduce:transition-none',
                   active
                     ? 'text-[var(--color-fg)] bg-[var(--color-active-bg)]'
-                    : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
+                    : 'text-[var(--color-fg-muted-plate)] hover:text-[var(--color-fg)]'
                 )}
               >
                 {tab.label}
@@ -314,13 +337,24 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
           })}
         </div>
 
-        {/* Même voix typographique que les tabs de gauche (12px bold, actif
-            surligné) — masqué sous md, où la grille est verrouillée à 3
-            colonnes et où ces boutons n'auraient aucun effet. */}
+        {/* MODULE SOMBRE — la densité de grille est le seul réglage de cette
+            console qui change ce qu'on VOIT ; elle sort donc du plan de la
+            plaque au lieu de se confondre avec le choix d'axe (demande
+            Alexandre, 2026-08-23). Fond perdu à droite, pleine hauteur de
+            rangée : c'est un module encastré, pas une étiquette posée.
+
+            Même voix typographique que les onglets de gauche (12 px bold,
+            padding sur TOUS les boutons, surlignage sur le seul actif) — la
+            surface change, la grammaire d'état non. Le châssis orange tient
+            4,70:1 contre le fond sombre et porte du noir à 7,26:1.
+
+            Masqué sous md, où la grille est verrouillée à 3 colonnes et où
+            ces boutons n'auraient aucun effet. */}
         <div
           role="group"
           aria-label="Grid display size"
-          className="hidden md:flex items-center gap-6"
+          className="hidden md:flex items-center gap-6 bg-[var(--color-bg-plate-dark)]"
+          style={{ paddingLeft: 32, paddingRight: 32 }}
         >
           {GRID_SIZES.map((size) => (
             <button
@@ -335,7 +369,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
                 'text-[12px] font-bold cursor-pointer transition-colors motion-reduce:transition-none',
                 size === gridSize
                   ? 'text-[var(--color-fg)] bg-[var(--color-active-bg)]'
-                  : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
+                  : 'text-[var(--color-fg-muted-dark)] hover:text-[var(--color-bg)]'
               )}
             >
               {size}
@@ -351,12 +385,30 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
           pastille garde donc son trait fin là où les onglets prennent un
           fond plein : deux rôles différents (filtre vs mode), deux marques
           différentes — et un fond plein derrière une bordure arrondie
-          alourdirait une rangée qui compte jusqu'à vingt éléments. */}
+          alourdirait une rangée qui compte jusqu'à vingt éléments.
+
+          Cette rangée est le BAS DE LA PLAQUE ouverte par la nav ci-dessus
+          (même fond, aucun écart) : les commandes des Archives forment un seul
+          bloc, et la grille de photos démarre ensuite sur du papier propre.
+          Avant ça, la rangée flottait entre la barre et la première grille
+          sans appartenir à aucune des deux.
+
+          ⚠️ L'état éteint n'a PLUS d'`opacity-50`. Elle s'appliquait au bouton
+          entier : le libellé y composait à ~1,9:1 contre la plaque, très en
+          dessous des 4,5:1 dus à du texte de 12 px (CLAUDE.md §4). Le retrait
+          d'état passe maintenant par les COULEURS — libellé en muted calibré
+          pour la plaque, filet en `--color-fg-faint` — donc sans jamais
+          délaver le texte. Ne pas réintroduire d'opacité globale ici. */}
       <div
         role="group"
         aria-label={`Filter by ${mode}`}
-        className="flex flex-wrap gap-x-3 gap-y-2"
-        style={{ paddingLeft: 32, paddingRight: 32, paddingTop: 32 }}
+        className="flex flex-wrap gap-x-3 gap-y-2 bg-[var(--color-bg-plate)]"
+        style={{
+          paddingLeft: 32,
+          paddingRight: 32,
+          paddingTop: 20,
+          paddingBottom: 24,
+        }}
       >
         {/* All — reset chip */}
         <button
@@ -368,7 +420,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
             'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border cursor-pointer transition-colors motion-reduce:transition-none',
             allSelected
               ? 'text-[var(--color-fg)] border-[var(--color-link)]'
-              : 'text-[var(--color-fg-muted)] border-[var(--color-fg-muted)] opacity-50 hover:opacity-100 hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
+              : 'text-[var(--color-fg-muted-plate)] border-[var(--color-fg-faint)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
           )}
         >
           <StateDot on={allSelected} />
@@ -394,7 +446,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
                 'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border cursor-pointer transition-colors motion-reduce:transition-none',
                 isSelected
                   ? 'text-[var(--color-fg)] border-[var(--color-link)]'
-                  : 'text-[var(--color-fg-muted)] border-[var(--color-fg-muted)] opacity-50 hover:opacity-100 hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
+                  : 'text-[var(--color-fg-muted-plate)] border-[var(--color-fg-faint)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
               )}
             >
               <StateDot on={isSelected} />
