@@ -33,15 +33,22 @@ import type { ReactNode, SyntheticEvent } from 'react';
 const LOCAL_PART = 'amatencio';
 const DOMAIN = 'pm.me';
 
-function arm(e: SyntheticEvent<HTMLAnchorElement>): void {
-  e.currentTarget.href = `mailto:${LOCAL_PART}@${DOMAIN}`;
-}
-
 type Props = {
   children: ReactNode;
   className?: string;
   /** Optional subject prefilled in the mailto. */
   subject?: string;
+  /**
+   * Adresse À PROTÉGER, en deux moitiés. Par défaut, l'adresse du site.
+   * Renseignées par `PortableBody` quand une annotation lien `mailto:` est
+   * posée dans le Studio : l'adresse y est stockée en clair dans le contenu
+   * Sanity (inévitable, c'est un champ URL), mais elle ne DOIT PAS arriver
+   * en clair dans le HTML exporté. On la coupe donc en deux au rendu et on
+   * ne la recolle qu'ici, côté navigateur — le fichier servi ne contient
+   * ni `mailto:` ni rien qui ressemble à une adresse.
+   */
+  local?: string;
+  domain?: string;
 };
 
 /**
@@ -58,15 +65,19 @@ export function EmailAddressText() {
   return <>{text}</>;
 }
 
-export function ProtectedEmail({ children, className, subject }: Props) {
-  function armWithSubject(e: SyntheticEvent<HTMLAnchorElement>): void {
-    const base = `mailto:${LOCAL_PART}@${DOMAIN}`;
+export function ProtectedEmail({
+  children,
+  className,
+  subject,
+  local = LOCAL_PART,
+  domain = DOMAIN,
+}: Props) {
+  function handler(e: SyntheticEvent<HTMLAnchorElement>): void {
+    const base = `mailto:${local}@${domain}`;
     e.currentTarget.href = subject
       ? `${base}?subject=${encodeURIComponent(subject)}`
       : base;
   }
-
-  const handler = subject ? armWithSubject : arm;
 
   return (
     <a

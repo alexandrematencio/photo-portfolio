@@ -85,9 +85,23 @@ const editorialBlockType = defineArrayMember({
     { title: 'Heading 3', value: 'h3', component: H3Block },
     { title: 'Heading 4', value: 'h4', component: H4Block },
   ],
-  // Lists kept as default — site doesn't render them in editorial variant
-  // yet (cf. PortableBody.tsx), so editors should avoid them for these bodies.
+  // Lists kept as default (bullet + numbered). Le site les rend depuis le
+  // 2026-08-23 (`makeListComponents` dans PortableBody.tsx) : les boutons du
+  // Studio ne mènent donc plus à une liste sans puce ni retrait à l'écran.
 });
+
+/**
+ * Aide affichée sous chaque champ de page éditoriale.
+ *
+ * Ces quatre champs SONT les pages : le site n'a aucun texte en dur à leur
+ * place (CLAUDE.md §8.5, le repli du code ne sert que si le champ est vide).
+ * L'éditeur doit donc savoir, sans lire le code, ce que le Studio sait faire
+ * et ce que le site en fera — d'où les jetons et le rappel de publication.
+ */
+const editorialBodyDescription = (intro: string) =>
+  `${intro} Mise en forme : « Normal » pour le corps, « Heading 2/3/4 » pour les titres (l’aperçu du Studio est à l’échelle du site), listes à puces et numérotées. Entrée = nouveau paragraphe (grand écart) ; Maj+Entrée = simple retour à la ligne. ` +
+  `Raccourcis d’écriture : taper « @EMAIL » affiche l’adresse email, protégée des robots ; pour un libellé à toi (« Write to me »), sélectionne le texte et pose un lien « mailto:… » — même protection, l’adresse n’apparaît jamais dans le code de la page. Taper « AAXLO » (1ʳᵉ fois seulement) insère le logo AAXLO cliquable. Un lien dont l’URL est « @pseudo » pointe vers Telegram. ` +
+  `⚠️ Site statique : « Publish » enregistre, mais la page en ligne ne change qu’après un redéploiement.`;
 
 export const siteSettingsSchema = defineType({
   name: 'siteSettings',
@@ -158,24 +172,36 @@ export const siteSettingsSchema = defineType({
       title: 'Page « About »',
       type: 'array',
       of: [editorialBlockType],
+      description: editorialBodyDescription(
+        'Le texte complet de la page /about — c’est cette liste qui EST la page, il n’y a pas de texte en dur ailleurs.'
+      ),
     }),
     defineField({
       name: 'contactBody',
       title: 'Page « Contact »',
       type: 'array',
       of: [editorialBlockType],
+      description: editorialBodyDescription(
+        'Le texte complet de la page /contact — titre « CONTACT » mis à part, tout ce qui s’affiche vient d’ici.'
+      ),
     }),
     defineField({
       name: 'digitalAgencyBody',
       title: 'Page « Digital Agency »',
       type: 'array',
       of: [editorialBlockType],
+      description: editorialBodyDescription(
+        'Le texte complet de la page /about/digital-agency.'
+      ),
     }),
     defineField({
       name: 'socialsBody',
       title: 'Page « Socials »',
       type: 'array',
       of: [editorialBlockType],
+      description: editorialBodyDescription(
+        'Le texte complet de la page /socials — les liens vers les plateformes s’écrivent ici, en annotations de lien.'
+      ),
     }),
     // Champ `socials` (array plateforme/URL) supprimé le 2026-08-20 : aucun
     // rendu ne le consommait et il était vide en base — schéma orphelin,

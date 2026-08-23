@@ -1,4 +1,8 @@
 import { buildMetadata } from '@/lib/seo/metadata';
+import { getSiteSettings } from '@/lib/sanity/queries';
+import { PortableBody } from '@/components/site/PortableBody';
+import { ContactForm } from '@/components/site/ContactForm';
+import { CONTACT_FORM_ENABLED } from '@/lib/contact/config';
 import { ProtectedEmail } from '@/components/site/ProtectedEmail';
 import { EDITORIAL_BODY, EDITORIAL_BODY_LINK } from '@/lib/site/typography';
 
@@ -10,7 +14,29 @@ export const metadata = buildMetadata({
 
 export const revalidate = 300;
 
-export default function ContactPage() {
+// Repli SEUL — utilisé quand `siteSettings.contactBody` est vide (Sanity vierge,
+// ou dev local sans client configuré). La page est éditée depuis le Studio
+// (Réglages du site → Page « Contact »). CLAUDE.md §8.5 : ne pas faire grossir
+// ce repli pour recopier le contenu publié, c'est exactement la divergence
+// qu'il existe pour éviter. Le lien email y reste protégé (jamais d'adresse en
+// clair dans le HTML exporté, cf. ProtectedEmail).
+function ContactFallback() {
+  return (
+    <>
+      <p className={`${EDITORIAL_BODY} whitespace-pre-line`}>
+        For any enquiry — press, exhibitions, prints, editorial collaboration —
+        write.
+      </p>
+      <ProtectedEmail className={EDITORIAL_BODY_LINK}>
+        Write to me
+      </ProtectedEmail>
+    </>
+  );
+}
+
+export default async function ContactPage() {
+  const settings = await getSiteSettings();
+
   return (
     <article
       className="max-w-[1107px]"
@@ -21,29 +47,17 @@ export default function ContactPage() {
           CONTACT
         </h1>
 
-        <div className="flex flex-col gap-8">
-          <p className={EDITORIAL_BODY}>
-            For any enquiry — press, exhibitions, prints, editorial collaboration — write.
-          </p>
+        <PortableBody
+          value={settings?.contactBody}
+          variant="editorial"
+          fallback={<ContactFallback />}
+        />
 
-          <h2 className="text-[36px] md:text-[48px] font-bold uppercase tracking-[-0.02em] leading-[0.9] text-[var(--color-fg)]">
-            EMAIL
-          </h2>
-
-          <ProtectedEmail className={EDITORIAL_BODY_LINK}>
-            Write to me
-          </ProtectedEmail>
-
-          <div className="flex flex-col pb-4 md:pb-8">
-            <h3 className="text-[22px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.375] text-[var(--color-fg)]">
-              The rest
-            </h3>
-            <p className="text-[17px] md:text-[24px] font-bold tracking-[-0.02em] leading-[1.46] text-[var(--color-fg)] whitespace-pre-line">
-              {`+ Usual response time: 48 to 72 hours.
-+ Studio in [city], travel across France and worldwide.`}
-            </p>
-          </div>
-        </div>
+        {/* Le formulaire se pose SOUS le texte du Studio, sans titre à lui :
+            le titre qui l'annonce s'écrit dans le CMS, en fin de `contactBody`
+            (§8.5 — pas de copie éditable en dur). Absent tant que le site est
+            statique, cf. `lib/contact/config.ts`. */}
+        {CONTACT_FORM_ENABLED && <ContactForm />}
       </div>
     </article>
   );

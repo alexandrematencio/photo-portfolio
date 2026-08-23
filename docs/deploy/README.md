@@ -133,12 +133,57 @@ curl -s https://alexandrematencio.github.io/photo-portfolio/ \
 Les deux produisent le même site : elles font le même `next build` et poussent
 le même `out/` sur la même branche. La différence est la machine.
 
-## L'étape d'après — l'autonomie d'Alexandre
+## L'étape d'après — « Publish » republie tout seul
 
 Le workflow écoute déjà `repository_dispatch` (type `sanity-publish`). Il reste
 à brancher un webhook Sanity dessus : au publish dans Studio, Sanity appelle
 l'API GitHub, le site se reconstruit seul. C'est le vrai objectif — aujourd'hui
 encore, une modification de contenu réclame que quelqu'un lance une commande.
+
+**Ordre imposé** : le webhook n'a rien à appeler tant que le repo déployeur
+n'existe pas. Donc bootstrap d'abord (ci-dessus), webhook ensuite.
+
+**1. Un PAT `bfastdev`**, portée minimale, sur https://github.com/settings/tokens
+— *fine-grained*, propriétaire `bfastdev`, **uniquement** le repo
+`amatencio-deploy`, permission *Contents: read & write*. C'est ce que réclame
+l'endpoint `dispatches`. Rien d'autre : ce jeton va vivre dans la config d'un
+service tiers.
+
+**2. Le webhook**, sur https://manage.sanity.io → projet `yh5i5diw` → **API** →
+**Webhooks** → *Create webhook* :
+
+| Champ | Valeur |
+|---|---|
+| Name | `Rebuild site (GitHub)` |
+| URL | `https://api.github.com/repos/bfastdev/amatencio-deploy/dispatches` |
+| Dataset | `production` |
+| Trigger on | Create, Update, Delete |
+| Filter | `!(_id in path("drafts.**"))` |
+| Projection | `{"event_type":"sanity-publish"}` |
+| HTTP method | `POST` |
+| API version | `v2021-03-25` |
+| Headers | `Authorization: Bearer <PAT>` et `Accept: application/vnd.github+json` |
+
+Le **filtre** est la pièce qui compte : sans lui, chaque frappe au clavier dans
+le Studio matérialise un draft et déclenche un build. Avec lui, seuls les
+documents publiés passent — c'est-à-dire le bouton « Publish », et rien d'autre.
+La rafale reste possible (publier trois documents d'affilée), et c'est le
+`concurrency: cancel-in-progress` du workflow qui l'absorbe : seul le dernier
+build va au bout.
+
+**3. Vérifier**, une fois posé : publier n'importe quoi dans le Studio, puis
+
+```
+gh run list --repo bfastdev/amatencio-deploy --limit 3
+```
+
+Un run `repository_dispatch` doit apparaître dans les secondes qui suivent. Le
+site en ligne suit ~3 min plus tard (build + `pages-build-deployment`).
+
+**4. Le dire au Studio.** Les descriptions des champs éditoriaux
+(`sanity/schemas/siteSettings.ts`) préviennent aujourd'hui que « Publish »
+n'affecte pas le site en ligne sans redéploiement. Le jour où ce webhook tourne,
+cette phrase devient fausse : la corriger fait partie de l'étape.
 
 ## Le jour où la facturation est régularisée
 

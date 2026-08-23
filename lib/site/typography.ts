@@ -40,5 +40,17 @@ export const EDITORIAL_BODY =
  * les pages éditoriales en Helvetica sans autre signal.
  */
 
+/**
+ * DÉCORATION de lien éditorial, sans la typo — soulignement épais du brand.
+ * Extraite le 2026-08-23 pour que les liens écrits dans le Studio la portent
+ * aussi : `PortableBody` (variante `editorial`) rend ses marks `link` avec
+ * cette chaîne. Sans elle, brancher `/contact` sur le CMS aurait remplacé le
+ * soulignement de marque par le lien générique — même texte, autre trait.
+ * Un lien INLINE dans un paragraphe n'hérite ni de la taille ni de `w-fit`,
+ * d'où la séparation des deux constantes.
+ */
+export const EDITORIAL_LINK_DECORATION =
+  'underline underline-offset-[6px] decoration-2 hover:opacity-60 transition-opacity motion-reduce:transition-none';
+
 /** Corps de texte + lien : même échelle, soulignement épais du brand. */
-export const EDITORIAL_BODY_LINK = `${EDITORIAL_BODY} underline underline-offset-[6px] decoration-2 hover:opacity-60 transition-opacity motion-reduce:transition-none w-fit`;
+export const EDITORIAL_BODY_LINK = `${EDITORIAL_BODY} ${EDITORIAL_LINK_DECORATION} w-fit`;

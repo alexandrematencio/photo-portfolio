@@ -5,7 +5,10 @@ import {
 } from '@portabletext/react';
 import { asset } from '@/lib/utils/asset';
 import { EmailAddressText, ProtectedEmail } from './ProtectedEmail';
-import { EDITORIAL_BODY } from '@/lib/site/typography';
+import {
+  EDITORIAL_BODY,
+  EDITORIAL_LINK_DECORATION,
+} from '@/lib/site/typography';
 
 type Variant = 'default' | 'editorial';
 
@@ -202,13 +205,70 @@ export function PortableBody({ value, fallback, variant = 'default' }: Props) {
   );
 }
 
+/**
+ * `mailto:local@domaine[?subject=…]` → les props de `ProtectedEmail`, adresse
+ * coupée en deux. Renvoie `null` pour tout ce qui n'est pas un mailto exploitable
+ * (l'appelant retombe alors sur le rendu de lien normal).
+ */
+function parseMailto(
+  raw: string
+): { local: string; domain: string; subject?: string } | null {
+  if (!/^mailto:/i.test(raw)) return null;
+  const [addressPart, queryPart = ''] = raw.slice('mailto:'.length).split('?');
+  let address: string;
+  try {
+    address = decodeURIComponent(addressPart).trim();
+  } catch {
+    address = addressPart.trim();
+  }
+  // Une seule adresse : un `mailto:` multi-destinataires n'a pas de sens ici et
+  // ne doit surtout pas partir en clair, donc on le refuse plutôt que de le
+  // rendre à moitié.
+  const at = address.indexOf('@');
+  if (at <= 0 || at === address.length - 1 || address.includes(',')) return null;
+  const subject = new URLSearchParams(queryPart).get('subject') ?? undefined;
+  return {
+    local: address.slice(0, at),
+    domain: address.slice(at + 1),
+    subject: subject || undefined,
+  };
+}
+
 // Explicit mark registration. Sanity's renderer looks up `components.marks[key]`
 // by direct property access — a Proxy with a `get` trap silently fails in some
 // dispatch paths (e.g. when the lib checks `key in marks` first), so we list
 // every brand logo as a real own-property here at module load.
-const SHARED_MARKS: Partial<PortableTextReactComponents['marks']> = {
+// Le style de lien est passé en paramètre, pas figé : la variante éditoriale
+// porte le soulignement épais du brand (le même que les pages en dur), la
+// variante `default` garde le lien discret des textes courants. Les DEUX
+// marks qui produisent un `<a>` (lien normal, lien email protégé) et le jeton
+// `@EMAIL` doivent recevoir la MÊME chaîne — sinon deux liens voisins d'un
+// même paragraphe ne se soulignent pas pareil.
+const DEFAULT_LINK_CLASS =
+  'underline underline-offset-4 hover:text-[var(--color-accent)] transition-colors motion-reduce:transition-none';
+
+const makeMarks = (
+  linkClassName: string
+): Partial<PortableTextReactComponents['marks']> => ({
   link: ({ children, value }) => {
     const raw = (value?.href ?? '').trim();
+    // GARDE-FOU ADRESSE EMAIL. Une annotation lien `mailto:` posée dans le
+    // Studio arriverait telle quelle dans le HTML exporté — c'est-à-dire
+    // l'adresse en clair, servie statiquement, exactement ce que
+    // `ProtectedEmail` existe pour éviter. On ne compte donc PAS sur la
+    // discipline de l'éditeur : tout `mailto:` est routé vers le lien
+    // protégé, qui recolle l'adresse côté navigateur. Le libellé reste
+    // celui écrit dans le Studio (« Write to me », l'adresse, n'importe
+    // quoi) — c'est la façon d'obtenir un lien email au libellé libre,
+    // là où le jeton `@EMAIL` affiche toujours l'adresse.
+    const protectedEmail = parseMailto(raw);
+    if (protectedEmail) {
+      return (
+        <ProtectedEmail {...protectedEmail} className={linkClassName}>
+          {children}
+        </ProtectedEmail>
+      );
+    }
     // Telegram shorthand: editor types `@username` as the link URL in Studio,
     // we expand it to https://t.me/username. Strips any leading whitespace or
     // accidental extra `@`.
@@ -218,7 +278,7 @@ const SHARED_MARKS: Partial<PortableTextReactComponents['marks']> = {
     return (
       <a
         href={href}
-        className="underline underline-offset-4 hover:text-[var(--color-accent)]"
+        className={linkClassName}
         rel={external ? 'noopener noreferrer' : undefined}
         target={external ? '_blank' : undefined}
       >
@@ -242,11 +302,71 @@ const SHARED_MARKS: Partial<PortableTextReactComponents['marks']> = {
   // (children ignorés) — il est remplacé par le lien protégé, dont le libellé
   // (l'adresse) est assemblé côté client (cf. ProtectedEmail.tsx).
   [EMAIL_MARK]: () => (
-    <ProtectedEmail className="underline underline-offset-4 hover:text-[var(--color-accent)] transition-colors motion-reduce:transition-none">
+    <ProtectedEmail className={linkClassName}>
       <EmailAddressText />
     </ProtectedEmail>
   ),
-};
+});
+
+const DEFAULT_MARKS = makeMarks(DEFAULT_LINK_CLASS);
+const EDITORIAL_MARKS = makeMarks(EDITORIAL_LINK_DECORATION);
+
+// LISTES. Le Studio propose les boutons puce / numérotée sur ces champs : sans
+// rendu déclaré ici, `@portabletext/react` retombait sur des `<ul>/<li>` nus —
+// que le reset universel de `globals.css` (`* { margin: 0; padding: 0 }`) et le
+// preflight Tailwind vident de leur retrait ET de leur puce. Résultat à l'écran :
+// une liste indiscernable d'un paragraphe, dans la police par défaut du site.
+// D'où : styles en `style` inline (le reset vit hors `@layer`, il écrase les
+// utilities Tailwind de padding — même piège que le footer, CLAUDE.md §7.6), et
+// la typo du corps portée par le `<li>`, pas par le `<ul>`.
+function makeListComponents(itemClassName: string, gap: string) {
+  return {
+    list: {
+      bullet: ({ children }: { children?: React.ReactNode }) => (
+        <ul
+          style={{
+            marginBottom: gap,
+            paddingLeft: '1.1em',
+            listStyleType: 'disc',
+            listStylePosition: 'outside',
+          }}
+        >
+          {children}
+        </ul>
+      ),
+      number: ({ children }: { children?: React.ReactNode }) => (
+        <ol
+          style={{
+            marginBottom: gap,
+            paddingLeft: '1.4em',
+            listStyleType: 'decimal',
+            listStylePosition: 'outside',
+          }}
+        >
+          {children}
+        </ol>
+      ),
+    },
+    listItem: {
+      bullet: ({ children }: { children?: React.ReactNode }) => (
+        <li className={itemClassName} style={{ marginBottom: '0.4em' }}>
+          {children}
+        </li>
+      ),
+      number: ({ children }: { children?: React.ReactNode }) => (
+        <li className={itemClassName} style={{ marginBottom: '0.4em' }}>
+          {children}
+        </li>
+      ),
+    },
+  };
+}
+
+const DEFAULT_LISTS = makeListComponents(
+  'text-base md:text-lg leading-relaxed text-[var(--color-fg)]',
+  '1.5rem'
+);
+const EDITORIAL_LISTS = makeListComponents(EDITORIAL_BODY, '2rem');
 
 // Notes for editors:
 // • Hard return in Studio's PT editor = NEW block = full paragraph gap (mb-10).
@@ -267,7 +387,8 @@ const DEFAULT_COMPONENTS: Partial<PortableTextReactComponents> = {
       </h2>
     ),
   },
-  marks: SHARED_MARKS,
+  marks: DEFAULT_MARKS,
+  ...DEFAULT_LISTS,
 };
 
 // Spacing values are applied via inline `style` (specificity 1,0,0,0) to
@@ -328,5 +449,6 @@ const EDITORIAL_COMPONENTS: Partial<PortableTextReactComponents> = {
       </h4>
     ),
   },
-  marks: SHARED_MARKS,
+  marks: EDITORIAL_MARKS,
+  ...EDITORIAL_LISTS,
 };
