@@ -271,14 +271,18 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
   return (
     <div>
       {/* CONSOLE DE CONTRÔLE — rangée d'axes (gauche) + module de densité
-          (droite), sur une PLAQUE continue qui englobe aussi la rangée de
-          pastilles juste dessous : un seul bloc de commande, pas deux étages
-          de boutons flottant sur le papier (arbitrage Alexandre, 2026-08-23).
-          Seule cette rangée-ci est `sticky` — les pastilles, jusqu'à une
-          vingtaine, mangeraient le viewport si elles collaient avec elle ;
-          elles glissent donc sous une plaque de même valeur, sans couture.
+          (droite), sur une PLAQUE qui ne porte QUE cette rangée-ci : les
+          pastilles de filtre restent sur le papier, en dessous (arbitrage
+          Alexandre, 2026-08-23, sur la capture de référence). Une plaque
+          continue sur les deux rangées avait été essayée puis écartée : elle
+          mettait deux commandes de rôles différents sur la même valeur, et le
+          bloc perdait la marche qui le distingue du papier.
 
-          Aucune bordure : c'est l'écart de valeur plaque/papier qui sépare.
+          Trois valeurs empilées, donc, et pas une de plus : papier, plaque,
+          module sombre. Aucune bordure — c'est l'écart de valeur qui sépare.
+
+          Cette rangée est `sticky` : les pastilles, jusqu'à une vingtaine, ne
+          doivent surtout pas coller avec elle.
 
           ⚠️ Le padding vertical est porté par les DEUX enfants, pas par la
           nav : le module sombre doit occuper toute la hauteur de la rangée
@@ -416,28 +420,22 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
           différentes — et un fond plein derrière une bordure arrondie
           alourdirait une rangée qui compte jusqu'à vingt éléments.
 
-          Cette rangée est le BAS DE LA PLAQUE ouverte par la nav ci-dessus
-          (même fond, aucun écart) : les commandes des Archives forment un seul
-          bloc, et la grille de photos démarre ensuite sur du papier propre.
-          Avant ça, la rangée flottait entre la barre et la première grille
-          sans appartenir à aucune des deux.
+          Cette rangée est SUR LE PAPIER, pas sur la plaque : elle filtre à
+          l'intérieur de l'axe choisi au-dessus, elle ne le choisit pas. Lui
+          donner le fond de la plaque mettait les deux rôles sur la même
+          valeur et effaçait la marche qui détache la console.
 
           ⚠️ L'état éteint n'a PLUS d'`opacity-50`. Elle s'appliquait au bouton
-          entier : le libellé y composait à ~1,9:1 contre la plaque, très en
+          entier : le libellé y composait à ~1,9:1 contre le fond, très en
           dessous des 4,5:1 dus à du texte de 12 px (CLAUDE.md §4). Le retrait
-          d'état passe maintenant par les COULEURS — libellé en muted calibré
-          pour la plaque, filet en `--color-fg-faint` — donc sans jamais
+          d'état passe maintenant par les COULEURS — libellé en `fg-muted`
+          (5,22:1 sur le papier), filet en `--color-fg-faint` — donc sans
           délaver le texte. Ne pas réintroduire d'opacité globale ici. */}
       <div
         role="group"
         aria-label={`Filter by ${mode}`}
-        className="flex flex-wrap gap-x-3 gap-y-2 bg-[var(--color-bg-plate)]"
-        style={{
-          paddingLeft: 32,
-          paddingRight: 32,
-          paddingTop: 20,
-          paddingBottom: 24,
-        }}
+        className="flex flex-wrap gap-x-3 gap-y-2"
+        style={{ paddingLeft: 32, paddingRight: 32, paddingTop: 32 }}
       >
         {/* All — reset chip */}
         <button
@@ -449,7 +447,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
             'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border cursor-pointer transition-colors motion-reduce:transition-none',
             allSelected
               ? 'text-[var(--color-fg)] border-[var(--color-link)]'
-              : 'text-[var(--color-fg-muted-plate)] border-[var(--color-fg-faint)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
+              : 'text-[var(--color-fg-muted)] border-[var(--color-fg-faint)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
           )}
         >
           <StateDot on={allSelected} />
@@ -475,7 +473,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
                 'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border cursor-pointer transition-colors motion-reduce:transition-none',
                 isSelected
                   ? 'text-[var(--color-fg)] border-[var(--color-link)]'
-                  : 'text-[var(--color-fg-muted-plate)] border-[var(--color-fg-faint)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
+                  : 'text-[var(--color-fg-muted)] border-[var(--color-fg-faint)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
               )}
             >
               <StateDot on={isSelected} />

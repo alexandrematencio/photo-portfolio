@@ -103,9 +103,9 @@
      nettement plus sombre que celle qui a été validée.
 
      `--color-fg-muted-plate` : #6e6960 tombe à 4,46:1 sur la plaque, sous AA
-     d'un cheveu. Ce ton-ci tient 4,74:1 sur la plaque et 5,54:1 sur le papier,
-     donc il sert AUSSI aux pastilles de filtre — dont le texte était jusqu'ici
-     du muted à `opacity-50`, soit ~1,9:1. */
+     d'un cheveu. Ce ton-ci tient 4,74:1. Réservé à ce qui est POSÉ SUR la
+     plaque — les pastilles de filtre, elles, sont sur le papier et gardent
+     `--color-fg-muted` (5,22:1). */
   --color-bg-plate: #ebe8e4;
   --color-fg-muted-plate: #6a655c;
 
