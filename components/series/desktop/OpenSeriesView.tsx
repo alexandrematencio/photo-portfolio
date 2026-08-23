@@ -56,6 +56,7 @@ export function OpenSeriesView({
 }) {
   const mdUp = useMdUp();
   const colRef = useRef<HTMLDivElement>(null);
+  const headRef = useRef<HTMLDivElement>(null);
   const tailRef = useRef<HTMLDivElement>(null);
   const active = displayed.photos[activeIndex] ?? displayed.photos[0];
   // Source unique de l'URL 1600 px (partagée avec le préchargement et
@@ -63,20 +64,28 @@ export function OpenSeriesView({
   const centerSrc = centerSrcFor(active);
   const activeRatio = active.image?.dimensions?.aspectRatio ?? 4 / 3;
 
-  // Hauteur de la queue vide = réserve sous la ligne de pose. Remesurée à
-  // chaque série (les ratios changent) et à chaque redimensionnement de la
-  // colonne. En effet de LAYOUT : la course de défilement doit être bonne
-  // avant que `settleColScroll` ne pose la colonne pour les vols.
+  // Hauteur des deux vides = réserve gardée derrière la ligne de pose.
+  // Remesurée à chaque série (les ratios changent) et à chaque
+  // redimensionnement de la colonne. En effet de LAYOUT : la course de
+  // défilement doit être bonne avant que `settleColScroll` ne pose la colonne
+  // pour les vols.
   useLayoutEffect(() => {
     const col = colRef.current;
+    const head = headRef.current;
     const tail = tailRef.current;
-    if (!col || !tail) return;
+    if (!col || !head || !tail) return;
     const apply = () => {
       const px = `${Math.round(colLeadReserve(col))}px`;
-      if (tail.style.height !== px) tail.style.height = px;
+      if (head.style.height === px && tail.style.height === px) return;
+      // La colonne est posée SOUS le vide de tête (settleColScroll) : la
+      // faire suivre, sinon changer de hauteur découvrirait ce vide au repos.
+      const before = head.offsetHeight;
+      head.style.height = px;
+      tail.style.height = px;
+      col.scrollTop += head.offsetHeight - before;
     };
     apply();
-    // La queue ne change que la hauteur DÉFILANTE, jamais la boîte de la
+    // Les vides ne changent que la hauteur DÉFILANTE, jamais la boîte de la
     // colonne (hauteur imposée par la grille) : pas de boucle d'observation.
     const ro = new ResizeObserver(apply);
     ro.observe(col);
@@ -227,6 +236,11 @@ export function OpenSeriesView({
         className="flex h-full flex-col gap-2 overflow-y-auto overscroll-contain"
         style={{ paddingRight: 4 }}
       >
+        {/* Vide de tête : la course de défilement qui manque pour que la
+            PREMIÈRE vignette puisse se poser sur la ligne de pose haute au
+            lieu de rester collée au bord. Il n'est jamais visible au repos —
+            la colonne s'ouvre posée dessous. */}
+        <div ref={headRef} data-col-head aria-hidden className="shrink-0" />
         {displayed.photos.map((photo, i) => {
           const src = photo.image
             ? (urlFor(photo.image)?.width(280).quality(75).auto('format').url() ?? '')
@@ -269,7 +283,7 @@ export function OpenSeriesView({
             un vrai élément et non un `padding-bottom` : la fin de padding
             d'un conteneur flex défilant n'est pas comptée dans la course de
             défilement par tous les moteurs, un enfant l'est toujours. */}
-        <div ref={tailRef} aria-hidden className="shrink-0" />
+        <div ref={tailRef} data-col-tail aria-hidden className="shrink-0" />
       </div>
     </div>
   );

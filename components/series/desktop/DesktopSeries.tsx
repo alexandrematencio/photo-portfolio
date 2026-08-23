@@ -58,29 +58,36 @@ const FOOTER_REVEAL_DUR = 0.26;
 
 /**
  * Pose la vignette `item` sur sa LIGNE DE POSE dans la colonne : la vignette
- * active tombe librement tant qu'elle est au-dessus, puis s'y arrête et c'est
+ * active avance librement tant qu'elle est en deçà, puis s'y arrête et c'est
  * la colonne qui roule sous elle (`colLead.ts` pour le pourquoi et la mesure
  * de la réserve).
  *
- * Deux bornes, dans cet ordre de priorité :
- *   1. l'active ne descend jamais sous la ligne de pose ;
- *   2. mais elle ne sort JAMAIS par le haut non plus — le vol de chaîne
- *      mesure son rect juste après, et un rect hors écran ne vole pas.
- * D'où le `min` : sur une série de verticales où une seule vignette occupe
- * presque toute la colonne, c'est la visibilité qui gagne, pas la ligne.
+ * UNE LIGNE PAR SENS (`dir`), et c'est indispensable : deux lignes appliquées
+ * en même temps se contrediraient dès que la colonne montre moins de deux
+ * fois `COL_LEAD` vignettes — chaque appel renverrait l'active vers l'autre
+ * ligne, la colonne oscillerait d'un rang à chaque touche. Le sens vient donc
+ * de l'index QUITTÉ, jamais d'une devinette sur la position courante.
  *
- * Le défilement se clampe tout seul sur la course disponible — queue vide
- * comprise. C'est ce clamp qui fabrique le vide de fin de série : la dernière
- * vignette atteint la ligne de pose, et sous elle il n'y a plus que la queue.
+ * Deux bornes, dans cet ordre de priorité :
+ *   1. l'active ne franchit pas la ligne de pose de son sens ;
+ *   2. mais elle ne sort JAMAIS par le bord opposé — le vol de chaîne mesure
+ *      son rect juste après, et un rect hors écran ne vole pas.
+ * D'où le `min`/`max` : sur une série de verticales où une seule vignette
+ * occupe presque toute la colonne, c'est la visibilité qui gagne, pas la ligne.
+ *
+ * Le défilement se clampe tout seul sur la course disponible — vides de tête
+ * et de queue compris. C'est ce clamp qui fabrique le vide de bout de série :
+ * la dernière vignette atteint sa ligne de pose, et sous elle il n'y a plus
+ * que la queue.
  */
-function pinThumb(col: HTMLElement, item: HTMLElement) {
+function pinThumb(col: HTMLElement, item: HTMLElement, dir: 1 | -1) {
   const reserve = colLeadReserve(col);
   const c = col.getBoundingClientRect();
   const r = item.getBoundingClientRect();
-  const delta = Math.min(
-    Math.max(0, r.bottom - (c.bottom - reserve)),
-    r.top - c.top
-  );
+  const delta =
+    dir === 1
+      ? Math.min(Math.max(0, r.bottom - (c.bottom - reserve)), r.top - c.top)
+      : Math.max(Math.min(0, r.top - (c.top + reserve)), r.bottom - c.bottom);
   col.scrollTop += delta;
 }
 
@@ -403,11 +410,15 @@ export function DesktopSeries({
     if (!scene) return;
     const col = scene.querySelector<HTMLElement>('[data-open-col]');
     if (!col) return;
-    col.scrollTop = 0;
+    // Repos = juste SOUS le vide de tête : la colonne s'ouvre sur sa première
+    // vignette, le vide du haut ne se découvre qu'en remontant jusqu'à elle.
+    col.scrollTop = col.querySelector<HTMLElement>('[data-col-head]')?.offsetHeight ?? 0;
     const item = scene.querySelector<HTMLElement>(
       '[data-col-item][aria-current]'
     );
-    if (item) pinThumb(col, item);
+    // En descente : une entrée à reculons arrive sur la DERNIÈRE photo, qui
+    // doit se poser comme si on y était descendu — vide de queue compris.
+    if (item) pinThumb(col, item, 1);
   }, []);
 
   /**
@@ -417,14 +428,18 @@ export function DesktopSeries({
    * le commit React du nouvel index n'a pas encore peint au moment de la
    * mesure. Pas de scrollIntoView : il pourrait défiler AUSSI le conteneur de
    * page — qui ne doit jamais bouger tout seul (invariant 14).
+   *
+   * `from` = l'index QUITTÉ, d'où sort le sens de la ligne de pose (cf.
+   * `pinThumb`). Son défaut vaut « descente », le sens d'un parcours qui
+   * commence.
    */
-  const keepThumbVisible = useCallback((i: number) => {
+  const keepThumbVisible = useCallback((i: number, from = i - 1) => {
     const scene = sceneRef.current;
     if (!scene) return;
     const col = scene.querySelector<HTMLElement>('[data-open-col]');
     const item = scene.querySelector<HTMLElement>(`[data-col-item="${i}"]`);
     if (!col || !item) return;
-    pinThumb(col, item);
+    pinThumb(col, item, i < from ? -1 : 1);
   }, []);
 
   // ── Sélecteurs DOM (points de mesure des vols) ────────────────────────────
@@ -1161,8 +1176,8 @@ export function DesktopSeries({
     indexRef.current = toIndex;
     onSelectPhoto(toIndex);
     // La vignette cible doit être VISIBLE avant la mesure (hors écran → pas
-    // de rect exploitable).
-    keepThumbVisible(toIndex);
+    // de rect exploitable). `fromIndex` donne le sens de la ligne de pose.
+    keepThumbVisible(toIndex, fromIndex);
 
     const photo = displayed?.photos[toIndex];
     const inThumb = colImg(toIndex);
@@ -1442,7 +1457,7 @@ export function DesktopSeries({
       if (reduced) {
         indexRef.current = to;
         onSelectPhoto(to);
-        keepThumbVisible(to);
+        keepThumbVisible(to, head);
         return;
       }
       requestSwapTo(to, dur);

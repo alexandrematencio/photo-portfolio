@@ -3,13 +3,18 @@
  *
  * La vignette active ne « tombe » pas jusqu'au bord bas de la colonne : elle
  * s'arrête sur une LIGNE DE POSE placée `COL_LEAD` vignettes plus haut, et
- * c'est la colonne qui roule sous elle à partir de là. La réserve ainsi
- * gardée sous l'active sert un seul but, d'UX : la colonne se prolonge d'une
- * QUEUE VIDE de la même hauteur (`ColumnTail` côté rendu), si bien qu'en fin
- * de série le défilement continue et le vide remonte sous la dernière photo.
- * L'utilisateur voit la série se vider avant d'en sortir — sans ce vide, la
- * dernière vignette reste collée au bord et le passage à la série voisine
- * tombe sans prévenir.
+ * c'est la colonne qui roule sous elle à partir de là. Deux lignes en fait,
+ * une par sens de parcours — descente : à `COL_LEAD` rangs du bas ; remontée :
+ * à `COL_LEAD` rangs du haut.
+ *
+ * La réserve ainsi gardée sert un seul but, d'UX : la colonne se prolonge
+ * d'un VIDE de la même hauteur à CHAQUE bout, si bien qu'en bout de série le
+ * défilement continue et le vide vient prendre la place des photos qui
+ * manquent. L'utilisateur voit la série se vider avant d'en sortir — sans ce
+ * vide, la dernière (ou la première) vignette reste collée au bord et le
+ * passage à la série voisine tombe sans prévenir. Les deux bouts comptent :
+ * ↓ sur la dernière photo passe à la série suivante, ↑ sur la première
+ * revient à la précédente.
  *
  * La réserve est mesurée, pas devinée : les vignettes portent le ratio de
  * LEUR photo (invariant §3.7-2), une série de verticales a donc des rangs
@@ -39,8 +44,13 @@ export function colLeadReserve(col: HTMLElement): number {
   if (items.length < 2) return 0;
   const first = items[0]!.getBoundingClientRect();
   const last = items[items.length - 1]!.getBoundingClientRect();
+  const height = col.clientHeight;
+  // Série qui tient DÉJÀ dans la colonne : ni ligne de pose, ni vide. Il n'y
+  // a rien à annoncer quand tout est visible, et deux vides prendraient une
+  // course de défilement là où il n'en faut aucune.
+  if (last.bottom - first.top <= height) return 0;
   // Pas moyen d'un rang (vignette + gouttière), déduit des positions réelles.
   const pitch = (last.top - first.top) / (items.length - 1);
   if (!(pitch > 0)) return 0;
-  return Math.min(COL_LEAD * pitch, col.clientHeight * COL_LEAD_MAX_RATIO);
+  return Math.min(COL_LEAD * pitch, height * COL_LEAD_MAX_RATIO);
 }
