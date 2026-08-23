@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils/cn';
 import { SeriesMeta } from '../shared/SeriesMeta';
 import { centerSrcFor } from '../shared/photoSrc';
 import { useMdUp } from '../shared/useMdUp';
+import { StateDot } from '@/components/site/StateDot';
 
 /**
  * État ouvert desktop (spec §5) : trois zones —
@@ -80,17 +81,52 @@ export function OpenSeriesView({
               type="button"
               onClick={() => (isActive ? undefined : onSwitch(s.slug))}
               aria-current={isActive || undefined}
-              // État actif porté par le seul CONTRASTE (pas de soulignement) :
-              // encre pleine 18,8:1 contre gris 5,06:1 — l'écart de valeur
-              // suffit à lire l'actif, et l'inactif passe enfin WCAG AA.
-              // (Avant : gris à 60 % d'opacité = 2,37:1, sous le minimum.)
+              // L'état actif se lit sur DEUX canaux, pas un.
+              //
+              // Le contraste d'abord (pas de soulignement) : encre pleine
+              // 18,8:1 contre gris 5,06:1 — l'écart de valeur suffit à lire
+              // l'actif, et l'inactif passe WCAG AA. (Avant : gris à 60 %
+              // d'opacité = 2,37:1, sous le minimum.)
+              //
+              // Le voyant ensuite (2026-08-23, demande Alexandre) : dans une
+              // colonne de noms tous en 12 px capitales grasses, un simple
+              // écart de gris se remarque mal — il faut comparer deux libellés
+              // pour savoir lequel est allumé. Le point, lui, se voit sans
+              // comparaison. Il vaut aussi pour l'a11y : la série active se
+              // repère alors à une FORME, pas seulement à une valeur de gris
+              // (WCAG 2.2 §1.4.1).
+              //
+              // `gap` en inline plutôt qu'en `gap-*` : ce composant pose déjà
+              // tous ses espacements fins ainsi (le reset global hors @layer
+              // avale les utilities de padding/margin) — on ne mélange pas les
+              // deux conventions dans un même bloc.
+              style={{ gap: 6 }}
               className={cn(
-                'w-fit text-left text-[12px] uppercase font-bold leading-[1.45] transition-colors motion-reduce:transition-none',
+                'inline-flex w-fit items-start text-left text-[12px] uppercase font-bold leading-[1.45] transition-colors motion-reduce:transition-none',
                 isActive
                   ? 'text-[var(--color-fg)] cursor-default'
                   : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] cursor-pointer'
               )}
             >
+              {/* Le point est centré sur la PREMIÈRE LIGNE, pas sur le bloc.
+                  La colonne fait 176 px et le plus long titre en base (« Beach
+                  girls triptych », 20 caractères) la remplit déjà presque
+                  entièrement : les 13 px pris par le point et son écart
+                  suffisent à le faire passer sur deux lignes. Avec un
+                  `items-center` sur le bouton, le point atterrirait alors
+                  ENTRE les deux lignes. La boîte d'une hauteur de ligne
+                  (`1.45em`, la même valeur que le `leading` du bouton) le
+                  cale sur la première quoi qu'il arrive. */}
+              <span
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: '1.45em',
+                  flex: 'none',
+                }}
+              >
+                <StateDot on={isActive} />
+              </span>
               {s.title}
             </button>
           );

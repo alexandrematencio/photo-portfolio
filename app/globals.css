@@ -38,6 +38,52 @@
      projet est qu'aucune couleur ne vit dans un composant. Valeur à reporter
      dans le brand book. */
   --color-fg-faint: #a19c91;
+
+  /* Orange des LIENS INLINE du corps éditorial (« Write to me », mentions
+     cliquables dans un paragraphe) — repère « neo-retro » à la Teenage
+     Engineering, demande Alexandre du 2026-08-23. Valeur à reporter dans le
+     brand book.
+
+     Pourquoi un token à part et PAS `--color-accent` : le brand book réserve
+     le cobalt `#0013FF` au glyph, aux focus rings et aux états actifs, et lui
+     interdit explicitement les états de survol du corps de texte. Deux rôles
+     distincts = deux tokens ; repeindre l'accent aurait viré le logo en orange.
+
+     Pourquoi `#e8501e` et pas l'orange TE plein (`#ff5000`) : sur le papier
+     `#fafaf8`, `#ff5000` tombe à 3,14:1 — au-dessus du seuil AA « grand
+     texte » (3:1), mais le corps éditorial fait 19 px en mobile, soit le
+     minimum même de cette catégorie (18,66 px en gras). Aucune marge. À
+     `#e8501e` on est à 3,59:1, l'orange reste franchement TE, et le mobile
+     n'est plus au bord du seuil.
+
+     ⚠️ Réservé au corps éditorial (`EDITORIAL_LINK_DECORATION`,
+     lib/site/typography.ts). Ne PAS l'appliquer à du texte courant en
+     16-18 px : il y faudrait 4,5:1, que ni l'un ni l'autre n'atteint. */
+  --color-link: #e8501e;
+  /* Survol : on FONCE au lieu de faner. Un `opacity-60` sur une couleur
+     saturée retombe à ~2,1:1 sur le papier — le lien devient moins lisible
+     au moment précis où on le vise. `#c8410a` monte à 4,77:1. */
+  --color-link-hover: #c8410a;
+
+  /* SURLIGNAGE D'ÉTAT ACTIF — fond plein derrière le libellé de la page
+     courante (nav-bar) et de l'onglet de groupement sélectionné (/archives).
+     Valeur arbitrée par Alexandre le 2026-08-23. Voir brand book §4.3.
+
+     Pourquoi une TEINTE CLAIRE et pas `--color-link` : les deux oranges ont
+     des métiers opposés. `--color-link` (#e8501e) est une couleur de TRAIT —
+     texte, bordure, point, barre : il lui faut du contraste CONTRE le papier
+     (3,59:1). `--color-active-bg` est une couleur de FOND — c'est l'encre
+     posée DESSUS qui doit contraster, et le noir y est à 7,26:1, soit AAA.
+     Intervertir les deux casse les deux : un trait en #fd7251 tombe à 2,61:1
+     sur le papier (invisible), un fond en #e8501e descend le texte noir à
+     3,59:1 (illisible en 12 px).
+
+     ⚠️ Point de vigilance a11y connu : le bloc lui-même est à 2,61:1 contre
+     le papier, sous les 3:1 que WCAG 2.2 §1.4.11 demande à un indicateur
+     d'état. L'état reste porté sémantiquement (`aria-current` / `aria-selected`)
+     et le bloc est large, mais si le critère doit être tenu au pied de la
+     lettre, `#f75c33` (3,08:1) est le voisin le plus proche qui passe. */
+  --color-active-bg: #fd7251;
 }
 
 /* ── Mode immersif ─────────────────────────────────────────────────────────

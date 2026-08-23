@@ -1,3 +1,5 @@
+import { cn } from '@/lib/utils/cn';
+
 /**
  * Classes typographiques partagées des pages éditoriales.
  *
@@ -41,16 +43,43 @@ export const EDITORIAL_BODY =
  */
 
 /**
- * DÉCORATION de lien éditorial, sans la typo — soulignement épais du brand.
- * Extraite le 2026-08-23 pour que les liens écrits dans le Studio la portent
- * aussi : `PortableBody` (variante `editorial`) rend ses marks `link` avec
- * cette chaîne. Sans elle, brancher `/contact` sur le CMS aurait remplacé le
- * soulignement de marque par le lien générique — même texte, autre trait.
+ * DÉCORATION de lien éditorial, sans la typo — orange de marque + soulignement
+ * épais. Extraite le 2026-08-23 pour que les liens écrits dans le Studio la
+ * portent aussi : `PortableBody` (variante `editorial`) rend ses marks `link`
+ * avec cette chaîne. Sans elle, brancher `/contact` sur le CMS aurait remplacé
+ * le soulignement de marque par le lien générique — même texte, autre trait.
  * Un lien INLINE dans un paragraphe n'hérite ni de la taille ni de `w-fit`,
  * d'où la séparation des deux constantes.
+ *
+ * **Orange, 2026-08-23** (demande Alexandre) : les liens inline du corps
+ * éditorial passent en `--color-link`. Portée volontairement étroite — les
+ * items de menu, les liens de galerie et le footer gardent leur couleur de
+ * texte. Ce qui vire à l'orange, c'est le lien AU MILIEU D'UNE PHRASE, celui
+ * qu'il faut distinguer du texte qui l'entoure.
+ *
+ * Le soulignement n'a PAS de couleur déclarée : `text-decoration-color` vaut
+ * `currentColor` par défaut, il suit donc le texte tout seul — et surtout il
+ * suit aussi le survol. Une `decoration-[…]` explicite créerait un second
+ * endroit à tenir synchronisé, pour zéro gain.
+ *
+ * Le survol FONCE (`--color-link-hover`) au lieu de faner : l'ancien
+ * `opacity-60` sur un orange saturé retombait à ~2,1:1 sur le papier, soit un
+ * lien moins lisible au moment où on le vise. D'où aussi `transition-colors`
+ * et non `transition-opacity`.
  */
 export const EDITORIAL_LINK_DECORATION =
-  'underline underline-offset-[6px] decoration-2 hover:opacity-60 transition-opacity motion-reduce:transition-none';
+  'text-[var(--color-link)] hover:text-[var(--color-link-hover)] underline underline-offset-[6px] decoration-2 transition-colors motion-reduce:transition-none';
 
-/** Corps de texte + lien : même échelle, soulignement épais du brand. */
-export const EDITORIAL_BODY_LINK = `${EDITORIAL_BODY} ${EDITORIAL_LINK_DECORATION} w-fit`;
+/**
+ * Corps de texte + lien : même échelle, orange de marque, soulignement épais.
+ *
+ * ⚠️ `cn()` et PAS une concaténation : `EDITORIAL_BODY` porte
+ * `text-[var(--color-fg)]` et la décoration porte `text-[var(--color-link)]`.
+ * Sur le MÊME élément, ces deux utilities ont la même spécificité — c'est
+ * l'ordre du CSS généré qui tranche, pas l'ordre dans l'attribut `class`.
+ * `tailwind-merge` résout le conflit à la source en ne gardant que la
+ * dernière. (Le cas ne se pose pas dans `PortableBody`, où le `<a>` est un
+ * ENFANT du `<p>` : une couleur déclarée l'emporte toujours sur une couleur
+ * héritée.)
+ */
+export const EDITORIAL_BODY_LINK = cn(EDITORIAL_BODY, EDITORIAL_LINK_DECORATION, 'w-fit');

@@ -79,11 +79,33 @@ export function SiteHeader() {
                   if (active) notifySamePageNav(link.href);
                 }}
                 data-cursor-invert
+                // PADDING EN STYLE INLINE, jamais en utility Tailwind : le
+                // reset `* { padding: 0 }` de globals.css vit hors @layer et
+                // écrase toutes les utilities de padding (cf. CLAUDE.md §7.6).
+                // Un `px-2` ici serait avalé sans le moindre signal, et le
+                // surlignage collerait au texte.
+                style={
+                  active
+                    ? { padding: '2px 8px 4px 8px', borderRadius: 1 }
+                    : undefined
+                }
                 className={cn(
                   // Specs Pencil nav item : fontSize 32, fontWeight 700, letterSpacing -1.28 (= -0.04em).
                   // PAS d'uppercase (Pencil = "About", pas "ABOUT").
                   'hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none motion-reduce:transition-none',
-                  active && 'underline underline-offset-4 decoration-2'
+                  // ÉTAT ACTIF = SURLIGNAGE PLEIN, plus de soulignement
+                  // (arbitrage Alexandre, 2026-08-23 — brand book §4.3).
+                  // Le libellé reste noir : il est à 7,26:1 sur ce fond.
+                  //
+                  // ⚠️ Le padding n'est posé QUE sur l'item actif, jamais sur
+                  // les cinq. La nav-bar doit rester alignée au pixel près sur
+                  // l'état d'arrivée du morph du hero de la home (CLAUDE.md
+                  // §3.6), et la home n'a AUCUN item actif (`/` n'est pas dans
+                  // NAV_LINKS) : ne padder que l'actif laisse donc la
+                  // géométrie du morph strictement inchangée. Padder les cinq
+                  // élargirait la rangée de 80 px et ferait atterrir le morph
+                  // à côté de sa cible.
+                  active && 'bg-[var(--color-active-bg)]'
                 )}
               >
                 {link.label}

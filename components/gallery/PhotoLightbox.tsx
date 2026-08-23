@@ -307,7 +307,16 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
               className={`lightbox-loader-bar${loaded ? ' is-loaded' : ''}`}
               style={{
                 height: '100%',
-                backgroundColor: 'var(--color-fg)',
+                // Orange d'état (brand book §4.3) : le chargement EST un
+                // état, et c'est le seul endroit du site où la couleur
+                // apparaît pendant qu'on regarde une photo — une fraction de
+                // seconde, puis elle disparaît. Le mot « loading » au-dessus
+                // reste en `--color-fg`.
+                // Contraste : la barre est un élément GRAPHIQUE (seuil 3:1),
+                // à 3,40:1 sur le backdrop desktop (#F7F3F1) et 3,75:1 sur le
+                // blanc mobile. Passer le MOT en orange, lui, serait hors des
+                // clous — 16 px en graisse normale demandent 4,5:1.
+                backgroundColor: 'var(--color-link)',
                 transformOrigin: 'left',
               }}
             />

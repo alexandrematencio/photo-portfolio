@@ -9,6 +9,7 @@ import { PhotoLightbox } from './PhotoLightbox';
 import { cn } from '@/lib/utils/cn';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import type { Photo } from '@/lib/sanity/queries';
+import { StateDot, StateDotBalance } from '@/components/site/StateDot';
 
 gsap.registerPlugin(Flip);
 
@@ -282,10 +283,20 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
                 aria-selected={active}
                 type="button"
                 onClick={() => setMode(tab.id)}
+                // Padding sur TOUS les onglets, surlignage sur le seul actif.
+                // Ici la sélection se fait EN PLACE : ne padder que l'actif
+                // décalerait la rangée de 12 px à chaque clic, sous les yeux
+                // de l'utilisateur. (La nav-bar fait l'inverse, et pour une
+                // raison qui ne vaut que là-bas — cf. SiteHeader.tsx.)
+                // Style inline obligatoire : le reset `* { padding: 0 }` de
+                // globals.css vit hors @layer et avale les utilities Tailwind
+                // de padding (cf. CLAUDE.md §7.6) — c'est d'ailleurs pour ça
+                // que le `py-2` qui était ici n'avait jamais rien fait.
+                style={{ padding: '2px 6px' }}
                 className={cn(
-                  'text-[12px] uppercase font-bold py-2 cursor-pointer transition-colors motion-reduce:transition-none',
+                  'text-[12px] uppercase font-bold cursor-pointer transition-colors motion-reduce:transition-none',
                   active
-                    ? 'text-[var(--color-fg)] underline underline-offset-8 decoration-2'
+                    ? 'text-[var(--color-fg)] bg-[var(--color-active-bg)]'
                     : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
                 )}
               >
@@ -296,7 +307,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
         </div>
 
         {/* Même voix typographique que les tabs de gauche (12px bold, actif
-            souligné) — masqué sous md, où la grille est verrouillée à 3
+            surligné) — masqué sous md, où la grille est verrouillée à 3
             colonnes et où ces boutons n'auraient aucun effet. */}
         <div
           role="group"
@@ -309,10 +320,13 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
               type="button"
               onClick={() => changeGridSize(size)}
               aria-pressed={size === gridSize}
+              // Même famille de contrôle que les onglets de gauche, donc même
+              // recette exactement (padding partout, surlignage sur l'actif).
+              style={{ padding: '2px 6px' }}
               className={cn(
-                'text-[12px] font-bold py-2 cursor-pointer transition-colors motion-reduce:transition-none',
+                'text-[12px] font-bold cursor-pointer transition-colors motion-reduce:transition-none',
                 size === gridSize
-                  ? 'text-[var(--color-fg)] underline underline-offset-8 decoration-2'
+                  ? 'text-[var(--color-fg)] bg-[var(--color-active-bg)]'
                   : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]'
               )}
             >
@@ -324,7 +338,12 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
 
       {/* Filter chips — pill buttons per Pencil "filter-button" spec.
           "All" chip at the start = reset (re-selects everything).
-          Per-value chips toggle their group's visibility. */}
+          Per-value chips toggle their group's visibility.
+          État coché = châssis orange + voyant allumé, libellé NOIR. La
+          pastille garde donc son trait fin là où les onglets prennent un
+          fond plein : deux rôles différents (filtre vs mode), deux marques
+          différentes — et un fond plein derrière une bordure arrondie
+          alourdirait une rangée qui compte jusqu'à vingt éléments. */}
       <div
         role="group"
         aria-label={`Filter by ${mode}`}
@@ -336,15 +355,21 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
           type="button"
           onClick={selectAll}
           aria-pressed={allSelected}
-          style={{ paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4 }}
+          style={{ paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4, gap: 6 }}
           className={cn(
             'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border cursor-pointer transition-colors motion-reduce:transition-none',
             allSelected
-              ? 'text-[var(--color-fg)] border-[var(--color-fg)]'
+              ? 'text-[var(--color-fg)] border-[var(--color-link)]'
               : 'text-[var(--color-fg-muted)] border-[var(--color-fg-muted)] opacity-50 hover:opacity-100 hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
           )}
         >
+          <StateDot on={allSelected} />
           All ({totalPhotos})
+          {/* Contrepoids du voyant — sans lui, les 13 px pris à gauche par le
+              point et son écart n'ont aucun équivalent à droite : le compteur
+              se retrouve collé à la bordure alors que le libellé, lui, tombe
+              au centre. Cf. StateDotBalance. */}
+          <StateDotBalance />
         </button>
 
         {/* Per-value chips */}
@@ -356,15 +381,18 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
               type="button"
               onClick={() => activateOrReset(g.key)}
               aria-pressed={isSelected}
-              style={{ paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4 }}
+              style={{ paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4, gap: 6 }}
               className={cn(
                 'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] rounded-full border cursor-pointer transition-colors motion-reduce:transition-none',
                 isSelected
-                  ? 'text-[var(--color-fg)] border-[var(--color-fg)]'
+                  ? 'text-[var(--color-fg)] border-[var(--color-link)]'
                   : 'text-[var(--color-fg-muted)] border-[var(--color-fg-muted)] opacity-50 hover:opacity-100 hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
               )}
             >
+              <StateDot on={isSelected} />
               {g.label} ({g.items.length})
+              {/* Contrepoids du voyant — cf. la pastille « All » ci-dessus. */}
+              <StateDotBalance />
             </button>
           );
         })}

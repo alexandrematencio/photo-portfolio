@@ -33,6 +33,13 @@ import { asset } from '@/lib/utils/asset';
  * directs » du .pen n'est pas perdue pour autant : la boîte de grille repasse
  * en `display: contents` au-dessus de `md`, elle disparaît alors de la mise en
  * page et les quatre entrées redeviennent enfants directs de la rangée.
+ *
+ * SURVOL EN ORANGE (`--color-link`), et non plus en blanc — 2026-08-23,
+ * brand book §4.3. Le pied de page est la seule surface sombre permanente du
+ * site : l'orange y monte à 4,94:1 sur le #151312, donc au-dessus du seuil AA
+ * du petit texte, ce qui n'est vrai NULLE PART ailleurs (sur le papier il
+ * plafonne à 3,59:1 et n'a le droit qu'aux traits et aux fonds). C'est aussi
+ * le seul endroit du site où l'orange a le droit d'écrire un mot en 14 px.
  */
 export function SiteFooter() {
   return (
@@ -92,7 +99,7 @@ export function SiteFooter() {
         {/* Child 2: PHOTOGRAPHY (direct sibling, per pen) */}
         <Link
           href="/archives"
-          className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-white transition-colors motion-reduce:transition-none md:text-[16px]"
+          className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none md:text-[16px]"
         >
           PHOTOGRAPHY
         </Link>
@@ -100,7 +107,7 @@ export function SiteFooter() {
         {/* Child 3: DIGITAL AGENCY (direct sibling, per pen) */}
         <Link
           href="/about/digital-agency"
-          className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-white transition-colors motion-reduce:transition-none md:text-[16px]"
+          className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none md:text-[16px]"
         >
           DIGITAL AGENCY
         </Link>
@@ -108,7 +115,7 @@ export function SiteFooter() {
         {/* Child 4: CONTACT (direct sibling, per pen) */}
         <Link
           href="/contact"
-          className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-white transition-colors motion-reduce:transition-none md:text-[16px]"
+          className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none md:text-[16px]"
         >
           CONTACT
         </Link>
@@ -116,7 +123,7 @@ export function SiteFooter() {
         {/* Child 5: legal notice (icon + LEGAL NOTICE, gap 8 inside, exact pen icon structure) */}
         <Link
           href="/legal"
-          className="flex items-center justify-start gap-2 shrink-0 hover:text-white transition-colors motion-reduce:transition-none"
+          className="flex items-center justify-start gap-2 shrink-0 hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none"
         >
           <span className="inline-flex items-center p-[1px] pr-[3px]">
             <svg
