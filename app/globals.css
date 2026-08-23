@@ -259,6 +259,36 @@
   }
 }
 
+/* Tiroir du sélecteur en liste (`<ListSelector />`, console mobile
+   d'/archives). Les paddings de la console, eux, sont redevenus des styles
+   inline dans FlatGallery : depuis que chaque branche (mobile / desktop) a
+   les siens, plus rien n'y est responsive — la règle unlayered façon footer
+   n'a plus de raison d'être ici.
+
+   L'animation — une seule ouverture, courte, sans rebond
+   (brand book §7). Le calque ne fait qu'apparaître : il ne glisse pas depuis
+   le haut, ce qui le ferait lire comme un menu système. */
+@keyframes console-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.console-panel {
+  animation: console-panel-in 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .console-panel {
+    animation: none;
+  }
+}
+
 html {
   background-color: var(--color-bg);
   color: var(--color-fg);
@@ -312,6 +342,24 @@ body img {
 }
 .scroll-cue {
   animation: scroll-cue 2.4s ease-in-out infinite;
+}
+/* Épaisseur du chevron de la home SOUS `md` (demande Alexandre, 2026-08-23 :
+   « peu visible » sur téléphone). 1,5 px à 26 px de haut, c'est le rapport
+   trait/taille le plus fin du site (0,058) — et l'animation le laisse à 45 %
+   d'opacité la moitié du cycle. 2,25 le remonte à 0,087, au-dessus des
+   flèches de la lightbox (0,0625), sans le rendre bavard. La COULEUR ne
+   bouge pas : c'est un repère, pas une commande.
+
+   Pourquoi ici et pas en prop `strokeWidth` : c'est la seule des trois voies
+   qui connaisse les media queries. Le style inline les ignore, et une utility
+   Tailwind de stroke n'existe pas. Un attribut de présentation SVG a la
+   spécificité la plus basse — n'importe quelle règle CSS le bat, donc le
+   `strokeWidth={1.5}` de HomeHero/HomeHeroSplash reste la valeur DESKTOP et
+   celle-ci ne s'applique qu'en dessous du point de bascule. */
+@media (max-width: 767px) {
+  .scroll-cue {
+    stroke-width: 2.25;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .scroll-cue {

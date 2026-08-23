@@ -11,6 +11,7 @@ import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import type { Photo } from '@/lib/sanity/queries';
 import { StateDot, StateDotBalance } from '@/components/site/StateDot';
 import { CONTROL_RADIUS } from '@/lib/site/controls';
+import { ListSelector } from '@/components/site/ListSelector';
 import { MICRO_LABEL } from '@/lib/site/typography';
 
 gsap.registerPlugin(Flip);
@@ -39,6 +40,12 @@ const TABS: { id: Mode; label: string }[] = [
 ];
 
 const UNSPECIFIED_KEY = '__unspecified__';
+
+/** Clé de l'option « All » DANS LE SÉLECTEUR MOBILE. L'état, lui, reste
+    `activeKey === null` — une liste déroulante n'a pas d'option « rien de
+    sélectionné », il lui faut donc une clé ; l'état du composant n'en change
+    pas pour autant (cf. `activeKey`). */
+const ALL_KEY = '__all__';
 
 type Group = { key: string; label: string; items: Photo[] };
 
@@ -85,6 +92,10 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
   // Verrou d'animation de la démo (`animated`) — un ref, pas un state : sa
   // valeur ne doit pas déclencher de re-render.
   const gridAnimatingRef = useRef(false);
+  // Console mobile : le module SHOW court d'un bord à l'autre une fois collé
+  // en haut, et reprend la gouttière de la page quand il redescend.
+  const [stuck, setStuck] = useState(false);
+  const stickSentinelRef = useRef<HTMLDivElement | null>(null);
 
   /** Changement de densité — transition recopiée de la démo 2 Codrops
       (script2.js) : Flip absolute 1 s expo.inOut, stagger random 0,3 s, et
@@ -209,6 +220,35 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
     return sortGroups(Array.from(map.values()));
   }, [mode, photos]);
 
+  /** COLLAGE DU MODULE SHOW (console mobile) — détecté par un sentinelle, pas
+      en écoutant le scroll : un `scroll` sur le conteneur se rejouerait à
+      chaque frame du défilement pour lire une position que le navigateur
+      connaît déjà. L'IntersectionObserver ne réveille React qu'aux DEUX
+      bascules qui comptent.
+
+      ⚠️ Le sentinelle fait 1 px de haut, compensé par une marge négative.
+      Un rect de hauteur NULLE n'intersecte jamais rien : l'observer le
+      déclarerait hors champ en permanence et le module partirait collé, dès
+      le chargement, sans avoir jamais défilé. Le 1 px lui donne une boîte,
+      la marge négative le rend invisible au layout — et il le faut : posé
+      entre les deux modules, un seul pixel de flux fendrait la colonne
+      sombre qu'ils forment ensemble.
+
+      ⚠️ La racine est le conteneur de scroll de `FramedScroll`, pas le
+      viewport : sur les pages du groupe `(site)`, ce n'est pas la fenêtre
+      qui défile. */
+  useEffect(() => {
+    const el = stickSentinelRef.current;
+    if (!el) return;
+    const root = document.querySelector('[data-scroll-container]');
+    const io = new IntersectionObserver(
+      ([entry]) => setStuck(!entry.isIntersecting),
+      { root: root ?? null, threshold: 0 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   // Reset to "All" when grouping mode changes.
   useEffect(() => {
     setActiveKey(null);
@@ -283,8 +323,14 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
           Trois valeurs empilées, donc, et pas une de plus : papier, plaque,
           module sombre. Aucune bordure — c'est l'écart de valeur qui sépare.
 
-          Cette rangée est `sticky` : les pastilles, jusqu'à une vingtaine, ne
-          doivent surtout pas coller avec elle.
+          Cette rangée N'EST PLUS `sticky` (demande Alexandre, 2026-08-23) :
+          au défilement, c'est la rangée de pastilles en dessous qui reste
+          accrochée en haut, et celle-ci part avec le papier. Le choix d'axe
+          se fait une fois ; le filtre, lui, se reprend sans arrêt pendant
+          qu'on parcourt la grille — c'est LUI qui doit rester sous la main.
+          Corollaire : une seule des deux rangées peut coller — même
+          arbitrage dans la console mobile ci-dessus (seul le module SHOW
+          est `sticky`).
 
           ⚠️ Le padding vertical est porté par les DEUX enfants, pas par la
           nav : le module sombre doit occuper toute la hauteur de la rangée
@@ -301,15 +347,90 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
 
           Sous 768px la grille est verrouillée à 3 colonnes (CSS), les boutons
           de densité y sont sans effet — comme dans la démo Codrops. */}
+      {/* CONSOLE MOBILE — deux modules `ListSelector` empilés SANS gap, CADRÉS
+          sur la gouttière de 32 px de la page (demande Alexandre du
+          2026-08-23) : le bloc s'aligne sur le H1 au-dessus et sur la grille
+          en dessous, au lieu de courir d'un bord à l'autre. Leurs
+          cellules-étiquettes sombres forment une colonne continue sur le bord
+          gauche du bloc — anatomie complète dans ListSelector.tsx.
+
+          ⚠️ La gouttière est portée par CES wrappers, pas par le module : le
+          module est un boîtier, il n'a pas à savoir sur quelle page il est
+          posé. Corollaire pour le wrapper `sticky` — son fond reste
+          TRANSPARENT et c'est le module qui porte le sien. Un fond posé sur
+          toute la largeur du wrapper rendrait la barre pleine largeur qu'on
+          vient justement de retirer.
+
+          Le module SHOW est le seul `sticky` : même arbitrage qu'en desktop
+          (le filtre se reprend sans arrêt en parcourant la grille, l'axe se
+          choisit une fois), et une seule rangée collée pour ne pas empiler
+          deux ponts sur l'écran d'un téléphone. */}
+      <div className="md:hidden" style={{ paddingLeft: 32, paddingRight: 32 }}>
+        <ListSelector
+          hint="GROUP BY"
+          ariaLabel="Grouping mode"
+          tone="plate"
+          mark="fill"
+          corners="top"
+          items={TABS.map((t) => ({ key: t.id, label: t.label }))}
+          value={mode}
+          onChange={(key) => setMode(key as Mode)}
+        />
+      </div>
+      {/* Sentinelle de collage — cf. l'effet plus haut. */}
+      <div
+        ref={stickSentinelRef}
+        aria-hidden
+        className="md:hidden"
+        style={{ height: 1, marginBottom: -1 }}
+      />
+      <div
+        className={cn(
+          'md:hidden sticky top-0 z-30',
+          'transition-[padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none'
+        )}
+        // COLLÉ = FOND PERDU (demande Alexandre, 2026-08-23). La gouttière de
+        // la page se referme sur les deux bords, et la transition va dans les
+        // DEUX sens — c'est le même `transition-[padding]` qui joue au collage
+        // et au décollage, sans code de sens.
+        //
+        // ⚠️ La gouttière est animée ICI, sur le wrapper, et jamais sur le
+        // module : c'est le padding du parent qui bouge, le module se contente
+        // de suivre en largeur fluide. L'animer dans le module l'obligerait à
+        // savoir sur quelle page il est posé — et il n'a aucun moyen de le
+        // savoir.
+        style={{ paddingLeft: stuck ? 0 : 32, paddingRight: stuck ? 0 : 32 }}
+      >
+        <ListSelector
+          hint="SHOW"
+          ariaLabel={`Filter by ${mode}`}
+          tone="plate-low"
+          mark="dot"
+          corners="bottom"
+          flush={stuck}
+          lit={activeKey !== null}
+          items={[
+            { key: ALL_KEY, label: 'All', count: totalPhotos },
+            ...allGroups.map((g) => ({
+              key: g.key,
+              label: g.label,
+              count: g.items.length,
+            })),
+          ]}
+          value={activeKey ?? ALL_KEY}
+          onChange={(key) => (key === ALL_KEY ? selectAll() : setActiveKey(key))}
+        />
+      </div>
+
       <nav
-        className="sticky top-0 z-30 flex items-stretch justify-between bg-[var(--color-bg-plate)]"
+        className="hidden md:flex items-stretch justify-between bg-[var(--color-bg-plate)]"
         style={{ paddingLeft: 32 }}
       >
         <div
           role="tablist"
           aria-label="Grouping mode"
-          className="flex min-w-0 flex-wrap items-center justify-start gap-x-4 gap-y-2"
-          style={{ paddingTop: 24, paddingBottom: 24, paddingRight: 32 }}
+          className="flex min-w-0 flex-wrap items-center justify-start gap-y-2"
+          style={{ paddingTop: 20, paddingBottom: 20, paddingRight: 32 }}
         >
           {TABS.map((tab) => {
             const active = tab.id === mode;
@@ -333,7 +454,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
                 // plein disait « c'est celui-là » avec trois géométries
                 // différentes sur le site (rectangle vif ici, rayon 1 dans la
                 // nav-bar, disque sur le module sombre). Cf. lib/site/controls.
-                style={{ padding: '4px 24px', borderRadius: CONTROL_RADIUS }}
+                style={{ padding: '6px 24px', borderRadius: CONTROL_RADIUS }}
                 className={cn(
                   'text-[12px] uppercase font-bold cursor-pointer transition-colors motion-reduce:transition-none',
                   active
@@ -436,9 +557,13 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
           reste, lui, l'exception assumée (cf. lib/site/controls.ts).
 
           Cette rangée est le DEUXIÈME PONT de la console, d'une valeur à
-          elle : la même que la rangée d'axes mettait deux commandes de rôles
-          différents — choisir l'axe, filtrer dedans — sur un seul plan et
-          effaçait la marche. Le papier, lui, ne revient qu'à la grille.
+          elle — et c'est ELLE qui est `sticky` (cf. la rangée d'axes plus
+          haut). Son fond doit donc rester OPAQUE : elle passe par-dessus la
+          grille au défilement.
+
+          Sa valeur propre dit la raison d'être de la marche : mettre deux
+          commandes de rôles différents — choisir l'axe, filtrer dedans — sur
+          un seul plan l'effaçait. Le papier, lui, ne revient qu'à la grille.
 
           ⚠️ L'état éteint n'a PLUS d'`opacity-50`. Elle s'appliquait au bouton
           entier : le libellé y composait à ~1,9:1 contre le fond, très en
@@ -447,62 +572,80 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
           calibrés pour le pont bas (4,90:1 et 2,34:1) — donc sans
           délaver le texte. Ne pas réintroduire d'opacité globale ici. */}
       <div
-        role="group"
-        aria-label={`Filter by ${mode}`}
-        className="flex flex-wrap gap-x-3 gap-y-2 bg-[var(--color-bg-plate-low)]"
+        className="hidden md:block sticky top-0 z-30 bg-[var(--color-bg-plate-low)]"
         style={{
           paddingLeft: 32,
           paddingRight: 32,
-          paddingTop: 24,
-          paddingBottom: 24,
+          paddingTop: 16,
+          paddingBottom: 16,
         }}
       >
-        {/* All — reset chip */}
-        <button
-          type="button"
-          onClick={selectAll}
-          aria-pressed={allSelected}
-          style={{ paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4, gap: 6, borderRadius: CONTROL_RADIUS }}
-          className={cn(
-            'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] tabular-nums border cursor-pointer transition-colors motion-reduce:transition-none',
-            allSelected
-              ? 'text-[var(--color-fg)] border-[var(--color-link)]'
-              : 'text-[var(--color-fg-muted-plate-low)] border-[var(--color-line-plate-low)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
-          )}
+        <div
+          role="group"
+          aria-label={`Filter by ${mode}`}
+          className="flex flex-wrap gap-x-1 gap-y-2"
         >
-          <StateDot on={allSelected} />
-          All ({totalPhotos})
-          {/* Contrepoids du voyant — sans lui, les 13 px pris à gauche par le
+          {/* All — reset chip */}
+          <button
+            type="button"
+            onClick={selectAll}
+            aria-pressed={allSelected}
+            style={{
+              paddingLeft: 8,
+              paddingRight: 8,
+              paddingTop: 4,
+              paddingBottom: 4,
+              gap: 6,
+              borderRadius: CONTROL_RADIUS,
+            }}
+            className={cn(
+              'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] tabular-nums border cursor-pointer transition-colors motion-reduce:transition-none',
+              allSelected
+                ? 'text-[var(--color-fg)] border-[var(--color-link)]'
+                : 'text-[var(--color-fg-muted-plate-low)] border-[var(--color-line-plate-low)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]',
+            )}
+          >
+            <StateDot on={allSelected} />
+            All ({totalPhotos})
+            {/* Contrepoids du voyant — sans lui, les 13 px pris à gauche par le
               point et son écart n'ont aucun équivalent à droite : le compteur
               se retrouve collé à la bordure alors que le libellé, lui, tombe
               au centre. Cf. StateDotBalance. */}
-          <StateDotBalance />
-        </button>
+            <StateDotBalance />
+          </button>
 
-        {/* Per-value chips */}
-        {allGroups.map((g) => {
-          const isSelected = activeKey === g.key;
-          return (
-            <button
-              key={g.key}
-              type="button"
-              onClick={() => activateOrReset(g.key)}
-              aria-pressed={isSelected}
-              style={{ paddingLeft: 8, paddingRight: 8, paddingTop: 4, paddingBottom: 4, gap: 6, borderRadius: CONTROL_RADIUS }}
-              className={cn(
-                'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] tabular-nums border cursor-pointer transition-colors motion-reduce:transition-none',
-                isSelected
-                  ? 'text-[var(--color-fg)] border-[var(--color-link)]'
-                  : 'text-[var(--color-fg-muted-plate-low)] border-[var(--color-line-plate-low)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]'
-              )}
-            >
-              <StateDot on={isSelected} />
-              {g.label} ({g.items.length})
-              {/* Contrepoids du voyant — cf. la pastille « All » ci-dessus. */}
-              <StateDotBalance />
-            </button>
-          );
-        })}
+          {/* Per-value chips */}
+          {allGroups.map((g) => {
+            const isSelected = activeKey === g.key;
+            return (
+              <button
+                key={g.key}
+                type="button"
+                onClick={() => activateOrReset(g.key)}
+                aria-pressed={isSelected}
+                style={{
+                  paddingLeft: 8,
+                  paddingRight: 8,
+                  paddingTop: 4,
+                  paddingBottom: 4,
+                  gap: 6,
+                  borderRadius: CONTROL_RADIUS,
+                }}
+                className={cn(
+                  'inline-flex items-center text-[12px] font-bold tracking-[-0.02em] tabular-nums border cursor-pointer transition-colors motion-reduce:transition-none',
+                  isSelected
+                    ? 'text-[var(--color-fg)] border-[var(--color-link)]'
+                    : 'text-[var(--color-fg-muted-plate-low)] border-[var(--color-line-plate-low)] hover:text-[var(--color-fg)] hover:border-[var(--color-fg)]',
+                )}
+              >
+                <StateDot on={isSelected} />
+                {g.label} ({g.items.length})
+                {/* Contrepoids du voyant — cf. la pastille « All » ci-dessus. */}
+                <StateDotBalance />
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Groups — 64 px between each (per spec).
