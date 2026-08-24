@@ -2,6 +2,7 @@ import { buildMetadata } from '@/lib/seo/metadata';
 import { getSiteSettings } from '@/lib/sanity/queries';
 import { PortableBody } from '@/components/site/PortableBody';
 import { EDITORIAL_BODY } from '@/lib/site/typography';
+import { PageShell } from '@/components/site/PageShell';
 
 export const metadata = buildMetadata({
   title: 'Digital Agency',
@@ -22,25 +23,16 @@ export default async function DigitalAgencyPage() {
   const body = settings?.digitalAgencyBody;
 
   return (
-    <article
-      className="max-w-[1107px]"
-      style={{ paddingLeft: 32, paddingRight: 32 }}
-    >
-      <div className="flex flex-col gap-10 md:gap-14">
-        <h1 className="text-[48px] md:text-[64px] font-black uppercase tracking-[-0.04em] leading-none pb-2 md:pb-4 text-[var(--color-fg)]">
-          DIGITAL AGENCY
-        </h1>
-
-        <PortableBody
-          value={body}
-          variant="editorial"
-          fallback={
-            <p className={`${EDITORIAL_BODY} whitespace-pre-line`}>
-              {FALLBACK}
-            </p>
-          }
-        />
-      </div>
-    </article>
+    <PageShell title="DIGITAL AGENCY">
+      <PortableBody
+        value={body}
+        variant="editorial"
+        fallback={
+          <p className={`${EDITORIAL_BODY} whitespace-pre-line`}>
+            {FALLBACK}
+          </p>
+        }
+      />
+    </PageShell>
   );
 }

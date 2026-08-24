@@ -72,14 +72,37 @@ type Phase = 'closed' | 'opening' | 'open' | 'closing' | 'switching';
  * la home (1 856 px, son `max-width: 1920` moins les gouttières) : au-delà de
  * 1920, les deux titres cessent de grandir ensemble.
  *
- * **Petit (série ouverte)** : exactement la taille du titre d'`/archives` —
- * d'où la largeur DÉDUITE de `PAGE_TITLE_SIZE_MD` plutôt qu'un rapport
- * transcrit à la main. Une série ouverte est une page de consultation comme
- * `/archives` : son titre se range au même corps, au même coin.
+ * **Petit (série ouverte)** : le corps du titre de page — d'où la largeur
+ * DÉDUITE de `PAGE_TITLE_SIZE_MD` plutôt qu'un rapport transcrit à la main.
+ * Une série ouverte est une page de consultation comme `/archives` : son titre
+ * se range au même corps, au même coin.
+ *
+ * ⚠️ Mais SEULEMENT tant que la place le permet — d'où le plafond, posé le
+ * 2026-08-24 quand le titre de page est passé de 64 à 96 px. Le lettrage
+ * replié occupe le coin haut-gauche, au-dessus de la colonne des noms de
+ * série ; la vue ouverte, elle, place son « Back to All Series » au bord
+ * gauche de l'image centrale, à la même hauteur. À 64 px le mot faisait
+ * 227 px de large et dépassait d'une vingtaine de pixels dans la gouttière de
+ * grille — sans conséquence. À 96 px il en ferait 352 et viendrait se poser
+ * SUR le bouton (vérifié par le calcul à 1440 × 900 : mot 32→384, bouton
+ * 292→420, bandes verticales confondues). `pointer-events: none` sauve le
+ * clic, pas la lecture.
+ *
+ * La place disponible, c'est la colonne des noms (176) plus la gouttière de
+ * grille (32) plus les ~20 px de débord qui étaient déjà admis : 228. Le
+ * plafond ne mord donc pas tant que le titre de page reste sous ~62 px, et
+ * la règle « même corps qu'`/archives` » reprend la main dès qu'il y
+ * redescend. ⚠️ Ces trois nombres sont ceux du `gridTemplateColumns`
+ * d'`OpenSeriesView` — les changer là-bas sans les changer ici, c'est le
+ * recouvrement qui revient.
  */
 const TITLE_WIDTH_PCT = '58%';
 const TITLE_MAX_WIDTH = 1076;
-const TITLE_OPEN_WIDTH = seriesWordmarkWidthFor(PAGE_TITLE_SIZE_MD);
+const TITLE_OPEN_MAX_WIDTH = 176 + 32 + 20;
+const TITLE_OPEN_WIDTH = Math.min(
+  seriesWordmarkWidthFor(PAGE_TITLE_SIZE_MD),
+  TITLE_OPEN_MAX_WIDTH
+);
 
 /**
  * Durée du glissement du footer. Court exprès : le footer n'est pas un

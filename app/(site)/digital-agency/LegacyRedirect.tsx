@@ -14,7 +14,7 @@ export function LegacyRedirect({ to }: { to: string }) {
   return (
     <p
       className="text-[17px] font-bold tracking-[-0.02em] text-[var(--color-fg)]"
-      style={{ paddingLeft: 32, paddingRight: 32 }}
+      style={{ paddingInline: 'var(--page-gutter)' }}
     >
       This page has moved to{' '}
       <Link href={to} className="underline underline-offset-4">

@@ -365,7 +365,10 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
           (le filtre se reprend sans arrêt en parcourant la grille, l'axe se
           choisit une fois), et une seule rangée collée pour ne pas empiler
           deux ponts sur l'écran d'un téléphone. */}
-      <div className="md:hidden" style={{ paddingLeft: 32, paddingRight: 32 }}>
+      <div
+        className="md:hidden"
+        style={{ paddingInline: 'var(--page-gutter)' }}
+      >
         <ListSelector
           hint="GROUP BY"
           ariaLabel="Grouping mode"
@@ -399,7 +402,14 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
         // de suivre en largeur fluide. L'animer dans le module l'obligerait à
         // savoir sur quelle page il est posé — et il n'a aucun moyen de le
         // savoir.
-        style={{ paddingLeft: stuck ? 0 : 32, paddingRight: stuck ? 0 : 32 }}
+        // La gouttière vient du token de page (20 sur téléphone, 32 au-dessus
+        // de `md`) : c'est la MÊME mesure que le titre et la grille, elle ne
+        // se recopie pas en nombre. Un `var()` en style inline reste
+        // responsive — c'est la variable qui bascule, pas le style.
+        style={{
+          paddingLeft: stuck ? 0 : 'var(--page-gutter)',
+          paddingRight: stuck ? 0 : 'var(--page-gutter)',
+        }}
       >
         <ListSelector
           hint="SHOW"
@@ -653,7 +663,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
       <div
         ref={galleryRef}
         className="flex flex-col gap-16"
-        style={{ paddingLeft: 32, paddingRight: 32, paddingTop: 40 }}
+        style={{ paddingInline: 'var(--page-gutter)', paddingTop: 40 }}
       >
         {(() => {
           // Walk through visibleGroups + items in document order, assigning each

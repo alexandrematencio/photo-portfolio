@@ -214,13 +214,20 @@ export function ScrollPhysicsGallery({ photos }: Props) {
                 jamais déformés.
 
                 Les `viewBox` sont calibrés sur Helvetica Bold pour que la
-                correction soit nulle sur macOS : chasses cumulées de 9445/1000
-                em pour la ligne entière et 5334/1000 pour « SELECTED », moins
-                l'interlettrage de -0,02 em par caractère → 9,165 em et
-                5,174 em. La hauteur de boîte est la hauteur de capitale
-                (0,714 em). `overflow: visible` en garde-fou : si la fonte
-                servie a une capitale plus haute, elle déborde dans les 16vh
-                de padding au lieu d'être rognée. */}
+                correction soit nulle sur macOS : « SELECTED », le mot le plus
+                long, y pèse 5,334 em à chasse naturelle, d'où
+                `fontSize = 1000 / 5,334 = 187,48`. La hauteur de boîte est la
+                hauteur de capitale (0,714 em = 134), l'interligne vaut 0,9 em
+                (169) : la seconde ligne pose donc sa base à 303, qui est aussi
+                la hauteur du `viewBox`. `overflow: visible` en garde-fou : si
+                la fonte servie a une capitale plus haute, elle déborde dans
+                les 16vh de padding au lieu d'être rognée.
+
+                ⚠️ Recalibré le 2026-08-24, en même temps que « SERIES » : la
+                recette retranchait 0,02 em d'interlettrage par caractère
+                (5,174 em, `fontSize = 193,28`, boîte 312). Le site n'a plus
+                aucun interlettrage de titre. Les quatre nombres du `viewBox`
+                vont ensemble. */}
 
             {/* DEUX LIGNES À TOUTES LES LARGEURS (arbitrage Alexandre,
                 2026-08-22) — pas de variante une-ligne, donc pas de bascule
@@ -235,11 +242,11 @@ export function ScrollPhysicsGallery({ photos }: Props) {
                 écrase les utilities `display` de Tailwind (même piège que le
                 reset `* { padding: 0 }`, CLAUDE.md §7.6). Les deux SVG
                 s'affichaient à la suite — bug réel payé le jour même. */}
-            <svg viewBox="0 0 1000 312" aria-hidden="true" focusable="false">
-              <text x="0" y="138" fontSize="193.28" textLength="1000" lengthAdjust="spacing">
+            <svg viewBox="0 0 1000 303" aria-hidden="true" focusable="false">
+              <text x="0" y="134" fontSize="187.48" textLength="1000" lengthAdjust="spacing">
                 SELECTED
               </text>
-              <text x="0" y="312" fontSize="193.28">
+              <text x="0" y="303" fontSize="187.48">
                 WORKS
               </text>
             </svg>

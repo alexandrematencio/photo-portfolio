@@ -119,17 +119,78 @@ export const MICRO_LABEL = 'text-[11px] uppercase font-bold tabular-nums';
 export const MICRO_LABEL_XS = 'text-[10px] uppercase font-bold tabular-nums';
 
 /**
- * TITRE DE PAGE — le H1 en gros lettrage des pages de catalogue (`/archives`
- * aujourd'hui). 48 px sur téléphone, 64 au-dessus de `md`.
+ * ══ CADRE DE PAGE — les trois mesures qui font qu'une page ressemble à la
+ * suivante. Homogénéisation du 2026-08-24 (demande Alexandre) : avant elle,
+ * six pages éditoriales portaient la même chaîne de classes de H1 RECOPIÉE à
+ * la main, chacune son `paddingLeft: 32` inline, et trois écarts titre → corps
+ * différents selon la page (48 en mobile, 72 en desktop, 96 sur /series).
  *
- * ⚠️ La taille desktop est exportée à côté parce qu'une AUTRE page en dépend :
+ * ⚠️ Les VALEURS de gouttière et de corps de titre sont posées en CSS, dans
+ * `app/globals.css` (tokens `--page-gutter` / `--page-title-size` et règles
+ * `[data-page-frame]` / `[data-page-title]`), parce qu'elles sont RESPONSIVES :
+ * un style inline échappe au reset `* { padding: 0 }` mais ne connaît pas les
+ * media queries, et une utility Tailwind connaît les media queries mais se
+ * fait avaler par le reset (CLAUDE.md §7.6 / §7.7). Les constantes ci-dessous
+ * ne sont donc PAS la source de vérité de ces deux-là : elles n'existent que
+ * pour le code qui a besoin du NOMBRE (mesures, animations). Le commentaire
+ * du bloc CSS porte le raisonnement complet.
+ */
+
+/** Gouttière latérale de page, sous `md`. Reprise de `/series` — c'est la
+ *  seule page dont la mesure de téléphone avait été dessinée. */
+export const PAGE_GUTTER = 20;
+
+/** La même au-dessus de `md`, où toutes les pages étaient déjà d'accord. */
+export const PAGE_GUTTER_MD = 32;
+
+/**
+ * TITRE DE PAGE — le H1 en gros lettrage, identique sur toutes les pages.
+ *
+ * La TAILLE n'est pas dans cette chaîne : elle vient de `[data-page-title]`
+ * (globals.css), qui vaut 96 px au-dessus de `md` et, en dessous, le plus
+ * grand corps auquel le mot le plus long du site tient encore — plafonné à
+ * 68 px. Poser le H1 sans cet attribut, c'est un titre à la taille héritée,
+ * sans le moindre signal. Passer par `<PageShell>` évite la question.
+ *
+ * `tracking-normal` et non plus `-0.04em` : le site n'a plus AUCUN
+ * interlettrage de titre (demande Alexandre, 2026-08-24). Le mobile de
+ * `/series` en portait un visible — c'est ce qui a déclenché le chantier.
+ */
+export const PAGE_TITLE =
+  'font-black uppercase tracking-normal leading-none text-[var(--color-fg)]';
+
+/**
+ * Corps du titre au-dessus de `md`. Exporté parce qu'une AUTRE page en dépend :
  * le lettrage « SERIES » de `/series` se réduit exactement à cette taille quand
  * une série s'ouvre (CLAUDE.md §3.7). Le rapport d'échelle n'est donc pas
- * transcrit à la main — il se déduit de ce nombre. Changer 64 ici change les
+ * transcrit à la main — il se déduit de ce nombre. Changer 96 ici change les
  * deux pages ensemble, ce qui est le but ; le réécrire en dur là-bas les
  * laisserait diverger sans le moindre signal.
+ *
+ * ⚠️ Doit rester égal au `--page-title-size` de la media query `md` dans
+ * `globals.css` — c'est le seul endroit où le nombre est écrit deux fois, et
+ * c'est irréductible : le CSS ne peut pas lire une constante TypeScript, et
+ * une animation GSAP ne peut pas attendre une media query.
  */
-export const PAGE_TITLE_SIZE_MD = 64;
+export const PAGE_TITLE_SIZE_MD = 96;
 
-export const PAGE_TITLE =
-  'text-[48px] md:text-[64px] font-black uppercase tracking-[-0.04em] leading-none text-[var(--color-fg)]';
+/**
+ * Corps maximal du titre sous `md`. Le corps RÉEL est fluide en dessous de ce
+ * plafond (cf. globals.css) : à 390 px d'écran il tombe à ~67 px, contraint
+ * par « ARCHIVES ». Exporté pour documentation et pour tout code qui aurait
+ * besoin de la borne haute.
+ */
+export const PAGE_TITLE_SIZE_MAX = 68;
+
+/**
+ * ÉCART TITRE → CORPS, une seule valeur pour toutes les pages et les deux
+ * largeurs. Posé en `gap` sur la colonne de page (un `gap` échappe au reset,
+ * contrairement à un padding — c'est pour ça qu'il est utilisable en inline).
+ *
+ * Il se mesure de BOÎTE à BOÎTE, comme partout ailleurs sur le site : sous un
+ * titre en `leading-none`, l'espace vu est un peu plus grand que 96 (la boîte
+ * de ligne descend sous la capitale). L'important est que ce soit le même
+ * décalage sur les sept pages — ce qui n'était pas le cas quand `/series`
+ * mesurait, lui, depuis le bas des glyphes.
+ */
+export const PAGE_TITLE_GAP = 96;

@@ -2,6 +2,7 @@ import { buildMetadata } from '@/lib/seo/metadata';
 import { getSiteSettings } from '@/lib/sanity/queries';
 import { PortableBody } from '@/components/site/PortableBody';
 import { EDITORIAL_BODY } from '@/lib/site/typography';
+import { PageShell } from '@/components/site/PageShell';
 
 export const metadata = buildMetadata({
   title: 'About',
@@ -27,25 +28,16 @@ export default async function AboutPage() {
   const aboutBody = settings?.aboutBody;
 
   return (
-    <article
-      className="max-w-[1107px]"
-      style={{ paddingLeft: 32, paddingRight: 32 }}
-    >
-      <div className="flex flex-col gap-10 md:gap-14">
-        <h1 className="text-[48px] md:text-[64px] font-black uppercase tracking-[-0.04em] leading-none pb-2 md:pb-4 text-[var(--color-fg)]">
-          ABOUT
-        </h1>
-
-        <PortableBody
-          value={aboutBody}
-          variant="editorial"
-          fallback={
-            <p className={`${EDITORIAL_BODY} whitespace-pre-line`}>
-              {BIO_FALLBACK}
-            </p>
-          }
-        />
-      </div>
-    </article>
+    <PageShell title="ABOUT">
+      <PortableBody
+        value={aboutBody}
+        variant="editorial"
+        fallback={
+          <p className={`${EDITORIAL_BODY} whitespace-pre-line`}>
+            {BIO_FALLBACK}
+          </p>
+        }
+      />
+    </PageShell>
   );
 }

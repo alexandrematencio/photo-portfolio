@@ -4,16 +4,31 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 /**
- * Wrapper du <main> appliquant 64 px de padding vertical (top & bottom) sur
- * toutes les pages éditoriales — règle non-négociable du brand book §6.6 :
- *   « distance entre body content et nav-bar / footer = 64 px ».
+ * Wrapper du <main> appliquant l'air vertical entre le corps de page et le
+ * chrome (nav-bar en haut, dalle du footer en bas) sur toutes les pages
+ * éditoriales — règle du brand book §6.6.
+ *
+ * **En haut, la valeur est de MOITIÉ sur téléphone** (32 / 64, demande
+ * Alexandre du 2026-08-24) : elle vient du token `--page-air-top`
+ * (`app/globals.css`, bloc « CADRE DE PAGE » — §7.8), et non d'un nombre écrit
+ * ici. Les 64 px avaient été posés pour le desktop et descendus tels quels ;
+ * sur un écran de 390 ils prennent 7 % de la hauteur visible avant le premier
+ * mot.
+ *
+ * ⚠️ Le BAS ne bouge pas, et ce n'est pas une omission : le calcul de scène de
+ * `/series` (`100dvh − 160` dans `DesktopSeries`) additionne nav-bar (64) +
+ * air haut (64) + gouttière basse (32). Il n'est juste qu'au-dessus de `md`,
+ * là où l'air haut vaut toujours 64 — la branche desktop de `/series` étant
+ * elle-même en `hidden md:block`. Diviser aussi le bas, ou poser 32 en haut
+ * aux deux largeurs, ferait dépasser cette page sans le moindre signal.
  *
  * Padding (pas margin) : évite le margin-collapsing avec les enfants et garantit
- * que les 64 px sont à l'INTÉRIEUR du <main>, jamais avalés par un parent.
+ * que l'air est à l'INTÉRIEUR du <main>, jamais avalé par un parent.
  *
  * Style inline (pas Tailwind) : aucune classe à compiler, aucun cache CSS à
- * busted, le HTML qui sort du serveur contient `style="padding-top:64px;..."`
- * littéralement.
+ * buster — et c'est aussi ce qui rend le token utilisable, un `var()` posé en
+ * inline restant responsive puisque c'est la VARIABLE qui bascule au point de
+ * rupture (cf. §7.8).
  *
  * Home (/) exclue : HomeHero est full-viewport, la nav-bar est masquée et le
  * morph gère son propre rythme.
@@ -41,7 +56,7 @@ export function MainPadding({ children }: { children: ReactNode }) {
           ? undefined
           : {
               flex: '1 0 auto',
-              paddingTop: 64,
+              paddingTop: 'var(--page-air-top)',
               paddingBottom: isSeries ? 32 : 64,
             }
       }

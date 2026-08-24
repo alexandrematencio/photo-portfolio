@@ -259,6 +259,88 @@
   }
 }
 
+/* ══ CADRE DE PAGE ════════════════════════════════════════════════════════
+   Les trois nombres qui font qu'une page ressemble à la suivante : la
+   gouttière latérale, le corps du titre, l'écart sous le titre. Ils vivent
+   ICI et nulle part ailleurs — une page qui écrirait 32 dans un style inline
+   dériverait en silence le jour où la mesure change (c'est exactement l'état
+   dont ce bloc sort, le 2026-08-24 : six pages éditoriales portaient la même
+   chaîne de classes de H1 recopiée à la main, et un `paddingLeft: 32` inline
+   chacune).
+
+   **Pourquoi des VARIABLES et pas des nombres écrits dans les composants** —
+   c'est la seule sortie du piège habituel du projet (CLAUDE.md §7.6 / §7.7) :
+   le reset `* { padding: 0 }` juste au-dessus vit HORS `@layer` et bat donc
+   toutes les utilities Tailwind de padding ; un style inline y échappe, mais
+   un style inline ne connaît pas les media queries. Or la gouttière EST
+   responsive (20 sur téléphone, 32 au-dessus de `md`). La variable règle les
+   deux d'un coup : le composant écrit `paddingInline: 'var(--page-gutter)'`
+   — inline, donc hors de portée du reset — et c'est la VARIABLE qui change
+   au point de rupture, pas le style. Le footer ci-dessus, lui, date d'avant
+   et garde sa règle unlayered ; les deux mécaniques sont valides, celle-ci
+   est la plus lisible au point d'usage.
+
+   ⚠️ Corollaire : ne jamais recopier 20, 32 ou 96 dans un composant. Le
+   nombre en dur ne suivra pas le point de rupture, et rien ne le dira.
+
+   **La gouttière de 20 vient de `/series`** (référence choisie par Alexandre,
+   2026-08-24) : c'est la seule page dont la mesure de téléphone avait été
+   dessinée, les autres portaient 32 par report du desktop. Au-dessus de `md`,
+   les deux valeurs se rejoignent à 32 — `/series` y était déjà.
+
+   **Le corps du titre est FLUIDE sous `md`, plafonné à 68.** Un 96 px en dur
+   ne tient pas sur un téléphone : mesuré en Helvetica Bold, « ARCHIVES » pèse
+   5,167 em, soit 496 px à 96 — pour 350 px disponibles sur un écran de 390.
+   Cinq pages sur sept se feraient rogner SANS LE MOINDRE SIGNAL (le conteneur
+   de scroll est en `overflow-x-hidden`). Le corps est donc celui auquel le
+   mot le plus long tient encore, plafonné à 68 px :
+
+     min(68px, (largeur utile) / 5,25)
+
+   5,25 = les 5,167 em d'« ARCHIVES » plus 1,6 % de marge, la pile
+   `--font-display` étant SYSTÈME (Helvetica Neue, Arial, Roboto — chasses
+   voisines mais pas identiques). Le diviseur est donc le TOKEN LE PLUS LONG
+   DU SITE, pas celui de la page courante : c'est ce qui garde un corps unique
+   d'une page à l'autre, qui est tout l'objet de la mesure. ⚠️ Ajouter une
+   page dont le plus long mot dépasse « ARCHIVES » oblige à relever ce
+   diviseur — sinon c'est elle qui déborde.
+
+   Au-dessus de `md`, 96 px en dur : la colonne éditoriale (1107) l'encaisse,
+   et les titres à deux mots (« LEGAL NOTICE », « DIGITAL AGENCY ») passent
+   simplement sur deux lignes entre 768 et ~885 px. Ne JAMAIS poser
+   `white-space: nowrap` sur ces titres — c'est le retour à la ligne qui les
+   empêche de déborder dans cette fenêtre.
+
+   **L'air au-dessus du titre est de MOITIÉ sur téléphone** (demande Alexandre,
+   2026-08-24). Les 64 px qui séparent le corps de page de la nav-bar sont une
+   règle du brand book (§6.6), mais ils avaient été posés pour le desktop et
+   descendus tels quels : sur un écran de 390, ils prennent 7 % de la hauteur
+   visible avant le premier mot, et le titre, qui vient de passer à ~67 px,
+   les rend d'autant plus lourds. ⚠️ Seul le HAUT est divisé — la gouttière
+   basse ne bouge pas, et surtout le calcul de scène de `/series`
+   (`100dvh − 160`) additionne nav-bar + air haut + gouttière basse : il
+   n'est juste qu'au-dessus de `md`, là où l'air reste à 64. Poser 32 aux deux
+   largeurs ferait dépasser cette page de 32 px sans le moindre signal.
+
+   **Aucun interlettrage** (demande Alexandre, 2026-08-24) : les H1 portaient
+   -0,04 em, les deux lettrages SVG -0,02 em. Le site n'a plus d'interlettrage
+   de titre, ni positif ni négatif. Cf. `PAGE_TITLE` (lib/site/typography.ts)
+   et les `viewBox` recalibrés de `SeriesWordmark` / « Selected Works ». */
+:root {
+  --page-gutter: 20px;
+  --page-title-size: min(68px, (100vw - 2 * var(--page-gutter)) / 5.25);
+  --page-air-top: 32px;
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --page-gutter: 32px;
+    --page-title-size: 96px;
+    --page-air-top: 64px;
+  }
+}
+
+
 /* Tiroir du sélecteur en liste (`<ListSelector />`, console mobile
    d'/archives). Les paddings de la console, eux, sont redevenus des styles
    inline dans FlatGallery : depuis que chaque branche (mobile / desktop) a
@@ -641,12 +723,18 @@ body img {
 .series-title text {
   font-family: var(--font-display);
   font-weight: 700;
-  /* Point de DÉPART, pas valeur finale : `textLength` corrige ensuite pour
-     tomber pile sur la largeur. Sur Helvetica Neue la correction est nulle
-     (c'est sur elle que les `viewBox` sont calibrés) ; sur une autre fonte,
-     l'interlettrage rendu s'écarte un peu de -0,02 em. C'est le prix du
-     remplissage garanti. */
-  letter-spacing: -0.02em;
+  /* AUCUN interlettrage déclaré (2026-08-24) — les deux lettrages portaient
+     -0,02 em et leurs `viewBox` étaient calibrés dessus. Plus aucun titre du
+     site n'a d'interlettrage ; les deux calibrations ont été refaites à
+     chasse naturelle (cf. `SeriesWordmark` et « Selected Works » dans
+     `ScrollPhysicsGallery`).
+
+     Ce qui reste vrai : `textLength` corrige de toute façon pour tomber pile
+     sur la largeur. Sur Helvetica la correction est nulle (c'est sur elle que
+     les `viewBox` sont calibrés) ; sur une autre pile système, l'écart est
+     absorbé par l'interlettrage rendu. C'est le prix du remplissage garanti —
+     et la raison pour laquelle un titre plein cadre ne peut pas se contenter
+     d'une taille en `calc()`. */
   fill: currentColor;
 }
 

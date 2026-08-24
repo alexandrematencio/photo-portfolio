@@ -14,8 +14,12 @@ import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { useMdUp } from '../shared/useMdUp';
 import { pushModalHistory } from '@/lib/utils/modalHistory';
 import { SeriesMeta } from '../shared/SeriesMeta';
-import { MICRO_LABEL } from '@/lib/site/typography';
-import { SeriesWordmark } from '../shared/SeriesWordmark';
+import {
+  MICRO_LABEL,
+  PAGE_GUTTER,
+  PAGE_TITLE_GAP,
+} from '@/lib/site/typography';
+import { PageTitle } from '@/components/site/PageShell';
 
 gsap.registerPlugin(Flip);
 
@@ -50,26 +54,28 @@ gsap.registerPlugin(Flip);
  * l'écran), bouton retour du téléphone. Les quatre passent par requestClose().
  */
 
-/** Marge latérale : gouttière de la liste ET retrait de la photo en plein écran. */
-const SIDE = 20;
+/**
+ * Marge latérale : gouttière de la liste ET retrait de la photo en plein
+ * écran. C'est la gouttière de page du site, et c'est cette page qui la lui a
+ * donnée — elle a servi de référence à l'homogénéisation du 2026-08-24. D'où
+ * le token plutôt que le nombre : le jour où la mesure bouge, elle bouge ici
+ * aussi, ce qui est le but.
+ */
+const SIDE = PAGE_GUTTER;
 
 /**
  * Respiration de la liste d'accueil (demande Alexandre, 2026-08-24) : 72 px
- * entre deux séries, 96 entre le lettrage et la première photo.
+ * entre deux séries, et l'écart titre → corps du site sous le lettrage.
  *
  * Les deux vont ensemble et se lisent ensemble : le titre n'est pas une ligne
  * de la liste, il l'ANNONCE, et l'écart qui l'en sépare doit être franchement
  * plus grand que celui qui sépare deux séries — sinon la page se lit comme une
  * liste de sept items dont le premier serait écrit en gros.
  *
- * `TITLE_GAP` est mesuré depuis le BAS DES GLYPHES : la boîte du lettrage est
- * exactement sa hauteur de capitale (cf. `SeriesWordmark`), donc l'écart de
- * mise en page est aussi l'écart vu. Le complément est porté en padding sur le
- * titre, pas dans le `rowGap` — un écart de titre n'a pas à valoir entre deux
- * séries.
+ * Le complément est porté en padding sur le titre, pas dans le `rowGap` — un
+ * écart de titre n'a pas à valoir entre deux séries.
  */
 const ROW_GAP = 72;
-const TITLE_GAP = 96;
 
 /**
  * Hauteur soustraite à l'écran avant de plafonner la photo : nav-bar (64),
@@ -396,21 +402,24 @@ export function MobileSeries({
         className="flex flex-col"
         style={{ paddingLeft: SIDE, paddingRight: SIDE, rowGap: ROW_GAP }}
       >
-        {/* Titre pleine largeur — même lettrage que la branche desktop, au
-            composant près (cf. `SeriesWordmark` pour la recette et les cotes).
+        {/* TITRE DE PAGE ORDINAIRE depuis le 2026-08-24 (homogénéisation des
+            pages mobiles, demande Alexandre). C'était jusque-là le lettrage
+            plein cadre de la branche desktop, réduit — il rendait à ~99 px sur
+            un écran de 390, quand les six autres pages ouvraient à 48. Le
+            mobile prend donc le même corps et la même gouttière que partout
+            ailleurs ; le grand lettrage, avec son repli au fil de l'ouverture,
+            reste la signature de la branche DESKTOP, où il a la place de
+            respirer.
+
             Ici il ne bouge JAMAIS : le dépliage mobile est un autre geste que
             l'ouverture desktop, et la liste défile sous un titre stable.
 
             Le complément d'écart au-dessus de la première photo est porté ici
             et pas par le `rowGap` de la colonne : c'est un écart de TITRE, il
             n'a pas de raison de valoir aussi entre deux séries. */}
-        <h1
-          className="series-title"
-          style={{ paddingBottom: TITLE_GAP - ROW_GAP }}
-        >
-          <span className="sr-only">Series</span>
-          <SeriesWordmark />
-        </h1>
+        <div style={{ paddingBottom: PAGE_TITLE_GAP - ROW_GAP }}>
+          <PageTitle>Series</PageTitle>
+        </div>
 
         {series.map((s) => {
           const isOpen = s.slug === openSlug;

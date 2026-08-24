@@ -5,6 +5,7 @@ import { ContactForm } from '@/components/site/ContactForm';
 import { CONTACT_FORM_ENABLED } from '@/lib/contact/config';
 import { ProtectedEmail } from '@/components/site/ProtectedEmail';
 import { EDITORIAL_BODY, EDITORIAL_BODY_LINK } from '@/lib/site/typography';
+import { PageShell } from '@/components/site/PageShell';
 
 export const metadata = buildMetadata({
   title: 'Contact',
@@ -38,15 +39,11 @@ export default async function ContactPage() {
   const settings = await getSiteSettings();
 
   return (
-    <article
-      className="max-w-[1107px]"
-      style={{ paddingLeft: 32, paddingRight: 32 }}
-    >
-      <div className="flex flex-col gap-10 md:gap-14">
-        <h1 className="text-[48px] md:text-[64px] font-black uppercase tracking-[-0.04em] leading-none pb-2 md:pb-4 text-[var(--color-fg)]">
-          CONTACT
-        </h1>
-
+    <PageShell title="CONTACT">
+      {/* UN seul enfant pour la coquille : son `gap` est l'écart titre → corps
+          (96 px), il n'a pas à valoir entre deux blocs DU corps. Le texte du
+          Studio et le formulaire gardent donc leur propre rythme, ici. */}
+      <div className="flex flex-col gap-14">
         <PortableBody
           value={settings?.contactBody}
           variant="editorial"
@@ -59,6 +56,6 @@ export default async function ContactPage() {
             statique, cf. `lib/contact/config.ts`. */}
         {CONTACT_FORM_ENABLED && <ContactForm />}
       </div>
-    </article>
+    </PageShell>
   );
 }

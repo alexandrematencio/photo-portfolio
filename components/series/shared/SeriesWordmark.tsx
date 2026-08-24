@@ -18,11 +18,19 @@
  * qui absorbe l'écart, les glyphes ne sont jamais déformés.
  *
  * **Les cotes**, calibrées sur Helvetica Bold pour que la correction soit nulle
- * sur macOS : « SERIES » y pèse 3,668 em, moins 0,02 em d'interlettrage par
- * caractère → 3,548 em. D'où `FONT_SIZE = 1000 / 3,548 = 281,8` pour 1000 de
- * large. La hauteur de boîte est la hauteur de CAPITALE (0,714 em = 201) : le
- * mot n'a ni jambage ni accent, la boîte épouse donc exactement les glyphes —
- * ce qui fait que l'écart mesuré sous le titre est l'écart vu.
+ * sur macOS : « SERIES » y pèse 3,668 em à chasse naturelle. D'où
+ * `FONT_SIZE = 1000 / 3,668 = 272,63` pour 1000 de large. La hauteur de boîte
+ * est la hauteur de CAPITALE (0,714 em = 195) : le mot n'a ni jambage ni
+ * accent, la boîte épouse donc exactement les glyphes — ce qui fait que
+ * l'écart mesuré sous le titre est l'écart vu.
+ *
+ * ⚠️ Recalibré le 2026-08-24 : la recette retranchait jusque-là 0,02 em
+ * d'interlettrage par caractère (3,548 em, `FONT_SIZE = 281,8`, cap 201).
+ * Le site n'a plus AUCUN interlettrage de titre — demande Alexandre, née de
+ * ce lettrage justement, dont l'espacement se voyait sur la branche mobile.
+ * Les trois nombres vont ensemble : toucher l'un sans les autres, c'est un
+ * mot qui ne remplit plus sa boîte ou une boîte qui ne colle plus aux
+ * glyphes.
  *
  * Le texte lisible (SEO, lecteurs d'écran) reste du TEXTE, porté par le `<h1>`
  * appelant en `sr-only` ; ce SVG n'en est que le rendu, d'où son `aria-hidden`.
@@ -31,10 +39,10 @@
  */
 
 const VIEWBOX_W = 1000;
-const FONT_SIZE = 281.8;
+const FONT_SIZE = 272.63;
 
 /** Hauteur de boîte pour 1000 de large — c'est la hauteur de capitale. */
-export const SERIES_WORDMARK_CAP = 201;
+export const SERIES_WORDMARK_CAP = 195;
 
 /**
  * Largeur de boîte qui fait rendre le mot à `fontSize` px. L'inverse de la
