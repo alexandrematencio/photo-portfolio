@@ -199,3 +199,33 @@ export const PAGE_TITLE_SIZE_MD = 96;
  * mesurait, lui, depuis le bas des glyphes.
  */
 export const PAGE_TITLE_GAP = 96;
+
+/**
+ * ÉCART D'UNE BANDE DE COMMANDES — quand une page ne s'ouvre pas sur du texte
+ * mais sur un TABLEAU DE CONTRÔLE (la console de `/archives`, et toute page
+ * future qui en aurait un), c'est cette mesure qui remplace `PAGE_TITLE_GAP`,
+ * et elle se pose des DEUX CÔTÉS de la bande : au-dessus (titre → commandes)
+ * et en dessous (commandes → corps).
+ *
+ * **Pourquoi une mesure à part** (demande Alexandre, 2026-08-24, sur capture
+ * du mobile d'`/archives`). La console entrait par la porte `children` de
+ * `PageShell`, donc elle héritait des 96 px prévus pour séparer un titre d'une
+ * colonne de texte — et sous elle il ne restait que les 40 px du `paddingTop`
+ * de la grille. Mesuré : **96 au-dessus, 40 en dessous**, un rapport de 2,4
+ * contre 1. L'œil n'y lisait pas une bande posée entre le titre et la galerie
+ * mais une bande accrochée à la galerie, larguée après un grand blanc qui
+ * n'appartenait à personne. Un intervalle qui porte un OBJET ne se mesure pas
+ * comme un intervalle vide : il se partage.
+ *
+ * 48 et pas 96 : la bande est un aplat lourd (plaque pleine largeur en
+ * desktop, deux modules empilés en mobile), elle n'a pas besoin de l'air qu'on
+ * donne à une colonne de texte. Une seule valeur pour les deux largeurs, comme
+ * les trois autres mesures du cadre — le desktop suit (arbitrage Alexandre).
+ *
+ * ⚠️ **Deux consommateurs, et ils vont ENSEMBLE** : `PageShell` pose l'écart
+ * du dessus, `FlatGallery` celui du dessous (l'écart y sépare deux éléments
+ * INTERNES à la galerie — la console et la première grille — là où PageShell
+ * ne voit qu'un seul enfant). C'est le même nombre exprès : le régler d'un
+ * seul côté rejouerait exactement l'asymétrie qu'il corrige.
+ */
+export const PAGE_CONTROLS_GAP = 48;

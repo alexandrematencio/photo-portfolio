@@ -12,7 +12,7 @@ import type { Photo } from '@/lib/sanity/queries';
 import { StateDot, StateDotBalance } from '@/components/site/StateDot';
 import { CONTROL_RADIUS } from '@/lib/site/controls';
 import { ListSelector } from '@/components/site/ListSelector';
-import { MICRO_LABEL } from '@/lib/site/typography';
+import { MICRO_LABEL, PAGE_CONTROLS_GAP } from '@/lib/site/typography';
 
 gsap.registerPlugin(Flip);
 
@@ -671,10 +671,18 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
 
       {/* Groups — 64 px between each (per spec).
           Single-select means visibleGroups is never empty (always "All" or one group). */}
+      {/* ⚠️ `paddingTop` = MOITIÉ BASSE du contrat de bande de commandes.
+          L'écart qui sépare la console de la première grille est le même que
+          celui qui la sépare du titre (`PageShell` en `controlBand`) — c'est
+          ce qui la pose ENTRE les deux au lieu de l'accrocher à la galerie.
+          Il était à 40 face à 96 : ne pas le redescendre d'un côté seul. */}
       <div
         ref={galleryRef}
         className="flex flex-col gap-16"
-        style={{ paddingInline: 'var(--page-gutter)', paddingTop: 40 }}
+        style={{
+          paddingInline: 'var(--page-gutter)',
+          paddingTop: PAGE_CONTROLS_GAP,
+        }}
       >
         {(() => {
           // Walk through visibleGroups + items in document order, assigning each

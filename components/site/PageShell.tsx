@@ -1,5 +1,9 @@
 import type { ReactNode } from 'react';
-import { PAGE_TITLE, PAGE_TITLE_GAP } from '@/lib/site/typography';
+import {
+  PAGE_CONTROLS_GAP,
+  PAGE_TITLE,
+  PAGE_TITLE_GAP,
+} from '@/lib/site/typography';
 
 /**
  * LE CADRE D'UNE PAGE — gouttière, titre, écart sous le titre. Composant
@@ -13,7 +17,14 @@ import { PAGE_TITLE, PAGE_TITLE_GAP } from '@/lib/site/typography';
  * `gap-10 md:gap-14` qui donnait 48 px d'écart en mobile là où `/series` en
  * donnait 96. Sept pages, trois mesures différentes, et rien pour le signaler.
  *
- * **Les trois mesures ne sont pas ici** — elles vivent dans
+ * **Trois zones, pas deux** (2026-08-24) : titre → *commandes* → corps. Une
+ * page qui s'ouvre sur un tableau de contrôle plutôt que sur du texte passe
+ * `controlBand` ; l'écart sous le titre devient alors `PAGE_CONTROLS_GAP`, et
+ * le composant qui rend la bande pose le MÊME écart sous elle. Sans ça, la
+ * console entre par la porte `children` et hérite d'une mesure prévue pour une
+ * colonne de texte — cf. le commentaire de `PAGE_CONTROLS_GAP`.
+ *
+ * **Les mesures ne sont pas ici** — elles vivent dans
  * `lib/site/typography.ts` et `app/globals.css`. Ce fichier ne fait que les
  * assembler. Cf. le bloc « CADRE DE PAGE » de `globals.css` pour le
  * raisonnement complet.
@@ -52,6 +63,7 @@ export function PageShell({
   subtitle,
   children,
   bleed = false,
+  controlBand = false,
   width = EDITORIAL_WIDTH,
 }: {
   title: ReactNode;
@@ -64,6 +76,18 @@ export function PageShell({
    * passe alors sur le seul bloc de titre, qui garde la mesure éditoriale.
    */
   bleed?: boolean;
+  /**
+   * `true` quand la page ne s'ouvre pas sur du texte mais sur une BANDE DE
+   * COMMANDES (le tableau de contrôle d'`/archives`). L'écart sous le titre
+   * passe alors de `PAGE_TITLE_GAP` à `PAGE_CONTROLS_GAP`.
+   *
+   * ⚠️ Ce drapeau ne pose que la MOITIÉ du contrat : l'écart SOUS la bande
+   * vit dans le composant qui la rend, parce qu'il y sépare deux éléments
+   * internes (console et grille) que `PageShell` ne voit pas — il n'a qu'un
+   * enfant. Les deux moitiés lisent le même `PAGE_CONTROLS_GAP` ; en poser
+   * une sans l'autre rejoue l'asymétrie 96/40 que la mesure corrige.
+   */
+  controlBand?: boolean;
   width?: number | false;
 }) {
   const maxWidth = width === false ? undefined : width;
@@ -76,7 +100,7 @@ export function PageShell({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: PAGE_TITLE_GAP,
+        gap: controlBand ? PAGE_CONTROLS_GAP : PAGE_TITLE_GAP,
         paddingInline: bleed ? undefined : 'var(--page-gutter)',
         maxWidth: bleed ? undefined : maxWidth,
       }}

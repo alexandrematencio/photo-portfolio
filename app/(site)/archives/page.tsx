@@ -22,6 +22,10 @@ export default async function ArchivesPage() {
     // que les six autres pages, sans que la grille s'y trouve enfermée.
     <PageShell
       bleed
+      // La page s'ouvre sur sa console, pas sur du texte : l'écart sous le
+      // titre est celui d'une bande de commandes (48), et `FlatGallery` pose
+      // le même en dessous d'elle. Cf. `PAGE_CONTROLS_GAP`.
+      controlBand
       title="ARCHIVES"
       subtitle={
         <p className={`${MICRO_LABEL} text-[var(--color-fg-muted)]`}>
