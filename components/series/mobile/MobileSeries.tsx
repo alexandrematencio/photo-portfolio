@@ -64,18 +64,21 @@ gsap.registerPlugin(Flip);
 const SIDE = PAGE_GUTTER;
 
 /**
- * Respiration de la liste d'accueil (demande Alexandre, 2026-08-24) : 72 px
- * entre deux séries, et l'écart titre → corps du site sous le lettrage.
+ * Respiration de la liste d'accueil (demande Alexandre, 2026-08-24, resserrée
+ * le même jour de 72 à 32) : 32 px entre deux séries, et l'écart titre → corps
+ * du site (`PAGE_TITLE_GAP`) sous le lettrage.
  *
- * Les deux vont ensemble et se lisent ensemble : le titre n'est pas une ligne
- * de la liste, il l'ANNONCE, et l'écart qui l'en sépare doit être franchement
- * plus grand que celui qui sépare deux séries — sinon la page se lit comme une
- * liste de sept items dont le premier serait écrit en gros.
+ * Les deux sont INDÉPENDANTS et se lisent ensemble : le titre n'est pas une
+ * ligne de la liste, il l'ANNONCE, et l'écart qui l'en sépare doit être
+ * franchement plus grand que celui qui sépare deux séries — sinon la page se
+ * lit comme une liste de sept items dont le premier serait écrit en gros.
  *
  * Le complément est porté en padding sur le titre, pas dans le `rowGap` — un
- * écart de titre n'a pas à valoir entre deux séries.
+ * écart de titre n'a pas à valoir entre deux séries. C'est ce complément qui
+ * rend les deux réglages indépendants : bouger `ROW_GAP` ne change pas l'écart
+ * sous le titre.
  */
-const ROW_GAP = 72;
+const ROW_GAP = 32;
 
 /**
  * Hauteur soustraite à l'écran avant de plafonner la photo : nav-bar (64),
