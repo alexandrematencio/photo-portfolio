@@ -5,7 +5,7 @@
  * Ces quatre composants redéclaraient chacun sa propre liste : ajouter une
  * page obligeait à quatre éditions, et rien n'empêchait qu'elles divergent —
  * ce qui était d'ailleurs déjà arrivé (le menu mobile portait un lien
- * Instagram absent des trois autres, cf. `MOBILE_EXTRA_LINKS` ci-dessous).
+ * Instagram absent des trois autres, retiré le 2026-08-24).
  *
  * ⚠️ `NAV_LINKS` est aussi l'état d'arrivée du morph du hero de la home
  * (cf. CLAUDE.md §3.6) : la nav-bar finale est composée des nav items morphés.
@@ -17,8 +17,6 @@
 export type NavLink = {
   href: string;
   label: string;
-  /** Lien sortant : nouvel onglet, jamais marqué comme page active. */
-  external?: boolean;
 };
 
 /**
@@ -28,31 +26,34 @@ export type NavLink = {
  * pour que le nombre d'entrées reste constant (5) et que la géométrie du morph
  * du hero ne soit touchée qu'une fois (spec /series §2). `/digital-agency`
  * reste en ligne à son adresse ; son contenu sera rattaché à /about (chantier C).
+ *
+ * 2026-08-24 : l'ordre passe à Series, Archives, About, Contact, Socials
+ * (demande Alexandre) — le travail d'abord, la personne ensuite. Cet ordre est
+ * celui de TOUTES les surfaces de nav ; il n'y a pas de variante par surface.
+ * Le morph du hero mesure les largeurs rendues (`getBoundingClientRect`) et
+ * répartit l'espace restant : il suit l'ordre sans rien à mettre à jour.
  */
 export const NAV_LINKS: NavLink[] = [
-  { href: '/about', label: 'About' },
   { href: '/series', label: 'Series' },
   { href: '/archives', label: 'Archives' },
+  { href: '/about', label: 'About' },
   { href: '/contact', label: 'Contact' },
   { href: '/socials', label: 'Socials' },
 ];
 
 /**
- * Entrées supplémentaires propres au menu mobile. Le drawer dispose de plus
- * de place verticale que la nav-bar desktop, d'où ce lien social en plus.
+ * Liste complète affichée dans le drawer mobile : « Home » en tête, puis la
+ * nav principale.
+ *
+ * Pourquoi « Home » n'existe QUE là : sur desktop, le glyph de la nav-bar EST
+ * le retour à l'accueil, et une entrée `/` dans `NAV_LINKS` ferait tomber
+ * l'invariant 6 du §3.6 (la home n'a par construction aucun item actif, c'est
+ * ce qui autorise à ne padder que l'actif). Le drawer, lui, padde tous ses
+ * items : il peut porter une entrée active sans toucher à aucune géométrie.
  */
-export const MOBILE_EXTRA_LINKS: NavLink[] = [
-  {
-    href: 'https://www.instagram.com/alxmtc',
-    label: 'Instagram',
-    external: true,
-  },
-];
-
-/** Liste complète affichée dans le drawer mobile. */
 export const MOBILE_NAV_LINKS: NavLink[] = [
+  { href: '/', label: 'Home' },
   ...NAV_LINKS,
-  ...MOBILE_EXTRA_LINKS,
 ];
 
 /**

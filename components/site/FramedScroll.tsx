@@ -15,34 +15,55 @@ import { type ReactNode } from 'react';
  * plein viewport + spacer du morph + galerie) : le footer y est toujours en
  * fin de document, jamais suspendu au milieu de l'écran.
  *
- * ── Footer collé en bas, RÈGLE GLOBALE ────────────────────────────────────
- * La colonne interne (`flex flex-col` + `min-h-full`) fait au moins la hauteur
- * de la zone visible. `<main>` porte `flex: 1 0 auto` (cf. MainPadding) et
- * absorbe donc tout l'espace restant ; le footer, dernier enfant, se retrouve
- * mécaniquement au bas de l'écran quand la page est courte, et à la fin du
- * document quand elle est longue. Aucune hauteur à calculer par page, aucun
- * `position: fixed` : toute page présente ou future placée dans ce groupe de
- * routes en hérite sans rien déclarer.
+ * ── Footer TOUJOURS SOUS L'HORIZON, RÈGLE GLOBALE ─────────────────────────
+ * Le footer ne se montre JAMAIS au chargement, quelle que soit la longueur du
+ * corps de page (demande Alexandre, 2026-08-24) : il faut être allé le
+ * chercher au défilement. C'est pour ça qu'il vit HORS de la colonne
+ * `min-h-full` — celle-ci fait au moins la hauteur visible, `<main>` porte
+ * `flex: 1 0 auto` (cf. MainPadding) et absorbe tout l'espace restant, si bien
+ * que le footer, posé APRÈS elle, commence exactement au bas de l'écran.
+ * Une page courte a donc pour seul débord la hauteur du footer.
+ *
+ * ⚠️ Le mettre DANS la colonne le collerait au bas de l'écran, VISIBLE, sur
+ * toute page plus courte que le viewport — c'est l'état précédent, et c'est
+ * précisément ce qu'on ne veut plus. Deux enfants distincts du conteneur de
+ * scroll, jamais un seul.
+ *
+ * Aucune hauteur à calculer par page, aucun `position: fixed` : toute page
+ * présente ou future placée dans ce groupe de routes en hérite sans rien
+ * déclarer.
  */
-export function FramedScroll({ children }: { children: ReactNode }) {
+export function FramedScroll({
+  children,
+  footer,
+}: {
+  children: ReactNode;
+  footer: ReactNode;
+}) {
   const pathname = usePathname();
   const isHome = pathname === '/';
 
   if (isHome) {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        {footer}
+      </>
+    );
   }
 
   // `data-scroll-container` : marqueur, pas un comportement. C'est CE nœud qui
   // porte le scroll de la page (le body ne scrolle pas), donc une page qui doit
   // piloter son propre défilement a besoin de le retrouver depuis son sous-arbre
   // (`closest`). /series s'en sert pour consommer les 70 px de débord vertical —
-  // la réserve du footer — à la fin du défilement horizontal de sa rangée.
+  // la réserve du footer — à la fin de son défilement VERTICAL.
   return (
     <div
       data-scroll-container
       className="fixed inset-x-0 top-16 bottom-0 overflow-y-auto overflow-x-hidden"
     >
       <div className="flex min-h-full flex-col">{children}</div>
+      {footer}
     </div>
   );
 }

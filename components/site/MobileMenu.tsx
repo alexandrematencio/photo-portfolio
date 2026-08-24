@@ -26,13 +26,14 @@ import {
  * - Open: full-screen overlay on the `--color-bg-raised` rung. Top bar 32 px padding all sides with the cobalt
  *   glyph on the left and an X close icon on the right. Nav items pushed to bottom-left with
  *   32 px padding (left + bottom), gap 32 px, 48 px / bold.
- * - Items: About, Archives, Contact, Digital Agency, Socials, Instagram (external link).
+ * - Items: Home, puis la nav principale (Series, Archives, About, Contact, Socials).
  *
  * Rendered once at the layout level — both home and editorial pages share this single instance.
  */
 
-// Le lien Instagram n'existe que dans ce drawer : il est déclaré à part dans
-// `lib/site/nav.ts` (MOBILE_EXTRA_LINKS) pour ne pas polluer la nav desktop.
+// « Home » n'existe que dans ce drawer (le glyph joue ce rôle sur desktop) :
+// la liste est composée dans `lib/site/nav.ts`, jamais ici. Le lien Instagram
+// qui vivait là a été retiré le 2026-08-24 — les réseaux vivent sur /socials.
 
 const MOBILE_LINKS = MOBILE_NAV_LINKS;
 
@@ -150,8 +151,7 @@ export function MobileMenu() {
             }}
           >
             {MOBILE_LINKS.map((link) => {
-              // Le lien externe (Instagram) n'est jamais « la page courante ».
-              const active = !link.external && isSamePage(link.href, pathname);
+              const active = isSamePage(link.href, pathname);
               const itemStyle = {
                 padding: ACTIVE_FILL_PADDING_MOBILE,
                 borderRadius: CONTROL_RADIUS,
@@ -164,19 +164,7 @@ export function MobileMenu() {
                 // deux grammaires.
                 active && 'bg-[var(--color-active-bg)]'
               );
-              return link.external ? (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setOpen(false)}
-                  style={itemStyle}
-                  className={itemClass}
-                >
-                  {link.label}
-                </a>
-              ) : (
+              return (
                 <Link
                   key={link.href}
                   href={link.href}

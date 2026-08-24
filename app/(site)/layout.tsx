@@ -33,9 +33,11 @@ export default function SiteLayout({
       {/* Honeypot mailto:trap-* — invisible aux humains, scrapé par les bots HTML naïfs.
           Couple ça à un filtre ProtonMail "To: contient 'trap-' → trash" pour anti-spam auto. */}
       <EmailHoneypot />
-      <FramedScroll>
+      {/* Le footer est passé À PART, pas en second enfant : FramedScroll le
+          pose HORS de la colonne min-h-full, donc juste sous l'horizon plutôt
+          qu'épinglé au bas de l'écran sur les pages courtes. */}
+      <FramedScroll footer={<SiteFooter />}>
         <MainPadding>{children}</MainPadding>
-        <SiteFooter />
       </FramedScroll>
     </>
   );

@@ -1643,9 +1643,18 @@ export function DesktopSeries({
   // de souris comme geste horizontal de trackpad, c'est à l'utilisateur de
   // choisir. On retient l'axe DOMINANT du geste et on l'applique tel quel — un
   // geste vers le bas ou vers la droite avance dans la rangée, vers le haut ou
-  // vers la gauche recule. Les deux passent par la même butée de footer : la
-  // fin de rangée est un temps d'arrêt quel que soit le geste qui y mène,
-  // sinon l'un des deux ferait surgir le footer là où l'autre s'arrête.
+  // vers la gauche recule.
+  //
+  // ⚠️ MAIS LE FOOTER N'APPARTIENT QU'À L'AXE VERTICAL (demande Alexandre,
+  // 2026-08-24). Les deux axes s'arrêtent au bout de la rangée ; seul un cran
+  // vers le BAS consomme ensuite la réserve du footer. Un geste horizontal qui
+  // pousse contre la butée ne fait plus rien — et c'est voulu : le footer est
+  // le bas de la PAGE, pas la suite de la rangée. Le faire surgir au bout d'une
+  // course latérale, c'est répondre à un geste par un mouvement perpendiculaire
+  // — sur un trackpad, une inertie de fin de glissement suffisait à le tirer.
+  // Le sens inverse suit la même règle : vers le haut on range le footer, vers
+  // la gauche on repart dans la rangée (et le footer se range de lui-même dès
+  // qu'elle quitte le bout, via l'écouteur `scroll` ci-dessous).
   //
   // ⚠️ L'axe horizontal était jusqu'ici laissé au natif (`deltaX` dominant →
   // early return). Le laisser passer maintenant le ferait jouer DEUX fois
@@ -1679,8 +1688,8 @@ export function DesktopSeries({
       // Axe dominant du geste. Un trackpad renvoie presque toujours un peu des
       // deux ; prendre le plus grand évite qu'une diagonale involontaire
       // annule le geste voulu.
-      const delta =
-        Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      const horizontal = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+      const delta = horizontal ? e.deltaX : e.deltaY;
       if (!delta) return;
       e.preventDefault();
 
@@ -1690,17 +1699,23 @@ export function DesktopSeries({
       const atEnd = row.scrollLeft >= maxLeft - 1;
 
       if (delta > 0) {
-        // Vers le bas ou vers la droite → on avance. Le footer n'apparaît
-        // qu'une fois la rangée DÉJÀ au bout : arriver au bout ne le déclenche
-        // pas, il faut un cran de plus. La butée est ainsi un temps d'arrêt,
-        // pas un mur, et le footer ne surgit jamais par inadvertance.
-        if (atEnd) showFooter(true);
-        else row.scrollLeft = Math.min(maxLeft, row.scrollLeft + delta);
+        // Vers le bas ou vers la droite → on avance dans la rangée. Au bout,
+        // les deux axes s'arrêtent ; seul le VERTICAL a le droit d'aller
+        // chercher le footer, et seulement au cran SUIVANT (arriver au bout ne
+        // le déclenche pas). La butée est ainsi un temps d'arrêt, pas un mur.
+        if (atEnd) {
+          if (!horizontal) showFooter(true);
+        } else row.scrollLeft = Math.min(maxLeft, row.scrollLeft + delta);
+      } else if (footerShown.current && !horizontal) {
+        // Vers le haut, le footer se range d'abord : il occupe le cran qui
+        // l'avait fait venir.
+        showFooter(false);
       } else {
-        // Vers le haut ou vers la gauche → on recule, mais le footer se range
-        // d'abord : il occupe le cran qui l'avait fait venir.
-        if (footerShown.current) showFooter(false);
-        else row.scrollLeft = Math.max(0, row.scrollLeft + delta);
+        // Vers la gauche (ou vers le haut footer déjà rangé) → on recule dans
+        // la rangée. Si le footer était sorti, l'écouteur `scroll` de la rangée
+        // le range dès qu'elle quitte le bout : c'est déjà le chemin du
+        // cliquer-glisser et des flèches, on n'en ajoute pas un deuxième.
+        row.scrollLeft = Math.max(0, row.scrollLeft + delta);
       }
     };
 
