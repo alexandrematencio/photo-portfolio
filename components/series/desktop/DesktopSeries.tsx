@@ -19,7 +19,7 @@ import {
 } from '../shared/SeriesWordmark';
 import { PAGE_TITLE_SIZE_MD } from '@/lib/site/typography';
 import { FolderStack } from './FolderStack';
-import { OpenSeriesView } from './OpenSeriesView';
+import { OpenSeriesView, OPEN_LEFT_COL_W } from './OpenSeriesView';
 import {
   DUR,
   EASE,
@@ -77,32 +77,28 @@ type Phase = 'closed' | 'opening' | 'open' | 'closing' | 'switching';
  * Une série ouverte est une page de consultation comme `/archives` : son titre
  * se range au même corps, au même coin.
  *
- * ⚠️ Mais SEULEMENT tant que la place le permet — d'où le plafond, posé le
- * 2026-08-24 quand le titre de page est passé de 64 à 96 px. Le lettrage
- * replié occupe le coin haut-gauche, au-dessus de la colonne des noms de
- * série ; la vue ouverte, elle, place son « Back to All Series » au bord
- * gauche de l'image centrale, à la même hauteur. À 64 px le mot faisait
- * 227 px de large et dépassait d'une vingtaine de pixels dans la gouttière de
- * grille — sans conséquence. À 96 px il en ferait 352 et viendrait se poser
- * SUR le bouton (vérifié par le calcul à 1440 × 900 : mot 32→384, bouton
- * 292→420, bandes verticales confondues). `pointer-events: none` sauve le
- * clic, pas la lecture.
+ * ⚠️ Mais SEULEMENT tant que la BANDE DE GAUCHE le permet — et cette place
+ * n'est plus transcrite : elle est MESURÉE sur la colonne des noms de séries
+ * (`[data-open-left]`) au moment où le mot se replie. Voir `foldWidth()` dans
+ * l'effet d'échelle plus bas.
  *
- * La place disponible, c'est la colonne des noms (176) plus la gouttière de
- * grille (32) plus les ~20 px de débord qui étaient déjà admis : 228. Le
- * plafond ne mord donc pas tant que le titre de page reste sous ~62 px, et
- * la règle « même corps qu'`/archives` » reprend la main dès qu'il y
- * redescend. ⚠️ Ces trois nombres sont ceux du `gridTemplateColumns`
- * d'`OpenSeriesView` — les changer là-bas sans les changer ici, c'est le
- * recouvrement qui revient.
+ * Ce qui a changé le 2026-08-24, et pourquoi. Le plafond valait
+ * `176 + 32 + 20` : la colonne, PLUS la gouttière de grille, PLUS vingt pixels
+ * de débord « admis ». Autrement dit le mot mangeait toute la gouttière et
+ * mordait de vingt pixels sur la cellule de l'image. Or le « Back to All
+ * Series » est ancré au bord GAUCHE de cette image : les deux libellés se
+ * confondaient (capture d'Alexandre). La règle est désormais franche — le
+ * lettrage ne sort pas de sa colonne, et les 32 px d'écart sont ceux de la
+ * grille, tenus par le navigateur (`OPEN_GAP`).
+ *
+ * Le mot devient donc le TITRE de la bande de gauche : même bord gauche que
+ * les noms de séries, même largeur qu'eux. Un seul bouton de réglage —
+ * `OPEN_LEFT_COL_W` : élargir la colonne regrandit le lettrage du même geste.
+ * Le `min()` avec le corps de page reste, il reprendrait la main si le titre
+ * de page redescendait sous ~48 px.
  */
 const TITLE_WIDTH_PCT = '58%';
 const TITLE_MAX_WIDTH = 1076;
-const TITLE_OPEN_MAX_WIDTH = 176 + 32 + 20;
-const TITLE_OPEN_WIDTH = Math.min(
-  seriesWordmarkWidthFor(PAGE_TITLE_SIZE_MD),
-  TITLE_OPEN_MAX_WIDTH
-);
 
 /**
  * Durée du glissement du footer. Court exprès : le footer n'est pas un
@@ -585,11 +581,66 @@ export function DesktopSeries({
     const small = phase !== 'closed' && phase !== 'closing';
     const flying = phase === 'opening' || phase === 'closing';
 
+    /**
+     * Largeur du lettrage replié — MESURÉE sur la colonne des noms de séries,
+     * jamais recopiée de la grille qui la déclare.
+     *
+     * C'est le cœur du correctif du 2026-08-24. Une cote transcrite ici
+     * (`176 + 32 + 20`) et une grille déclarée là-bas, c'est deux vérités qui
+     * dérivent à la première retouche — et le recouvrement du « Back to All
+     * Series » était exactement cette dérive, doublée d'un débord assumé. En
+     * lisant le bord droit de la colonne, on obtient la seule chose qui compte
+     * et qu'on ne peut pas se tromper à écrire : la place réellement
+     * disponible. Les 32 px qui suivent sont le `gap` de la grille — le
+     * navigateur les tient, personne ne les calcule.
+     *
+     * Toujours disponible quand on en a besoin : `small` n'est vrai que pour
+     * `opening` / `open` / `switching`, trois phases posées dans le même lot
+     * de state que `displayed`, donc la vue ouverte — et sa colonne — sont
+     * montées au moment où ce layout effect tourne. `OPEN_LEFT_COL_W` n'est
+     * qu'un filet.
+     *
+     * `getBoundingClientRect().left` du lettrage est licite malgré le
+     * transform en cours : l'origine est le coin haut-gauche (`0 0`) et le
+     * tween ne touche que `scale` et `y` — le bord gauche ne bouge donc
+     * jamais. (C'est le même raisonnement que l'`offsetWidth` ci-dessous, qui
+     * lit la largeur de LAYOUT et non celle déjà réduite.)
+     */
+    const foldWidth = () => {
+      const nav = q<HTMLElement>('[data-open-left]');
+      const room = nav
+        ? nav.getBoundingClientRect().right - el.getBoundingClientRect().left
+        : 0;
+      return Math.min(
+        seriesWordmarkWidthFor(PAGE_TITLE_SIZE_MD),
+        room > 0 ? room : OPEN_LEFT_COL_W
+      );
+    };
+
+    /**
+     * Largeur de LAYOUT du lettrage, en SOUS-PIXELS.
+     *
+     * `offsetWidth` la donnait aussi, mais ARRONDIE à l'entier — et cet
+     * arrondi ressortait à l'arrivée : le mot se posait à 176,06 px pour une
+     * colonne de 176, soit 0,06 px pris sur la gouttière. Invisible, mais
+     * c'est le genre d'écart qu'on ne veut pas avoir à excuser quand la règle
+     * est « 32 px, coûte que coûte ».
+     *
+     * `getBoundingClientRect()` est fractionnaire, seulement il rend la
+     * largeur DÉJÀ mise à l'échelle — s'en servir tel quel ferait composer
+     * l'échelle avec elle-même à chaque passage. La diviser par l'échelle en
+     * cours (gsap en est le seul auteur, y compris au milieu d'un vol)
+     * remonte à la largeur non transformée, exacte.
+     */
+    const layoutWidth = () =>
+      el.getBoundingClientRect().width /
+      (Number(gsap.getProperty(el, 'scaleX')) || 1);
+
     const target = () => {
-      const w = el.offsetWidth;
+      const w = layoutWidth();
       if (!w) return null;
       return small
-        ? { scale: TITLE_OPEN_WIDTH / w, y: -(titleBoxRef.current?.offsetTop ?? 0) }
+        ? { scale: foldWidth() / w, y: -(titleBoxRef.current?.offsetTop ?? 0) }
         : { scale: 1, y: 0 };
     };
 
@@ -613,7 +664,7 @@ export function DesktopSeries({
     // `titleBottom` : la position d'accueil arrive après le premier rendu (elle
     // est mesurée) et bouge avec la fonte servie. Sans elle dans les deps, `y`
     // resterait calculé sur une boîte encore collée en haut de page.
-  }, [phase, reduced, titleBottom]);
+  }, [phase, reduced, titleBottom, q]);
 
   // ── Réconciliation displayed ← openSeries ────────────────────────────────
 
@@ -1842,10 +1893,12 @@ export function DesktopSeries({
           la hauteur de la scène est fixée en `calc()`. Rien à pousser de toute
           façon — la rangée et la vue ouverte sont elles aussi en `absolute`.
 
-          `pointer-events: none` — deux raisons, chacune suffisante : à
-          l'accueil il recouvre la zone de padding haut de la rangée, qui doit
-          rester saisissable au cliquer-glisser ; replié, il déborde d'une
-          vingtaine de pixels sur la colonne centrale de la vue ouverte. */}
+          `pointer-events: none` : la BOÎTE est tendue `left:0 right:0` sur
+          toute la scène, même quand le mot ne l'est pas — à l'accueil elle
+          recouvre la zone de padding haut de la rangée, qui doit rester
+          saisissable au cliquer-glisser. (Le second motif d'origine — le mot
+          replié débordait sur la colonne centrale — a disparu avec le débord
+          lui-même, cf. `foldWidth()`.) */}
       <h1
         ref={titleBoxRef}
         className="series-title"

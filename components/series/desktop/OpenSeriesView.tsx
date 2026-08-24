@@ -74,6 +74,35 @@ const COL_DOT_GUTTER = STATE_DOT_SIZE + COL_DOT_GAP;
 const COL_THUMB_W = 132;
 
 /**
+ * GÉOMÉTRIE DE LA BANDE DE GAUCHE — exportée, et c'est le point du chantier.
+ *
+ * Le lettrage « SERIES » de `DesktopSeries` se replie DANS cette colonne : le
+ * mot est le titre de la bande, les noms de séries en sont le pied. Il avait
+ * jusqu'ici sa propre transcription de ces deux nombres (`176 + 32 + 20`),
+ * avec vingt pixels de débord « admis » — et ces vingt pixels tombaient
+ * exactement sur le « Back to All Series », qui est ancré au bord gauche de
+ * l'image (capture d'Alexandre, 2026-08-24 : les deux libellés confondus).
+ *
+ * Deux choses règlent la classe entière de ce bug, pas seulement le symptôme :
+ *
+ *   1. `OPEN_GAP` est posé sur la GRILLE. C'est le navigateur qui tient les
+ *      32 px entre la bande de gauche et le bloc de l'image, à toute largeur
+ *      d'écran et quel que soit le format de la photo — aucun calcul de notre
+ *      côté ne peut se tromper sur une valeur qu'on ne calcule pas.
+ *   2. Le lettrage MESURE cette colonne au moment où il se replie, au lieu
+ *      d'en recopier la cote. Les deux constantes ci-dessous ne lui servent
+ *      que de repli. Changer la colonne de largeur, ou la passer un jour en
+ *      `clamp()`, et le titre suit tout seul.
+ */
+export const OPEN_LEFT_COL_W = 176;
+/**
+ * Écart de grille — la même gouttière que la page. Il sépare la bande de
+ * gauche du bloc de l'image ET le bloc de l'image de la colonne de vignettes :
+ * les 32 px « coûte que coûte » sont CE nombre, écrit une fois.
+ */
+export const OPEN_GAP = 32;
+
+/**
  * Allumage / extinction de la LED — les deux temps d'une diode, pas un
  * cross-fade : l'extinction part la première, le rallumage la SUIT (ou attend
  * la pose des vols, voir l'effet). Ease `power2.out`, le standard du site
@@ -234,9 +263,12 @@ export function OpenSeriesView({
 
   return (
     <div
-      className="grid h-full gap-8"
+      className="grid h-full"
       style={{
-        gridTemplateColumns: `176px 1fr ${COL_THUMB_W + COL_DOT_GUTTER}px`,
+        gap: OPEN_GAP,
+        gridTemplateColumns: `${OPEN_LEFT_COL_W}px 1fr ${
+          COL_THUMB_W + COL_DOT_GUTTER
+        }px`,
       }}
     >
       {/* ── Noms des séries ─────────────────────────────────────────────── */}
@@ -284,7 +316,7 @@ export function OpenSeriesView({
               )}
             >
               {/* Le point est centré sur la PREMIÈRE LIGNE, pas sur le bloc.
-                  La colonne fait 176 px et le plus long titre en base (« Beach
+                  La colonne fait OPEN_LEFT_COL_W et le plus long titre en base (« Beach
                   girls triptych », 20 caractères) la remplit déjà presque
                   entièrement : les 13 px pris par le point et son écart
                   suffisent à le faire passer sur deux lignes. Avec un
