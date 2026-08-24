@@ -16,31 +16,137 @@ import { cn } from '@/lib/utils/cn';
  */
 
 /**
- * CORPS DE TEXTE éditorial — ce que rend un paragraphe écrit dans le Studio.
+ * ══ ÉCHELLE ÉDITORIALE — trois voix de corps, trois crans de titre.
  *
- * 28 px desktop / 19 px mobile. Descendu d'un cran depuis 32/22 le 2026-08-21 :
- * le corps partage sa graisse ET son interlettrage avec le H4 (36/24), il ne
- * lui restait que la taille pour s'en distinguer — et 11 % d'écart en desktop,
- * 9 % en mobile, passent sous le seuil où l'œil lit une hiérarchie voulue
- * (~20 % à graisse égale). À 28/19, l'écart au H4 monte à 22 % / 21 % : le plus
- * petit pas qui règle vraiment le problème, sans en faire deux.
+ * **L'état dont ce bloc sort** (refonte du 2026-08-24, demande Alexandre).
+ * Les pages textuelles étaient composées en « bold minimalism » : un seul
+ * grotesque, corps d'affiche, GRAISSE UNIQUE (700 partout — corps, H2, H3,
+ * H4), hiérarchie portée par la seule taille. Quatre conséquences mesurées :
  *
- * `leading-[1.34]` inchangé volontairement. Point de vigilance si la taille
- * baisse encore : la mesure s'allonge mécaniquement (~74 caractères par ligne
- * à 28 px dans la colonne de 1107 px, soit le haut de la fourchette lisible).
- * Le cran suivant demanderait une largeur de colonne réduite, pas seulement
- * une taille réduite.
+ * 1. La page n'avait qu'une voix, jouée plus ou moins fort. H3 (40) et H4 (36)
+ *    tenaient à 11 % l'un de l'autre : deux niveaux déclarés, un seul lu.
+ * 2. Le corps à 28 px n'est pas un corps de lecture, c'est un corps de CHAPÔ.
+ * 3. Rien n'existait SOUS le paragraphe — « Usual response time: 48 to 72
+ *    hours » se lisait au volume exact de la bio.
+ * 4. L'emphase était morte. L'italique étant interdit (brand book §5.2), `em`
+ *    est remappé sur `font-bold` — sur un texte déjà en 700. Tout le balisage
+ *    posé dans le Studio ne produisait rien à l'écran.
+ *
+ * Le brand book §5.3 prescrivait DÉJÀ un corps courant en 500 et le 700
+ * réservé au chapô. Le code ne l'avait jamais implémenté ; c'est cette règle
+ * qui descend enfin dans le site.
+ *
+ * **Les trois voix de corps** :
+ *
+ *   CHAPÔ    28 / 21   700   pleine colonne (1107)   le bloc d'entrée
+ *   COURANT  20 / 17   500   mesure (680)            ce qui se lit
+ *   ANNEXE   17 / 15   500   mesure (680)            le pratique, le listé
+ *
+ * ⚠️ Le contraste chapô → courant vient de DEUX leviers, pas d'un : 40 %
+ * d'écart de taille en desktop, mais seulement 24 % en mobile (21 → 17) — le
+ * passage 700 → 500 porte le reste. Descendre le chapô sans garder l'écart de
+ * graisse écraserait la hiérarchie sur téléphone, là où elle tient déjà au
+ * plus juste.
+ *
+ * ⚠️ La MESURE est cousue dans le courant et l'annexe, pas posée par la page :
+ * cf. `--editorial-measure` (app/globals.css) pour le raisonnement complet.
+ * Le chapô et les titres en sont volontairement exempts.
  */
-export const EDITORIAL_BODY =
-  'font-sans text-[19px] md:text-[28px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)]';
 
 /**
+ * CHAPÔ — le premier paragraphe d'une page éditoriale, et lui seul.
+ *
+ * ⚠️ **Personne ne le choisit : il est POSITIONNEL.** `PortableBody` promeut
+ * le bloc d'index 0 (s'il est un paragraphe) en chapô ; le Studio n'a pas de
+ * bouton pour ça. C'est un arbitrage assumé (Alexandre, 2026-08-24) : l'effet
+ * d'entrée de page est gratuit et systématique, aucune page ne peut s'ouvrir
+ * en l'oubliant. Coût du choix : l'éditeur du Studio ne peut pas le montrer
+ * (`BlockStyleProps` n'expose pas l'index du bloc), d'où le rappel écrit dans
+ * la description du champ — cf. `editorialBodyDescription`.
+ *
+ * Reprend EXACTEMENT l'ancien corps de texte (28/19 → 28/21, `leading-1.34`,
+ * `-0.02em`) : ce n'est pas un réglage neuf, c'est l'ancien réglage rendu à
+ * son vrai métier. Il n'a jamais été mauvais — il était juste appliqué à toute
+ * la page au lieu de son premier paragraphe.
+ */
+export const EDITORIAL_LEAD =
+  'font-sans text-[21px] md:text-[28px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)]';
+
+/**
+ * CORPS COURANT — tout ce qui suit le chapô. C'est le texte qu'on LIT.
+ *
+ * 20 px / 500 / interligne 1,55, borné à la mesure. Trois changements par
+ * rapport à l'ancien corps, et ils ne se séparent pas :
+ *
+ * - **500 et non 700.** C'est le levier principal. Un mur de gras n'a pas de
+ *   relief : ni l'emphase, ni les titres, ni le chapô ne pouvaient s'en
+ *   détacher. À 500, `em` et `strong` (remappés sur 700, §5.2) redeviennent
+ *   visibles pour la première fois — le balisage déjà présent dans le contenu
+ *   publié se met à servir sans qu'une ligne de contenu bouge.
+ * - **`tracking-normal` et non `-0.02em`.** Le resserrement est un réglage de
+ *   GRAND corps (brand book §5.4 : -0,02 em à 24 px et au-dessus, 0 en dessous).
+ *   Le garder à 20 px en graisse 500 refermerait les contreformes d'Inter, qui
+ *   sont déjà plus étroites qu'en 700.
+ * - **La mesure.** Non négociable : cf. `--editorial-measure`. À 1107 px, un
+ *   corps de 20 donne ~110 signes par ligne — la page serait devenue MOINS
+ *   lisible qu'à 28.
+ *
  * ⚠️ `font-sans` en tête : depuis le passage à deux familles (2026-08-22),
  * Helvetica est la fonte par défaut du site et Inter n'est PLUS héritée.
- * Cette constante est la SEULE frontière entre les deux — c'est elle qui
- * rebascule le corps éditorial sur Inter. La retirer ferait glisser toutes
- * les pages éditoriales en Helvetica sans autre signal.
+ * Les trois constantes de corps ci-dessus sont la SEULE frontière entre les
+ * deux — ce sont elles qui rebasculent le texte sur Inter. La retirer ferait
+ * glisser toutes les pages éditoriales en Helvetica sans autre signal. Les
+ * TITRES (`EDITORIAL_H2/H3/H4`) ne la portent pas, exprès : ils doivent rester
+ * en Helvetica (§5.1).
  */
+export const EDITORIAL_BODY =
+  'font-sans max-w-[var(--editorial-measure)] text-[17px] md:text-[20px] font-medium tracking-normal leading-[1.55] text-[var(--color-fg)]';
+
+/**
+ * ANNEXE — le registre pratique : délai de réponse, listes de matériel,
+ * mentions, précisions. Ce qui accompagne le texte sans se lire au même
+ * volume que lui.
+ *
+ * C'est le seul des trois que l'ÉDITEUR déclare, via le style « Annexe » du
+ * Studio (`annex`). Il existe parce qu'il manquait : avant lui, « Studio in
+ * Villejuif, travel across France and worldwide » pesait autant que la bio.
+ *
+ * 17 / 15 — un cran sous le courant (15 % d'écart), même graisse. L'écart est
+ * volontairement PLUS FAIBLE que celui du chapô : l'annexe est un registre
+ * mineur, pas un contraste. Ce qui la distingue au premier coup d'œil, c'est
+ * qu'elle arrive en blocs courts et listés, pas sa seule taille.
+ */
+export const EDITORIAL_ANNEX =
+  'font-sans max-w-[var(--editorial-measure)] text-[15px] md:text-[17px] font-medium tracking-normal leading-[1.5] text-[var(--color-fg)]';
+
+/**
+ * TITRE DE SECTION (H2) — la dalle en capitales : « GEAR », « YOUR RIGHTS ».
+ *
+ * Inchangé (36/48, 700, capitales, -0,02 em, interligne 0,9) : c'est le seul
+ * niveau que la refonte ne touche pas. Il fonctionnait, et il est ce qui reste
+ * du registre d'affiche à l'intérieur du corps de page.
+ *
+ * ⚠️ Pas de `font-sans` — Helvetica, comme tous les titres (§5.1). Et pleine
+ * colonne : pas de `max-w`, la dalle déborde la mesure jusqu'aux 1107.
+ *
+ * Extrait ici le 2026-08-24 : cette chaîne était recopiée à la main dans
+ * `PortableBody`, `/legal` (×4) et `/privacy` (×2) — sept exemplaires à tenir
+ * synchrones, exactement le motif que §7.5 interdit.
+ */
+export const EDITORIAL_H2 =
+  'text-[36px] md:text-[48px] font-bold uppercase tracking-[-0.02em] leading-[0.9] text-[var(--color-fg)]';
+
+/**
+ * SOUS-TITRE (H3) — le nom qui coiffe un bloc : « Olympus OM-D EM-10 mkIII ».
+ *
+ * Descendu de 40/28 à 24/19. L'ancien H3 était plus gros que le corps d'alors
+ * (40 contre 28) ; face à un courant de 20, il aurait pesé le double et coupé
+ * la page en tranches. À 24 il reste au-dessus du courant (+20 %, le seuil de
+ * hiérarchie lisible) tout en passant SOUS le chapô — l'ordre des voix est
+ * ainsi le même en lecture qu'en structure.
+ */
+export const EDITORIAL_H3 =
+  'text-[19px] md:text-[24px] font-bold tracking-[-0.02em] leading-[1.25] text-[var(--color-fg)]';
 
 /**
  * DÉCORATION de lien éditorial, sans la typo — orange de marque + soulignement
@@ -117,6 +223,31 @@ export const MICRO_LABEL = 'text-[11px] uppercase font-bold tabular-nums';
 
 /** Le même cran en dessous — métadonnées de photo, légende de lightbox. */
 export const MICRO_LABEL_XS = 'text-[10px] uppercase font-bold tabular-nums';
+
+/**
+ * TITRE DE RANG 4 (H4) — le quatrième cran de l'échelle éditoriale. Il vit
+ * ici, et pas avec ses trois frères plus haut, parce qu'il n'est plus un titre
+ * dimensionné : c'est l'ÉTIQUETTE du site, `MICRO_LABEL`.
+ *
+ * **La chute est violente et elle est voulue : 36 px → 11 px** (2026-08-24).
+ * L'ancien H4 était à 11 % de l'ancien H3 (36 contre 40) — deux niveaux
+ * déclarés dans le Studio, un seul lisible à l'écran, donc un cran de
+ * hiérarchie qui n'existait que sur le papier. Le poser sur le registre
+ * d'étiquette règle les deux problèmes d'un coup : il devient un vrai
+ * quatrième cran (24 → 11, aucune confusion possible), et il raccroche les
+ * pages textuelles à la couche de libellés qui court déjà partout ailleurs —
+ * métadonnées photo, compteurs d'`/archives`, légendes de lightbox.
+ *
+ * Risque de régression nul au moment du changement : le contenu publié
+ * n'utilisait que H2 et H3, aucun H4 n'était en base.
+ *
+ * ⚠️ `cn()` et pas une concaténation : `MICRO_LABEL` ne déclare pas de
+ * couleur, on la lui ajoute — mais le jour où il en porterait une, seule la
+ * fusion Tailwind éviterait que les deux `text-*` se disputent l'ordre du CSS
+ * généré. Et il est déclaré APRÈS `MICRO_LABEL` par nécessité : un `const`
+ * lu avant son initialisation lèverait une erreur au chargement du module.
+ */
+export const EDITORIAL_H4 = cn(MICRO_LABEL, 'text-[var(--color-fg)]');
 
 /**
  * ══ CADRE DE PAGE — les trois mesures qui font qu'une page ressemble à la

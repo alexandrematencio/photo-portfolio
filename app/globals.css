@@ -337,11 +337,33 @@
    **Aucun interlettrage** (demande Alexandre, 2026-08-24) : les H1 portaient
    -0,04 em, les deux lettrages SVG -0,02 em. Le site n'a plus d'interlettrage
    de titre, ni positif ni négatif. Cf. `PAGE_TITLE` (lib/site/typography.ts)
-   et les `viewBox` recalibrés de `SeriesWordmark` / « Selected Works ». */
+   et les `viewBox` recalibrés de `SeriesWordmark` / « Selected Works ».
+
+   **La MESURE (`--editorial-measure`) est une QUATRIÈME largeur, et elle ne
+   remplace pas les 1107** (2026-08-24). Les deux cohabitent dans la même page :
+   le titre, le chapô et les H2 gardent la pleine colonne de 1107 — c'est le
+   bloc d'affiche, il doit rester large — tandis que le texte COURANT et
+   l'ANNEXE se calent à 680. Ce n'est pas un goût, c'est de l'arithmétique :
+   1107 px a été dessiné pour un corps de 28 px (~76 signes par ligne, déjà le
+   plafond) ; le même couloir sous un corps de 20 px donnerait ~110 signes,
+   très au-delà de la fourchette lisible (45-75). Descendre le corps sans
+   resserrer la mesure aurait rendu la page MOINS lisible qu'avant.
+
+   ⚠️ La mesure voyage avec le REGISTRE, pas avec la page : elle est cousue
+   dans `EDITORIAL_BODY` et `EDITORIAL_ANNEX` (lib/site/typography.ts) en
+   `max-w-[var(--editorial-measure)]`. Tout consommateur de ces constantes
+   l'obtient donc sans rien déclarer — y compris les pages en dur (`/legal`,
+   `/privacy`) et le formulaire de contact. Ne pas la reposer à la main sur un
+   conteneur : elle s'appliquerait AUSSI au chapô et aux H2, qui doivent
+   déborder jusqu'à 1107.
+
+   Une seule valeur, pas de point de rupture : sous `md` la largeur utile d'un
+   téléphone (350 px) est très en deçà de 680, la borne n'y mord jamais. */
 :root {
   --page-gutter: 20px;
   --page-title-size: min(68px, (100vw - 2 * var(--page-gutter)) / 5.25);
   --page-air-top: 32px;
+  --editorial-measure: 680px;
 }
 
 /* Allocation barre de défilement classique (raisonnement dans le bloc

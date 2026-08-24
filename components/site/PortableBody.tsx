@@ -6,7 +6,12 @@ import {
 import { asset } from '@/lib/utils/asset';
 import { EmailAddressText, ProtectedEmail } from './ProtectedEmail';
 import {
+  EDITORIAL_ANNEX,
   EDITORIAL_BODY,
+  EDITORIAL_H2,
+  EDITORIAL_H3,
+  EDITORIAL_H4,
+  EDITORIAL_LEAD,
   EDITORIAL_LINK_DECORATION,
 } from '@/lib/site/typography';
 
@@ -311,6 +316,46 @@ const makeMarks = (
 const DEFAULT_MARKS = makeMarks(DEFAULT_LINK_CLASS);
 const EDITORIAL_MARKS = makeMarks(EDITORIAL_LINK_DECORATION);
 
+/**
+ * RYTHME VERTICAL de la variante éditoriale, en pixels.
+ *
+ * Refondu avec l'échelle le 2026-08-24 : les anciennes valeurs (paragraphe
+ * 32 px, H2 56, H3 40, H4 24) avaient été calibrées sur un corps de 28 px.
+ * Sous un courant de 20, les mêmes écarts se lisent moitié plus grands —
+ * l'espacement d'un texte se juge en multiples de son corps, jamais en
+ * absolu, et une page composée de blocs qui flottent perd exactement la
+ * cohésion que la refonte cherche.
+ *
+ * **Le contrat des titres ne change pas** : marge en HAUT seulement, ou
+ * presque. Un titre appartient à ce qui le SUIT — il ouvre une section, il ne
+ * ferme pas la précédente. D'où l'asymétrie franche (64 au-dessus d'un H2,
+ * 24 en dessous) : c'est elle qui fait lire « GEAR » comme le début du bloc
+ * matériel et non comme la fin de la bio.
+ *
+ * `lead` est le seul écart plus grand qu'un écart de paragraphe : le chapô est
+ * pleine colonne (1107) et le courant est borné à la mesure (680). Le
+ * décrochage de largeur a besoin d'un peu d'air pour se lire comme un geste
+ * plutôt que comme un accident de rendu.
+ *
+ * ⚠️ Une seule valeur par cran, pas de variante mobile. Les écarts sont déjà
+ * dimensionnés sur le corps le plus petit ; les doubler par media query
+ * rouvrirait la duplication que `PAGE_TITLE_GAP` a fermée côté cadre de page.
+ */
+const RHYTHM = {
+  /** Sous le chapô, avant l'entrée dans le texte courant. */
+  lead: 40,
+  /** Entre deux paragraphes de courant, et sous une liste. */
+  body: 24,
+  /** Entre deux blocs d'annexe — registre mineur, rythme resserré. */
+  annex: 16,
+  h2Top: 64,
+  h2Bottom: 24,
+  h3Top: 40,
+  h3Bottom: 8,
+  h4Top: 32,
+  h4Bottom: 12,
+} as const;
+
 // LISTES. Le Studio propose les boutons puce / numérotée sur ces champs : sans
 // rendu déclaré ici, `@portabletext/react` retombait sur des `<ul>/<li>` nus —
 // que le reset universel de `globals.css` (`* { margin: 0; padding: 0 }`) et le
@@ -366,7 +411,11 @@ const DEFAULT_LISTS = makeListComponents(
   'text-base md:text-lg leading-relaxed text-[var(--color-fg)]',
   '1.5rem'
 );
-const EDITORIAL_LISTS = makeListComponents(EDITORIAL_BODY, '2rem');
+// Les listes appartiennent au registre COURANT : même corps, même graisse,
+// même mesure (la borne voyage dans `EDITORIAL_BODY`, cf. globals.css). Leur
+// écart de fin de bloc suit celui d'un paragraphe — une liste EST un bloc de
+// corps, pas une annexe, même quand elle en a l'air.
+const EDITORIAL_LISTS = makeListComponents(EDITORIAL_BODY, `${RHYTHM.body}px`);
 
 // Notes for editors:
 // • Hard return in Studio's PT editor = NEW block = full paragraph gap (mb-10).
@@ -397,30 +446,62 @@ const DEFAULT_COMPONENTS: Partial<PortableTextReactComponents> = {
 // Turbopack the cascade ordering can occasionally bury them under preflight
 // resets — inline styles eliminate that risk for this critical layout.
 //
-// Rhythm contract (mirrors the hardcoded Contact / About pages):
-// • Body (P): marginBottom 2rem (32 px = gap-8 used across the hardcoded layouts).
-// • Headers (H2/H3/H4): marginTop only — they "stick" to the following block.
-//   Big air above (3.5 / 2.5 / 1.5 rem) signals the start of a section.
-// • First block: marginTop suppressed so the body opens flush under the page H1.
-// Sizes follow the brand hierarchy: H2 dominates, H3 clearly above body,
-// H4 only subtly above. Matches the visual scale of /contact and /about.
+// Les valeurs vivent dans `RHYTHM` ci-dessus ; la logique de placement, ici.
+// • Titres : marge en haut, marge courte en bas — ils appartiennent au bloc
+//   qui les suit (cf. le commentaire de `RHYTHM`).
+// • Premier bloc : marge haute supprimée, le corps ouvre au ras du H1 de page,
+//   dont l'écart est déjà posé par `PageShell` (`PAGE_TITLE_GAP`).
+/**
+ * LE CHAPÔ EST POSITIONNEL — le bloc d'index 0, s'il est un paragraphe.
+ *
+ * Pas de style Studio pour ça, et c'est délibéré (Alexandre, 2026-08-24) :
+ * l'effet d'entrée de page devient gratuit et systématique, aucune page ne
+ * peut s'ouvrir en l'oubliant, et l'éditeur n'a rien de neuf à apprendre pour
+ * le cas le plus courant. Le seul style ajouté au Studio est « Annexe », qui
+ * lui ne se devine pas.
+ *
+ * ⚠️ `index` est bien l'index GLOBAL dans le tableau de blocs (c'est déjà ce
+ * dont dépendaient les marges hautes des titres). Un body qui s'ouvre sur un
+ * titre n'a donc pas de chapô — voulu : il a déjà son entrée en matière.
+ *
+ * ⚠️ Le chapô ne porte PAS la mesure : `EDITORIAL_LEAD` n'a pas de `max-w`,
+ * il occupe la colonne éditoriale entière (1107). C'est tout le geste — la
+ * page s'ouvre large puis se resserre pour se lire.
+ */
 const EDITORIAL_COMPONENTS: Partial<PortableTextReactComponents> = {
   block: {
-    normal: ({ children, index }) => (
+    normal: ({ children, index }) => {
+      const isLead = index === 0;
+      return (
+        <p
+          className={`${isLead ? EDITORIAL_LEAD : EDITORIAL_BODY} whitespace-pre-line`}
+          style={{ marginBottom: isLead ? RHYTHM.lead : RHYTHM.body }}
+          data-block-index={index}
+          data-editorial-role={isLead ? 'lead' : 'body'}
+        >
+          {children}
+        </p>
+      );
+    },
+    // Registre ANNEXE — le seul des trois corps que l'éditeur déclare
+    // lui-même, via le style « Annexe » du Studio (`annex`). Cf.
+    // `EDITORIAL_ANNEX` pour ce qu'il sert.
+    annex: ({ children, index }) => (
       <p
-        className={`${EDITORIAL_BODY} whitespace-pre-line`}
-        style={{ marginBottom: '2rem' }}
+        className={`${EDITORIAL_ANNEX} whitespace-pre-line`}
+        style={{ marginBottom: RHYTHM.annex }}
         data-block-index={index}
+        data-editorial-role="annex"
       >
         {children}
       </p>
     ),
     h2: ({ children, index }) => (
       <h2
-        className="text-[36px] md:text-[48px] font-bold uppercase tracking-[-0.02em] leading-[0.9] text-[var(--color-fg)]"
+        className={EDITORIAL_H2}
         style={{
-          marginTop: index === 0 ? 0 : '3.5rem',
-          marginBottom: 0,
+          marginTop: index === 0 ? 0 : RHYTHM.h2Top,
+          marginBottom: RHYTHM.h2Bottom,
         }}
       >
         {children}
@@ -428,10 +509,10 @@ const EDITORIAL_COMPONENTS: Partial<PortableTextReactComponents> = {
     ),
     h3: ({ children, index }) => (
       <h3
-        className="text-[28px] md:text-[40px] font-bold tracking-[-0.02em] leading-[1.15] text-[var(--color-fg)]"
+        className={EDITORIAL_H3}
         style={{
-          marginTop: index === 0 ? 0 : '2.5rem',
-          marginBottom: 0,
+          marginTop: index === 0 ? 0 : RHYTHM.h3Top,
+          marginBottom: RHYTHM.h3Bottom,
         }}
       >
         {children}
@@ -439,10 +520,10 @@ const EDITORIAL_COMPONENTS: Partial<PortableTextReactComponents> = {
     ),
     h4: ({ children, index }) => (
       <h4
-        className="text-[24px] md:text-[36px] font-bold tracking-[-0.02em] leading-[1.25] text-[var(--color-fg)]"
+        className={EDITORIAL_H4}
         style={{
-          marginTop: index === 0 ? 0 : '1.5rem',
-          marginBottom: 0,
+          marginTop: index === 0 ? 0 : RHYTHM.h4Top,
+          marginBottom: RHYTHM.h4Bottom,
         }}
       >
         {children}

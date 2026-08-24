@@ -2,9 +2,15 @@ import { buildMetadata } from '@/lib/seo/metadata';
 import { ProtectedEmail } from '@/components/site/ProtectedEmail';
 import {
   EDITORIAL_BODY,
+  EDITORIAL_H2,
+  EDITORIAL_LEAD,
   EDITORIAL_LINK_DECORATION,
 } from '@/lib/site/typography';
 import { PageShell } from '@/components/site/PageShell';
+
+/** Cf. `/legal` — même raison : rétablir l'asymétrie d'un titre dans une
+ *  colonne à `gap` uniforme (24 + 40 = `RHYTHM.h2Top`). */
+const SECTION_TOP = 40;
 
 export const metadata = buildMetadata({
   title: 'Privacy Policy',
@@ -15,8 +21,8 @@ export const metadata = buildMetadata({
 export default function PrivacyPage() {
   return (
     <PageShell title="PRIVACY">
-      <div className="flex flex-col gap-8">
-        <p className={EDITORIAL_BODY}>
+      <div className="flex flex-col gap-6">
+        <p className={EDITORIAL_LEAD}>
           Placeholder. Final wording must comply with GDPR (EU 2016/679) and the French CNIL guidelines before going live.
         </p>
 
@@ -24,7 +30,7 @@ export default function PrivacyPage() {
           amatencio.photo sets no non-essential cookies and collects no personal data without explicit consent. The only data processed is what you voluntarily send by email when getting in touch.
         </p>
 
-        <h2 className="text-[36px] md:text-[48px] font-bold uppercase tracking-[-0.02em] leading-[0.9] text-[var(--color-fg)]">
+        <h2 className={EDITORIAL_H2} style={{ marginTop: SECTION_TOP }}>
           YOUR RIGHTS
         </h2>
 
@@ -39,7 +45,7 @@ export default function PrivacyPage() {
           .
         </p>
 
-        <h2 className="text-[36px] md:text-[48px] font-bold uppercase tracking-[-0.02em] leading-[0.9] text-[var(--color-fg)]">
+        <h2 className={EDITORIAL_H2} style={{ marginTop: SECTION_TOP }}>
           IMAGE RIGHTS
         </h2>
 

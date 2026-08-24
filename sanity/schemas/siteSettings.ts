@@ -1,6 +1,7 @@
 import { defineArrayMember, defineField, defineType } from 'sanity';
 import {
   NormalBlock,
+  AnnexBlock,
   H2Block,
   H3Block,
   H4Block,
@@ -81,6 +82,15 @@ const editorialBlockType = defineArrayMember({
   type: 'block',
   styles: [
     { title: 'Normal', value: 'normal', component: NormalBlock },
+    // « Annexe » — ajouté le 2026-08-24 avec la refonte de l'échelle
+    // éditoriale. C'est le seul des trois registres de corps que l'éditeur
+    // choisit : le chapô est POSITIONNEL (1er paragraphe de la page, promu par
+    // le site sans qu'aucun style existe pour lui), le courant est le défaut.
+    // ⚠️ Valeur `annex` : elle doit rester alignée avec la clé du renderer
+    // `block.annex` de `components/site/PortableBody.tsx`. Un style dont le
+    // site ignore la valeur retombe en paragraphe courant SANS le moindre
+    // avertissement — l'éditeur croirait avoir marqué son texte.
+    { title: 'Annexe', value: 'annex', component: AnnexBlock },
     { title: 'Heading 2', value: 'h2', component: H2Block },
     { title: 'Heading 3', value: 'h3', component: H3Block },
     { title: 'Heading 4', value: 'h4', component: H4Block },
@@ -99,7 +109,8 @@ const editorialBlockType = defineArrayMember({
  * et ce que le site en fera — d'où les jetons et le rappel de publication.
  */
 const editorialBodyDescription = (intro: string) =>
-  `${intro} Mise en forme : « Normal » pour le corps, « Heading 2/3/4 » pour les titres (l’aperçu du Studio est à l’échelle du site), listes à puces et numérotées. Entrée = nouveau paragraphe (grand écart) ; Maj+Entrée = simple retour à la ligne. ` +
+  `${intro} Mise en forme : « Normal » pour le corps, « Annexe » pour le pratique (délai de réponse, listes de matériel, mentions — plus petit, registre secondaire), « Heading 2/3/4 » pour les titres (l’aperçu du Studio est à l’échelle du site), listes à puces et numérotées. Entrée = nouveau paragraphe (grand écart) ; Maj+Entrée = simple retour à la ligne. ` +
+  `ℹ️ Le PREMIER paragraphe de la page s’affiche automatiquement en chapô — plus gros, plus gras, sur toute la largeur. Rien à choisir, et l’éditeur ci-dessous ne le montre pas : il apparaît tel quel sur le site. Pour ouvrir sur autre chose, commence par un titre. ` +
   `Raccourcis d’écriture : taper « @EMAIL » affiche l’adresse email, protégée des robots ; pour un libellé à toi (« Write to me »), sélectionne le texte et pose un lien « mailto:… » — même protection, l’adresse n’apparaît jamais dans le code de la page. Taper « AAXLO » (1ʳᵉ fois seulement) insère le logo AAXLO cliquable. Un lien dont l’URL est « @pseudo » pointe vers Telegram. ` +
   `⚠️ Site statique : « Publish » enregistre, mais la page en ligne ne change qu’après un redéploiement.`;
 
