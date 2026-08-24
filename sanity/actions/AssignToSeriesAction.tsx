@@ -17,6 +17,7 @@ import {
   type DocumentActionComponent,
   type DocumentActionProps,
 } from 'sanity';
+import { createRefDoc } from '../lib/createRefDoc';
 
 const API_VERSION = '2026-01-01';
 
@@ -33,17 +34,6 @@ const API_VERSION = '2026-01-01';
  * La série créée ici n'a que son titre + slug : elle est immédiatement
  * référençable, et se complète ensuite dans Structure → Séries.
  */
-
-/** Local au bundle Studio : `scripts/taxonomy-helpers.ts` est du code Node. */
-function slugify(input: string): string {
-  return input
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 96);
-}
 
 type SeriesRow = {
   _id: string;
@@ -363,23 +353,13 @@ export const AssignToSeriesAction: DocumentActionComponent = (
         let targetId = seriesId;
 
         if (seriesId === '__create__') {
-          // Slug unique : le schéma `series` valide l'unicité, on évite de
-          // livrer d'emblée un document en erreur.
-          const base = slugify(seriesTitle) || 'serie';
-          const taken = await client.fetch<string[]>(
-            `*[_type == "series" && slug.current match $pattern].slug.current`,
-            { pattern: `${base}*` }
-          );
-          let slug = base;
-          let n = 2;
-          while (taken.includes(slug)) slug = `${base}-${n++}`;
-
-          // Créé publié (pas en draft) : une référence doit pointer vers un
-          // document publié pour ne pas déclencher l'avertissement Sanity.
-          const created = await client.create({
-            _type: 'series',
+          // Même mécanique que la création depuis le champ « Séries » de la
+          // photo (slug dé-doublonné, document créé PUBLIÉ) : une seule
+          // fabrique, sinon les deux chemins de création divergent.
+          const created = await createRefDoc(client, {
+            type: 'series',
             title: seriesTitle,
-            slug: { _type: 'slug', current: slug },
+            slugFallback: 'serie',
           });
           targetId = created._id;
         }

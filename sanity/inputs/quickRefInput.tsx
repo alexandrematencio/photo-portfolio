@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Flex, Select, Stack, Text } from '@sanity/ui';
-import { TrashIcon } from '@sanity/icons';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Box, Button, Card, Flex, Select, Stack, Text, TextInput } from '@sanity/ui';
+import { AddIcon, TrashIcon } from '@sanity/icons';
 import {
   set,
   unset,
@@ -9,6 +9,7 @@ import {
   type ArrayOfObjectsInputProps,
   type ObjectInputProps,
 } from 'sanity';
+import { createRefDoc, sameTitle } from '../lib/createRefDoc';
 
 /**
  * Fabrique d'inputs « choisir une référence en une liste déroulante ».
@@ -36,6 +37,34 @@ import {
  * **Repli** : si la lecture des options échoue (réseau, droits), on rend
  * `renderDefault(props)` — l'éditeur retrouve le champ natif plutôt qu'un
  * champ mort. Même doctrine que `orderedRefsInput`.
+ *
+ * ---
+ *
+ * ## Créer depuis le champ (`config.create`)
+ *
+ * Remplacer l'input natif a coûté son « Create new … » : la liste ne contenait
+ * plus que l'existant, et rencontrer une série absente renvoyait l'éditeur
+ * ailleurs dans le Studio — en abandonnant la photo en cours. Le geste est
+ * rendu ici, sous une doctrine à quatre règles :
+ *
+ * 1. **Le bouton est SOUS le sélecteur, et il est subordonné** (`mode="bleed"`,
+ *    corps 1). Le chemin normal reste « je choisis dans la liste » ; créer est
+ *    le recours quand la liste n'a pas ce qu'il faut. Un bouton plein ferait
+ *    deux actions principales sur un même champ.
+ * 2. **Aucune boîte de dialogue.** Le formulaire de création tient en un champ
+ *    (le titre) : il se déplie EN PLACE, à la place du bouton, et se replie
+ *    après. Le contexte de la photo n'est jamais recouvert.
+ * 3. **Un nom déjà pris ne crée RIEN.** La comparaison ignore casse et accents
+ *    (`sameTitle`) : le document existant est rattaché, et on le dit. Sans
+ *    cette garde, « street » et « Street » donneraient deux styles, donc deux
+ *    groupes sur `/archives` — la fragmentation de taxonomie que la liste
+ *    fermée était censée empêcher.
+ * 4. **L'option créée est injectée dans la liste locale** avant même le
+ *    refetch. Sinon le `<select>` afficherait « ⚠ introuvable » sur le document
+ *    qu'on vient de créer : la liste d'options est fetchée une seule fois.
+ *
+ * Le bouton disparaît en lecture seule et au plafond d'un tableau (créer un 4ᵉ
+ * style qu'on ne pourrait pas rattacher n'aurait aucun sens).
  */
 
 const API_VERSION = '2026-01-01';
@@ -67,6 +96,24 @@ export type QuickRefConfig = {
   };
   /** Tableau seulement : nombre maximum d'entrées (masque l'ajout au-delà). */
   max?: number;
+  /**
+   * Création d'un document manquant depuis le champ. Omettre = pas de bouton
+   * (le champ ne propose alors que l'existant).
+   */
+  create?: {
+    /** Type du document créé — 'series', 'style', 'camera', 'lens'. */
+    type: string;
+    /** Libellé du bouton replié. Ex. « Créer une nouvelle série ». */
+    button: string;
+    /** Placeholder du champ de saisie déplié. */
+    placeholder: string;
+    /** Une phrase sous le champ : ce que la création fait, et ce qu'elle ne fait pas. */
+    help: string;
+    /** Slug de repli si le titre ne produit aucun caractère slugifiable. */
+    slugFallback: string;
+    /** Message quand le nom saisi existait déjà — `%s` = le titre trouvé. */
+    duplicate: string;
+  };
 };
 
 /** Clé d'item de tableau. Studio-only : aucun enjeu d'hydratation serveur. */
@@ -108,7 +155,197 @@ function useOptions(config: QuickRefConfig) {
     // `config` est figé à la création de l'input (une fabrique par champ).
   }, [client, docId, config]);
 
-  return state;
+  /**
+   * Insère une option fraîchement créée sans réinterroger le dataset. La liste
+   * est fetchée UNE fois : sans ça, le `<select>` afficherait « ⚠ introuvable »
+   * sur le document que l'éditeur vient lui-même de créer. Insertion à sa place
+   * alphabétique, l'ordre étant celui de la GROQ (`order(title asc)`).
+   */
+  const addOption = useCallback((option: Option) => {
+    setState((prev) =>
+      prev.options === null
+        ? prev
+        : {
+            ...prev,
+            options: [...prev.options, option].sort((a, b) =>
+              (a.label ?? a._id).localeCompare(b.label ?? b._id, 'fr')
+            ),
+          }
+    );
+  }, []);
+
+  return { ...state, addOption };
+}
+
+/**
+ * Bouton « Créer … » + son formulaire d'un champ, dépliés EN PLACE.
+ *
+ * Replié et déplié occupent le même emplacement : rien ne saute sous le
+ * curseur. Clavier : `Entrée` crée, `Échap` referme, le champ prend le focus à
+ * l'ouverture et le bouton le récupère à la fermeture.
+ */
+function CreateRefControl({
+  create,
+  options,
+  disabled,
+  onPicked,
+}: {
+  create: NonNullable<QuickRefConfig['create']>;
+  /** Toutes les options connues — sert la garde anti-doublon. */
+  options: Option[];
+  disabled: boolean;
+  /**
+   * Un document est prêt à être référencé. `existed` = il était déjà au
+   * catalogue (rien n'a été créé) : le champ appelant décide quoi en faire.
+   */
+  onPicked: (option: Option, existed: boolean) => void;
+}) {
+  const client = useClient({ apiVersion: API_VERSION });
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+
+  // Autofocus : le bouton a déjà exprimé l'intention, on peut taper.
+  useEffect(() => {
+    if (!open) return;
+    const raf = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(raf);
+  }, [open]);
+
+  // La confirmation s'efface d'elle-même : un message figé sous un champ
+  // finit par décrire un état qui n'est plus vrai.
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 6000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setName('');
+    setError(null);
+    requestAnimationFrame(() => buttonRef.current?.focus());
+  }, []);
+
+  const submit = useCallback(async () => {
+    const title = name.trim();
+    if (title.length < 2) {
+      setError('Deux caractères minimum.');
+      return;
+    }
+
+    // Garde anti-doublon AVANT toute écriture : on rattache l'existant.
+    const existing = options.find((o) => o.label && sameTitle(o.label, title));
+    if (existing) {
+      onPicked(existing, true);
+      setNotice(create.duplicate.replace('%s', existing.label ?? title));
+      close();
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      const created = await createRefDoc(client, {
+        type: create.type,
+        title,
+        slugFallback: create.slugFallback,
+      });
+      onPicked({ _id: created._id, label: created.title }, false);
+      close();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Création impossible.'
+      );
+    } finally {
+      setBusy(false);
+    }
+  }, [client, create, name, options, onPicked, close]);
+
+  if (!open) {
+    return (
+      <Stack space={2}>
+        <Flex>
+          <Button
+            ref={buttonRef}
+            icon={AddIcon}
+            // Bleed + corps 1 : le chemin normal reste la liste au-dessus.
+            // Créer est le recours, il ne doit pas lui disputer l'œil.
+            mode="bleed"
+            fontSize={1}
+            padding={2}
+            space={2}
+            text={create.button}
+            disabled={disabled}
+            onClick={() => setOpen(true)}
+          />
+        </Flex>
+        {notice && (
+          <Text size={0} muted>
+            {notice}
+          </Text>
+        )}
+      </Stack>
+    );
+  }
+
+  return (
+    <Stack space={2}>
+      <Flex gap={2} align="center">
+        <Box flex={1}>
+          <TextInput
+            ref={inputRef}
+            value={name}
+            placeholder={create.placeholder}
+            disabled={busy}
+            aria-label={create.button}
+            onChange={(event) => setName(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                void submit();
+              } else if (event.key === 'Escape') {
+                event.preventDefault();
+                close();
+              }
+            }}
+          />
+        </Box>
+        <Button
+          text="Créer"
+          tone="primary"
+          fontSize={1}
+          padding={3}
+          disabled={busy || name.trim().length < 2}
+          loading={busy}
+          onClick={() => void submit()}
+        />
+        <Button
+          text="Annuler"
+          mode="bleed"
+          fontSize={1}
+          padding={3}
+          disabled={busy}
+          onClick={close}
+        />
+      </Flex>
+      {error ? (
+        // Sous le champ concerné, jamais en toast : l'erreur doit rester
+        // visible pendant qu'on corrige la saisie.
+        <Card padding={2} radius={2} tone="critical">
+          <Text size={1}>{error}</Text>
+        </Card>
+      ) : (
+        <Text size={0} muted>
+          {create.help}
+        </Text>
+      )}
+    </Stack>
+  );
 }
 
 /**
@@ -145,9 +382,18 @@ function renderOptions(options: Option[]) {
 /** Champ `reference` simple (ex. `photo.camera`, `photo.lens`). */
 export function createQuickRefInput(config: QuickRefConfig) {
   return function QuickRefInput(props: ObjectInputProps) {
-    const { options, failed } = useOptions(config);
+    const { options, failed, addOption } = useOptions(config);
     const value = props.value as RefValue | undefined;
     const currentRef = value?._ref;
+
+    const handlePicked = useCallback(
+      (option: Option, existed: boolean) => {
+        if (!existed) addOption(option);
+        props.onChange(set({ _type: 'reference', _ref: option._id }));
+      },
+      // `props.onChange` est stable par contrat de l'API de formulaire Sanity.
+      [addOption, props.onChange] // eslint-disable-line react-hooks/exhaustive-deps
+    );
 
     if (failed) return props.renderDefault(props);
 
@@ -159,36 +405,53 @@ export function createQuickRefInput(config: QuickRefConfig) {
       );
     }
 
+    const creator = config.create && !props.readOnly && (
+      <CreateRefControl
+        create={config.create}
+        options={options}
+        disabled={Boolean(props.readOnly)}
+        onPicked={handlePicked}
+      />
+    );
+
+    // Catalogue vide : l'état vide PORTE l'action plutôt que d'envoyer
+    // l'éditeur la chercher ailleurs dans le Studio.
     if (options.length === 0 && !currentRef) {
       return (
-        <Card padding={3} radius={2} tone="caution">
-          <Text size={1}>{config.labels.none}</Text>
-        </Card>
+        <Stack space={3}>
+          <Card padding={3} radius={2} tone="caution">
+            <Text size={1}>{config.labels.none}</Text>
+          </Card>
+          {creator}
+        </Stack>
       );
     }
 
     return (
-      <Select
-        id={props.elementProps.id}
-        onFocus={props.elementProps.onFocus}
-        onBlur={props.elementProps.onBlur}
-        disabled={props.readOnly}
-        fontSize={2}
-        padding={3}
-        radius={2}
-        value={currentRef ?? ''}
-        onChange={(event) => {
-          const next = event.currentTarget.value;
-          props.onChange(
-            next ? set({ _type: 'reference', _ref: next }) : unset()
-          );
-        }}
-      >
-        <option value="">{config.labels.empty}</option>
-        {renderOptions(
-          optionsFor(options, currentRef, new Set(), config.labels.unknown)
-        )}
-      </Select>
+      <Stack space={2}>
+        <Select
+          id={props.elementProps.id}
+          onFocus={props.elementProps.onFocus}
+          onBlur={props.elementProps.onBlur}
+          disabled={props.readOnly}
+          fontSize={2}
+          padding={3}
+          radius={2}
+          value={currentRef ?? ''}
+          onChange={(event) => {
+            const next = event.currentTarget.value;
+            props.onChange(
+              next ? set({ _type: 'reference', _ref: next }) : unset()
+            );
+          }}
+        >
+          <option value="">{config.labels.empty}</option>
+          {renderOptions(
+            optionsFor(options, currentRef, new Set(), config.labels.unknown)
+          )}
+        </Select>
+        {creator}
+      </Stack>
     );
   };
 }
@@ -196,7 +459,7 @@ export function createQuickRefInput(config: QuickRefConfig) {
 /** Champ `array of reference` (ex. `photo.series`, `photo.styles`). */
 export function createQuickRefsArrayInput(config: QuickRefConfig) {
   return function QuickRefsArrayInput(props: ArrayOfObjectsInputProps) {
-    const { options, failed } = useOptions(config);
+    const { options, failed, addOption } = useOptions(config);
 
     const value = useMemo(
       () => ((props.value ?? []) as unknown as RefValue[]),
@@ -210,6 +473,22 @@ export function createQuickRefsArrayInput(config: QuickRefConfig) {
       [value]
     );
 
+    const handlePicked = useCallback(
+      (option: Option, existed: boolean) => {
+        if (!existed) addOption(option);
+        // Déjà rattachée : ne rien écrire. Le message de `CreateRefControl`
+        // dit que le document existait ; le champ, lui, est déjà à jour.
+        if (taken.has(option._id)) return;
+        props.onChange(
+          set([
+            ...value,
+            { _key: itemKey(), _type: 'reference', _ref: option._id },
+          ])
+        );
+      },
+      [addOption, taken, value, props.onChange] // eslint-disable-line react-hooks/exhaustive-deps
+    );
+
     if (failed) return props.renderDefault(props);
 
     if (options === null) {
@@ -220,11 +499,29 @@ export function createQuickRefsArrayInput(config: QuickRefConfig) {
       );
     }
 
+    const atMax = typeof config.max === 'number' && value.length >= config.max;
+
+    // Au plafond, le bouton disparaît AVEC le sélecteur d'ajout : créer un
+    // document qu'on ne pourrait pas rattacher dans la foulée est un cul-de-sac.
+    const creator = config.create && !props.readOnly && !atMax && (
+      <CreateRefControl
+        create={config.create}
+        options={options}
+        disabled={Boolean(props.readOnly)}
+        onPicked={handlePicked}
+      />
+    );
+
+    // Catalogue vide : l'état vide PORTE l'action plutôt que d'envoyer
+    // l'éditeur la chercher ailleurs dans le Studio.
     if (options.length === 0 && value.length === 0) {
       return (
-        <Card padding={3} radius={2} tone="caution">
-          <Text size={1}>{config.labels.none}</Text>
-        </Card>
+        <Stack space={3}>
+          <Card padding={3} radius={2} tone="caution">
+            <Text size={1}>{config.labels.none}</Text>
+          </Card>
+          {creator}
+        </Stack>
       );
     }
 
@@ -261,7 +558,6 @@ export function createQuickRefsArrayInput(config: QuickRefConfig) {
     }
 
     const remaining = options.filter((o) => !taken.has(o._id));
-    const atMax = typeof config.max === 'number' && value.length >= config.max;
 
     return (
       <Stack space={2}>
@@ -322,6 +618,8 @@ export function createQuickRefsArrayInput(config: QuickRefConfig) {
             {renderOptions(remaining)}
           </Select>
         ) : null}
+
+        {creator}
       </Stack>
     );
   };
