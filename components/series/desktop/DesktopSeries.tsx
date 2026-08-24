@@ -1209,9 +1209,11 @@ export function DesktopSeries({
 
   /**
    * Rend au centre et aux vignettes leur apparence de feuille de style.
-   * `clearProps` et non `autoAlpha: 1` : la vignette active porte une classe
-   * `opacity-40` qu'une opacité inline écraserait — elle resterait pleine
-   * jusqu'au premier échange.
+   * `clearProps` et non `autoAlpha: 1` : une opacité inline écraserait tout
+   * état que la feuille de style voudrait poser sur une vignette (c'est le
+   * voile `opacity-40` de l'ancienne marque d'actif qui l'a montré — la marque
+   * est devenue une LED hors image, mais la règle reste : on rend la main au
+   * CSS, on ne le double pas).
    */
   function revealOpenReals() {
     const scene = sceneRef.current;

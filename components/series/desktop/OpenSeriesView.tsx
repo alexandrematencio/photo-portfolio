@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from 'react';
+import gsap from 'gsap';
 import { Undo2 } from 'lucide-react';
 import { urlFor } from '@/lib/sanity/image';
 import type { PreparedSeries } from '@/lib/site/series';
@@ -7,7 +8,8 @@ import { SeriesMeta, META_LINE_PX } from '../shared/SeriesMeta';
 import { centerSrcFor } from '../shared/photoSrc';
 import { useMdUp } from '../shared/useMdUp';
 import { colLeadReserve } from '../shared/colLead';
-import { StateDot } from '@/components/site/StateDot';
+import { useReducedMotion } from '@/lib/motion/useReducedMotion';
+import { StateDot, STATE_DOT_SIZE } from '@/components/site/StateDot';
 
 /**
  * État ouvert desktop (spec §5) : trois zones —
@@ -48,6 +50,38 @@ const CENTER_MAX_H = `calc(100dvh - ${
   SCENE_RESERVE + OPEN_PADDING_TOP + CHROME_TOP + CHROME_BOTTOM
 }px)`;
 
+/**
+ * Gouttière de la LED de la colonne de vignettes : le voyant qui dit « photo
+ * en cours de visualisation » se pose À GAUCHE de la vignette active, hors de
+ * l'image. Elle est réservée en `paddingLeft` sur la colonne — le conteneur
+ * défilant clippe à son padding box, un point posé en négatif SANS cette
+ * réserve serait rogné — et REND sa largeur à la grille pour que les
+ * vignettes gardent la leur. Largeur dérivée du voyant (STATE_DOT_SIZE),
+ * jamais transcrite : même doctrine que StateDotBalance.
+ */
+/**
+ * Écart entre le voyant et le bord de la vignette. PROPRE à cette colonne, et
+ * volontairement plus large que les 6 px de la colonne des noms de séries
+ * (posés en `gap` sur le bouton, dans ce même fichier — ne pas les aligner) :
+ * là-bas le point ouvre une ligne de texte et l'écart de mot suffit ; ici il
+ * borde une photo pleine, et deux images qui se touchent presque se lisent
+ * comme un seul bloc. Les deux éléments doivent respirer (demande Alexandre,
+ * 2026-08-24).
+ */
+const COL_DOT_GAP = 14;
+const COL_DOT_GUTTER = STATE_DOT_SIZE + COL_DOT_GAP;
+/** Largeur utile des vignettes (la valeur historique de la colonne). */
+const COL_THUMB_W = 132;
+
+/**
+ * Allumage / extinction de la LED — les deux temps d'une diode, pas un
+ * cross-fade : l'extinction part la première, le rallumage la SUIT (ou attend
+ * la pose des vols, voir l'effet). Ease `power2.out`, le standard du site
+ * (§3.2) : rapide, mais doux.
+ */
+const LED_OFF = 0.12;
+const LED_ON = 0.18;
+
 export function OpenSeriesView({
   allSeries,
   displayed,
@@ -64,7 +98,10 @@ export function OpenSeriesView({
   onSelect: (index: number) => void;
 }) {
   const mdUp = useMdUp();
+  const reduced = useReducedMotion();
   const colRef = useRef<HTMLDivElement>(null);
+  /** Index dont la LED détient (ou attend) la lumière — voir l'effet LED. */
+  const litIndexRef = useRef<number | null>(null);
   const headRef = useRef<HTMLDivElement>(null);
   const tailRef = useRef<HTMLDivElement>(null);
   const active = displayed.photos[activeIndex] ?? displayed.photos[0];
@@ -101,10 +138,106 @@ export function OpenSeriesView({
     return () => ro.disconnect();
   }, [displayed.slug, displayed.photos.length]);
 
+  /**
+   * LED « photo en cours de visualisation » — UNE seule allumée, jamais deux,
+   * et jamais visible ailleurs qu'à la pose. Trois règles, chacune tenue par
+   * construction :
+   *
+   * 1. **Séquence de diode, pas de cross-fade.** Au changement de photo,
+   *    l'ancienne LED s'ÉTEINT d'abord (LED_OFF) ; la nouvelle ne s'allume
+   *    qu'ensuite. Deux LED en fondu simultané à des hauteurs différentes se
+   *    lisent comme un déplacement — c'est exactement ce qu'on ne veut pas.
+   *
+   * 2. **Le rallumage attend la POSE, pas le commit React.** Pendant un vol
+   *    (échange, ouverture, changement de série), la vignette active est
+   *    masquée sous les clones — une LED allumée à côté d'un emplacement vide
+   *    dirait n'importe quoi. La visibilité CALCULÉE de l'<img> active est la
+   *    vérité unique : elle hérite du masquage quel qu'en soit le porteur
+   *    (colonne entière, bouton, ou la seule image comme dans les chaînes
+   *    d'échange), et son retour à `visible` — le clearProps du raccord
+   *    clone → réel — est LE signal de pose. Un MutationObserver sur les
+   *    attributs style le capte sans polling ni écouteur scroll : rien du
+   *    mécanisme de la colonne n'est touché. Pendant une chaîne rapide, seul
+   *    le dernier index demandé garde son observer (cleanup) : la LED reste
+   *    éteinte tout du long et se rallume une fois, sur la photo posée.
+   *
+   * 3. **gsap est le SEUL maître de l'opacité des LED.** Le wrapper n'a pas
+   *    de transition CSS (une transition sous un tween = double lissage,
+   *    traîne visible) et React n'écrit son opacité qu'au montage (0) : les
+   *    valeurs posées par gsap survivent aux re-renders.
+   *
+   * Mode de panne assumé : si la vignette n'est jamais révélée, la LED reste
+   * ÉTEINTE — une LED sombre est juste, une LED au mauvais endroit ne l'est
+   * jamais.
+   */
+  useLayoutEffect(() => {
+    const col = colRef.current;
+    if (!col) return;
+    const dotOf = (i: number) =>
+      col.querySelector<HTMLElement>(`[data-col-dot="${i}"]`);
+
+    // Extinction de la détentrice précédente — y compris une LED encore en
+    // train de monter (killTweensOf) : la lumière change de main tout de suite.
+    const prev = litIndexRef.current;
+    let handoff = false;
+    if (prev !== null && prev !== activeIndex) {
+      const d = dotOf(prev);
+      if (d) {
+        gsap.killTweensOf(d);
+        gsap.to(d, {
+          opacity: 0,
+          duration: reduced ? 0 : LED_OFF,
+          ease: 'power2.out',
+        });
+        handoff = true;
+      }
+    }
+    litIndexRef.current = activeIndex;
+
+    const target = dotOf(activeIndex);
+    const img = col.querySelector<HTMLElement>(
+      `[data-col-img="${activeIndex}"]`
+    );
+    const item = col.querySelector<HTMLElement>(
+      `[data-col-item="${activeIndex}"]`
+    );
+    if (!target || !img) return;
+
+    const posed = () => getComputedStyle(img).visibility !== 'hidden';
+    const lightUp = (delay: number) => {
+      gsap.killTweensOf(target);
+      gsap.to(target, {
+        opacity: 1,
+        duration: reduced ? 0 : LED_ON,
+        delay: reduced ? 0 : delay,
+        ease: 'power2.out',
+      });
+    };
+
+    if (posed()) {
+      // Vignette déjà posée (chemin instant, ou reprise sans vol) : la LED
+      // s'allume après l'extinction si l'on vient d'en éteindre une — les
+      // deux temps de la diode, même sans vol entre eux.
+      lightUp(handoff ? LED_OFF : 0);
+      return;
+    }
+    const obs = new MutationObserver(() => {
+      if (!posed()) return;
+      obs.disconnect();
+      lightUp(0);
+    });
+    for (const el of [img, item, col]) {
+      if (el) obs.observe(el, { attributes: true, attributeFilter: ['style'] });
+    }
+    return () => obs.disconnect();
+  }, [activeIndex, displayed.slug, reduced]);
+
   return (
     <div
       className="grid h-full gap-8"
-      style={{ gridTemplateColumns: '176px 1fr 132px' }}
+      style={{
+        gridTemplateColumns: `176px 1fr ${COL_THUMB_W + COL_DOT_GUTTER}px`,
+      }}
     >
       {/* ── Noms des séries ─────────────────────────────────────────────── */}
       {/* Espacements fins en inline — le reset global hors @layer neutralise
@@ -243,7 +376,7 @@ export function OpenSeriesView({
         ref={colRef}
         data-open-col
         className="flex h-full flex-col gap-2 overflow-y-auto overscroll-contain"
-        style={{ paddingRight: 4 }}
+        style={{ paddingRight: 4, paddingLeft: COL_DOT_GUTTER }}
       >
         {/* Vide de tête : la course de défilement qui manque pour que la
             PREMIÈRE vignette puisse se poser sur la ligne de pose haute au
@@ -265,11 +398,33 @@ export function OpenSeriesView({
               aria-label={`Show “${photo.title}”`}
               className={cn(
                 'relative w-full shrink-0 transition-opacity motion-reduce:transition-none',
-                isActive
-                  ? 'opacity-40 cursor-default'
-                  : 'cursor-pointer hover:opacity-80'
+                isActive ? 'cursor-default' : 'cursor-pointer hover:opacity-80'
               )}
             >
+              {/* LED de la photo visualisée (chorégraphie : effet LED
+                  ci-dessus). Posée dans la gouttière à gauche de SA vignette,
+                  centrée sur sa hauteur — ancrée au bouton, elle en suit le
+                  défilement et les masquages de vols sans une ligne de code,
+                  et ne peut par construction jamais quitter sa verticale.
+                  Toujours rendue sur chaque vignette (contrat StateDot) :
+                  c'est le WRAPPER que gsap allume, le point reste `on` en
+                  continu — sa transition CSS interne ne joue donc jamais et
+                  ne double-lisse pas le tween. `opacity: 0` React n'est écrit
+                  qu'au montage : les valeurs gsap survivent aux re-renders. */}
+              <span
+                data-col-dot={i}
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  left: -COL_DOT_GUTTER,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  display: 'flex',
+                  opacity: 0,
+                }}
+              >
+                <StateDot on />
+              </span>
               <img
                 src={src}
                 alt=""
