@@ -269,10 +269,12 @@ La chaîne de hauteurs, dont les valeurs doivent bouger **ensemble** :
 | `MainPadding` bas — **/series uniquement** | 32 (au lieu de 64) |
 | → hauteur de scène (`DesktopSeries`) | `calc(100dvh - 160px)` |
 | → paddingTop de la vue ouverte | 24 |
-| → chrome de l'image centrale (Close 32 + méta 84) | 116 |
-| → `CENTER_MAX_H` (`OpenSeriesView`) | `calc(100dvh - 300px)` |
+| → chrome de l'image centrale (Close 32 + méta 72) | 104 |
+| → `CENTER_MAX_H` (`OpenSeriesView`) | `calc(100dvh - 288px)` |
 
 Vérifié à la mesure, viewport 1440 × 900 : première pile à x = 32 et bas de pile à y = 868 (32 px du bas de l'écran) ; bloc de métadonnées de la vue ouverte à 868 également ; haut du footer à exactement 900.
+
+La réserve de méta est passée de 84 à 72 le 2026-08-24 : l'interligne du bloc est tombé de 18 à 15 px (`META_LINE_PX`, `SeriesMeta.tsx`), et `CHROME_BOTTOM` comme `CENTER_MAX_H` sont désormais **calculés** à partir de cette constante — la chaîne ne peut plus dériver d'un côté sans l'autre.
 
 Le `paddingBottom` de 32 px sur `/series` est un écart assumé à la règle éditoriale des 64 px (brand book §6.6) : cette page joue l'équilibre de ses quatre marges, pas le rythme vertical d'une page de texte.
 

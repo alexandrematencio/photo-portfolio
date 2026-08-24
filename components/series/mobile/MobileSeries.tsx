@@ -80,11 +80,15 @@ const ROW_GAP = 72;
 /**
  * Hauteur soustraite à l'écran avant de plafonner la photo : nav-bar (64),
  * frise de points (56), titre + fiche technique collés à l'image avec leurs
- * écarts (56), et 32 de respiration. Une seule constante parce que ces cinq
+ * écarts (68), et 32 de respiration. Une seule constante parce que ces cinq
  * nombres n'ont de sens qu'ensemble — en changer un sans les autres, c'est
  * une photo rognée ou une frise poussée hors de l'écran.
+ *
+ * Le troisième terme a pris 12 px le 2026-08-24 : la fiche technique est
+ * passée d'une ligne à deux (prise de vue / matériel), interligne resserré
+ * compris — 10 de padding + 2 × META_LINE_PX contre 10 + 18 auparavant.
  */
-const PHOTO_V_RESERVE = 208;
+const PHOTO_V_RESERVE = 220;
 
 /** Frise de points — fenêtre glissante façon carousel Instagram. */
 const DOT = 6;
@@ -585,7 +589,7 @@ export function MobileSeries({
 
                   <SeriesMeta
                     photo={photo}
-                    inline
+                    grouped
                     className="w-full shrink-0 text-right"
                     style={{
                       paddingTop: 10,

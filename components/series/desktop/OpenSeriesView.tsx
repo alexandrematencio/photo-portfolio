@@ -3,7 +3,7 @@ import { Undo2 } from 'lucide-react';
 import { urlFor } from '@/lib/sanity/image';
 import type { PreparedSeries } from '@/lib/site/series';
 import { cn } from '@/lib/utils/cn';
-import { SeriesMeta } from '../shared/SeriesMeta';
+import { SeriesMeta, META_LINE_PX } from '../shared/SeriesMeta';
 import { centerSrcFor } from '../shared/photoSrc';
 import { useMdUp } from '../shared/useMdUp';
 import { colLeadReserve } from '../shared/colLead';
@@ -30,14 +30,23 @@ import { StateDot } from '@/components/site/StateDot';
  * footer). On la lui réserve donc explicitement, en padding sur la cellule.
  */
 const CHROME_TOP = 32; // ligne « Back to All Series » + son marginBottom de 12
-const CHROME_BOTTOM = 84; // bloc SeriesMeta : jusqu'à 4 lignes + marginTop 12
+/** Bloc SeriesMeta : jusqu'à 4 lignes + son marginTop de 12. Le produit est
+ *  CALCULÉ, jamais transcrit — l'interligne du bloc a déjà changé une fois
+ *  (18 → 15 px le 2026-08-24) et cette réserve doit suivre du même geste. */
+const CHROME_BOTTOM = 4 * META_LINE_PX + 12;
 
 /**
- * Hauteur max de l'image centrale = hauteur de scène (`100dvh − 160`, cf.
- * DesktopSeries) − paddingTop de la vue ouverte (24) − le chrome ci-dessus.
- * Les trois valeurs doivent bouger ensemble.
+ * Hauteur max de l'image centrale = hauteur de scène − paddingTop de la vue
+ * ouverte − le chrome ci-dessus. Les quatre valeurs doivent bouger ensemble
+ * (§3.7 invariant 11) : les deux premières vivent dans DesktopSeries, on les
+ * nomme ici pour que la soustraction reste lisible plutôt que d'écrire son
+ * résultat.
  */
-const CENTER_MAX_H = 'calc(100dvh - 300px)';
+const SCENE_RESERVE = 160; // DesktopSeries : hauteur de scène = 100dvh − 160
+const OPEN_PADDING_TOP = 24; // DesktopSeries : paddingTop de la vue ouverte
+const CENTER_MAX_H = `calc(100dvh - ${
+  SCENE_RESERVE + OPEN_PADDING_TOP + CHROME_TOP + CHROME_BOTTOM
+}px)`;
 
 export function OpenSeriesView({
   allSeries,
