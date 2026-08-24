@@ -941,6 +941,43 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
           },
           TRAVEL_START
         );
+
+        // ALX se retire DEVANT le glyph au lieu de se faire traverser
+        // (demande Alexandre, 2026-08-24). Le fondu reste — c'est un départ
+        // qui glisse, pas un remplacement.
+        //
+        // Le rapport 2:1 est obtenu par la DISTANCE, pas par la durée : même
+        // instant de départ, même durée, même `power3.inOut` que le vol, mais
+        // deux fois son déplacement vertical. Deux courbes identiques mises à
+        // l'échelle l'une de l'autre ont un rapport de vitesse constant à
+        // CHAQUE frame — 2:1 du début à la fin, sans qu'aucun des deux ne
+        // rattrape l'autre en cours de route. Raccourcir la durée de moitié
+        // donnerait bien 2× la vitesse moyenne, mais sur la même distance :
+        // ALX s'arrêterait à mi-vol et le glyph le rejoindrait à l'arrivée.
+        //
+        // Le déplacement est DÉRIVÉ de `dy`, jamais écrit : c'est la seule
+        // façon d'être proportionné au trajet réel, qui n'a pas la même
+        // ampleur d'une largeur d'écran à l'autre (mesuré : ~130 px de
+        // remontée en 430 px de large, ~210 px en 1440). Le signe suit celui
+        // du vol, donc ALX s'écarte TOUJOURS dans le sens du glyph, jamais
+        // au-devant de lui — et si un jour le glyph du hero passait SOUS la
+        // composition du splash, ALX descendrait avec, sans une ligne de plus.
+        //
+        // Le fondu de 0,4 s coupe la glissade à ~37 % de sa course : ALX a
+        // parcouru 51 px (mobile) / 85 px (desktop) quand il disparaît. Le
+        // reste de la course n'est jamais vu, mais il maintient la vitesse
+        // constante jusqu'au bout — un tween écourté à la durée du fondu
+        // finirait par un freinage visible.
+        const ALX_CLEAR_RATIO = 2;
+        tl.to(
+          left,
+          {
+            y: dy * ALX_CLEAR_RATIO,
+            duration: TRAVEL_DUR,
+            ease: 'power3.inOut',
+          },
+          TRAVEL_START
+        );
       }
 
       // 5 — At the exact moment the glyph LANDS at its hero-banner position,
