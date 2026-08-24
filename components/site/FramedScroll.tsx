@@ -9,6 +9,12 @@ import { type ReactNode } from 'react';
  * pixel de contenu ne peut visuellement entrer dans la zone du nav-bar (les
  * 64px du haut), peu importe la position de scroll.
  *
+ * Nuance MOBILE (2026-08-24) : sous `md`, quand la barre du haut se cache au
+ * défilement descendant (mode « scroll-triggered », lib/site/top-bar.ts), le
+ * conteneur monte à `top: 0` — règle unlayered de globals.css sur
+ * `[data-scroll-container]` — et le contenu récupère les 64 px. La garantie
+ * ci-dessus reste entière tant que la barre est visible.
+ *
  * Sur la home (`/`), on passe à travers sans wrapper : le scroll reste sur
  * window, ce dont GSAP ScrollTrigger / Lenis / le morph HomeHero ont besoin.
  * La home est de toute façon plus haute que l'écran par construction (hero

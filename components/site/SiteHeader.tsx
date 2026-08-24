@@ -32,7 +32,12 @@ export function SiteHeader() {
       <a href="#main" className="skip-link">
         Skip to content
       </a>
+      {/* `data-top-bar` : sous `md`, la barre glisse hors écran quand on
+          descend et revient quand on remonte (mode « scroll-triggered »,
+          contrôleur TopBarAutoHide + CSS globals.css — cf. lib/site/top-bar.ts).
+          Jamais sur la home : le contrôleur n'y écoute rien. */}
       <header
+        data-top-bar
         className={cn(
           // Header transparent sur les deux breakpoints — le contenu (photos /
           // gallery) reste visible derrière le nav et permet au CursorInvert

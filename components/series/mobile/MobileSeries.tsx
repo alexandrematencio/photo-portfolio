@@ -13,6 +13,7 @@ import type { PreparedSeries } from '@/lib/site/series';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { useMdUp } from '../shared/useMdUp';
 import { pushModalHistory } from '@/lib/utils/modalHistory';
+import { revealTopBar } from '@/lib/site/top-bar';
 import { SeriesMeta, META_LINE_PX } from '../shared/SeriesMeta';
 import {
   MICRO_LABEL,
@@ -236,6 +237,12 @@ export function MobileSeries({
 
   const handleOpen = useCallback(
     (s: PreparedSeries) => {
+      // Le calque immersif flotte SOUS le glyph et MENU (z-40 contre 50/55)
+      // et leur réserve 64 px : il compte sur leur présence. Si la barre a
+      // été cachée par le défilement de la liste (mode « scroll-triggered »,
+      // lib/site/top-bar.ts), on la rappelle — le calque, lui, ne fera plus
+      // défiler aucun axe vertical qui pourrait la ramener.
+      revealTopBar();
       if (!reduced) {
         const coverEl = listRef.current?.querySelector(
           `[data-flip-id="cover-${s.slug}"]`

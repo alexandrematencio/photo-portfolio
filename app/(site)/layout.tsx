@@ -3,6 +3,7 @@ import { SiteFooter } from '@/components/site/SiteFooter';
 import { FramedScroll } from '@/components/site/FramedScroll';
 import { MainPadding } from '@/components/site/MainPadding';
 import { MobileMenu } from '@/components/site/MobileMenu';
+import { TopBarAutoHide } from '@/components/site/TopBarAutoHide';
 import { CursorInvert } from '@/components/site/CursorInvert';
 import { EmailHoneypot } from '@/components/site/EmailHoneypot';
 import { SiteSessionMarker } from '@/components/site/SiteSessionMarker';
@@ -26,6 +27,10 @@ export default function SiteLayout({
       <SiteHeader />
       {/* Mobile menu rendered once for the whole (site) group — works on home and editorial pages alike. */}
       <MobileMenu />
+      {/* Mode « scroll-triggered » de la barre du haut mobile : cache glyph +
+          MENU au défilement descendant sur toutes les pages sauf la home
+          (cf. lib/site/top-bar.ts). Ne rend rien. */}
+      <TopBarAutoHide />
       {/* Desktop-only cursor inversion disc — triggers on elements with `data-cursor-invert`.
           Lives at the layout root (not inside any transformed/isolated container) so the
           mix-blend-mode can blend against everything painted underneath the viewport. */}

@@ -65,8 +65,14 @@ export function MobileMenu() {
     <>
       {/* CLOSED — "MENU" text button, plain text (no border, no bg).
           Wrapped in a 64 px tall flex container at top-0 so it aligns vertically with
-          the glyph in <SiteHeader />, which lives in the same h-16 nav-bar slot. */}
+          the glyph in <SiteHeader />, which lives in the same h-16 nav-bar slot.
+
+          `data-top-bar` : glisse hors écran au défilement descendant avec le
+          glyph du SiteHeader — même attribut, même transition CSS, les deux
+          morceaux bougent d'un seul tenant (cf. lib/site/top-bar.ts). Sur la
+          home l'attribut est inerte : le contrôleur n'y écoute rien. */}
       <div
+        data-top-bar
         className="md:hidden fixed top-0 right-0 z-[55] h-16 flex items-center"
         style={{ paddingRight: 32 }}
       >

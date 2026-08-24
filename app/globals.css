@@ -500,6 +500,52 @@ body img {
   }
 }
 
+/* Barre du haut mobile — mode « scroll-triggered » (demande Alexandre,
+   2026-08-24). Les deux morceaux fixes de la barre (glyph du SiteHeader,
+   bouton MENU de MobileMenu) portent `data-top-bar` ; le contrôleur
+   TopBarAutoHide pose `data-top-bar-hidden` sur <html> quand on descend et
+   le retire quand on remonte (mécanisme complet : lib/site/top-bar.ts).
+
+   Le glissement vit ICI, pas dans React : un attribut bascule, le CSS fait
+   le reste — aucun re-render pendant le défilement. `translate` et non
+   `transform`, pour ne composer avec aucun transform Tailwind (et c'est de
+   toute façon la propriété que la v4 écrit, cf. CLAUDE.md §7.7). -100 % :
+   les deux boîtes font la hauteur de la barre (h-16), elles sortent en
+   entier. Scopé sous `md` — au-dessus, la barre ne bouge jamais. */
+@media (max-width: 767px) {
+  [data-top-bar] {
+    transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* Le « bandeau » de la barre n'est PAS un élément : le header est
+     transparent, et ce qu'on voit est la zone de 64 px au-dessus du conteneur
+     de scroll (`top-16`, FramedScroll). Cacher la seule barre ne rendrait donc
+     aucun pixel au contenu (constaté par Alexandre, 2026-08-24) : le conteneur
+     MONTE à 0 du même geste — même durée, même easing — et c'est son repère
+     entier qui bouge, donc tout l'intérieur (sticky et sentinelle
+     d'/archives, ancres `#photo-<slug>`) suit sans rien savoir. Unlayered
+     exprès : la règle doit battre l'utility `top-16`, qui vit en @layer. */
+  [data-scroll-container] {
+    transition: top 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  html[data-top-bar-hidden] [data-top-bar] {
+    translate: 0 -100%;
+  }
+  html[data-top-bar-hidden] [data-scroll-container] {
+    top: 0;
+  }
+}
+/* Chemin instantané (§3.2) : l'état joue, la transition non. Les items de la
+   barre restent tabbables hors écran — c'est le contrôleur qui la fait
+   revenir au premier focus dedans (WCAG 2.4.7). */
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  [data-top-bar],
+  html[data-top-bar-hidden] [data-top-bar],
+  [data-scroll-container],
+  html[data-top-bar-hidden] [data-scroll-container] {
+    transition: none;
+  }
+}
+
 /* Skip link a11y */
 .skip-link {
   position: absolute;
