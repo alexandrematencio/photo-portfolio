@@ -305,6 +305,18 @@
    page dont le plus long mot dépasse « ARCHIVES » oblige à relever ce
    diviseur — sinon c'est elle qui déborde.
 
+   ⚠️ **`100vw` compte la barre de défilement CLASSIQUE, pas la largeur
+   utile.** Le viewport lui-même ne défile pas, mais `[data-scroll-container]`
+   si — et une barre classique (Windows par défaut, macOS « toujours
+   afficher ») lui prend ~15-17 px de largeur INTÉRIEURE que `100vw` ignore.
+   La marge de 1,6 % (~5 px sous 407 px de large) ne peut pas l'absorber :
+   fenêtre desktop rétrécie sous `md`, « ARCHIVES » se faisait rogner à
+   droite, sans le moindre signal. D'où l'override `pointer: fine` ci-dessous :
+   les barres classiques n'existent que dans les environnements à souris, les
+   écrans tactiles (barres en surimpression, largeur nulle) gardent la
+   calibration exacte. Coût assumé : ~3 px de corps en moins pour un macOS en
+   barres overlay dont la fenêtre passe sous 768 px — l'état le plus rare.
+
    Au-dessus de `md`, 96 px en dur : la colonne éditoriale (1107) l'encaisse,
    et les titres à deux mots (« LEGAL NOTICE », « DIGITAL AGENCY ») passent
    simplement sur deux lignes entre 768 et ~885 px. Ne JAMAIS poser
@@ -330,6 +342,19 @@
   --page-gutter: 20px;
   --page-title-size: min(68px, (100vw - 2 * var(--page-gutter)) / 5.25);
   --page-air-top: 32px;
+}
+
+/* Allocation barre de défilement classique (raisonnement dans le bloc
+   ci-dessus) : 17 px = la barre Windows à l'échelle 100 %, le pire cas.
+   AVANT la media query `md`, qui doit garder le dernier mot quand les deux
+   s'appliquent. */
+@media (pointer: fine) {
+  :root {
+    --page-title-size: min(
+      68px,
+      (100vw - 2 * var(--page-gutter) - 17px) / 5.25
+    );
+  }
 }
 
 @media (min-width: 48rem) {

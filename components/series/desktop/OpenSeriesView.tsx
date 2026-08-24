@@ -10,6 +10,7 @@ import { useMdUp } from '../shared/useMdUp';
 import { colLeadReserve } from '../shared/colLead';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { StateDot, STATE_DOT_SIZE } from '@/components/site/StateDot';
+import { PAGE_GUTTER_MD } from '@/lib/site/typography';
 
 /**
  * État ouvert desktop (spec §5) : trois zones —
@@ -46,9 +47,18 @@ const CHROME_BOTTOM = 4 * META_LINE_PX + 12;
  */
 const SCENE_RESERVE = 160; // DesktopSeries : hauteur de scène = 100dvh − 160
 const OPEN_PADDING_TOP = 24; // DesktopSeries : paddingTop de la vue ouverte
-const CENTER_MAX_H = `calc(100dvh - ${
-  SCENE_RESERVE + OPEN_PADDING_TOP + CHROME_TOP + CHROME_BOTTOM
-}px)`;
+/**
+ * La somme est EXPORTÉE parce qu'une deuxième vérité en dépend :
+ * `predictCenterRect` (DesktopSeries) prédit le rect de l'image entrante avec
+ * exactement cette règle, côté JS (`window.innerHeight − réserve`). Quand la
+ * réserve était transcrite là-bas en littéral, elle a dérivé à la première
+ * retouche (300 resté en place pour un calcul passé à 288) : clone posé 12 px
+ * trop court, saut visible au raccord clone → réel. Un seul nombre, deux
+ * consommateurs.
+ */
+export const CENTER_RESERVE_PX =
+  SCENE_RESERVE + OPEN_PADDING_TOP + CHROME_TOP + CHROME_BOTTOM;
+const CENTER_MAX_H = `calc(100dvh - ${CENTER_RESERVE_PX}px)`;
 
 /**
  * Gouttière de la LED de la colonne de vignettes : le voyant qui dit « photo
@@ -96,11 +106,13 @@ const COL_THUMB_W = 132;
  */
 export const OPEN_LEFT_COL_W = 176;
 /**
- * Écart de grille — la même gouttière que la page. Il sépare la bande de
- * gauche du bloc de l'image ET le bloc de l'image de la colonne de vignettes :
- * les 32 px « coûte que coûte » sont CE nombre, écrit une fois.
+ * Écart de grille — la même gouttière que la page, DÉDUITE de sa constante
+ * (`PAGE_GUTTER_MD`) et non retranscrite : cette branche n'existe qu'au-dessus
+ * de `md`, où la gouttière vaut ce nombre. Il sépare la bande de gauche du
+ * bloc de l'image ET le bloc de l'image de la colonne de vignettes : les
+ * 32 px « coûte que coûte » sont CE nombre, écrit une fois.
  */
-export const OPEN_GAP = 32;
+export const OPEN_GAP = PAGE_GUTTER_MD;
 
 /**
  * Allumage / extinction de la LED — les deux temps d'une diode, pas un
@@ -200,6 +212,13 @@ export function OpenSeriesView({
    * jamais.
    */
   useLayoutEffect(() => {
+    // Branche cachée (viewport mobile) : les deux branches restent montées et
+    // partagent activeIndex (§3.7 invariant 3) — sans cette garde, chaque
+    // swipe mobile rejouerait ici querySelector, getComputedStyle (recalc de
+    // style forcé) et deux tweens sur des LED que personne ne voit, pendant
+    // que la branche mobile anime son propre glissement. Même doctrine que
+    // tous les écouteurs globaux de la page : gardés par visibilité.
+    if (!mdUp) return;
     const col = colRef.current;
     if (!col) return;
     const dotOf = (i: number) =>
@@ -243,23 +262,38 @@ export function OpenSeriesView({
       });
     };
 
-    if (posed()) {
-      // Vignette déjà posée (chemin instant, ou reprise sans vol) : la LED
-      // s'allume après l'extinction si l'on vient d'en éteindre une — les
-      // deux temps de la diode, même sans vol entre eux.
-      lightUp(handoff ? LED_OFF : 0);
-      return;
-    }
-    const obs = new MutationObserver(() => {
-      if (!posed()) return;
-      obs.disconnect();
-      lightUp(0);
+    // ⚠️ Le verdict de pose ne se lit PAS à ce commit. Le masquage des vols
+    // d'ouverture et de switch est posé par un layout effect du PARENT
+    // (DesktopSeries, runOpen/runSwitch) — et React joue les effets enfant
+    // AVANT les effets parent : lu ici, `posed()` dirait toujours « posée »
+    // et la LED s'allumerait à côté d'un emplacement encore vide, la
+    // chorégraphie court-circuitée sur ces deux chemins. Un rAF se place
+    // après TOUS les effets du commit et avant la peinture : la vérité du
+    // masquage y est établie, sans frame visible d'écart.
+    let obs: MutationObserver | null = null;
+    const raf = requestAnimationFrame(() => {
+      if (posed()) {
+        // Vignette déjà posée (chemin instant, ou reprise sans vol) : la LED
+        // s'allume après l'extinction si l'on vient d'en éteindre une — les
+        // deux temps de la diode, même sans vol entre eux.
+        lightUp(handoff ? LED_OFF : 0);
+        return;
+      }
+      obs = new MutationObserver(() => {
+        if (!posed()) return;
+        obs?.disconnect();
+        lightUp(0);
+      });
+      for (const el of [img, item, col]) {
+        if (el)
+          obs.observe(el, { attributes: true, attributeFilter: ['style'] });
+      }
     });
-    for (const el of [img, item, col]) {
-      if (el) obs.observe(el, { attributes: true, attributeFilter: ['style'] });
-    }
-    return () => obs.disconnect();
-  }, [activeIndex, displayed.slug, reduced]);
+    return () => {
+      cancelAnimationFrame(raf);
+      obs?.disconnect();
+    };
+  }, [activeIndex, displayed.slug, reduced, mdUp]);
 
   return (
     <div

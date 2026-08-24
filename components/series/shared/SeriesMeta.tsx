@@ -65,8 +65,21 @@ export function SeriesMeta({
       )}
       style={{ lineHeight: `${META_LINE_PX}px`, ...style }}
     >
+      {/* UNE ligne par rangée, coûte que coûte : les deux réserves de hauteur
+          du site — CHROME_BOTTOM desktop (4 lignes), PHOTO_V_RESERVE mobile
+          (2 lignes) — sont des produits de META_LINE_PX, jamais des mesures.
+          Sans cette garde, une ligne matériel réaliste (« Fujifilm X-T5 ·
+          XF 16-55mm f/2.8 R LM WR », ~288 px au corps de 10) REPLIE sur un
+          téléphone étroit : une ligne de plus que le budget, et le bloc —
+          hors flux en desktop, dans une bande à hauteur fixe en mobile — se
+          fait rogner sans le moindre signal (§3.7 invariant 11). L'ellipse
+          tronque la fin de la valeur la moins critique ; la hauteur, elle,
+          ne ment jamais. */}
       {lines.map((line) => (
-        <span key={line} className="block">
+        <span
+          key={line}
+          className="block overflow-hidden text-ellipsis whitespace-nowrap"
+        >
           {line}
         </span>
       ))}

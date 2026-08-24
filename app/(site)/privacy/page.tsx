@@ -1,6 +1,9 @@
 import { buildMetadata } from '@/lib/seo/metadata';
 import { ProtectedEmail } from '@/components/site/ProtectedEmail';
-import { EDITORIAL_BODY } from '@/lib/site/typography';
+import {
+  EDITORIAL_BODY,
+  EDITORIAL_LINK_DECORATION,
+} from '@/lib/site/typography';
 import { PageShell } from '@/components/site/PageShell';
 
 export const metadata = buildMetadata({
@@ -27,7 +30,10 @@ export default function PrivacyPage() {
 
         <p className={EDITORIAL_BODY}>
           Under articles 15 to 22 of the GDPR, you have rights to access, rectification, erasure, objection, restriction and portability of your data. To exercise them,{' '}
-          <ProtectedEmail className="underline underline-offset-[6px] decoration-2 hover:opacity-60 transition-opacity motion-reduce:transition-none">
+          {/* Lien INLINE dans un paragraphe : la décoration partagée, jamais
+              une chaîne recopiée (§7.5) — la copie qui vivait ici avait déjà
+              dérivé (survol en opacité là où tout le site fonce la couleur). */}
+          <ProtectedEmail className={EDITORIAL_LINK_DECORATION}>
             write to me directly
           </ProtectedEmail>
           .

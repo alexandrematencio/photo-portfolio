@@ -13,7 +13,7 @@ import type { PreparedSeries } from '@/lib/site/series';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { useMdUp } from '../shared/useMdUp';
 import { pushModalHistory } from '@/lib/utils/modalHistory';
-import { SeriesMeta } from '../shared/SeriesMeta';
+import { SeriesMeta, META_LINE_PX } from '../shared/SeriesMeta';
 import {
   MICRO_LABEL,
   PAGE_GUTTER,
@@ -84,11 +84,15 @@ const ROW_GAP = 72;
  * nombres n'ont de sens qu'ensemble — en changer un sans les autres, c'est
  * une photo rognée ou une frise poussée hors de l'écran.
  *
- * Le troisième terme a pris 12 px le 2026-08-24 : la fiche technique est
- * passée d'une ligne à deux (prise de vue / matériel), interligne resserré
- * compris — 10 de padding + 2 × META_LINE_PX contre 10 + 18 auparavant.
+ * La part fiche technique est CALCULÉE depuis `META_LINE_PX` (deux lignes en
+ * mode `grouped` + 10 de padding), jamais transcrite — même geste que
+ * `CHROME_BOTTOM` côté desktop, et pour la même raison : l'interligne a déjà
+ * changé une fois (18 → 15 le 2026-08-24, où cette part est passée de 10 + 18
+ * à 10 + 2 × 15) et cette réserve doit suivre toute seule. Les termes en
+ * dur : nav-bar 64, frise de points 56, ligne de titre 18 + son padding 10,
+ * et 32 de respiration.
  */
-const PHOTO_V_RESERVE = 220;
+const PHOTO_V_RESERVE = 64 + 56 + (18 + 10) + (10 + 2 * META_LINE_PX) + 32;
 
 /** Frise de points — fenêtre glissante façon carousel Instagram. */
 const DOT = 6;

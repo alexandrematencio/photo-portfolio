@@ -19,7 +19,11 @@ import {
 } from '../shared/SeriesWordmark';
 import { PAGE_TITLE_SIZE_MD } from '@/lib/site/typography';
 import { FolderStack } from './FolderStack';
-import { OpenSeriesView, OPEN_LEFT_COL_W } from './OpenSeriesView';
+import {
+  OpenSeriesView,
+  OPEN_LEFT_COL_W,
+  CENTER_RESERVE_PX,
+} from './OpenSeriesView';
 import {
   DUR,
   EASE,
@@ -655,9 +659,17 @@ export function DesktopSeries({
 
     // Au redimensionnement, on RE-POSE la cible sans la rejouer : le geste de
     // l'utilisateur est le redimensionnement, pas une ouverture.
+    //
+    // `overwrite: 'auto'` est OBLIGATOIRE : un resize peut tomber pendant le
+    // vol de repli (0,9 s), et un `gsap.set` nu ne tue pas le tween en cours —
+    // il rend une frame, puis les ticks du tween reprennent vers la cible
+    // calculée pour l'ANCIENNE fenêtre, et rien dans les deps ne re-déclenche
+    // l'effet. Le titre resterait posé à une échelle fausse jusqu'au prochain
+    // changement de phase (§3.7 invariant 17 : échelle ET translation se
+    // recalculent au redimensionnement).
     const onResize = () => {
       const next = target();
-      if (next) gsap.set(el, next);
+      if (next) gsap.set(el, { ...next, overwrite: 'auto' });
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
@@ -1299,12 +1311,18 @@ export function DesktopSeries({
   /**
    * Rect prédit de l'image centrale pour une photo de ratio donné — même
    * règle que le CSS d'OpenSeriesView (width = min(100%, maxH × ratio),
-   * maxHeight, flex center). maxH réplique CENTER_MAX_H (100dvh − 300px) :
-   * ne PAS mesurer l'image courante à la place, sa hauteur dépend de SON
-   * ratio et fausserait la prédiction pour la suivante.
+   * maxHeight, flex center). maxH applique CENTER_RESERVE_PX, le MÊME nombre
+   * que CENTER_MAX_H — jamais une transcription : le littéral qui vivait ici
+   * (300) n'a pas suivi le passage de la réserve à 288 et posait le clone
+   * 12 px trop court, saut visible au raccord clone → réel. Et ne PAS mesurer
+   * l'image courante à la place : sa hauteur dépend de SON ratio et fausserait
+   * la prédiction pour la suivante.
    */
   function predictCenterRect(cellRect: DOMRect, ratio: number): DOMRect {
-    const maxH = Math.min(cellRect.height, window.innerHeight - 300);
+    const maxH = Math.min(
+      cellRect.height,
+      window.innerHeight - CENTER_RESERVE_PX
+    );
     let w = Math.min(cellRect.width, maxH * ratio);
     let h = w / ratio;
     if (h > cellRect.height) {

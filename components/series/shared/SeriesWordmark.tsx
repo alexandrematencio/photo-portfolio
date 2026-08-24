@@ -1,8 +1,11 @@
 /**
  * LE MOT « SERIES » EN LETTRAGE — un SVG qui remplit TOUTE la largeur de sa
- * boîte, quelle qu'elle soit. Composant unique : la page /series l'affiche en
- * grand sur sa branche desktop et sur sa branche mobile, aux deux échelles
- * d'une même recette. Ne pas le recopier ailleurs — c'est la mesure qui
+ * boîte, quelle qu'elle soit. Composant unique, et depuis le 2026-08-24 un
+ * SEUL consommateur : la branche DESKTOP de /series (grand lettrage posé sur
+ * la rangée, replié en titre de bande par `DesktopSeries` — dont le
+ * `foldWidth`/`seriesWordmarkWidthFor` dépend des cotes ci-dessous). La
+ * branche mobile, elle, porte le titre de page ordinaire (`PageTitle`, §7.8)
+ * et ne le rend plus. Ne pas le recopier ailleurs — c'est la mesure qui
  * changerait en silence d'un endroit à l'autre.
  *
  * **Recette héritée de « Selected Works »** (`ScrollPhysicsGallery`) : le

@@ -432,15 +432,23 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
         />
       </div>
 
+      {/* Gouttières de la console : le TOKEN de page, jamais 32 en dur — la
+          branche est desktop-only (`md:`), le token y vaut la gouttière `md`
+          et la suivra si elle bouge (globals.css, « ne jamais recopier 20, 32
+          ou 96 dans un composant »). */}
       <nav
         className="hidden md:flex items-stretch justify-between bg-[var(--color-bg-plate)]"
-        style={{ paddingLeft: 32 }}
+        style={{ paddingLeft: 'var(--page-gutter)' }}
       >
         <div
           role="tablist"
           aria-label="Grouping mode"
           className="flex min-w-0 flex-wrap items-center justify-start gap-y-2"
-          style={{ paddingTop: 20, paddingBottom: 20, paddingRight: 32 }}
+          style={{
+            paddingTop: 20,
+            paddingBottom: 20,
+            paddingRight: 'var(--page-gutter)',
+          }}
         >
           {TABS.map((tab) => {
             const active = tab.id === mode;
@@ -495,7 +503,10 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
           role="group"
           aria-label="Grid display size"
           className="hidden md:flex items-center gap-6 bg-[var(--color-bg-plate-dark)]"
-          style={{ paddingLeft: 32, paddingRight: 32 }}
+          style={{
+            paddingLeft: 'var(--page-gutter)',
+            paddingRight: 'var(--page-gutter)',
+          }}
         >
           {GRID_SIZES.map((size) => (
             <button
@@ -584,8 +595,8 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
       <div
         className="hidden md:block sticky top-0 z-30 bg-[var(--color-bg-plate-low)]"
         style={{
-          paddingLeft: 32,
-          paddingRight: 32,
+          paddingLeft: 'var(--page-gutter)',
+          paddingRight: 'var(--page-gutter)',
           paddingTop: 16,
           paddingBottom: 16,
         }}

@@ -126,31 +126,41 @@ export const MICRO_LABEL_XS = 'text-[10px] uppercase font-bold tabular-nums';
  * différents selon la page (48 en mobile, 72 en desktop, 96 sur /series).
  *
  * ⚠️ Les VALEURS de gouttière et de corps de titre sont posées en CSS, dans
- * `app/globals.css` (tokens `--page-gutter` / `--page-title-size` et règles
- * `[data-page-frame]` / `[data-page-title]`), parce qu'elles sont RESPONSIVES :
- * un style inline échappe au reset `* { padding: 0 }` mais ne connaît pas les
- * media queries, et une utility Tailwind connaît les media queries mais se
- * fait avaler par le reset (CLAUDE.md §7.6 / §7.7). Les constantes ci-dessous
- * ne sont donc PAS la source de vérité de ces deux-là : elles n'existent que
- * pour le code qui a besoin du NOMBRE (mesures, animations). Le commentaire
- * du bloc CSS porte le raisonnement complet.
+ * `app/globals.css` (tokens `--page-gutter` / `--page-title-size`), parce
+ * qu'elles sont RESPONSIVES : un style inline échappe au reset
+ * `* { padding: 0 }` mais ne connaît pas les media queries, et une utility
+ * Tailwind connaît les media queries mais se fait avaler par le reset
+ * (CLAUDE.md §7.6 / §7.7). Ces tokens sont LUS EN STYLE INLINE par
+ * `PageShell` / `PageTitle` (components/site/PageShell.tsx) — il n'y a pas de
+ * règle CSS qui les applique à un sélecteur : un composant qui veut le cadre
+ * passe par PageShell, ou écrit lui-même `var(--page-…)` dans un style
+ * inline. Les constantes ci-dessous ne sont donc PAS la source de vérité de
+ * ces deux-là : elles n'existent que pour le code qui a besoin du NOMBRE
+ * (mesures, animations). Le commentaire du bloc CSS porte le raisonnement
+ * complet.
  */
 
 /** Gouttière latérale de page, sous `md`. Reprise de `/series` — c'est la
  *  seule page dont la mesure de téléphone avait été dessinée. */
 export const PAGE_GUTTER = 20;
 
-/** La même au-dessus de `md`, où toutes les pages étaient déjà d'accord. */
+/** La même au-dessus de `md`, où toutes les pages étaient déjà d'accord.
+ *  Consommée par la grille de la vue ouverte de `/series` (`OPEN_GAP`,
+ *  OpenSeriesView), qui est cette gouttière-là — la branche desktop n'existe
+ *  qu'au-dessus de `md`. */
 export const PAGE_GUTTER_MD = 32;
 
 /**
  * TITRE DE PAGE — le H1 en gros lettrage, identique sur toutes les pages.
  *
- * La TAILLE n'est pas dans cette chaîne : elle vient de `[data-page-title]`
- * (globals.css), qui vaut 96 px au-dessus de `md` et, en dessous, le plus
- * grand corps auquel le mot le plus long du site tient encore — plafonné à
- * 68 px. Poser le H1 sans cet attribut, c'est un titre à la taille héritée,
- * sans le moindre signal. Passer par `<PageShell>` évite la question.
+ * ⚠️ La TAILLE n'est PAS dans cette chaîne : c'est `PageTitle`
+ * (components/site/PageShell.tsx) qui la pose, en style inline —
+ * `fontSize: 'var(--page-title-size)'`, le token de globals.css qui vaut
+ * 96 px au-dessus de `md` et, en dessous, le plus grand corps auquel le mot
+ * le plus long du site tient encore. Un `<h1 className={PAGE_TITLE}>` écrit à
+ * la main est donc un titre à la taille HÉRITÉE, sans le moindre signal —
+ * c'est exactement l'accident que `/archives` portait avant l'homogénéisation.
+ * Toujours passer par `<PageShell>` / `<PageTitle>`.
  *
  * `tracking-normal` et non plus `-0.04em` : le site n'a plus AUCUN
  * interlettrage de titre (demande Alexandre, 2026-08-24). Le mobile de
@@ -168,19 +178,14 @@ export const PAGE_TITLE =
  * laisserait diverger sans le moindre signal.
  *
  * ⚠️ Doit rester égal au `--page-title-size` de la media query `md` dans
- * `globals.css` — c'est le seul endroit où le nombre est écrit deux fois, et
- * c'est irréductible : le CSS ne peut pas lire une constante TypeScript, et
- * une animation GSAP ne peut pas attendre une media query.
+ * `globals.css` — duplication irréductible, comme celle des gouttières
+ * ci-dessus : le CSS ne peut pas lire une constante TypeScript, et une
+ * animation GSAP ne peut pas attendre une media query. Rien d'AUTRE ne se
+ * duplique : le plafond fluide sous `md` (68 px), lui, n'existe QUE dans
+ * globals.css — il avait un jumeau TypeScript ici, sans consommateur, retiré
+ * le 2026-08-24 (une constante que rien ne lit ne fait que dériver).
  */
 export const PAGE_TITLE_SIZE_MD = 96;
-
-/**
- * Corps maximal du titre sous `md`. Le corps RÉEL est fluide en dessous de ce
- * plafond (cf. globals.css) : à 390 px d'écran il tombe à ~67 px, contraint
- * par « ARCHIVES ». Exporté pour documentation et pour tout code qui aurait
- * besoin de la borne haute.
- */
-export const PAGE_TITLE_SIZE_MAX = 68;
 
 /**
  * ÉCART TITRE → CORPS, une seule valeur pour toutes les pages et les deux
