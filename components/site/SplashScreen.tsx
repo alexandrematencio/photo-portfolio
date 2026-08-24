@@ -759,9 +759,37 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
           (leftBearings.rightBearing - rightBearings.leftBearing) / 2;
         slot.style.marginLeft = `${-asymmetryPx}px`;
         slot.style.marginRight = `${asymmetryPx}px`;
+        slot.style.marginTop = '';
+        slot.style.marginBottom = '';
       } else {
         slot.style.marginLeft = '';
         slot.style.marginRight = '';
+
+        // Vertical mobile: HALVE the air between ALX and MTNC (demande
+        // Alexandre, 2026-08-24). Stacked, the two words drift apart far more
+        // than they do side by side — and the CSS gap is the smaller half of
+        // the reason. With `lineHeight: 1`, each line box still carries its own
+        // leading: Inter leaves ~0.137em of empty band above the caps and as
+        // much below the baseline. At a 95 px font that is 13 px per side, on
+        // top of the 8 px gap — 42 px of air where the horizontal layout has
+        // 16 px, so "ALXMTNC" stops reading as one word at slot height 0.
+        //
+        // The pull is MEASURED, never written down: the leading scales with the
+        // font size, which is a clamp() (80 → 130 px). A hardcoded negative
+        // margin would halve the air at one viewport width and overshoot at
+        // another. It sits on the SLOT rather than on the letters so the slot's
+        // own height — the animated property — stays untouched, and it is
+        // applied BEFORE slotRect is measured, so the glyph still lands centred
+        // on the slot. It only ever eats leading (10.5 px of the 21 px
+        // available per side), never a glyph.
+        const row = slot.parentElement as HTMLElement | null;
+        const rowGapPx = row
+          ? parseFloat(window.getComputedStyle(row).rowGap) || 0
+          : 0;
+        const leadingPx = Math.max(0, (letterH - measureCapHeightPx(left)) / 2);
+        const pullPx = (leadingPx + rowGapPx) / 2;
+        slot.style.marginTop = `${-pullPx}px`;
+        slot.style.marginBottom = `${-pullPx}px`;
       }
 
       // Place the glyph wrapper EXACTLY over the slot when it's at its FINAL
