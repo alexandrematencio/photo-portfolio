@@ -3,4 +3,4 @@
 :HL["/photo-portfolio/_next/static/media/f67ad414ed34149c-s.p.0036ggltrltw4.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
 :HL["/photo-portfolio/img/logos/glyph-alxmtnc-gray.svg","image"]
 :HL["/photo-portfolio/img/logos/axxlo-logo.svg","image"]
-0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"(site)","param":null,"prefetchHints":0,"slots":{"children":{"name":"about","param":null,"prefetchHints":0,"slots":{"children":{"name":"digital-agency","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}}}}}},"staleTime":300,"buildId":"g1q3ypMBpzEOvzAEtAQ2j"}
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"(site)","param":null,"prefetchHints":0,"slots":{"children":{"name":"about","param":null,"prefetchHints":0,"slots":{"children":{"name":"digital-agency","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}}}}}},"staleTime":300,"buildId":"FgyB_6lK6_V7AKWwXav_q"}
