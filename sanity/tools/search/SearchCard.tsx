@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Card, Flex, Stack, Text, TextInput } from '@sanity/ui';
-import { CloseIcon, SearchIcon } from '@sanity/icons';
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CloseIcon,
+  SearchIcon,
+} from '@sanity/icons';
 import { useRouter } from 'sanity/router';
 
 import { useFacetedSearch } from '@/lib/search';
@@ -12,11 +17,18 @@ import {
   type PhotoIndexRow,
   type PhotoRecord,
 } from './photoIndexQuery';
+import { ResultGrid } from './ResultGrid';
 
 const MAX_PHOTO_SUGGESTIONS = 6;
 
+/**
+ * Signature du fabricant de vignettes du Tableau de bord, repris tel quel.
+ * ⚠️ Pas de `| null` ici : c'est celle de `thumbUrl` dans `Dashboard.tsx`, et
+ * l'élargir pour arranger l'appelant ferait porter la conversion au mauvais
+ * endroit. L'index photo, lui, rend `image: … | null` — il convertit chez lui.
+ */
 export type ThumbFn = (
-  image: { asset?: { _ref: string } } | null | undefined,
+  image: { asset?: { _ref: string } } | undefined,
   size: number
 ) => string | null;
 
@@ -33,7 +45,13 @@ export type ThumbFn = (
  * ligne passée en enfant ne s'afficherait pas — sans erreur, typecheck vert
  * (CLAUDE.md §11.13).
  */
-export function SearchCard({ rows }: { rows: PhotoIndexRow[] }) {
+export function SearchCard({
+  rows,
+  thumbUrl,
+}: {
+  rows: PhotoIndexRow[];
+  thumbUrl: ThumbFn;
+}) {
   const router = useRouter();
   const docs = useMemo(() => rebaseDrafts(rows), [rows]);
   const { text, setText, chips, toggleFacet, clearAll, isPristine, result } =
@@ -41,6 +59,7 @@ export function SearchCard({ rows }: { rows: PhotoIndexRow[] }) {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [cursor, setCursor] = useState(0);
+  const [panelOpen, setPanelOpen] = useState(false);
 
   const openPhoto = useCallback(
     (id: string) => router.navigateIntent('edit', { id, type: 'photo' }),
@@ -194,6 +213,14 @@ export function SearchCard({ rows }: { rows: PhotoIndexRow[] }) {
               onClick={clearAll}
             />
           )}
+
+          <Button
+            mode="ghost"
+            fontSize={1}
+            text="Filtrer"
+            iconRight={panelOpen ? ChevronUpIcon : ChevronDownIcon}
+            onClick={() => setPanelOpen((open) => !open)}
+          />
         </Flex>
 
         {options.length > 0 && (
@@ -246,10 +273,57 @@ export function SearchCard({ rows }: { rows: PhotoIndexRow[] }) {
           </Stack>
         )}
 
+        {panelOpen && (
+          <Card padding={3} radius={2} tone="transparent" border>
+            <Stack space={4}>
+              {result.facets.map((group) => (
+                <Stack key={group.key} space={2}>
+                  <Text size={0} muted weight="semibold">
+                    {group.label.toUpperCase()}
+                  </Text>
+                  <Flex gap={2} wrap="wrap">
+                    {group.values.map((value) => {
+                      const off = value.disabled && !value.active;
+                      return (
+                        <Card
+                          key={String(value.value)}
+                          as="button"
+                          __unstable_focusRing
+                          padding={2}
+                          radius={2}
+                          border
+                          tone={value.active ? 'primary' : 'default'}
+                          disabled={off}
+                          onClick={() => toggleFacet(group.key, value.value)}
+                          style={{
+                            cursor: off ? 'not-allowed' : 'pointer',
+                            opacity: off ? 0.4 : 1,
+                          }}
+                        >
+                          <Flex gap={2} align="center">
+                            <Text size={1}>{value.label}</Text>
+                            <Text size={1} muted>
+                              {value.count}
+                            </Text>
+                          </Flex>
+                        </Card>
+                      );
+                    })}
+                  </Flex>
+                </Stack>
+              ))}
+            </Stack>
+          </Card>
+        )}
+
         {!isPristine && (
           <Text size={1} muted>
             {result.total} résultat{result.total > 1 ? 's' : ''}
           </Text>
+        )}
+
+        {!isPristine && result.hits.length > 0 && (
+          <ResultGrid hits={result.hits} thumbUrl={thumbUrl} />
         )}
 
         {result.didYouMean && (

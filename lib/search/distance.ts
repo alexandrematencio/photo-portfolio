@@ -98,17 +98,26 @@ function findSubsequence(needle: string, hay: string): SubsequenceMatch | null {
  * Étage 2 : sous-séquence façon `fzf`, évaluée sur la valeur ENTIÈRE du champ
  * (pas token par token) — « djfi » doit pouvoir enjamber « djerba fishermen ».
  *
- * ⚠️ Deux gardes anti-bruit, chacune justifiée par un cas de la spec §7 :
+ * ⚠️ Deux gardes anti-bruit :
  *  - moins de 3 lettres : refusé net. Trop court pour vouloir dire quoi que ce soit.
- *  - accepté seulement si COMPACT (≥ 0,7) OU ANCRÉ sur des débuts de mot (≥ 0,5).
- *    Sans cette seconde garde, « bus » trouverait « buoys » (b·u···s, compacité
- *    0,6, une seule lettre en frontière) — ce que la spec interdit explicitement.
+ *  - accepté seulement si COMPACT (≥ 0,8) OU ANCRÉ sur des débuts de mot (≥ 0,5).
+ *    Sans la seconde, « bus » trouverait « buoys » (b·u···s, compacité 0,6, une
+ *    seule lettre en frontière) — ce que la spec §7 interdit explicitement.
+ *
+ * ⚠️ Le seuil de compacité est à 0,8 et NON à 0,7, et ce n'est pas un réglage
+ * au doigt mouillé : mesuré sur le dataset réel le 2026-08-25, à 0,7 la requête
+ * « bus » ramenait les 4 photos de « Brussels, Belgium » — b·u·s tient dans le
+ * SEUL mot « brussels », compacité 0,75. Une sous-séquence enfermée dans un mot
+ * n'est pas une abréviation, c'est une coïncidence ; une vraie abréviation
+ * enjambe les mots et passe par la part de frontière (« djfi » → « djerba
+ * fishermen », compacité 0,44 mais frontière 0,5). Les deux gardes se
+ * répartissent donc le travail, elles ne font pas doublon.
  */
 export function subsequenceScore(needle: string, hay: string): number {
   if (needle.length < 3) return 0;
   const match = findSubsequence(needle, hay);
   if (!match) return 0;
-  if (match.compacity < 0.7 && match.boundaryRatio < 0.5) return 0;
+  if (match.compacity < 0.8 && match.boundaryRatio < 0.5) return 0;
   return 0.55 * (0.5 * match.compacity + 0.5 * match.boundaryRatio);
 }
 

@@ -29,6 +29,7 @@ import {
   SEARCH_INDEX_PROJECTION,
   type PhotoIndexRow,
 } from './search/photoIndexQuery';
+import { SearchCard } from './search/SearchCard';
 
 const API_VERSION = '2026-01-01';
 
@@ -219,6 +220,7 @@ export function Dashboard() {
 
         {data && (
           <>
+            <SearchCard rows={data.searchIndex} thumbUrl={thumbUrl} />
             <StatsCard data={data} siteUrl={siteUrl} />
             <CurationCard data={data} thumbUrl={thumbUrl} />
             <CatalogueCard data={data} />

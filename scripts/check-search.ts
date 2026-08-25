@@ -88,6 +88,12 @@ checkTrue('sous-séquence : djfi trouve « djerba fishermen »', phraseScore('dj
 check('sous-séquence : bus ne trouve PAS buoys (bruit)', phraseScore('bus', 'buoys'), 0);
 check('sous-séquence : bus ne trouve PAS bowling', phraseScore('bus', 'bowling'), 0);
 check('sous-séquence : moins de 3 lettres, refusé', phraseScore('bs', 'bus'), 0);
+// Cas RÉEL, mesuré sur le dataset le 2026-08-25 : à un seuil de compacité de
+// 0,7, « bus » ramenait les 4 photos de Brussels (b·u·s tient dans le seul mot
+// « brussels », compacité 0,75). Une sous-séquence enfermée dans UN mot n'est
+// pas une abréviation. Ne pas rabaisser le seuil sans rejouer ce cas.
+check('sous-séquence : bus ne trouve PAS brussels (coïncidence intra-mot)', phraseScore('bus', 'brussels, belgium'), 0);
+checkTrue('sous-séquence : djfi survit au seuil resserré', phraseScore('djfi', 'djerba fishermen') > 0);
 
 import { buildIndex } from '../lib/search/buildIndex';
 import type { SearchConfig } from '../lib/search/types';
