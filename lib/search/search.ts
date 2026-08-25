@@ -1,8 +1,9 @@
-import { phraseScore, tokenScore } from './distance';
-import { tokenize } from './normalize';
+import { boundedOsa, errorBudget, phraseScore, tokenScore } from './distance';
+import { fold, tokenize } from './normalize';
 import type {
   FacetGroup,
   FacetSpec,
+  FacetSuggestion,
   FacetValue,
   IndexedRecord,
   Primitive,
@@ -143,6 +144,73 @@ function buildFacetGroups<T>(
   });
 }
 
+const MAX_SUGGESTIONS = 6;
+
+/**
+ * Valeurs de facette à proposer dans l'omnibox pour le mot en cours de frappe.
+ *
+ * C'est ce qui remplace une SYNTAXE : l'utilisateur n'apprend pas « camera: »,
+ * on lui propose « Fujifilm X-PRO 2 — boîtier · 12 » et un clic pose le jeton.
+ * Une valeur déjà cochée n'est jamais proposée, et une valeur à zéro non plus.
+ */
+function buildSuggestions(
+  groups: FacetGroup[],
+  facetLabels: Map<string, string>,
+  lastWord: string
+): FacetSuggestion[] {
+  if (!lastWord) return [];
+  const out: { suggestion: FacetSuggestion; score: number }[] = [];
+  for (const group of groups) {
+    for (const value of group.values) {
+      if (value.active || value.count === 0) continue;
+      let best = phraseScore(lastWord, fold(value.label));
+      for (const token of tokenize(value.label)) {
+        const score = tokenScore(lastWord, token);
+        if (score > best) best = score;
+      }
+      if (best === 0) continue;
+      out.push({
+        score: best,
+        suggestion: {
+          facetKey: group.key,
+          facetLabel: facetLabels.get(group.key) ?? group.key,
+          value: value.value,
+          label: value.label,
+          count: value.count,
+        },
+      });
+    }
+  }
+  return out
+    .sort((a, b) => b.score - a.score || b.suggestion.count - a.suggestion.count)
+    .slice(0, MAX_SUGGESTIONS)
+    .map((entry) => entry.suggestion);
+}
+
+/**
+ * Sur zéro résultat, le mot du vocabulaire le plus proche du mot tapé le plus
+ * long, budget élargi d'UN cran. L'élargissement est le point : si le budget
+ * normal avait suffi, il y aurait eu des résultats.
+ */
+function findDidYouMean(
+  vocabulary: string[],
+  words: string[]
+): string | undefined {
+  if (words.length === 0) return undefined;
+  const target = words.reduce((a, b) => (b.length > a.length ? b : a));
+  const budget = errorBudget(target.length) + 1;
+  let best: string | undefined;
+  let bestDistance = budget + 1;
+  for (const candidate of vocabulary) {
+    const distance = boundedOsa(target, candidate, budget);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = candidate;
+    }
+  }
+  return bestDistance <= budget ? best : undefined;
+}
+
 export function search<T>(
   index: SearchIndex<T>,
   query: SearchQuery
@@ -172,14 +240,22 @@ export function search<T>(
     return tiebreak ? tiebreak(a.record.doc, b.record.doc) : 0;
   });
 
+  const facetGroups = buildFacetGroups(
+    index,
+    textMatched.map((entry) => entry.record),
+    selections
+  );
+  const facetLabels = new Map(
+    index.config.facets.map((spec) => [spec.key, spec.label] as const)
+  );
+  const lastWord = words.length > 0 ? words[words.length - 1] : '';
+
   return {
     hits: scored.map(({ record, score }) => ({ doc: record.doc, score })),
-    facets: buildFacetGroups(
-      index,
-      textMatched.map((entry) => entry.record),
-      selections
-    ),
-    suggestions: [],
+    facets: facetGroups,
+    suggestions: buildSuggestions(facetGroups, facetLabels, lastWord),
+    didYouMean:
+      scored.length === 0 ? findDidYouMean(index.vocabulary, words) : undefined,
     total: scored.length,
   };
 }

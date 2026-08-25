@@ -231,6 +231,34 @@ check(
   [2026, 2025, 2024, 2023, 2021]
 );
 
+// ── Suggestions et zéro résultat (spec §7, cas 15 ; §4.6 ; §5.2) ─────────────
+
+{
+  const r = search(INDEX, { text: 'fuji', facets: {} });
+  const s = r.suggestions.find((x) => x.facetKey === 'camera');
+  check('suggestion : « fuji » propose le boîtier Fujifilm', s?.value, 'Fujifilm X-PRO 2');
+  check('suggestion : elle porte son compte', s?.count, 2);
+  check('suggestion : elle porte le libellé de son axe', s?.facetLabel, 'Boîtier');
+}
+{
+  const r = search(INDEX, { text: 'fuji', facets: { camera: ['Fujifilm X-PRO 2'] } });
+  check(
+    'suggestion : une facette DÉJÀ active n’est plus proposée',
+    r.suggestions.some((x) => x.value === 'Fujifilm X-PRO 2'),
+    false
+  );
+}
+{
+  const r = search(INDEX, { text: 'djreeba', facets: {} });
+  check('cas 15 — zéro résultat', r.total, 0);
+  check('cas 15 — « vouliez-vous dire » propose djerba', r.didYouMean, 'djerba');
+}
+check(
+  'pas de « vouliez-vous dire » quand il y a des résultats',
+  search(INDEX, { text: 'djerba', facets: {} }).didYouMean,
+  undefined
+);
+
 // ── Bilan ────────────────────────────────────────────────────────────────────
 
 console.log(`\n${total - failed}/${total} assertions OK.`);
