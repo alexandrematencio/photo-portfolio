@@ -11,3 +11,5 @@ export { errorBudget, boundedOsa, tokenScore, phraseScore } from './distance';
 export { buildIndex } from './buildIndex';
 export { search } from './search';
 export type * from './types';
+export { useFacetedSearch } from './useFacetedSearch';
+export type { Chip, FacetedSearch } from './useFacetedSearch';
