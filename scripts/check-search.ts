@@ -153,6 +153,26 @@ check(
   'djerba fishermen'
 );
 
+import { search } from '../lib/search/search';
+
+const NO_FACETS: Record<string, never[]> = {};
+const ids = (text: string, facets: Record<string, (string | number)[]> = NO_FACETS) =>
+  search(INDEX, { text, facets }).hits.map((h) => h.doc.id);
+
+// ── Classement du texte (spec §7, cas 1 à 7 et 13 à 14) ──────────────────────
+
+check('cas 1 — « djreba » trouve Djerba (inversion)', ids('djreba').sort(), ['a', 'b']);
+check('cas 2 — « bus » ne ramène ni Buoys ni Bowling', ids('bus'), ['c']);
+check('cas 3 — « arhcitecture » trouve Architecture', ids('arhcitecture'), ['f', 'g']);
+check('cas 4 — « djfi » trouve Djerba Fishermen', ids('djfi'), ['a']);
+check('cas 5 — « archi » classe Archi avant Architecture seule', ids('archi')[0], 'g');
+check('cas 6 — « дум » trouve Дума', ids('дум'), ['f']);
+check('cas 7 — ET entre mots : Djerba de 2023 exclu', ids('djerba 2024'), ['a']);
+check('cas 13 — requête vide : tous les documents', ids('').length, 7);
+check('cas 13 — requête vide : ordre stable par tiebreak', ids(''), ['a', 'b', 'c', 'd', 'e', 'f', 'g']);
+check('cas 14 — un mot présent seulement dans alt ne trouve rien', ids('zzqq'), []);
+check('total reflète le nombre de résultats', search(INDEX, { text: 'djerba', facets: {} }).total, 2);
+
 // ── Bilan ────────────────────────────────────────────────────────────────────
 
 console.log(`\n${total - failed}/${total} assertions OK.`);
