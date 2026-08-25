@@ -173,6 +173,64 @@ check('cas 13 — requête vide : ordre stable par tiebreak', ids(''), ['a', 'b'
 check('cas 14 — un mot présent seulement dans alt ne trouve rien', ids('zzqq'), []);
 check('total reflète le nombre de résultats', search(INDEX, { text: 'djerba', facets: {} }).total, 2);
 
+import type { SearchResult } from '../lib/search/types';
+
+// ── Facettes (spec §7, cas 8 à 11 et 13b) ────────────────────────────────────
+
+const facetGroup = (result: SearchResult<Fixture>, key: string) =>
+  result.facets.find((f) => f.key === key);
+
+check(
+  'cas 8 — OU dans une facette : union des deux années',
+  ids('', { year: [2024, 2025] }).sort(),
+  ['a', 'c', 'd', 'e']
+);
+check(
+  'cas 9 — ET entre facettes : intersection',
+  ids('', { year: [2024], location: ['Djerba, Tunisia'] }),
+  ['a']
+);
+check(
+  'cas 13b — recherche 100 % facettes, sans un caractère tapé',
+  ids('', { camera: ['Fujifilm X-PRO 2'] }).sort(),
+  ['a', 'b']
+);
+{
+  const r = search(INDEX, { text: '', facets: { year: [2024] } });
+  const years = facetGroup(r, 'year')?.values ?? [];
+  const other = years.find((v) => v.value === 2025);
+  checkTrue(
+    'cas 10 — les compteurs d’une facette IGNORENT sa propre sélection',
+    (other?.count ?? 0) > 0
+  );
+  check('cas 10 — la valeur cochée est marquée active', years.find((v) => v.value === 2024)?.active, true);
+  const camera = facetGroup(r, 'camera')?.values ?? [];
+  check(
+    'cas 9bis — les AUTRES facettes, elles, tiennent compte de la sélection',
+    camera.find((v) => v.value === 'Fujifilm X-PRO 2')?.count,
+    1
+  );
+}
+{
+  const r = search(INDEX, { text: '', facets: { location: ['Biarritz, France'] } });
+  const styles = facetGroup(r, 'styles')?.values ?? [];
+  check(
+    'cas 11 — une valeur menant à zéro est désactivée, pas cachée',
+    styles.find((v) => v.value === 'Street')?.disabled,
+    true
+  );
+  check(
+    'cas 11 — et son compte est visible à 0',
+    styles.find((v) => v.value === 'Street')?.count,
+    0
+  );
+}
+check(
+  'ordre des valeurs : sort value-desc sur l’année',
+  facetGroup(search(INDEX, { text: '', facets: {} }), 'year')?.values.map((v) => v.value),
+  [2026, 2025, 2024, 2023, 2021]
+);
+
 // ── Bilan ────────────────────────────────────────────────────────────────────
 
 console.log(`\n${total - failed}/${total} assertions OK.`);
