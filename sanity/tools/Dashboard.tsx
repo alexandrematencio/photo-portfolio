@@ -25,6 +25,11 @@ import imageUrlBuilder from '@sanity/image-url';
 import { useClient } from 'sanity';
 import { IntentLink } from 'sanity/router';
 
+import {
+  SEARCH_INDEX_PROJECTION,
+  type PhotoIndexRow,
+} from './search/photoIndexQuery';
+
 const API_VERSION = '2026-01-01';
 
 const DASHBOARD_QUERY = /* groq */ `
@@ -70,7 +75,8 @@ const DASHBOARD_QUERY = /* groq */ `
   },
   "recent": *[_type == "photo"] | order(_updatedAt desc) [0...8] {
     _id, title, _updatedAt, image, location, year
-  }
+  },
+  "searchIndex": ${SEARCH_INDEX_PROJECTION}
 }
 `;
 
@@ -108,6 +114,7 @@ type DashboardData = {
     location?: string;
     year?: number;
   }[];
+  searchIndex: PhotoIndexRow[];
 };
 
 type SanityImageish = { asset?: { _ref: string } };

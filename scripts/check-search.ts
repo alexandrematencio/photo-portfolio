@@ -259,6 +259,59 @@ check(
   undefined
 );
 
+import {
+  rebaseDrafts,
+  type PhotoIndexRow,
+} from '../sanity/tools/search/photoIndexQuery';
+
+// ── Rebasage des brouillons (spec §6, piège 1 ; cas 12) ──────────────────────
+
+const ROW = (over: Partial<PhotoIndexRow>): PhotoIndexRow => ({
+  _id: 'photo-x',
+  _updatedAt: '2026-08-01T00:00:00Z',
+  title: 'Titre publié',
+  slug: 'titre-publie',
+  caption: null,
+  year: 2024,
+  location: 'Paris, France',
+  camera: null,
+  lens: null,
+  styles: null,
+  series: null,
+  image: null,
+  ...over,
+});
+
+{
+  const rows = [
+    ROW({ _id: 'photo-x', title: 'Titre publié' }),
+    ROW({ _id: 'drafts.photo-x', title: 'Titre du brouillon', _updatedAt: '2026-08-02T00:00:00Z' }),
+    ROW({ _id: 'photo-y', title: 'Autre' }),
+  ];
+  const out = rebaseDrafts(rows);
+  check('cas 12 — un seul résultat pour X + drafts.X', out.length, 2);
+  const x = out.find((r) => r.id === 'photo-x');
+  check('cas 12 — l’id est celui du document PUBLIÉ', x?.id, 'photo-x');
+  check('cas 12 — les valeurs viennent du BROUILLON (plus fraîches)', x?.title, 'Titre du brouillon');
+  check('cas 12 — le drapeau hasDraft est levé', x?.hasDraft, true);
+  check('cas 12 — un document sans brouillon ne le lève pas', out.find((r) => r.id === 'photo-y')?.hasDraft, false);
+}
+{
+  // L'ordre inverse ne doit rien changer : le publié n'écrase JAMAIS le brouillon.
+  const out = rebaseDrafts([
+    ROW({ _id: 'drafts.photo-x', title: 'Titre du brouillon' }),
+    ROW({ _id: 'photo-x', title: 'Titre publié' }),
+  ]);
+  check('cas 12 — ordre inverse : le brouillon gagne quand même', out[0].title, 'Titre du brouillon');
+  check('cas 12 — ordre inverse : hasDraft conservé', out[0].hasDraft, true);
+}
+{
+  const out = rebaseDrafts([ROW({ _id: 'drafts.photo-z', title: 'Jamais publié' })]);
+  check('brouillon jamais publié : présent quand même', out.length, 1);
+  check('brouillon jamais publié : id rebasé', out[0].id, 'photo-z');
+  check('brouillon jamais publié : hasDraft levé', out[0].hasDraft, true);
+}
+
 // ── Bilan ────────────────────────────────────────────────────────────────────
 
 console.log(`\n${total - failed}/${total} assertions OK.`);
