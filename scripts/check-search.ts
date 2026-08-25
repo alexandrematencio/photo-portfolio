@@ -89,6 +89,70 @@ check('sous-séquence : bus ne trouve PAS buoys (bruit)', phraseScore('bus', 'bu
 check('sous-séquence : bus ne trouve PAS bowling', phraseScore('bus', 'bowling'), 0);
 check('sous-séquence : moins de 3 lettres, refusé', phraseScore('bs', 'bus'), 0);
 
+import { buildIndex } from '../lib/search/buildIndex';
+import type { SearchConfig } from '../lib/search/types';
+
+// ── Fixtures partagées (tâches 3 à 6) ────────────────────────────────────────
+
+type Fixture = {
+  id: string;
+  title: string;
+  alt: string;
+  location: string;
+  year: number;
+  camera: string;
+  styles: string[];
+};
+
+const FIXTURES: Fixture[] = [
+  { id: 'a', title: 'Djerba Fishermen', alt: 'ZZQQ introuvable ailleurs', location: 'Djerba, Tunisia', year: 2024, camera: 'Fujifilm X-PRO 2', styles: ['Street'] },
+  { id: 'b', title: 'Djerba Beach',     alt: 'plage',   location: 'Djerba, Tunisia',  year: 2023, camera: 'Fujifilm X-PRO 2', styles: ['Landscape'] },
+  { id: 'c', title: 'Bus n tree',       alt: 'bus',     location: 'Paris, France',    year: 2024, camera: 'Ricoh GR III',     styles: ['Street'] },
+  { id: 'd', title: 'Buoys',            alt: 'bouées',  location: 'Biarritz, France', year: 2024, camera: 'Ricoh GR III',     styles: ['Landscape'] },
+  { id: 'e', title: 'Bowling',          alt: 'bowling', location: 'Paris, France',    year: 2025, camera: 'Ricoh GR III',     styles: ['Street'] },
+  { id: 'f', title: 'Дума',             alt: 'douma',   location: 'Moscow, Russia',   year: 2021, camera: 'Ricoh GR III',     styles: ['Architecture'] },
+  { id: 'g', title: 'Archi',            alt: 'archi',   location: 'Paris, France',    year: 2026, camera: 'Ricoh GR III',     styles: ['Architecture'] },
+];
+
+// `alt` est volontairement ABSENTE de `fields` — spec §4.4.
+const FIXTURE_CONFIG: SearchConfig<Fixture> = {
+  id: (d) => d.id,
+  fields: [
+    { key: 'title', weight: 3, get: (d) => d.title },
+    { key: 'location', weight: 2, get: (d) => d.location },
+    { key: 'styles', weight: 1.5, get: (d) => d.styles },
+    { key: 'camera', weight: 1, get: (d) => d.camera },
+    { key: 'year', weight: 1, get: (d) => String(d.year) },
+  ],
+  facets: [
+    { key: 'year', label: 'Année', kind: 'term', get: (d) => d.year, sort: 'value-desc' },
+    { key: 'location', label: 'Lieu', kind: 'term', get: (d) => d.location, sort: 'count' },
+    { key: 'camera', label: 'Boîtier', kind: 'term', get: (d) => d.camera, sort: 'count' },
+    { key: 'styles', label: 'Style', kind: 'term', get: (d) => d.styles, sort: 'count' },
+  ],
+  tiebreak: (a, b) => a.id.localeCompare(b.id),
+};
+
+const INDEX = buildIndex(FIXTURES, FIXTURE_CONFIG);
+
+// ── Index ────────────────────────────────────────────────────────────────────
+
+check('index : tous les documents retenus', INDEX.records.length, 7);
+checkTrue('index : le vocabulaire contient « djerba »', INDEX.vocabulary.includes('djerba'));
+checkTrue('index : le vocabulaire contient « дума »', INDEX.vocabulary.includes('дума'));
+check('index : « zzqq » (alt) ABSENT du vocabulaire', INDEX.vocabulary.includes('zzqq'), false);
+check('index : valeurs de la facette année', INDEX.facetValues.get('year')?.size, 5);
+check(
+  'index : une facette multivaluée éclate ses valeurs',
+  INDEX.facetValues.get('styles')?.size,
+  3
+);
+check(
+  'index : phrase du champ title pliée',
+  INDEX.records.find((r) => r.id === 'a')?.fields[0].phrase,
+  'djerba fishermen'
+);
+
 // ── Bilan ────────────────────────────────────────────────────────────────────
 
 console.log(`\n${total - failed}/${total} assertions OK.`);
