@@ -6,6 +6,7 @@ import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import { asset } from '@/lib/utils/asset';
 import { cn } from '@/lib/utils/cn';
 import { lockBodyScroll, unlockBodyScroll } from '@/lib/utils/scrollLock';
+import { hasSeenSplash, markSplashSeen } from '@/lib/site/splash-session';
 
 /**
  * SplashScreen — entrance animation prototyped on /splash-test.
@@ -406,6 +407,7 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
     if (revealedRef.current) return;
     revealedRef.current = true;
     if (typeof window !== 'undefined') {
+      markSplashSeen();
       window.dispatchEvent(
         new CustomEvent<SplashRevealDetail>(SPLASH_REVEAL_EVENT, {
           detail: { skip },
@@ -447,13 +449,15 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
     // ────────────────────────────────────────────────────────────────────
     // Activation gate — decide whether this mount should actually play.
     //
-    // Spec :
-    //   • 1ʳᵉ arrivée sur /  (pas de flag de session)  → PLAY
-    //   • reload AU HERO  (scrollY ≈ 0)                → PLAY
-    //   • reload IN GALLERY (scrollY > 0)              → SKIP
+    // Spec (2026-09-10 : une fois par session, comme AAXLO) :
+    //   • 1ʳᵉ arrivée sur / de la session              → PLAY
+    //   • clé `splashSeen` posée (lib/site/splash-session.ts) — splash
+    //     déjà vu OU visiteur déjà passé par une autre page ; reload
+    //     compris, même au hero                        → SKIP
     //   • back / forward navigation                    → SKIP
-    //   • internal Link navigation back to /           → SKIP
-    //     (sessionStorage flag set when the splash first played in this tab)
+    //   • reload IN GALLERY (scrollY > 0)              → SKIP
+    //   Rejouer l'intro en dev : supprimer `splashSeen` (DevTools →
+    //   Application → Session Storage), puis recharger EN HAUT de la page.
     //
     // Skip path : dispatchReveal(true) so HomeHero shows everything in its
     // scroll-aware morphed state, no entrance animation, no hero overlay
@@ -464,8 +468,8 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
       const navEntries = performance.getEntriesByType('navigation');
       const navType = (navEntries[0] as PerformanceNavigationTiming | undefined)
         ?.type;
-      // `siteVisited` is set by <SiteSessionMarker /> (in the (site) layout)
-      // AT RENDER TIME on the first pathname change in this tab. By the time
+      // <SiteSessionMarker /> (in the (site) layout) sets the same key AT
+      // RENDER TIME on the first pathname change in this tab. By the time
       // our own useEffect runs, the layout has already committed its render
       // — so for a /contact → / Link nav, the flag is in sessionStorage
       // BEFORE we read it here, and the splash correctly skips.
@@ -473,18 +477,18 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
       // useEffect-based attempt suffered from React's depth-first effect
       // order (SplashScreen, deeper, would read before the marker, shallower,
       // set).
-      const siteVisited = sessionStorage.getItem('siteVisited') === 'true';
+      const splashSeen = hasSeenSplash();
       // 4 px tolerance — browsers sometimes restore scroll a couple px off 0.
       const atHero = window.scrollY <= 4;
 
-      if (navType === 'back_forward') {
+      if (splashSeen || navType === 'back_forward') {
         shouldSkip = true;
       } else if (navType === 'reload') {
+        // Unseen splash on a reload: only when the tab is scrolled into the
+        // gallery (never saw the hero reveal) do we keep the reader's place.
         shouldSkip = !atHero;
-      } else {
-        // 'navigate' (first load OR client-side Link nav back to /)
-        shouldSkip = siteVisited;
       }
+      // else 'navigate', first home load of the session → PLAY
     }
 
     if (shouldSkip || reduced) {

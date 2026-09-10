@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { markSplashSeen } from '@/lib/site/splash-session';
 
 /**
  * Tracks whether the user has navigated within the (site) area in this tab.
@@ -42,9 +43,10 @@ import { usePathname } from 'next/navigation';
  *     - First arrival on `/`, navigate to /about, browser-back to `/`:
  *       sessionStorage was set during the /about render, persists through
  *       the back → SplashScreen reads 'true' → skip. ✓
- *     - F5 reload of `/`: JS realm fresh, sessionStorage may carry over.
- *       SplashScreen's reload branch ignores `siteVisited` entirely (uses
- *       scrollY instead) so reload-at-hero still plays. ✓
+ *     - F5 reload of `/`: JS realm fresh, sessionStorage carries over. Since
+ *       2026-09-10 the splash plays once per session: the marker and the
+ *       splash write the SAME key (`splashSeen`, lib/site/splash-session.ts)
+ *       and SplashScreen skips on a reload whenever it is set. ✓
  */
 
 let initialPathname: string | null = null;
@@ -60,13 +62,9 @@ export function SiteSessionMarker() {
     } else if (pathname !== initialPathname) {
       // The user has navigated within the (site) area. Mark the session so
       // any later SplashScreen mount on `/` skips its intro.
-      try {
-        sessionStorage.setItem('siteVisited', 'true');
-      } catch {
-        // sessionStorage may throw under some privacy settings — silently
-        // ignore; the splash will simply re-play, which is an acceptable
-        // fallback compared to leaving the user stuck.
-      }
+      // Same key as the splash itself (single source since 2026-09-10 —
+      // a second key made "delete it in DevTools to replay" silently fail).
+      markSplashSeen();
     }
   }
   return null;
