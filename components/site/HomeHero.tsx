@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { GlyphLogo } from './GlyphLogo';
-import { MagnifierHeading } from './MagnifierHeading';
 import {
   SPLASH_REVEAL_EVENT,
   type SplashRevealDetail,
@@ -41,7 +40,7 @@ type HomeHeroProps = {
 export function HomeHero({ hero }: HomeHeroProps) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const logoBlockRef = useRef<HTMLDivElement>(null);
-  const nameRef = useRef<HTMLHeadingElement>(null);
+  const nameRef = useRef<HTMLParagraphElement>(null);
   const photoRef = useRef<HTMLDivElement>(null);
   const navItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
   const arrowRef = useRef<HTMLButtonElement>(null);
@@ -384,7 +383,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
 
         // Pour les calculs de spacing horizontal, on utilise la largeur VISIBLE
         // du logo (le glyph seul = GLYPH_TARGET 28px) — PAS la largeur du bloc
-        // entier qui inclut le MagnifierHeading invisible (~330px). Sinon
+        // entier, élargi par la ligne « PHOTOGRAPHY » qui fond en route. Sinon
         // l'espacement diffère du SiteHeader des autres pages qui n'a que le glyph.
         const logoVisibleWidth = GLYPH_TARGET;
         const navTargetWidths = navInit.map((init) =>
@@ -397,9 +396,9 @@ export function HomeHero({ hero }: HomeHeroProps) {
         const itemGap = (availableWidth - totalContentWidth) / NAV_LINKS.length;
 
         const logoTargetTop = (HEADER_HEIGHT - GLYPH_TARGET) / 2;
-        // Le block logo contient glyph + MagnifierHeading. Le MagnifierHeading
-        // a un spacer invisible plus large que le glyph → le glyph est centré
-        // dans un bloc plus large. Compensation pour que le GLYPH (pas le block)
+        // Le block logo contient glyph + ligne « PHOTOGRAPHY », plus large que
+        // le glyph → le glyph est centré dans un bloc plus large.
+        // Compensation pour que le GLYPH (pas le block)
         // atterrisse à PAD_LEFT exactement.
         const glyphOffsetInBlock = (logoInit.width - GLYPH_INITIAL) / 2;
         const logoDx =
@@ -610,16 +609,23 @@ export function HomeHero({ hero }: HomeHeroProps) {
       >
         <div
           ref={logoBlockRef}
-          className="pointer-events-auto flex flex-col items-center gap-3"
+          // gap-6 = 24 px entre le glyph et « PHOTOGRAPHY » (demande
+          // Alexandre, 2026-09-10) — seule source de cet écart, le <p> ne
+          // porte plus de marge propre.
+          className="pointer-events-auto flex flex-col items-center gap-6"
         >
           <GlyphLogo size={GLYPH_INITIAL} title="A. Matencio" />
-          <MagnifierHeading
+          {/* Ligne statique depuis le 2026-09-10 (demande Alexandre) : le cycle
+              ALXMTNC → PHOTOGRAPHY sous la lentille « Alexandre Matencio »
+              (MagnifierHeading) est retiré. C'est un <p> et non un titre :
+              l'unique H1 de la home est le sr-only de page.tsx —
+              MagnifierHeading, lui, rendait un second <h1>. */}
+          <p
             ref={nameRef}
-            shorts={['ALXMTNC', 'PHOTOGRAPHY']}
-            long="Alexandre Matencio"
-            className="font-bold text-2xl md:text-[26px] tracking-[-0.04em] text-[var(--color-fg)] mt-1"
-            longClassName="font-bold text-[36px] md:text-[40px] tracking-[-0.04em] text-[var(--color-fg)]"
-          />
+            className="font-bold text-2xl md:text-[26px] tracking-[-0.04em] text-[var(--color-fg)] leading-none"
+          >
+            PHOTOGRAPHY
+          </p>
         </div>
 
         <div
@@ -697,9 +703,13 @@ export function HomeHero({ hero }: HomeHeroProps) {
           </div>
         </div>
 
+        {/* Rangée horizontale depuis le 2026-09-10 (demande Alexandre ; elle
+            était empilée à la verticale). Desktop seulement : sous `md` la nav
+            est cachée, le burger de <MobileMenu /> prend le relais. Entrance et
+            morph mesurent les rects rendus : ils suivent sans autre retouche. */}
         <nav
           aria-label="Main navigation"
-          className="pointer-events-auto hidden md:flex flex-col items-center gap-2 md:gap-3"
+          className="pointer-events-auto hidden md:flex flex-row items-center gap-10"
         >
           {NAV_LINKS.map((link, i) => (
             <Link
