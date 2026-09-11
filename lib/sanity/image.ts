@@ -41,6 +41,21 @@ export function urlFor(source: SanityImageSource) {
 }
 
 /**
+ * L'URL INDEXABLE d'une photo — celle que déclarent le `contentUrl` du JSON-LD
+ * (lib/seo/jsonld.ts) ET le sitemap image (app/sitemap.ts). Un seul endroit :
+ * deux chaînes qui divergent donneraient DEUX URL à indexer pour la même photo.
+ * 1600 px : la largeur de la galerie de la home, le plus grand format servi hors
+ * lightbox. Retourne `null` si Sanity n'est pas configuré.
+ */
+export function indexableImageUrl(
+  source: SanityImageSource | undefined | null
+): string | null {
+  if (!source) return null;
+  const b = urlFor(source);
+  return b ? b.width(1600).quality(80).auto('format').url() : null;
+}
+
+/**
  * URL d'une image du hero (homepage), prête à passer à `next/image`.
  *
  * Largeur 1152 px, RATIO NATIF PRÉSERVÉ (le crop éditeur défini dans le

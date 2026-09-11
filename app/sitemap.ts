@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { urlFor } from '@/lib/sanity/image';
+import { indexableImageUrl } from '@/lib/sanity/image';
 import { getAllPhotos } from '@/lib/sanity/queries';
 import { withSlash } from '@/lib/seo/metadata';
 
@@ -24,12 +24,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Sitemap IMAGE sur la page-catalogue : Google Images n'indexe une photo que
   // s'il la trouve, et une grille chargée en paresseux ne lui montre pas tout.
-  // Même largeur que `contentUrl` du JSON-LD (1600) : une seule URL par photo
-  // à indexer, pas deux.
+  // Utilise `indexableImageUrl` : une seule URL par photo à indexer (cf.
+  // lib/seo/jsonld.ts pour le `contentUrl`), jamais deux.
   const photos = await getAllPhotos();
   const archiveImages = photos.flatMap((p) => {
-    const b = p.image ? urlFor(p.image) : null;
-    return b ? [b.width(1600).quality(80).auto('format').url()] : [];
+    const url = indexableImageUrl(p.image);
+    return url ? [url] : [];
   });
 
   // Slash final : le site est en `trailingSlash: true` — déclarer `/series`

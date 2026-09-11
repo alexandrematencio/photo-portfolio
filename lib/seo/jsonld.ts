@@ -1,4 +1,4 @@
-import { urlFor } from '@/lib/sanity/image';
+import { indexableImageUrl, urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
 import { SITE_INFO, withSlash } from '@/lib/seo/metadata';
 import { AUTHOR_NAME, AUTHOR_SHORT, copyrightNotice } from '@/lib/site/author';
@@ -72,7 +72,7 @@ export function imageObjectJsonLd(photo: Photo): JsonLdObject | null {
     url: anchor,
     name: photo.title,
     description: photo.image.alt ?? photo.caption,
-    contentUrl: builder.width(1600).quality(80).auto('format').url(),
+    contentUrl: indexableImageUrl(photo.image),
     thumbnailUrl: builder.width(400).quality(75).auto('format').url(),
     creator: { '@type': 'Person', '@id': AUTHOR_ID, name: AUTHOR_NAME },
     creditText: AUTHOR_NAME,
