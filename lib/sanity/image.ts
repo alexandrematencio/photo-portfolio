@@ -56,6 +56,20 @@ export function indexableImageUrl(
 }
 
 /**
+ * L'URL du GRAND FORMAT de la lightbox — la seule. La lightbox l'affiche, la
+ * galerie de la home et la lightbox elle-même (voisines ±1) la préchargent :
+ * un seul paramètre qui diverge (largeur, qualité, format) et c'est un AUTRE
+ * fichier sur le CDN, donc un préchargement pour rien. Largeur : le plafond
+ * `MAX_PHOTO_WIDTH` posé par `urlFor`.
+ */
+export function lightboxImageUrl(
+  source: SanityImageSource | undefined | null
+): string | null {
+  if (!source) return null;
+  return urlFor(source)?.quality(88).auto('format').url() ?? null;
+}
+
+/**
  * URL d'une image du hero (homepage), prête à passer à `next/image`.
  *
  * Largeur 1152 px, RATIO NATIF PRÉSERVÉ (le crop éditeur défini dans le
