@@ -8,16 +8,16 @@ const builder = isSanityConfigured
 /**
  * Largeur maximale servie pour une photo, tous usages confondus.
  *
- * Doit rester alignée sur `MAX_EDGE` de `scripts/upload-photos.ts` (2048) : les
- * photos importées depuis ce script ne sont de toute façon pas plus grandes, ce
- * plafond ne mord donc que sur les assets antérieurs, restés en pleine
- * résolution dans Sanity.
+ * Doit rester alignée sur `MAX_EDGE` de `scripts/prepare-image.ts` (2048) et
+ * sur `MAX_ASSET_EDGE` de `sanity/validation/assetWithinCap.ts`. Depuis le
+ * 2026-09-11 (scripts/downsize-assets.ts), AUCUN asset référencé par le site
+ * ne dépasse ce plafond : retirer `?w=` d'une URL rend au plus 2048 px, et le
+ * Studio refuse de publier une photo plus grande. Ce plafond d'URL est donc
+ * redevenu ce qu'il doit être — un garde-fou, pas la protection.
  *
- * ⚠️ Ce n'est PAS une protection à lui seul, seulement un garde-fou. L'asset
- * stocké reste joignable à son URL nue : sur un original en 6000 px, retirer le
- * `?w=` rend les 6000 px. Vérifié aussi : le paramètre `max-w=` du CDN Sanity ne
- * plafonne rien (6000×4000 renvoyés avec `?max-w=2048`), il ne peut donc pas
- * servir de barrière. Seule la réduction de l'asset à l'import ferme le trou.
+ * Toujours vrai : le paramètre `max-w=` du CDN Sanity ne plafonne rien, et le
+ * CDN ré-encode tout (métadonnées comprises). Seule la taille de l'asset
+ * stocké compte.
  */
 export const MAX_PHOTO_WIDTH = 2048;
 
