@@ -1,7 +1,7 @@
 import type { JsonLdObject } from '@/lib/seo/jsonld';
 
 /**
- * Un bloc JSON-LD. `<` est échappé en `<` : le JSON est injecté tel quel
+ * Un bloc JSON-LD. `<` est échappé en `\u003c` : le JSON est injecté tel quel
  * dans un <script>, et une chaîne CMS contenant `</script>` fermerait la balise.
  */
 export function JsonLd({ data }: { data: JsonLdObject | JsonLdObject[] }) {

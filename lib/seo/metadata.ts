@@ -58,7 +58,7 @@ export function buildMetadata(opts: {
     other: {
       robots: 'noai, noimageai',
       'tdm-reservation': '1',
-      'tdm-policy': `${SITE_URL}/legal/`,
+      'tdm-policy': `${SITE_URL}${withSlash('/legal')}`,
     },
   };
 }

@@ -27,6 +27,15 @@ export const LICENSE_URL = pageUrl('/legal');
 /** Page par laquelle on demande une licence — Google l'affiche en bouton. */
 export const ACQUIRE_LICENSE_URL = pageUrl('/contact');
 
+/**
+ * Nœud Person INLINE, pas une simple référence `@id` : Google ne résout pas
+ * les `@id` d'une page à l'autre, et le Person complet n'existe que sur
+ * /about. Sans `@type` ni `name`, `copyrightHolder` serait vide pour lui.
+ */
+function authorRef(): JsonLdObject {
+  return { '@type': 'Person', '@id': AUTHOR_ID, name: AUTHOR_NAME };
+}
+
 export function personJsonLd(): JsonLdObject {
   return {
     '@context': CONTEXT,
@@ -49,8 +58,8 @@ export function webSiteJsonLd(): JsonLdObject {
     url: pageUrl('/'),
     description: SITE_INFO.description,
     inLanguage: 'en-US',
-    author: { '@id': AUTHOR_ID },
-    copyrightHolder: { '@id': AUTHOR_ID },
+    author: authorRef(),
+    copyrightHolder: authorRef(),
   };
 }
 
@@ -74,9 +83,9 @@ export function imageObjectJsonLd(photo: Photo): JsonLdObject | null {
     description: photo.image.alt ?? photo.caption,
     contentUrl: indexableImageUrl(photo.image),
     thumbnailUrl: builder.width(400).quality(75).auto('format').url(),
-    creator: { '@type': 'Person', '@id': AUTHOR_ID, name: AUTHOR_NAME },
+    creator: authorRef(),
     creditText: AUTHOR_NAME,
-    copyrightHolder: { '@id': AUTHOR_ID },
+    copyrightHolder: authorRef(),
     copyrightNotice: copyrightNotice(year),
     copyrightYear: year,
     license: LICENSE_URL,
@@ -106,8 +115,8 @@ export function imageGalleryJsonLd(opts: {
     name: opts.name,
     url: pageUrl(opts.path),
     description: opts.description,
-    author: { '@id': AUTHOR_ID },
-    copyrightHolder: { '@id': AUTHOR_ID },
+    author: authorRef(),
+    copyrightHolder: authorRef(),
     license: LICENSE_URL,
     numberOfItems: image.length,
     image,

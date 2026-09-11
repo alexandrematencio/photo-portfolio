@@ -69,8 +69,8 @@ function heroImageField(
         return true;
       }).warning(),
       // AVERTISSEMENT (pas erreur) : le hero est un portrait de l'auteur, pas
-      // une œuvre à protéger, et l'image « reveal » est à 3122 px jusqu'à la
-      // tâche 6. Cf. sanity/validation/assetWithinCap.ts.
+      // une œuvre à protéger — un upload surdimensionné avertit au lieu de
+      // bloquer. Cf. sanity/validation/assetWithinCap.ts.
       Rule.custom(assetWithinCap).warning(),
     ],
   });

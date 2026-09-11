@@ -42,6 +42,7 @@ const obj = imageObjectJsonLd(photo);
 check('ImageObject construit', obj !== null);
 if (obj) {
   check('creator nommé', (obj.creator as { name: string }).name === AUTHOR_NAME);
+  check('copyrightHolder nommé', (obj.copyrightHolder as { name: string }).name === AUTHOR_NAME);
   check('creditText', obj.creditText === AUTHOR_NAME);
   check('copyrightNotice daté', obj.copyrightNotice === `© 2026 ${AUTHOR_NAME}. All rights reserved.`);
   check('license → /legal/', obj.license === LICENSE_URL && LICENSE_URL.endsWith('/legal/'));
@@ -56,6 +57,7 @@ const gallery = imageGalleryJsonLd({ name: 'Archives', path: '/archives', photos
 check('galerie : les photos sans asset sont écartées', gallery.numberOfItems === 1);
 check('galerie : URL absolue avec slash final', gallery.url === `${SITE_INFO.url}/archives/`);
 check('galerie : @id explicite honoré', imageGalleryJsonLd({ name: 'S', path: '/series', id: 'x#s', photos: [] })['@id'] === 'x#s');
+check('galerie : auteur nommé', (gallery.author as { name: string }).name === AUTHOR_NAME);
 
 const crumbs = breadcrumbJsonLd([{ name: 'Home', path: '/' }, { name: 'Archives', path: '/archives' }]);
 const items = crumbs.itemListElement as { position: number; item: string }[];

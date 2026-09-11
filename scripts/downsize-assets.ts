@@ -202,6 +202,12 @@ async function main(): Promise<void> {
     await fs.writeFile(logPath, JSON.stringify(log, null, 2));
   }
 
+  // Aucun asset traité → aucun journal écrit : ne pas nommer un fichier
+  // fantôme, ce serait mentir sur ce qui vient de se passer.
+  if (log.length === 0) {
+    console.log('\n✓ Rien à réduire : aucun journal écrit.');
+    return;
+  }
   console.log(`\n✓ ${log.length} asset(s) réduit(s). Journal : ${path.relative(process.cwd(), logPath)}`);
   console.log('Les anciens assets restent en base (orphelins). Leur purge est une décision à part.');
 }
