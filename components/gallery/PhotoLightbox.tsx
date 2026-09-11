@@ -69,6 +69,12 @@ const MOBILE_PADDING = 24;
 
 const SWIPE_THRESHOLD = 50; // px delta to trigger navigation
 
+/** Délai avant que le loader n'apparaisse. Une photo servie du cache arrive
+ *  bien avant : sans ce seuil, le loader surgissait déjà plein pendant un
+ *  demi-seconde — un trait orange sans nom au milieu de l'écran, lu comme une
+ *  panne plutôt que comme un chargement. */
+const LOADER_DELAY_MS = 200;
+
 export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
   const [index, setIndex] = useState(initialIndex);
   // « Chargée » se lit PAR URL, jamais comme un booléen qu'on remet à false à
@@ -81,6 +87,12 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  // Une « visite » = chaque arrivée sur une photo (flèche, balayage, retry).
+  // Le loader ne se montre que si LA VISITE en cours dépasse LOADER_DELAY_MS
+  // sans image. Clé par visite et non par URL : A lente, B instantanée, retour
+  // sur A servie du cache — une clé par URL rallumerait le loader de A.
+  const [visit, setVisit] = useState(0);
+  const [slowVisit, setSlowVisit] = useState<number | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
   // Prev/next arrow buttons (desktop only). Anchored 32 px away from the
@@ -99,9 +111,24 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
   const previewSrc = lightboxImageUrl(photo?.image);
   const loaded = previewSrc !== null && loadedSrc === previewSrc;
   const failed = previewSrc !== null && failedSrc === previewSrc;
+  const slow = slowVisit === visit;
 
-  const next = () => setIndex((i) => (i + 1) % photos.length);
-  const prev = () => setIndex((i) => (i - 1 + photos.length) % photos.length);
+  const next = () => {
+    setIndex((i) => (i + 1) % photos.length);
+    setVisit((v) => v + 1);
+  };
+  const prev = () => {
+    setIndex((i) => (i - 1 + photos.length) % photos.length);
+    setVisit((v) => v + 1);
+  };
+
+  // Seuil d'apparition du loader. Si l'image arrive avant, le nettoyage annule
+  // le minuteur et le loader n'existe jamais pour cette visite.
+  useEffect(() => {
+    if (!previewSrc || loaded || failed) return;
+    const t = setTimeout(() => setSlowVisit(visit), LOADER_DELAY_MS);
+    return () => clearTimeout(t);
+  }, [visit, previewSrc, loaded, failed]);
 
   // Detect mobile viewport — used to fork layout + behaviour.
   useEffect(() => {
@@ -312,8 +339,11 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      {/* Loader bar — centered, fills 0→85%, snaps to 100% + fades on load.
-          key={index} remounts the bar on photo change so the keyframe replays. */}
+      {/* Loader — centré, monté SEULEMENT si la visite dépasse LOADER_DELAY_MS
+          (`slow`). La barre avance 0 → 85 % ; à l'arrivée, une seconde couche
+          de même couleur la COMPLÈTE à 100 % en un trait visible, puis le tout
+          s'efface. Ne jamais revenir à un saut sec vers 100 % : c'est ce saut
+          qui faisait passer la barre pour un trait cassé. */}
       {previewSrc && failed && (
         // Échec réseau : on le DIT, et on offre de retenter — plutôt qu'une
         // barre qui attend indéfiniment.
@@ -323,6 +353,7 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
             e.stopPropagation();
             setFailedSrc(null);
             setAttempt((a) => a + 1);
+            setVisit((v) => v + 1);
           }}
           className="absolute top-1/2 left-1/2 cursor-pointer hover:opacity-60 transition-opacity motion-reduce:transition-none"
           style={{
@@ -338,44 +369,56 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
           couldn’t load — retry
         </button>
       )}
-      {previewSrc && !failed && (
+      {previewSrc && !failed && slow && (
         <div
+          key={visit}
           aria-hidden
-          className="absolute top-1/2 left-1/2 pointer-events-none flex flex-col items-center"
-          style={{ zIndex: 30, transform: 'translate(-50%, -50%)', gap: 7 }}
+          className="absolute top-1/2 left-1/2 pointer-events-none"
+          style={{
+            zIndex: 30,
+            transform: 'translate(-50%, -50%)',
+            // Effacement après que la couche de fin a atteint 100 %.
+            opacity: loaded ? 0 : 1,
+            transition: 'opacity 280ms ease-out 220ms',
+          }}
         >
-          <span
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontWeight: 400,
-              fontSize: 16,
-              lineHeight: 1,
-              color: 'var(--color-fg)',
-              opacity: loaded ? 0 : 1,
-              transition: 'opacity 280ms ease-out 180ms',
-            }}
-          >
-            loading
-          </span>
-          <div style={{ width: 100, height: 3 }}>
-            <div
-              key={index}
-              className={`lightbox-loader-bar${loaded ? ' is-loaded' : ''}`}
+          <div className="lightbox-loader flex flex-col items-center" style={{ gap: 7 }}>
+            <span
               style={{
-                height: '100%',
-                // Orange d'état (brand book §4.3) : le chargement EST un
-                // état, et c'est le seul endroit du site où la couleur
-                // apparaît pendant qu'on regarde une photo — une fraction de
-                // seconde, puis elle disparaît. Le mot « loading » au-dessus
-                // reste en `--color-fg`.
-                // Contraste : la barre est un élément GRAPHIQUE (seuil 3:1),
-                // à 3,39:1 sur le backdrop desktop (barreau 1) et 3,75:1 sur le
-                // blanc mobile. Passer le MOT en orange, lui, serait hors des
-                // clous — 16 px en graisse normale demandent 4,5:1.
-                backgroundColor: 'var(--color-link)',
-                transformOrigin: 'left',
+                fontFamily: 'var(--font-display)',
+                fontWeight: 400,
+                fontSize: 16,
+                lineHeight: 1,
+                color: 'var(--color-fg)',
               }}
-            />
+            >
+              loading
+            </span>
+            <div className="relative" style={{ width: 100, height: 3 }}>
+              {/* Orange d'état (brand book §4.3) : le chargement EST un
+                  état, et c'est le seul endroit du site où la couleur
+                  apparaît pendant qu'on regarde une photo — une fraction de
+                  seconde, puis elle disparaît. Le mot « loading » au-dessus
+                  reste en `--color-fg`.
+                  Contraste : la barre est un élément GRAPHIQUE (seuil 3:1),
+                  à 3,39:1 sur le backdrop desktop (barreau 1) et 3,75:1 sur le
+                  blanc mobile. Passer le MOT en orange, lui, serait hors des
+                  clous — 16 px en graisse normale demandent 4,5:1. */}
+              <div
+                className="lightbox-loader-bar"
+                style={{ height: '100%', backgroundColor: 'var(--color-link)' }}
+              />
+              {/* Couche de fin : repart de 0 par-dessus la barre, invisible
+                  tant qu'elle reste derrière son front, puis la dépasse
+                  jusqu'à 100 %. Aucune lecture de la largeur courante, aucun
+                  pari sur une transition qui partirait d'une valeur animée. */}
+              {loaded && (
+                <div
+                  className="lightbox-loader-finish absolute inset-0"
+                  style={{ backgroundColor: 'var(--color-link)' }}
+                />
+              )}
+            </div>
           </div>
         </div>
       )}
