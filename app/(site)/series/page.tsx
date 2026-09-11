@@ -2,6 +2,9 @@ import { SeriesExperience } from '@/components/series/SeriesExperience';
 import { getSeriesWithPhotos } from '@/lib/sanity/queries';
 import { prepareSeries } from '@/lib/site/series';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { breadcrumbJsonLd, imageGalleryJsonLd } from '@/lib/seo/jsonld';
+import { SITE_INFO } from '@/lib/seo/metadata';
 
 export const metadata = buildMetadata({
   title: 'Series',
@@ -28,5 +31,27 @@ export default async function SeriesPage() {
     );
   }
 
-  return <SeriesExperience series={series} />;
+  const jsonLd = [
+    breadcrumbJsonLd([
+      { name: 'Home', path: '/' },
+      { name: 'Series', path: '/series' },
+    ]),
+    // Une galerie par série. L'URL n'ouvre aucune série (invariant 16 de
+    // /series) : l'@id porte le slug, l'`url` reste la page.
+    ...series.map((s) =>
+      imageGalleryJsonLd({
+        name: s.title,
+        path: '/series',
+        id: `${SITE_INFO.url}/series/#series-${s.slug}`,
+        description: s.subtitle,
+        photos: s.photos,
+      })
+    ),
+  ];
+  return (
+    <>
+      <JsonLd data={jsonLd} />
+      <SeriesExperience series={series} />
+    </>
+  );
 }

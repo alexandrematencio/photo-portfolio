@@ -3,6 +3,8 @@ import { getAllPhotos } from '@/lib/sanity/queries';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { PageShell } from '@/components/site/PageShell';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { breadcrumbJsonLd, imageGalleryJsonLd } from '@/lib/seo/jsonld';
 
 export const metadata = buildMetadata({
   title: 'Archives',
@@ -15,12 +17,30 @@ export const revalidate = 60;
 
 export default async function ArchivesPage() {
   const photos = await getAllPhotos();
+  const jsonLd = [
+    breadcrumbJsonLd([
+      { name: 'Home', path: '/' },
+      { name: 'Archives', path: '/archives' },
+    ]),
+    // TOUTES les photos visibles : c'est la page-catalogue, donc l'URL stable
+    // de chaque ImageObject (ancre #photo-<slug>) vit ici.
+    imageGalleryJsonLd({
+      name: 'Archives — A. Matencio',
+      path: '/archives',
+      description:
+        'Full catalogue: every photograph grouped by year, location, style, camera or lens.',
+      photos,
+    }),
+  ];
   return (
-    // `bleed` : la console et la grille vont d'un bord à l'autre et portent
-    // leurs propres gouttières ; le cadre passe donc sur le seul bloc de
-    // titre, qui garde la mesure éditoriale — même corps et même gouttière
-    // que les six autres pages, sans que la grille s'y trouve enfermée.
-    <PageShell
+    <>
+      <JsonLd data={jsonLd} />
+      {/* `bleed` : la console et la grille vont d'un bord à l'autre et portent
+          // leurs propres gouttières ; le cadre passe donc sur le seul bloc de
+          // titre, qui garde la mesure éditoriale — même corps et même gouttière
+          // que les six autres pages, sans que la grille s'y trouve enfermée.
+      */}
+      <PageShell
       bleed
       // La page s'ouvre sur sa console, pas sur du texte : l'écart sous le
       // titre est celui d'une bande de commandes (48), et `FlatGallery` pose
@@ -35,6 +55,7 @@ export default async function ArchivesPage() {
       }
     >
       <FlatGallery photos={photos} />
-    </PageShell>
+      </PageShell>
+    </>
   );
 }

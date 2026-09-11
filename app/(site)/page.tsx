@@ -1,10 +1,12 @@
 import { ScrollPhysicsGallery } from '@/components/gallery/ScrollPhysicsGallery';
 import { HomeHero } from '@/components/site/HomeHero';
 import { SplashScreen } from '@/components/site/SplashScreen';
+import { JsonLd } from '@/components/seo/JsonLd';
 import { getHomepagePhotos, getSiteSettings } from '@/lib/sanity/queries';
 import { resolveMotion } from '@/lib/motion/presets';
 import { resolveHeroImages } from '@/lib/site/hero';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { webSiteJsonLd } from '@/lib/seo/jsonld';
 
 export const metadata = buildMetadata({
   title: 'Portfolio',
@@ -25,6 +27,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <JsonLd data={webSiteJsonLd()} />
       {/* SplashScreen — overlay z-9999 qui joue l'animation d'intro ALXMTNC
           puis dispatch SPLASH_REVEAL_EVENT pour déclencher l'entrance du
           HomeHero (photo unfurl + nav items "pondus" + arrow). Le hero
