@@ -17,15 +17,15 @@ export type JsonLdObject = Record<string, unknown>;
 
 const CONTEXT = 'https://schema.org';
 
-export const AUTHOR_ID = `${SITE_INFO.url}/about/#person`;
-/** Page qui porte la clause de réutilisation (spec R4). */
-export const LICENSE_URL = `${SITE_INFO.url}/legal/`;
-/** Page par laquelle on demande une licence — Google l'affiche en bouton. */
-export const ACQUIRE_LICENSE_URL = `${SITE_INFO.url}/contact/`;
-
-function pageUrl(path: string): string {
+export function pageUrl(path: string): string {
   return `${SITE_INFO.url}${withSlash(path)}`;
 }
+
+export const AUTHOR_ID = `${pageUrl('/about')}#person`;
+/** Page qui porte la clause de réutilisation (spec R4). */
+export const LICENSE_URL = pageUrl('/legal');
+/** Page par laquelle on demande une licence — Google l'affiche en bouton. */
+export const ACQUIRE_LICENSE_URL = pageUrl('/contact');
 
 export function personJsonLd(): JsonLdObject {
   return {

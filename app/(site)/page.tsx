@@ -6,7 +6,7 @@ import { getHomepagePhotos, getSiteSettings } from '@/lib/sanity/queries';
 import { resolveMotion } from '@/lib/motion/presets';
 import { resolveHeroImages } from '@/lib/site/hero';
 import { buildMetadata } from '@/lib/seo/metadata';
-import { webSiteJsonLd } from '@/lib/seo/jsonld';
+import { webSiteJsonLd, imageGalleryJsonLd } from '@/lib/seo/jsonld';
 
 export const metadata = buildMetadata({
   title: 'Portfolio',
@@ -27,7 +27,20 @@ export default async function HomePage() {
 
   return (
     <>
-      <JsonLd data={webSiteJsonLd()} />
+      {/* La curation de la home est un sous-ensemble de /archives ; les
+          ImageObjects portent le même @id (#photo-<slug>) dans les deux galeries
+          pour que Google les reconnaisse comme la même entité. */}
+      <JsonLd
+        data={[
+          webSiteJsonLd(),
+          imageGalleryJsonLd({
+            name: 'Selected Works',
+            path: '/',
+            description: 'Curated selection of photographs by A. Matencio.',
+            photos,
+          }),
+        ]}
+      />
       {/* SplashScreen — overlay z-9999 qui joue l'animation d'intro ALXMTNC
           puis dispatch SPLASH_REVEAL_EVENT pour déclencher l'entrance du
           HomeHero (photo unfurl + nav items "pondus" + arrow). Le hero

@@ -3,8 +3,7 @@ import { getSeriesWithPhotos } from '@/lib/sanity/queries';
 import { prepareSeries } from '@/lib/site/series';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { JsonLd } from '@/components/seo/JsonLd';
-import { breadcrumbJsonLd, imageGalleryJsonLd } from '@/lib/seo/jsonld';
-import { SITE_INFO } from '@/lib/seo/metadata';
+import { breadcrumbJsonLd, imageGalleryJsonLd, pageUrl } from '@/lib/seo/jsonld';
 
 export const metadata = buildMetadata({
   title: 'Series',
@@ -42,7 +41,7 @@ export default async function SeriesPage() {
       imageGalleryJsonLd({
         name: s.title,
         path: '/series',
-        id: `${SITE_INFO.url}/series/#series-${s.slug}`,
+        id: `${pageUrl('/series')}#series-${s.slug}`,
         description: s.subtitle,
         photos: s.photos,
       })
