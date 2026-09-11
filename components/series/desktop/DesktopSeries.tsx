@@ -20,6 +20,14 @@ import {
 import { PAGE_TITLE_SIZE_MD } from '@/lib/site/typography';
 import { FolderStack } from './FolderStack';
 import {
+  INITIAL_ROW_TRANSFORM,
+  INITIAL_WORDMARK_TRANSFORM,
+  WORDMARK_MASK_CLIP,
+  runEntrance,
+  settleAtRest,
+  type Entrance,
+} from './entrance';
+import {
   OpenSeriesView,
   OPEN_LEFT_COL_W,
   CENTER_RESERVE_PX,
@@ -287,6 +295,11 @@ export function DesktopSeries({
   const rowRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLSpanElement>(null);
   const titleBoxRef = useRef<HTMLHeadingElement>(null);
+  // Le span INTÉRIEUR du lettrage : celui que l'entrée découpe en lettres.
+  // Distinct de `titleRef`, que le repli met à l'échelle — voir le préambule
+  // d'`entrance.ts` pour la raison de cette séparation.
+  const wordmarkRef = useRef<HTMLSpanElement>(null);
+  const entranceRef = useRef<Entrance | null>(null);
   // Distance entre le bas du lettrage et le bas de la scène, à l'état
   // d'accueil. Mesurée et non écrite : voir l'effet ci-dessous.
   const [titleBottom, setTitleBottom] = useState(0);
@@ -677,6 +690,76 @@ export function DesktopSeries({
     // est mesurée) et bouge avec la fonte servie. Sans elle dans les deps, `y`
     // resterait calculé sur une boîte encore collée en haut de page.
   }, [phase, reduced, titleBottom, q]);
+
+  // ── Entrée de la page ────────────────────────────────────────────────────
+
+  /**
+   * Le train entre par la droite et freine ; la bouée est relâchée quand il
+   * est posé. Mécanique, physique et réglages : `entrance.ts`.
+   *
+   * UNE SEULE FOIS, au montage — d'où les dépendances vides, assumées :
+   * l'entrée est un événement d'arrivée sur la page, pas un état à
+   * réconcilier. Trois gardes avant de jouer :
+   *
+   *   - branche CACHÉE (`offsetParent`, §3.7 invariant 3) : sous `md` cette
+   *     branche reste montée, c'est le CSS qui l'efface. Y jouer une entrée,
+   *     ce serait animer une hauteur de capitale nulle — et la vraie entrée
+   *     mobile n'existe pas (le titre y est un `PageTitle` fixe) ;
+   *   - MOUVEMENT RÉDUIT lu directement sur `matchMedia` et non sur le hook :
+   *     celui-ci rend `false` au premier rendu et ne se corrige qu'après la
+   *     peinture (c'est un `useEffect`). L'entrée partirait donc pour de bon
+   *     chez quelqu'un qui l'a explicitement refusée, le temps d'une frame ou
+   *     deux (§3.2) ;
+   *   - hauteur de capitale nulle : lettrage pas encore mesurable, rien à
+   *     faire jaillir.
+   *
+   * `useLayoutEffect` : les états de départ (rangée hors écran, mot immergé)
+   * doivent être posés AVANT la première peinture. Un effet passif laisserait
+   * voir une frame de la page au repos, puis le saut.
+   */
+  useLayoutEffect(() => {
+    const scene = sceneRef.current;
+    const row = rowRef.current;
+    const wordmark = wordmarkRef.current;
+    if (!scene || !row || !wordmark) return;
+
+    if (
+      scene.offsetParent === null ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+      !wordmark.getBoundingClientRect().height
+    ) {
+      // Renoncer, c'est RÉVÉLER : l'état de départ vient du HTML, personne
+      // d'autre ne le défera.
+      settleAtRest(row, wordmark);
+      return;
+    }
+
+    const entrance = runEntrance({
+      row,
+      stacks: Array.from(row.querySelectorAll<HTMLElement>('[data-stack]')),
+      wordmark,
+    });
+    entranceRef.current = entrance;
+    return () => {
+      entrance.finish();
+      entranceRef.current = null;
+    };
+  }, []);
+
+  /**
+   * Un geste qui ouvre une série TERMINE l'entrée sur-le-champ.
+   *
+   * Ce n'est pas une politesse : les vols d'ouverture mesurent les rects des
+   * piles et posent des clones `position: fixed` par-dessus (§3.7 invariant
+   * 1). Une rangée encore en mouvement ferait glisser les éléments réels sous
+   * des clones immobiles — le raccord de fin découvrirait la photo ailleurs
+   * qu'où elle a été prise.
+   */
+  useLayoutEffect(() => {
+    if (phase === 'closed') return;
+    entranceRef.current?.finish();
+    entranceRef.current = null;
+  }, [phase]);
 
   // ── Réconciliation displayed ← openSeries ────────────────────────────────
 
@@ -1917,6 +2000,14 @@ export function DesktopSeries({
           saisissable au cliquer-glisser. (Le second motif d'origine — le mot
           replié débordait sur la colonne centrale — a disparu avec le débord
           lui-même, cf. `foldWidth()`.) */}
+      {/* Sans JS, personne ne défait les états de départ écrits dans le HTML —
+          la rangée resterait hors écran et le titre sous la ligne d'eau. Une
+          feuille de style dans un `<noscript>` est le seul chemin qui ne coûte
+          rien quand le JS est là : le contenu n'est même pas analysé. */}
+      <noscript>
+        <style>{`[data-closed-row],[data-wordmark]{transform:none!important}`}</style>
+      </noscript>
+
       <h1
         ref={titleBoxRef}
         className="series-title"
@@ -1942,7 +2033,29 @@ export function DesktopSeries({
             willChange: 'transform',
           }}
         >
-          <SeriesWordmark />
+          {/* MASQUE — notre équivalent de l'`overflow: hidden` que la démo
+              Codrops pose sur son `h1`. Il ne coupe qu'EN BAS (les trois
+              autres côtés sont en valeurs négatives, donc hors boîte) : la
+              boîte épouse les glyphes, le dépassement doit sortir par le haut.
+              Détail des cotes : `entrance.ts`.
+
+              Deux boîtes emboîtées et pas une : celle-ci découpe et ne bouge
+              jamais, celle du dessous porte les lettres. Poser les deux sur le
+              même nœud ferait voyager le masque avec son contenu — il suivrait
+              le mot, qui ne sortirait donc jamais. */}
+          <span style={{ display: 'block', clipPath: WORDMARK_MASK_CLIP }}>
+            <span
+              ref={wordmarkRef}
+              data-wordmark
+              style={{
+                display: 'block',
+                transform: INITIAL_WORDMARK_TRANSFORM,
+                willChange: 'transform',
+              }}
+            >
+              <SeriesWordmark />
+            </span>
+          </span>
         </span>
       </h1>
 
@@ -1961,6 +2074,9 @@ export function DesktopSeries({
           rowHidden && 'opacity-0'
         )}
         style={{
+          // Le train attend hors écran, à droite, DÈS LE HTML servi (cf.
+          // `entrance.ts`). GSAP reprend la main à l'hydratation.
+          transform: INITIAL_ROW_TRANSFORM,
           paddingLeft: 32,
           paddingRight: 32,
           paddingTop: 48,
