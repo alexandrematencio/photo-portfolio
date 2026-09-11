@@ -905,15 +905,25 @@ export function DesktopSeries({
     // geste dès qu'une série dépasse 5 photos visibles.
     const coverPileRect = rectOf(pileImg(target.slug, target.cover._id));
 
+    // Empilement des clones = empilement de la pile RÉELLE : la cover au
+    // sommet, les autres dessous dans l'ordre (FolderStack pose
+    // `zIndex: pile.length - i`). Sans z-index, l'ordre du DOM fait loi : le
+    // dernier clone ajouté — une AUTRE photo, posée sur la même boîte, puisque
+    // toutes les sources partagent celle de la cover (épaisseur désactivée,
+    // repli des photos au-delà de la pile) — recouvrait la cover dès la
+    // première frame, et `expo.inOut` laisse les vols quasi immobiles ~150 ms :
+    // la cover « changeait de photo » au clic (bug réel signalé, 2026-09-11).
+    const n = target.photos.length;
+    const stackZ = (photo: { _id: string }, i: number) =>
+      String(photo._id === target.cover._id ? n + 1 : n - i);
+
     target.photos.forEach((photo, i) => {
       const pile = pileImg(target.slug, photo._id);
       const pileRect = rectOf(pile);
       if (pile && pileRect && photo._id === target.cover._id && centerRect) {
-        coverFlight = {
-          ghost: spawnGhost(layer, pile, pileRect),
-          from: pileRect,
-          to: centerRect,
-        };
+        const ghost = spawnGhost(layer, pile, pileRect);
+        ghost.style.zIndex = String(n + 2);
+        coverFlight = { ghost, from: pileRect, to: centerRect };
       }
       const col = colImg(i);
       const to = rectOf(col);
@@ -924,7 +934,9 @@ export function DesktopSeries({
       const from = pileRect ?? coverPileRect;
       const srcEl = pile ?? col;
       if (!from) return;
-      flights.push({ ghost: spawnGhost(layer, srcEl, from), from, to });
+      const ghost = spawnGhost(layer, srcEl, from);
+      ghost.style.zIndex = stackZ(photo, i);
+      flights.push({ ghost, from, to });
     });
 
     // La pile réelle disparaît à l'instant où ses clones prennent le relais.
@@ -1002,6 +1014,13 @@ export function DesktopSeries({
       // L'ordre de capture suit les [data-col-img] À L'ÉCRAN, dans l'ordre du
       // DOM. On saute donc ici sur le MÊME critère (hors écran) et rien
       // d'autre, sinon clones et photos se désalignent.
+      // Empilement à la POSE = celui de la pile réelle (miroir de runOpen) :
+      // tous les clones convergent sur la boîte de la cover, et c'est le clone
+      // de la COVER qui doit finir au sommet — pas le centre, qui porte la
+      // photo ACTIVE (une autre après un échange), ni le dernier ajouté.
+      // Le centre reste juste sous la cover, au-dessus du reste : c'est le
+      // grand vol, il ne doit pas passer derrière les vignettes qu'il croise.
+      const n = from.photos.length;
       let g = 0;
       from.photos.forEach((photo, i) => {
         const src = colImg(i);
@@ -1009,10 +1028,13 @@ export function DesktopSeries({
         if (!fromRect || !isOnScreen(fromRect)) return;
         const to = rectOf(pileImg(from.slug, photo._id)) ?? coverTo;
         const ghost = captured.colGhosts[g++];
-        if (ghost && to) flights.push({ ghost, from: fromRect, to });
+        if (!ghost || !to) return;
+        ghost.style.zIndex = String(photo._id === from.cover._id ? n + 2 : n - i);
+        flights.push({ ghost, from: fromRect, to });
       });
       const centerFrom = rectOf(q('[data-center-img]'));
       if (captured.centerGhost && coverTo && centerFrom) {
+        captured.centerGhost.style.zIndex = String(n + 1);
         centerFlight = { ghost: captured.centerGhost, from: centerFrom, to: coverTo };
       }
     }
