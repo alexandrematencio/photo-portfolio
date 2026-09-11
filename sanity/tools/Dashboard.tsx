@@ -30,6 +30,7 @@ import {
   type PhotoIndexRow,
 } from './search/photoIndexQuery';
 import { SearchCard } from './search/SearchCard';
+import { CurationCard } from './CurationCard';
 
 const API_VERSION = '2026-01-01';
 
@@ -222,7 +223,7 @@ export function Dashboard() {
           <>
             <SearchCard rows={data.searchIndex} thumbUrl={thumbUrl} />
             <StatsCard data={data} siteUrl={siteUrl} />
-            <CurationCard data={data} thumbUrl={thumbUrl} />
+            <CurationCard curation={data.curation} thumbUrl={thumbUrl} />
             <CatalogueCard data={data} />
             <AlertsCard data={data} />
             <DraftsCard data={data} />
@@ -312,105 +313,8 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-// — La curation : la home telle qu'elle sortira, dans l'ordre —
-type CurationEntry = {
-  _id: string;
-  title: string;
-  slug: string;
-  image?: SanityImageish;
-};
-
-function CurationCard({
-  data,
-  thumbUrl,
-}: {
-  data: DashboardData;
-  thumbUrl: ThumbFn;
-}) {
-  const curation = (data.curation ?? []).filter((p): p is CurationEntry =>
-    Boolean(p)
-  );
-  return (
-    <Card padding={4} radius={2} shadow={1}>
-      <Stack space={4}>
-        <Flex align="center" gap={2}>
-          <StarIcon />
-          <Heading size={1}>La curation (home)</Heading>
-          <Badge tone={curation.length > 0 ? 'primary' : 'caution'}>
-            {curation.length}
-          </Badge>
-        </Flex>
-
-        {curation.length === 0 ? (
-          <Card padding={3} radius={2} tone="caution">
-            <Text size={1}>
-              Aucune photo curatée : la home est vide. Ouvre{' '}
-              <strong>Réglages du site → Curation</strong> et ajoute des photos
-              (glisser-déposer pour l&apos;ordre).
-            </Text>
-          </Card>
-        ) : (
-          <Flex gap={2} wrap="wrap">
-            {curation.map((photo, i) => {
-              const src = thumbUrl(photo.image, 160);
-              return (
-                <IntentLink
-                  key={photo._id}
-                  intent="edit"
-                  params={{ id: publishedId(photo._id), type: 'photo' }}
-                  style={{ textDecoration: 'none' }}
-                >
-                  <Card
-                    radius={2}
-                    tone="transparent"
-                    border
-                    style={{ width: 84, overflow: 'hidden' }}
-                    title={photo.title}
-                  >
-                    <Box style={{ position: 'relative', width: 84, height: 84 }}>
-                      {src ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={src}
-                          alt={photo.title}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            display: 'block',
-                          }}
-                        />
-                      ) : (
-                        <Flex
-                          align="center"
-                          justify="center"
-                          style={{ width: '100%', height: '100%', opacity: 0.4 }}
-                        >
-                          <ImageIcon />
-                        </Flex>
-                      )}
-                      <Badge
-                        tone="default"
-                        style={{ position: 'absolute', top: 4, left: 4 }}
-                      >
-                        {i + 1}
-                      </Badge>
-                    </Box>
-                  </Card>
-                </IntentLink>
-              );
-            })}
-          </Flex>
-        )}
-
-        <Text size={0} muted>
-          L&apos;ordre affiché = l&apos;ordre sur la home. Édition dans Réglages
-          du site → Curation, puis Publish + <code>npm run deploy</code>.
-        </Text>
-      </Stack>
-    </Card>
-  );
-}
+// — La curation (home) : `CurationCard.tsx` — vignettes dans l'ordre de la
+// home, réordonnables au glisser-déposer depuis le Tableau de bord.
 
 // — Catalogue : répartition par axe —
 function CatalogueCard({ data }: { data: DashboardData }) {

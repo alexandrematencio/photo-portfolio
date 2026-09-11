@@ -3,7 +3,13 @@ import type {
   StructureResolverContext,
 } from 'sanity/structure';
 
+import { photoGridPane } from './photoGrid';
+
 const API_VERSION = '2026-01-01';
+
+// Toutes les listes de photos passent par `photoGridPane` (planche-contact
+// quand rien n'est ouvert, colonne dès qu'une photo l'est — §11.21). La
+// condition GROQ se donne SANS `_type == "photo"`.
 
 function siteSettingsNode(S: StructureBuilder) {
   return S.listItem()
@@ -52,15 +58,18 @@ function photosBySeriesNode(S: StructureBuilder) {
                 .title('Photos de cette série — éditer une par une')
                 .id('series-photos')
                 .child(
-                  S.documentList()
-                    .title('Photos de cette série')
-                    .filter('_type == "photo" && references($id)')
-                    .params({ id: seriesId })
-                    .initialValueTemplates([
-                      S.initialValueTemplateItem('photo-by-series', {
-                        seriesId,
-                      }),
-                    ])
+                  photoGridPane(S, {
+                    id: 'series-photos-grid',
+                    title: 'Photos de cette série',
+                    filter: 'references($id)',
+                    params: { id: seriesId },
+                    create: {
+                      template: 'photo-by-series',
+                      params: { seriesId },
+                    },
+                    emptyText:
+                      'Aucune photo dans cette série. « Nouvelle photo » en crée une déjà rattachée.',
+                  })
                 ),
             ])
         )
@@ -72,10 +81,14 @@ function photosWithoutSeriesNode(S: StructureBuilder) {
     .title('Sans série')
     .id('photos-without-series')
     .child(
-      S.documentList()
-        .title('Photos sans série')
-        .filter('_type == "photo" && (!defined(series) || count(series) == 0)')
-        .defaultOrdering([{ field: '_updatedAt', direction: 'desc' }])
+      photoGridPane(S, {
+        id: 'photos-without-series-grid',
+        title: 'Photos sans série',
+        filter: '!defined(series) || count(series) == 0',
+        sort: 'updated',
+        create: {},
+        emptyText: 'Toutes les photos sont rattachées à une série.',
+      })
     );
 }
 
@@ -99,26 +112,31 @@ function photosByStyleNode(
               .title(style.title)
               .id(`style-${style._id}`)
               .child(
-                S.documentList()
-                  .title(style.title)
-                  .filter('_type == "photo" && $id in styles[]._ref')
-                  .params({ id: style._id })
-                  .initialValueTemplates([
-                    S.initialValueTemplateItem('photo-by-style', {
-                      styleId: style._id,
-                    }),
-                  ])
+                photoGridPane(S, {
+                  id: `style-${style._id}-grid`,
+                  title: style.title,
+                  filter: '$id in styles[]._ref',
+                  params: { id: style._id },
+                  create: {
+                    template: 'photo-by-style',
+                    params: { styleId: style._id },
+                  },
+                  emptyText: 'Aucune photo dans ce style.',
+                })
               )
           ),
           S.listItem()
             .title('Sans style')
             .id('style-none')
             .child(
-              S.documentList()
-                .title('Photos sans style')
-                .filter(
-                  '_type == "photo" && (!defined(styles) || count(styles) == 0)'
-                )
+              photoGridPane(S, {
+                id: 'style-none-grid',
+                title: 'Photos sans style',
+                filter: '!defined(styles) || count(styles) == 0',
+                sort: 'updated',
+                create: {},
+                emptyText: 'Toutes les photos ont un style.',
+              })
             ),
         ]);
     });
@@ -144,13 +162,17 @@ function photosByLocationNode(
               .title(location)
               .id(`location-${i}`)
               .child(
-                S.documentList()
-                  .title(location)
-                  .filter('_type == "photo" && location == $location')
-                  .params({ location })
-                  .initialValueTemplates([
-                    S.initialValueTemplateItem('photo-by-location', { location }),
-                  ])
+                photoGridPane(S, {
+                  id: `location-${i}-grid`,
+                  title: location,
+                  filter: 'location == $location',
+                  params: { location },
+                  create: {
+                    template: 'photo-by-location',
+                    params: { location },
+                  },
+                  emptyText: 'Aucune photo pour ce lieu.',
+                })
               )
           )
         );
@@ -185,24 +207,31 @@ function photosByTaxonomyRefNode(
               .title(doc.title)
               .id(`${opts.nodeId}-${doc._id}`)
               .child(
-                S.documentList()
-                  .title(doc.title)
-                  .filter(`_type == "photo" && ${opts.field}._ref == $id`)
-                  .params({ id: doc._id })
-                  .initialValueTemplates([
-                    S.initialValueTemplateItem(`photo-by-${opts.docType}`, {
-                      [`${opts.docType}Id`]: doc._id,
-                    }),
-                  ])
+                photoGridPane(S, {
+                  id: `${opts.nodeId}-${doc._id}-grid`,
+                  title: doc.title,
+                  filter: `${opts.field}._ref == $id`,
+                  params: { id: doc._id },
+                  create: {
+                    template: `photo-by-${opts.docType}`,
+                    params: { [`${opts.docType}Id`]: doc._id },
+                  },
+                  emptyText: 'Aucune photo avec ce matériel.',
+                })
               )
           ),
           S.listItem()
             .title(opts.emptyLabel)
             .id(`${opts.nodeId}-none`)
             .child(
-              S.documentList()
-                .title(opts.emptyLabel)
-                .filter(`_type == "photo" && !defined(${opts.field})`)
+              photoGridPane(S, {
+                id: `${opts.nodeId}-none-grid`,
+                title: opts.emptyLabel,
+                filter: `!defined(${opts.field})`,
+                sort: 'updated',
+                create: {},
+                emptyText: 'Le matériel est renseigné sur toutes les photos.',
+              })
             ),
         ]);
     });
@@ -225,13 +254,15 @@ function photosByYearNode(S: StructureBuilder, context: StructureResolverContext
               .title(String(year))
               .id(`year-${year}`)
               .child(
-                S.documentList()
-                  .title(`Photos ${year}`)
-                  .filter('_type == "photo" && year == $year')
-                  .params({ year })
-                  .initialValueTemplates([
-                    S.initialValueTemplateItem('photo-by-year', { year }),
-                  ])
+                photoGridPane(S, {
+                  id: `year-${year}-grid`,
+                  title: `Photos ${year}`,
+                  filter: 'year == $year',
+                  params: { year },
+                  sort: 'title',
+                  create: { template: 'photo-by-year', params: { year } },
+                  emptyText: 'Aucune photo cette année-là.',
+                })
               )
           )
         );
@@ -239,28 +270,71 @@ function photosByYearNode(S: StructureBuilder, context: StructureResolverContext
 }
 
 function curatedPhotosNode(S: StructureBuilder) {
-  // Vue de consultation. L'édition (ajout / retrait / réordonnancement) se
-  // fait dans Réglages du site → champ « Curation » (drag & drop).
+  // Vue de consultation, dans l'ORDRE de la home (`orderQuery`). L'ordre se
+  // change au Tableau de bord (glisser-déposer) ou dans Réglages du site →
+  // Curation ; l'ajout et le retrait, dans les Réglages seulement.
   return S.listItem()
     .title('La curation (home)')
     .id('photos-curated')
     .child(
-      S.documentList()
-        .title('Photos de la home — ordre à éditer dans Réglages du site')
-        .filter(
-          '_type == "photo" && _id in *[_id == "siteSettings"][0].curation[]._ref'
-        )
-        // Pas de « + » ici : on ne peut pas créer une photo DANS la curation
+      photoGridPane(S, {
+        id: 'photos-curated-grid',
+        title: 'Photos de la home — dans l’ordre du site',
+        filter: '_id in *[_id == "siteSettings"][0].curation[]._ref',
+        orderQuery: '*[_id == "siteSettings"][0].curation[]._ref',
+        // Une mutation des Réglages (ordre, ajout, retrait) doit relire, or le
+        // listener n'évalue son filtre que sur les documents mutés.
+        listenAlso: '_id in ["siteSettings", "drafts.siteSettings"]',
+        // Pas de création ici : on ne peut pas créer une photo DANS la curation
         // (l'appartenance vit sur siteSettings, pas sur la photo). Un bouton de
         // création produirait une photo absente de cette liste — trompeur.
-        .initialValueTemplates([])
+        create: null,
+        emptyText:
+          'Aucune photo curatée : la home est vide. Réglages du site → Curation.',
+      })
     );
 }
 
+/**
+ * Photos retirées du site par leur interrupteur `hidden` — la vue d'où on les
+ * remet en ligne. `== true` et pas `!= false` : un champ absent veut dire
+ * visible. Pas de bouton de création, même raison qu'à « La curation ».
+ */
+function hiddenPhotosNode(S: StructureBuilder) {
+  return S.listItem()
+    .title('Masquées du site')
+    .id('photos-hidden')
+    .child(
+      photoGridPane(S, {
+        id: 'photos-hidden-grid',
+        title: 'Photos masquées du site',
+        filter: 'hidden == true',
+        sort: 'updated',
+        create: null,
+        emptyText: 'Aucune photo masquée : tout le catalogue est en ligne.',
+      })
+    );
+}
+
+/**
+ * « Toutes ». ⚠️ Ce n'était plus un `documentTypeListItem('photo')` depuis le
+ * 2026-09-10 : un panneau composant ne répond à aucun intent, donc une photo
+ * ouverte depuis le Tableau de bord ou la recherche globale s'ouvre dans
+ * l'éditeur de repli de Sanity (à la racine), pas ici. Assumé (§11.21).
+ */
 function allPhotosNode(S: StructureBuilder) {
-  return S.documentTypeListItem('photo')
+  return S.listItem()
     .title('Toutes')
-    .id('photos-all');
+    .id('photos-all')
+    .child(
+      photoGridPane(S, {
+        id: 'photos-all-grid',
+        title: 'Toutes les photos',
+        filter: 'true',
+        create: {},
+        emptyText: 'Aucune photo dans le catalogue.',
+      })
+    );
 }
 
 /**
@@ -290,13 +364,14 @@ function recentPhotosNode(S: StructureBuilder) {
     .title('Ajoutées récemment (30 j)')
     .id('photos-recent')
     .child(
-      S.documentList()
-        .title('Ajoutées les 30 derniers jours')
-        .filter(
-          '_type == "photo" && dateTime(_createdAt) > dateTime(now()) - 60*60*24*30'
-        )
-        .defaultOrdering([{ field: '_createdAt', direction: 'desc' }])
-        .initialValueTemplates([])
+      photoGridPane(S, {
+        id: 'photos-recent-grid',
+        title: 'Ajoutées les 30 derniers jours',
+        filter: 'dateTime(_createdAt) > dateTime(now()) - 60*60*24*30',
+        sort: 'created',
+        create: null,
+        emptyText: 'Aucune photo ajoutée ces 30 derniers jours.',
+      })
     );
 }
 
@@ -329,6 +404,7 @@ function photosGroupNode(S: StructureBuilder, context: StructureResolverContext)
             emptyLabel: 'Sans objectif renseigné',
           }),
           curatedPhotosNode(S),
+          hiddenPhotosNode(S),
           S.divider(),
           allPhotosNode(S),
         ])

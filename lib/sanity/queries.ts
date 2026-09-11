@@ -113,18 +113,36 @@ const photoProjection = groq`
   }
 `;
 
+/**
+ * Filtre de l'interrupteur « Masquée du site » (`photo.hidden`). TOUTE requête
+ * du site qui ramène des photos doit le porter — une requête qui l'oublie
+ * republie en silence une photo retirée. `!= true` et pas `== false` : un champ
+ * absent (photos antérieures au champ, imports) veut dire visible.
+ *
+ * Effets en chaîne, voulus : une couverture de série masquée retombe sur la
+ * 1ʳᵉ photo visible (`prepareSeries`), et une série dont toutes les photos sont
+ * masquées disparaît de /series comme une série vide.
+ */
+const VISIBLE = groq`hidden != true`;
+
 const seriesProjection = groq`
   _id, title, slug, subtitle, year, order
 `;
 
 // La home lit l'array ordonné siteSettings.curation : les photos sortent
-// déjà dans l'ordre de curation (drag & drop dans le Studio).
+// déjà dans l'ordre de curation (drag & drop dans le Studio). Une photo
+// masquée reste dans la curation (elle y reprend sa place au retour), mais le
+// filtre la saute.
+// ⚠️ Les parenthèses sont la correction, pas une coquetterie : sans elles,
+// `curation[]->[filtre]` applique le filtre à CHAQUE photo (traversée élément
+// par élément), filtrer un objet rend `null`, et la home reçoit un tableau de
+// `null` — des cases grises à la place des photos (payé le 2026-09-11).
 const homepagePhotosQuery = groq`
-  *[_type == "siteSettings"][0].curation[]->{ ${photoProjection} }
+  (*[_type == "siteSettings"][0].curation[]->)[${VISIBLE}]{ ${photoProjection} }
 `;
 
 const allPhotosQuery = groq`
-  *[_type == "photo"] | order(year desc, title asc) { ${photoProjection} }
+  *[_type == "photo" && ${VISIBLE}] | order(year desc, title asc) { ${photoProjection} }
 `;
 
 const siteSettingsQuery = groq`
@@ -167,12 +185,12 @@ const allSeriesQuery = groq`
 `;
 
 const photosBySeriesQuery = groq`
-  *[_type == "photo" && references(*[_type == "series" && slug.current == $slug][0]._id)]
+  *[_type == "photo" && ${VISIBLE} && references(*[_type == "series" && slug.current == $slug][0]._id)]
     | order(order asc) { ${photoProjection} }
 `;
 
 const photosWithoutSeriesQuery = groq`
-  *[_type == "photo" && (!defined(series) || count(series) == 0)] | order(_updatedAt desc) { ${photoProjection} }
+  *[_type == "photo" && ${VISIBLE} && (!defined(series) || count(series) == 0)] | order(_updatedAt desc) { ${photoProjection} }
 `;
 
 export async function getAllSeries(): Promise<Series[]> {
@@ -205,7 +223,7 @@ const seriesWithPhotosQuery = groq`
     ${seriesProjection},
     "coverRef": coverPhoto._ref,
     "photoOrderRefs": photoOrder[]._ref,
-    "photos": *[_type == "photo" && references(^._id)] | order(year desc, title asc) { ${photoProjection} }
+    "photos": *[_type == "photo" && ${VISIBLE} && references(^._id)] | order(year desc, title asc) { ${photoProjection} }
   }
 }
 `;

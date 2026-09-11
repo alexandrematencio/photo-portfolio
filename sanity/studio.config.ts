@@ -4,10 +4,12 @@ import { visionTool } from '@sanity/vision';
 import { schemaTypes } from '@/sanity/schemas';
 import { buildStructure } from '@/sanity/structure';
 import { dashboardTool } from '@/sanity/tools';
+import { StudioLayout } from '@/sanity/components/StudioLayout';
 import {
   AssignToSeriesAction,
   DeletePhotoAction,
   DeleteSeriesAction,
+  ToggleVisibilityAction,
 } from '@/sanity/actions';
 // PhotoPreviewView / SiteSettingsPreviewView volontairement non importés (désactivés
 // — voir le commentaire `defaultDocumentNode` ci-dessous). Les fichiers restent dans
@@ -117,6 +119,9 @@ export const studioConfig = defineConfig({
   ],
   // Dashboard registered first → becomes the default landing route in /studio.
   tools: (prev) => [dashboardTool, ...prev],
+  // Habillage des en-têtes de colonnes de Structure (bande, filet, chevron,
+  // clavier) — une feuille de style posée une fois, sur le DOM natif.
+  studio: { components: { layout: StudioLayout } },
   schema: {
     types: schemaTypes,
     templates: (prev) => [
@@ -144,11 +149,15 @@ export const studioConfig = defineConfig({
       // Delete natif REMPLACÉ par DeletePhotoAction : une photo référencée
       // (photoOrder, coverPhoto, curation) était insupprimable — l'action
       // custom détache les références en une transaction avant de supprimer.
+      //
+      // « Masquer du site » : un clic, écrit tout de suite, sans Publish
+      // (cf. ToggleVisibilityAction).
       if (schemaType === 'photo') {
         return [
           ...prev.map((action) =>
             action.action === 'delete' ? DeletePhotoAction : action
           ),
+          ToggleVisibilityAction,
           AssignToSeriesAction,
         ];
       }

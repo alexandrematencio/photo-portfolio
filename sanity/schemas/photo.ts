@@ -1,4 +1,6 @@
+import { createElement } from 'react';
 import { defineArrayMember, defineField, defineType } from 'sanity';
+import { PhotoRowMedia } from '../components/PhotoRowMedia';
 import {
   CameraSelectInput,
   LensSelectInput,
@@ -11,6 +13,18 @@ export const photoSchema = defineType({
   title: 'Photo',
   type: 'document',
   fields: [
+    // En tête de formulaire : c'est l'interrupteur qu'on vient chercher.
+    // Absent = visible — les photos importées avant ce champ (ou par
+    // `upload-photos`, qui ne le pose pas) n'ont rien à migrer. Côté site,
+    // toute requête de photo filtre `hidden != true` (lib/sanity/queries.ts).
+    defineField({
+      name: 'hidden',
+      title: 'Masquée du site',
+      type: 'boolean',
+      initialValue: false,
+      description:
+        'Activée : la photo disparaît de la home, de /archives et de /series. Rien n’est perdu — séries, ordre et curation restent en place, et elle y revient telle quelle quand on la réaffiche. Même geste, sans Publish, depuis le menu « ⋯ » de la photo ou l’œil à droite de sa ligne dans n’importe quelle liste. Visible sur le site en ligne au prochain déploiement.',
+    }),
     defineField({
       name: 'title',
       title: 'Titre',
@@ -151,9 +165,29 @@ export const photoSchema = defineType({
   ],
   preview: {
     select: {
+      id: '_id',
       title: 'title',
-      subtitle: 'location',
+      location: 'location',
       media: 'image',
+      hidden: 'hidden',
+    },
+    // L'aperçu sert PARTOUT où une photo est listée — listes de Structure,
+    // ordre d'une série, curation, couverture. La VIGNETTE porte donc
+    // l'interrupteur de visibilité (œil fermé si masquée, menu Masquer /
+    // Montrer au survol) : `media` est le seul champ d'aperçu que Sanity ne
+    // valide pas — `title`, `subtitle` et `description` doivent rester des
+    // scalaires (cf. PhotoRowMedia).
+    prepare({ id, title, location, media, hidden }) {
+      return {
+        title,
+        subtitle: location,
+        media: createElement(PhotoRowMedia, {
+          id: String(id ?? ''),
+          title: String(title ?? 'La photo'),
+          image: media,
+          hidden: hidden === true,
+        }),
+      };
     },
   },
   orderings: [
