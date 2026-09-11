@@ -46,7 +46,20 @@ export function buildMetadata(opts: {
       description,
       images: [image],
     },
-    robots: { index: true, follow: true },
+    // `max-image-preview: large` : Google a le droit de montrer la vignette en
+    // grand dans ses résultats — c'est ce qu'un portfolio veut.
+    robots: { index: true, follow: true, 'max-image-preview': 'large' },
+    // Deux balises qui ne dépendent PAS de robots.txt — et c'est le point :
+    // sous /photo-portfolio/, robots.txt n'est lu par personne (la racine du
+    // domaine github.io répond 404). Ce sont donc les seules oppositions
+    // effectives aujourd'hui. `noai`/`noimageai` (DeviantArt, 2022) ne sont
+    // honorées que par quelques acteurs ; `tdm-reservation` est le protocole
+    // européen (W3C TDMRep, directive DSM art. 4) — c'est celui qui pèse.
+    other: {
+      robots: 'noai, noimageai',
+      'tdm-reservation': '1',
+      'tdm-policy': `${SITE_URL}/legal/`,
+    },
   };
 }
 
