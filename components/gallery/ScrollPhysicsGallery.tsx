@@ -6,6 +6,8 @@ import { PhotoLightbox } from './PhotoLightbox';
 import type { Photo } from '@/lib/sanity/queries';
 import type { MotionSettings } from '@/lib/sanity/queries';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
+import { lightboxImageUrl } from '@/lib/sanity/image';
+import { createIdlePreloader, preloadImage } from '@/lib/utils/image-preload';
 
 type Props = {
   photos: Photo[];
@@ -180,6 +182,94 @@ export function ScrollPhysicsGallery({ photos }: Props) {
       cleanup?.();
     };
   }, [reducedMotion]);
+
+  // PRÉCHARGEMENT du grand format de la lightbox — pour que le clic trouve son
+  // fichier déjà là, sans jamais peser sur le défilement (demande Alexandre,
+  // 2026-09-11). Trois signaux, du plus faible au plus fort :
+  //  1. la photo est à l'écran ou à moins d'un écran en dessous → file
+  //     d'attente, servie seulement au repos du défilement, basse priorité,
+  //     deux à la fois (`createIdlePreloader`) ; ressortie avant son tour,
+  //     elle est retirée : un défilement rapide ne télécharge rien ;
+  //  2. le curseur se POSE sur la photo (120 ms) → priorité haute ;
+  //  3. appui ou focus clavier → priorité haute, immédiatement.
+  // Indépendant du mouvement réduit : c'est du réseau, pas de l'animation.
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || photos.length === 0) return;
+
+    const srcOf = new Map<Element, string>();
+    stage.querySelectorAll('.photo-item').forEach((el, i) => {
+      const src = lightboxImageUrl(photos[i]?.image);
+      if (src) srcOf.set(el, src);
+    });
+    const srcFromEvent = (e: Event) => {
+      const item = (e.target as Element | null)?.closest?.('.photo-item');
+      return item ? srcOf.get(item) : undefined;
+    };
+
+    const idle = createIdlePreloader();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const src = srcOf.get(entry.target);
+          if (!src) continue;
+          if (entry.isIntersecting) idle.want(src);
+          else idle.drop(src);
+        }
+      },
+      { rootMargin: '0px 0px 100% 0px' }
+    );
+    srcOf.forEach((_, el) => io.observe(el));
+
+    // Survol POSÉ sur la PHOTO, pas survol de passage. Pendant un défilement,
+    // les photos glissent sous un curseur immobile et le navigateur émet quand
+    // même des `pointerover` : mesuré sous Playwright, 17 grands formats
+    // partaient pendant un défilement continu de 4 s. D'où deux gardes — rien
+    // si la page a défilé dans les 250 dernières ms, et encore rien si elle a
+    // défilé pendant l'attente de 120 ms.
+    let lastScroll = 0;
+    const onScroll = () => {
+      lastScroll = performance.now();
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    const scrolledRecently = () => performance.now() - lastScroll < 250;
+
+    let dwell: ReturnType<typeof setTimeout> | null = null;
+    const onOver = (e: Event) => {
+      if (dwell) clearTimeout(dwell);
+      dwell = null;
+      const onPhoto = (e.target as Element | null)?.closest?.('.photo-figure');
+      const src = onPhoto ? srcFromEvent(e) : undefined;
+      if (!src || scrolledRecently()) return;
+      dwell = setTimeout(() => {
+        dwell = null;
+        if (!scrolledRecently()) void preloadImage(src, 'high');
+      }, 120);
+    };
+    const onOut = () => {
+      if (dwell) clearTimeout(dwell);
+      dwell = null;
+    };
+    const onPress = (e: Event) => {
+      const src = srcFromEvent(e);
+      if (src) void preloadImage(src, 'high');
+    };
+    stage.addEventListener('pointerover', onOver);
+    stage.addEventListener('pointerout', onOut);
+    stage.addEventListener('pointerdown', onPress);
+    stage.addEventListener('focusin', onPress);
+
+    return () => {
+      io.disconnect();
+      idle.destroy();
+      if (dwell) clearTimeout(dwell);
+      window.removeEventListener('scroll', onScroll);
+      stage.removeEventListener('pointerover', onOver);
+      stage.removeEventListener('pointerout', onOut);
+      stage.removeEventListener('pointerdown', onPress);
+      stage.removeEventListener('focusin', onPress);
+    };
+  }, [photos]);
 
   return (
     <>

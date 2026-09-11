@@ -29,16 +29,22 @@
  *   • Wrap-around: last → first via next, first → last via prev.
  *   • Keyboard: Esc closes, ← / → navigate.
  *   • Scale-in: scale(0) → scale(1) over 500 ms cubic-bezier(0.22, 1, 0.36, 1)
- *     on every photo change. Loader bar bridges the gap during JPEG download.
+ *     on every photo change. Loader bar bridges the gap during the download;
+ *     a failed request shows "retry" instead of an endless bar.
+ *   • "Loaded" is tracked PER URL (`loadedSrc === previewSrc`), with one <img>
+ *     per URL (`key`) — never a boolean reset on index change (see the state
+ *     declarations for the bug that rule prevents).
+ *   • Neighbours ±1 are preloaded once the current photo has arrived.
  */
 
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ArrowLeft, ArrowRight } from 'lucide-react';
-import { urlFor } from '@/lib/sanity/image';
+import { lightboxImageUrl } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
 import { pushModalHistory } from '@/lib/utils/modalHistory';
+import { preloadImage } from '@/lib/utils/image-preload';
 import { cn } from '@/lib/utils/cn';
 import { MICRO_LABEL_XS } from '@/lib/site/typography';
 
@@ -65,7 +71,16 @@ const SWIPE_THRESHOLD = 50; // px delta to trigger navigation
 
 export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
   const [index, setIndex] = useState(initialIndex);
-  const [loaded, setLoaded] = useState(false);
+  // « Chargée » se lit PAR URL, jamais comme un booléen qu'on remet à false à
+  // chaque changement de photo. Bug réel (2026-09-11) : le reset par effet
+  // arrivait APRÈS l'`onLoad` d'une image revenue du cache, et `next/image`
+  // ne rappelle jamais `onLoad` pour une src que le même <img> a déjà
+  // chargée (`data-loaded-src`) — une photo quittée puis retrouvée avant que
+  // sa voisine n'arrive restait à scale(0), barre figée à 85 %. Dérivé de
+  // l'URL, l'état ne peut plus mentir : aucun reset, aucun ordre à respecter.
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
 
   // Prev/next arrow buttons (desktop only). Anchored 32 px away from the
@@ -81,6 +96,9 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
   const touchStartXRef = useRef<number | null>(null);
 
   const photo = photos[index];
+  const previewSrc = lightboxImageUrl(photo?.image);
+  const loaded = previewSrc !== null && loadedSrc === previewSrc;
+  const failed = previewSrc !== null && failedSrc === previewSrc;
 
   const next = () => setIndex((i) => (i + 1) % photos.length);
   const prev = () => setIndex((i) => (i - 1 + photos.length) % photos.length);
@@ -94,10 +112,17 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
     return () => mq.removeEventListener('change', apply);
   }, []);
 
-  // Reset the scale-in animation each time the photo changes.
+  // Voisines ±1 — une fois la photo courante ARRIVÉE, jamais avant : elles ne
+  // doivent pas lui disputer la bande passante. Le pas suivant (flèche,
+  // balayage) trouve alors son fichier en cache.
   useEffect(() => {
-    setLoaded(false);
-  }, [index]);
+    if (!loaded || photos.length < 2) return;
+    const n = photos.length;
+    for (const i of [(index + 1) % n, (index - 1 + n) % n]) {
+      const src = lightboxImageUrl(photos[i]?.image);
+      if (src) void preloadImage(src, 'low');
+    }
+  }, [loaded, index, photos]);
 
   // Keyboard: Esc closes, ← / → navigate. Also locks body scroll while open.
   useEffect(() => {
@@ -211,17 +236,10 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
   if (typeof window === 'undefined') return null;
   if (!photo) return null;
 
-  const builder = photo.image ? urlFor(photo.image) : null;
-  // `urlFor` plafonne déjà à MAX_PHOTO_WIDTH (2048). On ne redemande donc PAS
-  // 2400 ici : c'était la plus grande résolution servie du site, au-dessus de ce
-  // que n'importe quel écran affiche dans cette boîte.
-  const previewSrc = builder?.quality(88).auto('format').url();
-  // Le viseur zoomable montre la même image que l'aperçu — jamais l'asset nu.
-  // Avant : `builder.url()`, sans largeur, donc l'original pleine résolution.
-  // Plus de lien « pleine résolution » (demande Alexandre, 2026-08-23) : le
-  // site ne propose plus l'image en grand format, quel qu'il soit. La mesure
-  // qui portait le sujet reste le plafond `MAX_PHOTO_WIDTH` de `urlFor` ; ceci
-  // en retire simplement l'affordance.
+  // `previewSrc` vient de `lightboxImageUrl`, plafonné à MAX_PHOTO_WIDTH (2048)
+  // — la même URL que préchargent la galerie et l'effet des voisines. Plus de
+  // lien « pleine résolution » (demande Alexandre, 2026-08-23) : le site ne
+  // propose plus l'image en grand format, quel qu'il soit.
 
   /** Taille de la croix — doublée (20 → 40). */
   const closeSize = isMobile ? 36 : 40;
@@ -250,13 +268,19 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
 
   const imgEl = previewSrc ? (
     <Image
+      // Un <img> NEUF par URL (et par nouvelle tentative) : la mémoire
+      // `data-loaded-src` de next/image ne peut plus avaler un `onLoad`.
+      key={`${previewSrc}#${attempt}`}
       src={previewSrc}
       alt={photo.image?.alt ?? photo.title}
       width={imgW}
       height={imgH}
       sizes="100vw"
       priority
-      onLoad={() => setLoaded(true)}
+      onLoad={() => setLoadedSrc(previewSrc)}
+      // Sans ce gestionnaire, une requête en échec laissait la barre figée à
+      // 85 % pour toujours, sans un mot.
+      onError={() => setFailedSrc(previewSrc)}
       className="block w-auto h-auto"
       style={{
         maxWidth: `calc(100vw - ${chromeX}px)`,
@@ -290,7 +314,31 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
     >
       {/* Loader bar — centered, fills 0→85%, snaps to 100% + fades on load.
           key={index} remounts the bar on photo change so the keyframe replays. */}
-      {previewSrc && (
+      {previewSrc && failed && (
+        // Échec réseau : on le DIT, et on offre de retenter — plutôt qu'une
+        // barre qui attend indéfiniment.
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setFailedSrc(null);
+            setAttempt((a) => a + 1);
+          }}
+          className="absolute top-1/2 left-1/2 cursor-pointer hover:opacity-60 transition-opacity motion-reduce:transition-none"
+          style={{
+            zIndex: 30,
+            transform: 'translate(-50%, -50%)',
+            fontFamily: 'var(--font-display)',
+            fontWeight: 400,
+            fontSize: 16,
+            lineHeight: 1,
+            color: 'var(--color-fg)',
+          }}
+        >
+          couldn’t load — retry
+        </button>
+      )}
+      {previewSrc && !failed && (
         <div
           aria-hidden
           className="absolute top-1/2 left-1/2 pointer-events-none flex flex-col items-center"
@@ -401,9 +449,10 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
         style={{
           paddingRight: 32,
           zIndex: 110,
-          opacity: loaded ? 1 : 0,
-          pointerEvents: loaded ? 'auto' : 'none',
-          transition: loaded
+          // Visible aussi sur échec : on doit toujours pouvoir sortir.
+          opacity: loaded || failed ? 1 : 0,
+          pointerEvents: loaded || failed ? 'auto' : 'none',
+          transition: loaded || failed
             ? 'opacity 280ms ease-out 420ms'
             : 'opacity 160ms ease-out',
         }}
