@@ -7,6 +7,7 @@ import {
   H4Block,
 } from '../components/EditorBlocks';
 import { SeriesOrderInput } from '../inputs/SeriesOrderInput';
+import { assetWithinCap } from '../validation/assetWithinCap';
 
 // ─── Budget poids des images du hero ────────────────────────────────────────
 // Cible : ≤ 300 Ko par image pour un chargement rapide sur une connexion
@@ -67,6 +68,10 @@ function heroImageField(
         }
         return true;
       }).warning(),
+      // AVERTISSEMENT (pas erreur) : le hero est un portrait de l'auteur, pas
+      // une œuvre à protéger, et l'image « reveal » est à 3122 px jusqu'à la
+      // tâche 6. Cf. sanity/validation/assetWithinCap.ts.
+      Rule.custom(assetWithinCap).warning(),
     ],
   });
 }

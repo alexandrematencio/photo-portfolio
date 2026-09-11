@@ -34,6 +34,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { exifRights, xmpRights } from './image-rights';
 
 const execFileAsync = promisify(execFile);
 
@@ -273,10 +274,17 @@ function outputFormat(ext: string, hasAlpha: boolean): 'png' | 'webp' | 'jpeg' {
  * P3 système — le rouge P3 pur ressort écrêté à 254,0,0 et tagué sRGB, et non
  * ré-étiqueté à l'identique). Sans lui, un export AdobeRGB ou ProPhoto serait
  * relu comme du sRGB et virerait au terne, sans le moindre signal.
+ *
+ * `withExif` + `withXmp` : le fichier déposé porte l'auteur et l'avis de
+ * copyright (cf. image-rights.ts pour ce que ça vaut — et ce que ça ne vaut
+ * pas). `.rotate()` a déjà appliqué l'orientation aux pixels, l'EXIF réécrit
+ * ici ne contient donc AUCUN drapeau d'orientation : rien ne peut coucher
+ * l'image une seconde fois.
  */
 export async function prepareForWeb(
   filepath: string,
-  source: Buffer
+  source: Buffer,
+  opts: { year?: number } = {}
 ): Promise<PreparedImage> {
   const { default: sharp } = await import('sharp');
   const ext = path.extname(filepath).slice(1).toLowerCase();
@@ -317,7 +325,12 @@ export async function prepareForWeb(
 
   if (format === 'png') {
     // Un PNG n'a pas de curseur de qualité : il tient son poids ou pas.
-    out = await base().png({ compressionLevel: 9 }).withIccProfile('srgb').toBuffer();
+    out = await base()
+      .png({ compressionLevel: 9 })
+      .withIccProfile('srgb')
+      .withExif(exifRights(opts.year))
+      .withXmp(xmpRights(opts.year))
+      .toBuffer();
   } else {
     // Échelle descendante : on s'arrête au PREMIER palier qui passe sous le
     // plafond, pour ne jamais dégrader plus que nécessaire. Si même le dernier
@@ -329,7 +342,11 @@ export async function prepareForWeb(
         format === 'webp'
           ? base().webp({ quality: q })
           : base().jpeg({ quality: q, mozjpeg: true, progressive: true });
-      out = await encoded.withIccProfile('srgb').toBuffer();
+      out = await encoded
+        .withIccProfile('srgb')
+        .withExif(exifRights(opts.year))
+        .withXmp(xmpRights(opts.year))
+        .toBuffer();
       quality = q;
       if (out.length <= MAX_BYTES) break;
     }

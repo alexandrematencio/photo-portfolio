@@ -12,7 +12,7 @@
     "clean": "rm -rf .next out",
     "predeploy": "npm run clean && npm run build",
     "deploy": "gh-pages -d out --dotfiles -m \"chore(deploy): publish static export\"",
-    "upload-photos": "node --env-file=.env.local --import tsx scripts/upload-photos.ts",
+    "upload-photos": "node --env-file=.env.production --env-file=.env.local --import tsx scripts/upload-photos.ts",
     "migrate-taxonomy": "node --env-file=.env.local --import tsx scripts/migrate-taxonomy.ts",
     "migrate-series-multi": "node --env-file=.env.local --import tsx scripts/migrate-photo-series-multi.ts",
     "assign-series-by-location": "node --env-file=.env.local --import tsx scripts/assign-series-by-location.ts",
@@ -21,7 +21,7 @@
     "check-search": "node --import tsx scripts/check-search.ts",
     "check-jsonld": "node --env-file=.env.local --import tsx scripts/check-jsonld.ts",
     "wipe-photos": "node --env-file=.env.local --import tsx scripts/wipe-photos.ts",
-    "set-hero": "node --env-file=.env.local --import tsx scripts/set-hero.ts",
+    "set-hero": "node --env-file=.env.production --env-file=.env.local --import tsx scripts/set-hero.ts",
     "audit-series": "node --env-file=.env.local --import tsx scripts/audit-photos-without-series.ts"
   },
   "dependencies": {

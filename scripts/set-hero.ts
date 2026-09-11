@@ -18,6 +18,7 @@
 import { createClient } from '@sanity/client';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { prepareForWeb } from './prepare-image';
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
 const DATASET = process.env.NEXT_PUBLIC_SANITY_DATASET ?? 'production';
@@ -74,11 +75,14 @@ async function main(): Promise<void> {
 
     console.log(`Upload de ${img.file} vers Sanity…`);
     const buffer = await fs.readFile(filePath);
-    const asset = await client.assets.upload('image', buffer, {
-      filename: img.filename,
-      contentType: 'image/jpeg',
+    // JAMAIS un dépôt brut : le plafond de résolution et la signature ne
+    // valent que si TOUS les chemins vers Sanity passent ici (CLAUDE.md §11.12).
+    const shrunk = await prepareForWeb(filePath, buffer);
+    const asset = await client.assets.upload('image', shrunk.buffer, {
+      filename: `${path.basename(img.filename, path.extname(img.filename))}.${shrunk.ext}`,
+      contentType: shrunk.contentType,
     });
-    console.log(`✓ Asset uploadé : ${asset._id}`);
+    console.log(`✓ Asset uploadé : ${asset._id} (${shrunk.to.w}×${shrunk.to.h})`);
 
     hero[img.field] = {
       _type: 'image' as const,

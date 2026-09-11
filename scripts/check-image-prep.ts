@@ -197,6 +197,31 @@ async function main(): Promise<void> {
   const small = await prep('small.jpg');
   check('petite image non agrandie', small.to.w === 800 && small.to.h === 600, `${small.to.w}×${small.to.h}`);
 
+  // Signature : chaque fichier déposé porte l'auteur, dans les trois registres.
+  console.log('\n── Signature ──');
+  for (const name of ['smooth.jpg', 'shot.webp', 'alpha.png']) {
+    const signed = await prep(name);
+    const meta = await sharp(signed.buffer).metadata();
+    const exif = meta.exif?.toString('latin1') ?? '';
+    const xmp = meta.xmp?.toString('utf8') ?? '';
+    check(`  ${name} : EXIF Artist`, exif.includes('Alexandre Matencio'));
+    check(`  ${name} : XMP dc:creator`, xmp.includes('<dc:creator>') && xmp.includes('Alexandre Matencio'));
+    check(`  ${name} : XMP Marked + WebStatement`, xmp.includes('xmpRights:Marked="True"') && xmp.includes('/legal/'));
+    check(`  ${name} : pas d’orientation réécrite`, !/Orientation/i.test(exif));
+  }
+  const dated = await prepareForWeb(file('smooth.jpg'), fs.readFileSync(file('smooth.jpg')), { year: 2019 });
+  const datedMeta = await sharp(dated.buffer).metadata();
+  // ⚠️ Déviation du plan (constatée le 2026-09-11, pas une divergence de
+  // transcription) : le tag EXIF IFD0 `Copyright` est ASCII strict — sharp/
+  // libvips y transcode « © » en « (C) » (vérifié en inspectant les octets
+  // écrits). Seul le XMP (UTF-8) porte le caractère intact. On vérifie donc
+  // l'année dans les DEUX registres, chacun avec la graphie qu'il peut
+  // réellement porter, plutôt que d'attendre « © » d'un champ qui ne peut
+  // structurellement pas le contenir.
+  check('année transmise dans l’avis (EXIF)', datedMeta.exif?.toString('latin1').includes('(C) 2019') === true);
+  check('année transmise dans l’avis (XMP)', datedMeta.xmp?.toString('utf8').includes('© 2019') === true);
+  check('signé ET sous le plafond de poids', dated.to.bytes <= MAX_BYTES, `${Math.round(dated.to.bytes / 1024)} Ko`);
+
   fs.rmSync(DIR, { recursive: true, force: true });
   console.log(failures === 0 ? '\n✓ Tous les cas passent.' : `\n✗ ${failures} cas en échec.`);
   process.exit(failures === 0 ? 0 : 1);

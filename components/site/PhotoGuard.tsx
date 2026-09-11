@@ -18,7 +18,7 @@ import { useEffect } from 'react';
  *
  * Écouteurs au niveau du DOCUMENT plutôt qu'un `onContextMenu` par image :
  * les photos sont rendues par une demi-douzaine de composants (PhotoCard,
- * PhotoBlock, PhotoLightbox, OriginalViewer, FolderStack, les deux branches de
+ * PhotoBlock, PhotoLightbox, FolderStack, les deux branches de
  * /series…), et une seule oubliée rouvrirait la porte. Une garde par composant
  * est une garde qu'on oublie d'ajouter à la prochaine page.
  *

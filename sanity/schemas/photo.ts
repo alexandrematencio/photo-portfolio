@@ -7,6 +7,7 @@ import {
   SeriesSelectInput,
   StylesSelectInput,
 } from '../inputs/photoRefSelects';
+import { assetWithinCap } from '../validation/assetWithinCap';
 
 export const photoSchema = defineType({
   name: 'photo',
@@ -58,6 +59,10 @@ export const photoSchema = defineType({
           validation: (Rule) => Rule.required().min(5).max(200),
         }),
       ],
+      // ERREUR, pas avertissement : une photo hors plafond ne se publie pas.
+      // C'est le verrou du glisser-déposer, seul chemin d'import qui ne passe
+      // pas par prepareForWeb. Cf. sanity/validation/assetWithinCap.ts.
+      validation: (Rule) => Rule.custom(assetWithinCap),
     }),
     defineField({
       name: 'caption',

@@ -623,7 +623,7 @@ async function main(): Promise<void> {
 
     // Réduction AVANT dépôt — cf. MAX_EDGE / MAX_BYTES. Le master de
     // `portfolio/` n'est pas touché : seule cette copie part chez Sanity.
-    const shrunk = await prepareForWeb(filepath, buffer);
+    const shrunk = await prepareForWeb(filepath, buffer, { year: p.year });
     const ratio = 1 - shrunk.to.bytes / shrunk.from.bytes;
     console.log(
       `        ${shrunk.from.w}×${shrunk.from.h} ${mo(shrunk.from.bytes)}` +
