@@ -24,7 +24,8 @@
     "set-hero": "node --env-file=.env.production --env-file=.env.local --import tsx scripts/set-hero.ts",
     "audit-series": "node --env-file=.env.local --import tsx scripts/audit-photos-without-series.ts",
     "make-og-image": "node --env-file=.env.production --env-file=.env.local --import tsx scripts/make-og-image.ts",
-    "downsize-assets": "node --env-file=.env.production --env-file=.env.local --import tsx scripts/downsize-assets.ts"
+    "downsize-assets": "node --env-file=.env.production --env-file=.env.local --import tsx scripts/downsize-assets.ts",
+    "purge-orphan-assets": "node --env-file=.env.local --import tsx scripts/purge-orphan-assets.ts"
   },
   "dependencies": {
     "@portabletext/react": "^3.2.0",
