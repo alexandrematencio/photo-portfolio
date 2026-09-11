@@ -98,6 +98,8 @@ export type SiteSettings = {
   contactBody?: unknown[];
   digitalAgencyBody?: unknown[];
   socialsBody?: unknown[];
+  legalBody?: unknown[];
+  privacyBody?: unknown[];
   motion?: MotionSettings;
 };
 
@@ -147,7 +149,7 @@ const allPhotosQuery = groq`
 
 const siteSettingsQuery = groq`
   *[_type == "siteSettings"][0] {
-    aboutBody, contactBody, digitalAgencyBody, socialsBody, motion,
+    aboutBody, contactBody, digitalAgencyBody, socialsBody, legalBody, privacyBody, motion,
     hero {
       defaultImage { ..., "dimensions": asset->metadata.dimensions },
       revealImage { ..., "dimensions": asset->metadata.dimensions }

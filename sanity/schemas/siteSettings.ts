@@ -214,6 +214,25 @@ export const siteSettingsSchema = defineType({
         'Le texte complet de la page /socials — les liens vers les plateformes s’écrivent ici, en annotations de lien.'
       ),
     }),
+    defineField({
+      name: 'legalBody',
+      title: 'Page « Legal notice »',
+      type: 'array',
+      of: [editorialBlockType],
+      description: editorialBodyDescription(
+        'Le texte complet de la page /legal (mentions legales, editeur, hebergeur, propriete, conditions de licence). Tant que vide, repli avec editeur entre crochets.'
+      ),
+    }),
+    defineField({
+      name: 'privacyBody',
+      title: 'Page « Privacy »',
+      type: 'array',
+      of: [editorialBlockType],
+      description: editorialBodyDescription(
+        'Le texte complet de la page /privacy (donnees personnelles, droits RGPD, droit a l image).'
+      ),
+    }),
+
     // Champ `socials` (array plateforme/URL) supprimé le 2026-08-20 : aucun
     // rendu ne le consommait et il était vide en base — schéma orphelin,
     // exactement ce que CLAUDE.md §8.5 interdit. La page /socials est du

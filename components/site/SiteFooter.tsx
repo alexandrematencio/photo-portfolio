@@ -85,7 +85,7 @@ export function SiteFooter() {
               ALEXANDRE MATENCIO
             </div>
             <div className="text-[12px] tracking-[-0.015em]">
-              ©2026 / All Right Reserved
+              © {new Date().getFullYear()} / All rights reserved
             </div>
           </div>
         </Link>
