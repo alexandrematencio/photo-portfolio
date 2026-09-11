@@ -19,11 +19,18 @@
  *
  * RÉVERSIBLE : les anciens assets ne sont PAS supprimés. Ils deviennent
  * orphelins (plus aucune URL du site n'y mène) et le journal JSON écrit dans
- * resources/ garde la correspondance old → new. La purge est une décision à
- * part (spec R1), jamais prise ici.
+ * resources/downsize-assets-<horodatage à la seconde>.json garde la
+ * correspondance old → new. La purge est une décision à part (spec R1),
+ * jamais prise ici.
  *
  * Idempotent : un asset déjà sous le plafond n'est pas sélectionné, une
  * relance ne refait donc que ce qui a échoué.
+ *
+ * Un asset au-dessus du plafond peut être référencé par un champ que ce
+ * script ne connaît pas (cas réel : un champ fantôme `siteSettings.
+ * profileImage`, sans schéma). Ces assets ne sont ni réduits ni comptés comme
+ * orphelins : ils sont listés à part, en avertissement, et laissés pour un
+ * traitement manuel.
  */
 import { createClient } from '@sanity/client';
 import fs from 'node:fs/promises';
@@ -70,6 +77,8 @@ type Target = {
   photoRefs: { _id: string; year: number | null }[];
   heroDefault: string[];
   heroReveal: string[];
+  /** Nombre RÉEL de références, tous types et tous champs confondus. */
+  refCount: number;
 };
 
 type Ref = { docId: string; field: string; year: number | undefined };
@@ -89,7 +98,8 @@ const TARGETS_QUERY = `
   "width": metadata.dimensions.width, "height": metadata.dimensions.height,
   "photoRefs": *[_type == "photo" && image.asset._ref == ^._id]{ _id, year },
   "heroDefault": *[_id in ["siteSettings", "drafts.siteSettings"] && hero.defaultImage.asset._ref == ^._id]._id,
-  "heroReveal": *[_id in ["siteSettings", "drafts.siteSettings"] && hero.revealImage.asset._ref == ^._id]._id
+  "heroReveal": *[_id in ["siteSettings", "drafts.siteSettings"] && hero.revealImage.asset._ref == ^._id]._id,
+  "refCount": count(*[references(^._id)])
 } | order(size desc)`;
 
 function refsOf(t: Target): Ref[] {
@@ -113,14 +123,31 @@ const mo = (b: number) => `${(b / 1024 / 1024).toFixed(1)} Mo`;
 
 async function main(): Promise<void> {
   const all = await client.fetch<Target[]>(TARGETS_QUERY, { max: MAX_EDGE });
-  // Les orphelins ne mènent nulle part : rien à repointer, on ne les touche pas.
+  // Trois sorts distincts : à réduire (référencé par un champ connu), vrai
+  // orphelin (aucune référence, nulle part), et « couvert par aucun champ
+  // connu mais quand même référencé » — celui-là, on ne le touche pas non
+  // plus, mais on ne le confond pas avec un orphelin.
   const targets = all.filter((t) => refsOf(t).length > 0).slice(0, LIMIT);
-  const orphans = all.length - all.filter((t) => refsOf(t).length > 0).length;
+  const uncovered = all.filter((t) => refsOf(t).length === 0 && t.refCount > 0);
+  const orphans = all.filter((t) => t.refCount === 0);
 
   console.log(
-    `${all.length} asset(s) au-dessus de ${MAX_EDGE} px, dont ${orphans} orphelin(s) ignoré(s).\n` +
+    `${all.length} asset(s) au-dessus de ${MAX_EDGE} px, dont ${orphans.length} orphelin(s) ignoré(s).\n` +
       `${targets.length} à réduire (${mo(targets.reduce((s, t) => s + t.size, 0))}).\n`
   );
+  if (uncovered.length > 0) {
+    console.log(
+      `⚠ ${uncovered.length} asset(s) au-dessus de ${MAX_EDGE} px référencé(s) par un champ que ce ` +
+        `script ne couvre pas — à traiter à la main :`
+    );
+    for (const t of uncovered) {
+      console.log(
+        `  ${(t.originalFilename ?? t.assetId).padEnd(44)} ${`${t.width}×${t.height}`.padEnd(10)} ` +
+          `refCount=${t.refCount}`
+      );
+    }
+    console.log('');
+  }
   for (const t of targets) {
     const local = (await localMaster(t.originalFilename)) !== null;
     console.log(
@@ -134,7 +161,10 @@ async function main(): Promise<void> {
   }
 
   const log: LogEntry[] = [];
-  const stamp = new Date().toISOString().slice(0, 10);
+  // Horodatage à la SECONDE : au jour près, deux runs le même jour (ex. le
+  // --limit d'essai puis le run complet) écrivaient le même nom de fichier et
+  // le second effaçait le journal du premier. Vécu le 2026-09-11.
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const logPath = path.resolve(process.cwd(), `resources/downsize-assets-${stamp}.json`);
   await fs.mkdir(path.dirname(logPath), { recursive: true });
 
