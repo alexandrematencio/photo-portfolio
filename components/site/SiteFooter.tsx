@@ -2,9 +2,15 @@ import Link from 'next/link';
 import { asset } from '@/lib/utils/asset';
 
 /**
- * Exact replication of the footer in resources/alxmtc-footer.pen (full scan).
- * Structure is 5 direct flex children inside main-container, space-between.
- * No grouping of middle items. Glyph is the exact gray asset. Icon paths matched.
+ * Base structure is an exact replication of the footer in
+ * resources/alxmtc-footer.pen (full scan) — 5 direct flex children inside
+ * main-container, space-between, no grouping of middle items, exact gray
+ * glyph asset, matched icon paths. A 6th item (PRIVACY) was added on
+ * 2026-09-11 (RGPD requirement, /privacy has no equivalent in the .pen) —
+ * same plain-link style as PHOTOGRAPHY/DIGITAL AGENCY/CONTACT, placed after
+ * LEGAL NOTICE. Under `md` this makes the entries grid 5 items instead of 4
+ * (2 cols × 3 rows, last cell empty, left-aligned) — no longer a perfect
+ * 2×2, but the grid auto-flows correctly with an odd count.
  *
  * Gouttières : 32 px de chaque côté — valeur relevée dans le .pen
  * (main-container `padding: [16, 32]`, logo à x=32, « legal notice » finissant
@@ -149,6 +155,14 @@ export function SiteFooter() {
           <span className="text-[14px] font-bold leading-none tracking-[-0.02em] md:text-[16px]">
             LEGAL NOTICE
           </span>
+        </Link>
+
+        {/* Child 6: PRIVACY — added 2026-09-11, no equivalent in the .pen */}
+        <Link
+          href="/privacy"
+          className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none md:text-[16px]"
+        >
+          PRIVACY
         </Link>
         </div>
       </div>
