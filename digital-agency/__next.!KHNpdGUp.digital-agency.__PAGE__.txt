@@ -2,5 +2,5 @@
 2:I[683451,["/photo-portfolio/_next/static/chunks/0x.73w57rn4ou.js","/photo-portfolio/_next/static/chunks/0i.l9589uvx0j.js","/photo-portfolio/_next/static/chunks/14dn11sa2xhwd.js","/photo-portfolio/_next/static/chunks/00myej0f.8zrb.js","/photo-portfolio/_next/static/chunks/0mrj.iz2o47g3.js"],"LegacyRedirect"]
 3:I[897367,["/photo-portfolio/_next/static/chunks/0x.73w57rn4ou.js","/photo-portfolio/_next/static/chunks/0i.l9589uvx0j.js"],"OutletBoundary"]
 4:"$Sreact.suspense"
-0:{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"to":"/about/digital-agency"}],[["$","script","script-0",{"src":"/photo-portfolio/_next/static/chunks/0mrj.iz2o47g3.js","async":true}]],["$","$L3",null,{"children":["$","$4",null,{"name":"Next.MetadataOutlet","children":"$@5"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"DLuDdHHZgzoAYvqVLvrkM"}
+0:{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"to":"/about/digital-agency"}],[["$","script","script-0",{"src":"/photo-portfolio/_next/static/chunks/0mrj.iz2o47g3.js","async":true}]],["$","$L3",null,{"children":["$","$4",null,{"name":"Next.MetadataOutlet","children":"$@5"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"OTpGVpqzog8ywZeJIpb46"}
 5:null
