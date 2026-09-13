@@ -86,11 +86,13 @@ const FIELD_LABELS: Record<string, string> = {
   series:
     'retirée de cette série — la photo reste dans « Toutes » et dans ses autres séries',
   seriesOrder: 'retirée de l’ordre des séries de la page /series',
+  photos: 'retirée de la funnel curation (tunnel design-folio)',
 };
 
 const TYPE_LABELS: Record<string, string> = {
   series: 'Série',
   siteSettings: 'Réglages du site',
+  funnelCuration: 'Funnel curation',
   photo: 'Photo',
 };
 
@@ -154,8 +156,8 @@ function buildPlan(doc: ReferringDoc, targetId: string): DetachPlan | null {
     isDraft,
     docType: doc._type,
     docTitle:
-      doc._type === 'siteSettings'
-        ? 'Réglages du site'
+      doc._type === 'siteSettings' || doc._type === 'funnelCuration'
+        ? TYPE_LABELS[doc._type]
         : (typeof doc.title === 'string' && doc.title) || doc._id,
     unsetPaths,
     fields: [...new Set(unsetPaths.map((p) => p.split(/[.[]/, 1)[0]))],

@@ -1,6 +1,7 @@
 import { photoSchema } from './photo';
 import { seriesSchema } from './series';
 import { siteSettingsSchema } from './siteSettings';
+import { funnelCurationSchema } from './funnelCuration';
 import { styleSchema, cameraSchema, lensSchema } from './taxonomies';
 
 export const schemaTypes = [
@@ -10,4 +11,5 @@ export const schemaTypes = [
   cameraSchema,
   lensSchema,
   siteSettingsSchema,
+  funnelCurationSchema,
 ];

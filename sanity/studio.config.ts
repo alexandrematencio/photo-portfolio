@@ -9,6 +9,7 @@ import {
   AssignToSeriesAction,
   DeletePhotoAction,
   DeleteSeriesAction,
+  ToggleFunnelAction,
   ToggleVisibilityAction,
 } from '@/sanity/actions';
 // PhotoPreviewView / SiteSettingsPreviewView volontairement non importés (désactivés
@@ -16,7 +17,7 @@ import {
 // `sanity/preview/` pour réactivation rapide.
 import { apiVersion, dataset, projectId, siteUrl } from '@/lib/sanity/env';
 
-const SINGLETON_TYPES = new Set(['siteSettings']);
+const SINGLETON_TYPES = new Set(['siteSettings', 'funnelCuration']);
 const SINGLETON_FORBIDDEN_ACTIONS = new Set([
   'duplicate',
   'delete',
@@ -159,6 +160,9 @@ export const studioConfig = defineConfig({
           ),
           ToggleVisibilityAction,
           AssignToSeriesAction,
+          // Funnel curation (tunnel design-folio) : même doctrine qu'au
+          // masquage — un clic, écrit tout de suite. Cf. ToggleFunnelAction.
+          ToggleFunnelAction,
         ];
       }
       // Idem côté série : une série référencée par ses photos (`photo.series[]`)
