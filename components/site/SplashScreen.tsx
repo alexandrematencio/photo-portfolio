@@ -449,15 +449,15 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
     // ────────────────────────────────────────────────────────────────────
     // Activation gate — decide whether this mount should actually play.
     //
-    // Spec (2026-09-10 : une fois par session, comme AAXLO) :
-    //   • 1ʳᵉ arrivée sur / de la session              → PLAY
+    // Spec (2026-10-01 : au plus une fois toutes les 12 h) :
+    //   • 1ʳᵉ arrivée sur / depuis 12 h                → PLAY
     //   • clé `splashSeen` posée (lib/site/splash-session.ts) — splash
     //     déjà vu OU visiteur déjà passé par une autre page ; reload
     //     compris, même au hero                        → SKIP
     //   • back / forward navigation                    → SKIP
     //   • reload IN GALLERY (scrollY > 0)              → SKIP
-    //   Rejouer l'intro en dev : supprimer `splashSeen` (DevTools →
-    //   Application → Session Storage), puis recharger EN HAUT de la page.
+    //   Rejouer l'intro : supprimer `splashSeen` (DevTools → Application →
+    //   Local Storage), puis recharger EN HAUT de la page.
     //
     // Skip path : dispatchReveal(true) so HomeHero shows everything in its
     // scroll-aware morphed state, no entrance animation, no hero overlay
@@ -471,7 +471,7 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
       // <SiteSessionMarker /> (in the (site) layout) sets the same key AT
       // RENDER TIME on the first pathname change in this tab. By the time
       // our own useEffect runs, the layout has already committed its render
-      // — so for a /contact → / Link nav, the flag is in sessionStorage
+      // — so for a /contact → / Link nav, the flag is in localStorage
       // BEFORE we read it here, and the splash correctly skips.
       // The render-time approach is what makes this race-free; an earlier
       // useEffect-based attempt suffered from React's depth-first effect
