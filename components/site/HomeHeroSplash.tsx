@@ -586,6 +586,7 @@ export function HomeHeroSplash({ hero }: HomeHeroSplashProps) {
                 navItemsRef.current[i] = el;
               }}
               data-cursor-invert
+              data-cursor-negative
               // opacity: 0 initial — entrance "lays" the items one by one.
               className="text-2xl md:text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none motion-reduce:transition-none whitespace-nowrap"
               style={{ opacity: 0 }}

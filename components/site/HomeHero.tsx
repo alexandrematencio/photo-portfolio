@@ -719,6 +719,9 @@ export function HomeHero({ hero }: HomeHeroProps) {
                 navItemsRef.current[i] = el;
               }}
               data-cursor-invert
+              // Lettres en négatif du fond au survol : cette nav passe au-dessus
+              // de la galerie (cf. CursorInvert.tsx).
+              data-cursor-negative
               // opacity: 0 initial — chacun est "pondu" par la photo via le
               // useEffect entrance (drop + bounce avec back.out(1.8)).
               className="text-2xl md:text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none motion-reduce:transition-none whitespace-nowrap"
