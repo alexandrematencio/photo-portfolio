@@ -72,7 +72,7 @@ export const seriesSchema = defineType({
         }),
       ],
       description:
-        'Glisser-déposer pour choisir l’ordre d’affichage des photos de la série sur le site. Facultatif : les photos que tu n’ajoutes pas ici s’affichent APRÈS celles qui y sont, de la plus récente à la plus ancienne — une photo nouvellement rattachée à la série arrive donc en dernier, à toi de la remonter si tu veux. La 1ʳᵉ photo de cette liste sert aussi de couverture quand « Photo de couverture » est vide. « Remove » sur une photo la retire DE LA SÉRIE, pas seulement de l’ordre : elle reste dans « Toutes » et dans ses autres séries. ⚠️ Site statique : les changements n’apparaissent en ligne qu’après « Publish » + redéploiement.',
+        'Glisser-déposer pour choisir l’ordre d’affichage des photos de la série sur le site. Facultatif : les photos que tu n’ajoutes pas ici s’affichent APRÈS celles qui y sont, de la plus récente à la plus ancienne — une photo nouvellement rattachée à la série arrive donc en dernier, à toi de la remonter si tu veux. La 1ʳᵉ photo de cette liste sert aussi de couverture quand « Photo de couverture » est vide. « Remove » sur une photo la retire DE LA SÉRIE, pas seulement de l’ordre : elle reste dans « Toutes » et dans ses autres séries. ℹ️ Après « Publish », le site en ligne se met à jour tout seul en 3 à 4 minutes.',
       validation: (Rule) => Rule.unique(),
       components: { input: PhotoOrderInput },
     }),

@@ -154,8 +154,8 @@ export function CurationCard({
           status: 'success',
           title: 'Ordre de la home enregistré',
           description: write.draftAligned
-            ? 'Enregistré tout de suite, sans Publish — le brouillon des Réglages a été rangé aussi. Le site en ligne suivra au prochain déploiement.'
-            : 'Enregistré tout de suite, sans Publish. Le site en ligne suivra au prochain déploiement.',
+            ? 'Enregistré tout de suite, sans Publish — le brouillon des Réglages a été rangé aussi. Le site en ligne suit tout seul en 3 à 4 minutes.'
+            : 'Enregistré tout de suite, sans Publish. Le site en ligne suit tout seul en 3 à 4 minutes.',
         });
       } catch (err) {
         orderRef.current = savedRef.current;
@@ -411,7 +411,7 @@ export function CurationCard({
         <Text size={0} muted>
           L&apos;ordre affiché = l&apos;ordre sur la home. Glisse une vignette (ou
           ← / → au clavier) pour la déplacer : enregistré tout de suite, sans
-          Publish — le site suivra au prochain déploiement. Ajouter ou retirer
+          Publish — le site suit tout seul en 3 à 4 minutes. Ajouter ou retirer
           une photo : Réglages du site → Curation.
         </Text>
       </Stack>

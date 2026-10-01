@@ -117,7 +117,7 @@ const editorialBodyDescription = (intro: string) =>
   `${intro} Mise en forme : « Normal » pour le corps, « Annexe » pour le pratique (délai de réponse, listes de matériel, mentions — plus petit, registre secondaire), « Heading 2/3/4 » pour les titres (l’aperçu du Studio est à l’échelle du site), listes à puces et numérotées. Entrée = nouveau paragraphe (grand écart) ; Maj+Entrée = simple retour à la ligne. ` +
   `ℹ️ Le PREMIER paragraphe de la page s’affiche automatiquement en chapô — plus gros, plus gras, sur toute la largeur. Rien à choisir, et l’éditeur ci-dessous ne le montre pas : il apparaît tel quel sur le site. Pour ouvrir sur autre chose, commence par un titre. ` +
   `Raccourcis d’écriture : taper « @EMAIL » affiche l’adresse email, protégée des robots ; pour un libellé à toi (« Write to me »), sélectionne le texte et pose un lien « mailto:… » — même protection, l’adresse n’apparaît jamais dans le code de la page. Taper « AAXLO » (1ʳᵉ fois seulement) insère le logo AAXLO cliquable. Un lien dont l’URL est « @pseudo » pointe vers Telegram. ` +
-  `⚠️ Site statique : « Publish » enregistre, mais la page en ligne ne change qu’après un redéploiement.`;
+  `ℹ️ Après « Publish », le site en ligne se met à jour tout seul en 3 à 4 minutes.`;
 
 export const siteSettingsSchema = defineType({
   name: 'siteSettings',
@@ -138,7 +138,7 @@ export const siteSettingsSchema = defineType({
         }),
       ],
       description:
-        'La sélection affichée sur la page d’accueil, dans cet ordre (glisser-déposer pour réordonner). Les photos hors de cette liste restent visibles dans Archives. ⚠️ Site statique : les changements n’apparaissent en ligne qu’après « Publish » + redéploiement.',
+        'La sélection affichée sur la page d’accueil, dans cet ordre (glisser-déposer pour réordonner). Les photos hors de cette liste restent visibles dans Archives. ℹ️ Après « Publish », le site en ligne se met à jour tout seul en 3 à 4 minutes.',
       validation: (Rule) => Rule.unique(),
     }),
     defineField({
@@ -152,7 +152,7 @@ export const siteSettingsSchema = defineType({
         }),
       ],
       description:
-        'L’ordre des piles sur la page Series : la 1ʳᵉ de cette liste est la 1ʳᵉ à gauche de la rangée, la dernière est tout à droite. Facultatif : les séries absentes de la liste s’affichent après celles qui y sont. Une série créée après coup arrive donc en fin de rangée, à toi de la remonter. ⚠️ Site statique : les changements n’apparaissent en ligne qu’après « Publish » + redéploiement.',
+        'L’ordre des piles sur la page Series : la 1ʳᵉ de cette liste est la 1ʳᵉ à gauche de la rangée, la dernière est tout à droite. Facultatif : les séries absentes de la liste s’affichent après celles qui y sont. Une série créée après coup arrive donc en fin de rangée, à toi de la remonter. ℹ️ Après « Publish », le site en ligne se met à jour tout seul en 3 à 4 minutes.',
       validation: (Rule) => Rule.unique(),
       components: { input: SeriesOrderInput },
     }),

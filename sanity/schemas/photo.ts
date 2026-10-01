@@ -24,7 +24,7 @@ export const photoSchema = defineType({
       type: 'boolean',
       initialValue: false,
       description:
-        'Activée : la photo disparaît de la home, de /archives et de /series. Rien n’est perdu — séries, ordre et curation restent en place, et elle y revient telle quelle quand on la réaffiche. Même geste, sans Publish, depuis le menu « ⋯ » de la photo ou l’œil à droite de sa ligne dans n’importe quelle liste. Visible sur le site en ligne au prochain déploiement.',
+        'Activée : la photo disparaît de la home, de /archives et de /series. Rien n’est perdu — séries, ordre et curation restent en place, et elle y revient telle quelle quand on la réaffiche. Même geste, sans Publish, depuis le menu « ⋯ » de la photo ou l’œil à droite de sa ligne dans n’importe quelle liste. Le site en ligne suit tout seul en 3 à 4 minutes.',
     }),
     defineField({
       name: 'title',

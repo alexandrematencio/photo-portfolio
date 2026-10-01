@@ -532,8 +532,8 @@ function DraftsCard({ data }: { data: DashboardData }) {
             <Card padding={3} radius={2} tone="caution">
               <Text size={1}>
                 <strong>Rappel :</strong> les brouillons sont invisibles sur le site
-                tant que tu n&apos;as pas cliqué <em>Publish</em>, puis lancé
-                <code> npm run deploy</code>.
+                tant que tu n&apos;as pas cliqué <em>Publish</em>. Le site en ligne
+                se met ensuite à jour tout seul en 3 à 4 minutes.
               </Text>
             </Card>
             <Stack space={1}>

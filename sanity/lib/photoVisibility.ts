@@ -72,6 +72,6 @@ export function visibilityToast(
       : `${title} est de retour sur le site`,
     description: write.draftOnly
       ? 'Photo jamais publiée : la valeur partira avec son premier Publish.'
-      : 'Enregistré tout de suite, sans Publish. Le site en ligne suivra au prochain déploiement.',
+      : 'Enregistré tout de suite, sans Publish. Le site en ligne suit tout seul en 3 à 4 minutes.',
   };
 }
