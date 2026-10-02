@@ -7,6 +7,7 @@ import { asset } from '@/lib/utils/asset';
 import { cn } from '@/lib/utils/cn';
 import { lockBodyScroll, unlockBodyScroll } from '@/lib/utils/scrollLock';
 import { hasSeenSplash, markSplashSeen } from '@/lib/site/splash-session';
+import { peekHomeReturn } from '@/lib/site/home-return';
 
 /**
  * SplashScreen — entrance animation prototyped on /splash-test.
@@ -390,7 +391,13 @@ type Props = {
 };
 
 export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
-  const [mounted, setMounted] = useState(true);
+  // Retour par le logo (lib/site/home-return.ts) : le splash ne se monte PAS.
+  // Sa gate le ferait sauter de toute façon, mais dans un effet — donc après
+  // un premier rendu où l'overlay opaque z-9999 couvre l'écran une frame. En
+  // pleine transition, c'est un flash blanc au milieu du mouvement. Au
+  // chargement d'une page il n'y a jamais de témoin : serveur et client
+  // rendent `true` tous les deux, l'hydratation n'en sait rien.
+  const [mounted, setMounted] = useState(() => !peekHomeReturn());
   const overlayRef = useRef<HTMLDivElement>(null);
   const leftRef = useRef<HTMLSpanElement>(null);
   const rightRef = useRef<HTMLSpanElement>(null);

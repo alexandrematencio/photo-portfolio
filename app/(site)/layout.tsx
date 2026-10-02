@@ -8,12 +8,19 @@ import { CursorInvert } from '@/components/site/CursorInvert';
 import { EmailHoneypot } from '@/components/site/EmailHoneypot';
 import { SiteSessionMarker } from '@/components/site/SiteSessionMarker';
 import { PhotoGuard } from '@/components/site/PhotoGuard';
+import { getSiteSettings } from '@/lib/sanity/queries';
+import { resolveHeroImages } from '@/lib/site/hero';
 
-export default function SiteLayout({
+export default async function SiteLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // La nav-bar précharge la photo du hero quand le visiteur vise le logo :
+  // même helper que la home, donc STRICTEMENT la même URL (un paramètre qui
+  // diffère est un autre fichier sur le CDN).
+  const { defaultSrc: heroSrc } = resolveHeroImages((await getSiteSettings())?.hero);
+
   return (
     <>
       {/* Tracks "user has loaded at least one (site) page in this tab" via
@@ -24,7 +31,7 @@ export default function SiteLayout({
           (jamais dans /studio, hors de ce groupe de routes). Ralentisseur et
           signal, PAS une protection — cf. le commentaire du composant. */}
       <PhotoGuard />
-      <SiteHeader />
+      <SiteHeader heroSrc={heroSrc} />
       {/* Mobile menu rendered once for the whole (site) group — works on home and editorial pages alike. */}
       <MobileMenu />
       {/* Mode « scroll-triggered » de la barre du haut mobile : cache glyph +

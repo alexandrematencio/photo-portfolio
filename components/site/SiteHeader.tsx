@@ -10,6 +10,14 @@ import {
   isSamePage,
   notifySamePageNav,
 } from '@/lib/site/nav';
+import { beginHomeReturn } from '@/lib/site/home-return';
+import { preloadImage } from '@/lib/utils/image-preload';
+
+type SiteHeaderProps = {
+  /** Photo du hero de la home (`siteSettings.hero`) : préchargée dès que le
+      visiteur vise le logo, pour qu'elle soit là quand le hero naît. */
+  heroSrc?: string | null;
+};
 
 /**
  * Nav-bar globale, identique sur toutes les pages publiques.
@@ -19,8 +27,14 @@ import {
  *
  * Mobile menu (burger button + drawer) lives in `<MobileMenu />` at the layout level.
  */
-export function SiteHeader() {
+export function SiteHeader({ heroSrc }: SiteHeaderProps) {
   const pathname = usePathname();
+  // L'intention, pas l'anticipation : appui, focus ou survol du logo
+  // (cf. lib/utils/image-preload.ts). La nav-bar ne défile jamais sous le
+  // curseur, le survol y est donc toujours un geste.
+  const warmHero = () => {
+    if (heroSrc) void preloadImage(heroSrc, 'high');
+  };
   const isHome = pathname === '/';
   // /splash-test est un sandbox qui clone la home pour prototyper le splash —
   // on masque le header ici aussi pour que le test reflète exactement `/`.
@@ -57,6 +71,25 @@ export function SiteHeader() {
             href="/"
             className="flex items-center shrink-0"
             aria-label="A. Matencio — home"
+            onPointerEnter={warmHero}
+            onPointerDown={warmHero}
+            onFocus={warmHero}
+            // Retour à la home : le corps de page part à droite, le hero naît
+            // sur ce glyph (lib/site/home-return.ts). La navigation n'est PAS
+            // annulée — elle part en même temps. Clic modifié (nouvel onglet,
+            // nouvelle fenêtre) : rien, c'est une autre page qui s'ouvre.
+            onClick={(e) => {
+              if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+                return;
+              }
+              const glyph = e.currentTarget.querySelector('svg');
+              const bar = e.currentTarget.closest('nav');
+              if (!glyph || !bar) return;
+              beginHomeReturn(
+                glyph,
+                Array.from(bar.querySelectorAll<HTMLElement>('[data-nav-link]'))
+              );
+            }}
           >
             {/* Couleur héritée du token, pas figée : `--color-logo` vaut le
                 cobalt brand, et le SVG étant inline il n'y a aucun fichier à
@@ -86,6 +119,9 @@ export function SiteHeader() {
                   if (active) notifySamePageNav(link.href);
                 }}
                 data-cursor-invert
+                // Repère de `beginHomeReturn` : les libellés dont le hero de
+                // la home reprend la place exacte.
+                data-nav-link
                 // PADDING EN STYLE INLINE, jamais en utility Tailwind : le
                 // reset `* { padding: 0 }` de globals.css vit hors @layer et
                 // écrase toutes les utilities de padding (cf. CLAUDE.md §7.6).

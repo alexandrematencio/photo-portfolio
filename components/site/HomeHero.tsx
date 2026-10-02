@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { GlyphLogo } from './GlyphLogo';
 import {
@@ -12,6 +12,7 @@ import {
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import type { HeroImages } from '@/lib/site/hero';
 import { NAV_LINKS } from '@/lib/site/nav';
+import { peekHomeReturn, playHomeArrival } from '@/lib/site/home-return';
 import { lockBodyScroll, unlockBodyScroll } from '@/lib/utils/scrollLock';
 
 // Cibles de la transition (≈ taille finale du header)
@@ -102,6 +103,60 @@ export function HomeHero({ hero }: HomeHeroProps) {
     return () => {
       window.removeEventListener('scroll', onScroll);
       if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  // ────────────────────────────────────────────────────────────────────────
+  // ARRIVÉE PAR LE LOGO — troisième entrée du hero, à côté du splash (PLAY)
+  // et de l'affichage direct (SKIP). Quand le visiteur vient de cliquer le
+  // glyph de la nav-bar d'une autre page, `beginHomeReturn` a laissé un témoin
+  // (lib/site/home-return.ts) : le hero naît alors sur le logo et vient se
+  // poser au centre. Le SplashScreen lit le même témoin et ne se monte pas.
+  //
+  // `useLayoutEffect` et non `useEffect` : l'état de départ doit être posé
+  // AVANT le premier paint. Le bloc logo n'a pas d'`opacity: 0` initial — une
+  // frame de retard le montrerait au centre, à 108 px, avant qu'il ne saute
+  // dans le coin.
+  //
+  // Prend `entranceStartedRef` : l'entrée splash et son filet de 8 s, plus
+  // bas, se taisent d'eux-mêmes. Même verrou de scroll que l'entrée splash,
+  // pour la même raison — le morph n'est branché qu'à `entranceDone`.
+  // ────────────────────────────────────────────────────────────────────────
+  useLayoutEffect(() => {
+    const handoff = peekHomeReturn();
+    const logoBlock = logoBlockRef.current;
+    if (!handoff || !logoBlock) return;
+
+    entranceStartedRef.current = true;
+    lockBodyScroll();
+    let locked = true;
+    const release = () => {
+      if (!locked) return;
+      locked = false;
+      unlockBodyScroll();
+    };
+
+    const stop = playHomeArrival(
+      handoff,
+      {
+        logoBlock,
+        name: nameRef.current,
+        photo: photoRef.current,
+        navItems: navItemsRef.current,
+        arrow: arrowRef.current,
+      },
+      () => {
+        release();
+        setEntranceDone(true);
+      }
+    );
+
+    return () => {
+      stop();
+      release();
+      // StrictMode rejoue cet effet en dev : le second passage doit pouvoir
+      // reprendre la main (le témoin n'est effacé qu'à la fin du vol).
+      entranceStartedRef.current = false;
     };
   }, []);
 
