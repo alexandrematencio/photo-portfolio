@@ -9,7 +9,7 @@ import { PageShell } from '@/components/site/PageShell';
 
 export const metadata = buildMetadata({
   title: 'Contact',
-  description: 'Get in touch with A. Matencio.',
+  description: 'Get in touch with Alexandre Matencio — press, exhibitions, prints and editorial collaboration.',
   path: '/contact',
 });
 

@@ -9,9 +9,9 @@ import { buildMetadata } from '@/lib/seo/metadata';
 import { webSiteJsonLd, imageGalleryJsonLd } from '@/lib/seo/jsonld';
 
 export const metadata = buildMetadata({
-  title: 'Portfolio',
+  absoluteTitle: 'Alexandre Matencio — Street, Landscape & Portrait Photographer',
   description:
-    "Immersive portfolio of A. Matencio — street, landscape and portrait photography.",
+    "Alexandre Matencio, photographer near Paris. Author photography — street, landscape and portrait — from Paris, Moscow, Djerba and Vietnam.",
   path: '/',
 });
 
@@ -36,7 +36,7 @@ export default async function HomePage() {
           imageGalleryJsonLd({
             name: 'Selected Works',
             path: '/',
-            description: 'Curated selection of photographs by A. Matencio.',
+            description: 'Curated selection of photographs by Alexandre Matencio.',
             photos,
           }),
         ]}
@@ -57,7 +57,7 @@ export default async function HomePage() {
       {/* H1 de la home. Invisible parce que le titre VISUEL de la page est le
           glyph ALXMTNC du hero : sans lui, le document commençait au H2
           « Selected Works » — hiérarchie amputée (CLAUDE.md §5.4). */}
-      <h1 className="sr-only">A. Matencio — street, landscape and portrait photography</h1>
+      <h1 className="sr-only">Alexandre Matencio — street, landscape and portrait photography</h1>
 
       <HomeHero hero={hero} />
 

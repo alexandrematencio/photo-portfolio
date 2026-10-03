@@ -1,5 +1,11 @@
 # Déploiement — qui construit, qui sert
 
+> ⚠️ **OBSOLÈTE depuis le 2026-10-01** (site servi par le VPS, voir `CLAUDE.md §2.1`).
+> Conservé comme archive. `gh-pages` ne porte plus qu'une coquille de redirection vers
+> `amatencio.com` (`scripts/build-legacy-redirect.mjs`) ; le workflow
+> `.github/workflows/deploy.yml` a été supprimé le 2026-10-03 pour qu'il ne puisse pas
+> la remplacer par un export.
+
 > Mis en place le 2026-08-22. Lis d'abord `CLAUDE.md §2.1`, qui porte la règle ;
 > ce fichier porte le montage et le runbook.
 

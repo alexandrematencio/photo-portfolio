@@ -8,10 +8,9 @@ export const dynamic = 'force-static';
  * ingéré. `Google-Extended` et `Applebot-Extended` ne touchent pas à
  * l'indexation, ils ne gouvernent que l'usage pour Gemini / Apple Intelligence.
  *
- * ⚠️ Ce fichier n'a d'effet QUE sur un domaine propre : servi sous
- * /photo-portfolio/robots.txt, aucun robot ne le lit (ils consultent la racine
- * du domaine). Il est écrit pour le jour du domaine, et rien n'est à changer ce
- * jour-là. D'ici là, ce sont les balises <meta> de buildMetadata qui agissent.
+ * Servi à la racine de amatencio.com depuis le 2026-10-01 : c'est la seule
+ * adresse où les robots le lisent. Les balises <meta> de buildMetadata
+ * doublent ces règles pour les copies et les miroirs.
  */
 const AI_TRAINING_CRAWLERS = [
   'GPTBot',
@@ -45,7 +44,7 @@ const AI_TRAINING_CRAWLERS = [
 
 export default function robots(): MetadataRoute.Robots {
   const base =
-    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://amatencio.photo';
+    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://amatencio.com';
   return {
     rules: [
       { userAgent: AI_TRAINING_CRAWLERS, disallow: '/' },

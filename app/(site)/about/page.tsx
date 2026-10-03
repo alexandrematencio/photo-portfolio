@@ -9,7 +9,7 @@ import { breadcrumbJsonLd, personJsonLd } from '@/lib/seo/jsonld';
 export const metadata = buildMetadata({
   title: 'About',
   description:
-    "A. Matencio’s approach — author photography between street, landscape and portrait.",
+    "Alexandre Matencio — art director turned photographer, based in Villejuif near Paris. Author photography between street, landscape and portrait.",
   path: '/about',
 });
 

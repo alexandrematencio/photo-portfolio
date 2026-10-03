@@ -16,7 +16,7 @@ const SECTION_TOP = 40;
 
 export const metadata = buildMetadata({
   title: 'Privacy Policy',
-  description: 'How personal data is handled on amatencio.photo.',
+  description: 'How personal data is handled on this site: no cookies, no analytics.',
   path: '/privacy',
 });
 
@@ -32,11 +32,11 @@ function PrivacyFallback() {
       </p>
 
       <p className={EDITORIAL_BODY}>
-        Pages are served by GitHub, Inc. (USA) and images by Sanity AS (Norway).
-        Their servers may record technical logs (IP address, browser) for
-        security purposes, under their own data-protection terms; this may
-        involve a transfer outside the European Union covered by standard
-        contractual clauses.
+        Pages are served by Hetzner Online GmbH (Germany) and images by Sanity AS
+        (Norway). Their servers may record technical logs (IP address, browser)
+        for security purposes, under their own data-protection terms. Image
+        delivery relies on a content network that may serve files from outside
+        the European Union, under standard contractual clauses.
       </p>
 
       <h2 className={EDITORIAL_H2} style={{ marginTop: SECTION_TOP }}>

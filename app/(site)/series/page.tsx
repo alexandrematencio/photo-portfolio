@@ -8,7 +8,7 @@ import { breadcrumbJsonLd, imageGalleryJsonLd, pageUrl } from '@/lib/seo/jsonld'
 export const metadata = buildMetadata({
   title: 'Series',
   description:
-    'Curated photographic series by A. Matencio — each one a folder to open and wander through.',
+    'Photographic series by Alexandre Matencio — Les Olympiades, Peredelkino, Djerba, Moscow, Rando Topo and more. Each one a folder to open and wander through.',
   path: '/series',
 });
 

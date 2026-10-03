@@ -9,7 +9,7 @@ import { breadcrumbJsonLd, imageGalleryJsonLd } from '@/lib/seo/jsonld';
 export const metadata = buildMetadata({
   title: 'Archives',
   description:
-    'Full catalogue: every photograph grouped by year, location, style, camera or lens.',
+    'Full catalogue of Alexandre Matencio’s photographs: every image grouped by year, location, style, camera or lens.',
   path: '/archives',
 });
 

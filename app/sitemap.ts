@@ -8,8 +8,7 @@ export const dynamic = 'force-static';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base =
-    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://amatencio.photo';
-  const now = new Date();
+    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://amatencio.com';
   const routes = [
     '/',
     '/about',
@@ -36,7 +35,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // enverrait Google sur une redirection au lieu de la page (cf. buildMetadata).
   return routes.map((path) => ({
     url: `${base}${withSlash(path)}`,
-    lastModified: now,
     changeFrequency: path === '/' ? 'weekly' : 'monthly',
     priority: path === '/' ? 1 : 0.7,
     ...(path === '/archives' ? { images: archiveImages } : {}),

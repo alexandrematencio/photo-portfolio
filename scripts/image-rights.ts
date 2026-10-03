@@ -19,8 +19,7 @@ import { AUTHOR_NAME, copyrightNotice } from '../lib/site/author';
  * Images utilise pour le badge « Licensable » quand le fichier arrive intact.
  */
 const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  'https://alexandrematencio.github.io/photo-portfolio';
+  process.env.NEXT_PUBLIC_SITE_URL ?? 'https://amatencio.com';
 
 export const RIGHTS_URL = `${SITE_URL}/legal/`;
 export const LICENSOR_URL = `${SITE_URL}/contact/`;
