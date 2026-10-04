@@ -149,13 +149,24 @@ const allPhotosQuery = groq`
   *[_type == "photo" && ${VISIBLE}] | order(year desc, title asc) { ${photoProjection} }
 `;
 
+// Depuis le 2026-10-05, hero, phrase d'auteur et textes éditoriaux vivent dans
+// un document PAR PAGE (`sanity/schemas/pages.ts`, `_id` === `_type`). La
+// requête les recompose sous la forme historique de `SiteSettings` : les pages
+// du site n'ont pas eu à changer, et tout tient en un seul aller-retour.
 const siteSettingsQuery = groq`
-  *[_type == "siteSettings"][0] {
-    aboutBody, contactBody, digitalAgencyBody, socialsBody, legalBody, privacyBody, homeIntro, motion,
-    hero {
+  {
+    "motion": *[_id == "siteSettings"][0].motion,
+    "hero": *[_id == "homePage"][0].hero {
       defaultImage { ..., "dimensions": asset->metadata.dimensions },
       revealImage { ..., "dimensions": asset->metadata.dimensions }
-    }
+    },
+    "homeIntro": *[_id == "homePage"][0].intro,
+    "aboutBody": *[_id == "aboutPage"][0].body,
+    "contactBody": *[_id == "contactPage"][0].body,
+    "digitalAgencyBody": *[_id == "digitalAgencyPage"][0].body,
+    "socialsBody": *[_id == "socialsPage"][0].body,
+    "legalBody": *[_id == "legalPage"][0].body,
+    "privacyBody": *[_id == "privacyPage"][0].body
   }
 `;
 

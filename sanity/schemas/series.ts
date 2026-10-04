@@ -81,7 +81,7 @@ export const seriesSchema = defineType({
       title: 'Sous-titre (SEO)',
       type: 'string',
       description:
-        'Sert de seed pour la meta description si une page /series/[slug] existe un jour. 140–160 caractères idéalement.',
+        'Description de la page /series/<slug> dans Google (et dans les aperçus de partage). 140–160 caractères idéalement.',
       validation: (Rule) => Rule.max(160),
     }),
     defineField({

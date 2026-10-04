@@ -48,7 +48,7 @@ const FADE_FAST_DURATION = 0.15;
 const MORPH_SLOW_DURATION = 1;
 
 type HomeHeroSplashProps = {
-  /** Idem HomeHero : images du hero définies dans le Studio (siteSettings.hero). */
+  /** Idem HomeHero : images du hero définies dans le Studio (homePage.hero). */
   hero: HeroImages;
 };
 

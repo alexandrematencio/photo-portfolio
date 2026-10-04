@@ -15,7 +15,7 @@ export const metadata = buildMetadata({
 
 export const revalidate = 300;
 
-// Fallback only — used when `siteSettings.aboutBody` is empty (initial Sanity
+// Fallback only — used when `aboutPage.body` is empty (initial Sanity
 // state, or local dev without a configured client). CLAUDE.md §8.5: Sanity is
 // the single source of truth for every editable section here (bio, gear, lens
 // lists, anything the photographer might rephrase). Don't grow this fallback

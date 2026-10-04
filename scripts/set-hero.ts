@@ -1,16 +1,16 @@
 /**
  * Seed les deux images du hero de la home dans Sanity :
- *   public/img/alex-profile-pic-default.jpg       → siteSettings.hero.defaultImage
- *   public/img/alex-profile-pic-hover-reveal.jpg  → siteSettings.hero.revealImage
+ *   public/img/alex-profile-pic-default.jpg       → homePage.hero.defaultImage
+ *   public/img/alex-profile-pic-hover-reveal.jpg  → homePage.hero.revealImage
  *
  * Sert de migration ponctuelle : depuis que les images du hero sont pilotées
  * par le CMS (et obligatoires, sans fallback bundlé), il faut peupler
- * `siteSettings.hero` AVANT le prochain build de production — sinon le hero
+ * `homePage.hero` AVANT le prochain build de production — sinon le hero
  * s'exporte vide. Lancer une fois après le déploiement du nouveau schéma :
  *
  *   npm run set-hero
  *
- * Idempotent : crée le doc siteSettings s'il n'existe pas, puis remplace
+ * Idempotent : crée le doc homePage s'il n'existe pas, puis remplace
  * uniquement `hero` (les autres champs — motion, textes… — restent intacts).
  * Ré-uploadable à volonté (ré-upload des assets + repatch).
  */
@@ -91,10 +91,11 @@ async function main(): Promise<void> {
     };
   }
 
-  await client.createIfNotExists({ _id: 'siteSettings', _type: 'siteSettings' });
-  await client.patch('siteSettings').set({ hero }).commit();
+  // Le hero vit dans le document de la page d'accueil depuis le 2026-10-05.
+  await client.createIfNotExists({ _id: 'homePage', _type: 'homePage' });
+  await client.patch('homePage').set({ hero }).commit();
 
-  console.log('✓ siteSettings.hero mis à jour (defaultImage + revealImage).');
+  console.log('✓ homePage.hero mis à jour (defaultImage + revealImage).');
   console.log('\nRecharge la home pour voir le hero (Cmd+Shift+R).');
 }
 

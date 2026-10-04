@@ -15,7 +15,7 @@ export const metadata = buildMetadata({
 
 export const revalidate = 300;
 
-// Repli SEUL — utilisé quand `siteSettings.contactBody` est vide (Sanity vierge,
+// Repli SEUL — utilisé quand `contactPage.body` est vide (Sanity vierge,
 // ou dev local sans client configuré). La page est éditée depuis le Studio
 // (Réglages du site → Page « Contact »). CLAUDE.md §8.5 : ne pas faire grossir
 // ce repli pour recopier le contenu publié, c'est exactement la divergence

@@ -15,8 +15,13 @@ import {
 // — voir le commentaire `defaultDocumentNode` ci-dessous). Les fichiers restent dans
 // `sanity/preview/` pour réactivation rapide.
 import { apiVersion, dataset, projectId, siteUrl } from '@/lib/sanity/env';
+import { PAGE_DOCS } from '@/sanity/schemas/pages';
 
-const SINGLETON_TYPES = new Set(['siteSettings']);
+// Réglages + un document par page (rubrique « Pages ») : tous singletons.
+const SINGLETON_TYPES = new Set([
+  'siteSettings',
+  ...PAGE_DOCS.map((p) => p.type),
+]);
 const SINGLETON_FORBIDDEN_ACTIONS = new Set([
   'duplicate',
   'delete',
@@ -184,8 +189,10 @@ export const studioConfig = defineConfig({
           return slug ? `${base}/archives/#series-${slug}` : prev;
         case 'siteSettings':
           return `${base}/`;
-        default:
-          return prev;
+        default: {
+          const page = PAGE_DOCS.find((p) => p.type === document._type);
+          return page ? `${base}${page.path}` : prev;
+        }
       }
     },
   },

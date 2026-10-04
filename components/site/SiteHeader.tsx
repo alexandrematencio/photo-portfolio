@@ -14,7 +14,7 @@ import { beginHomeReturn } from '@/lib/site/home-return';
 import { preloadImage } from '@/lib/utils/image-preload';
 
 type SiteHeaderProps = {
-  /** Photo du hero de la home (`siteSettings.hero`) : préchargée dès que le
+  /** Photo du hero de la home (`homePage.hero`) : préchargée dès que le
       visiteur vise le logo, pour qu'elle soit là quand le hero naît. */
   heroSrc?: string | null;
 };

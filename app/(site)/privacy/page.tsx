@@ -22,7 +22,7 @@ export const metadata = buildMetadata({
 
 export const revalidate = 300;
 
-/** Repli, affiché tant que `siteSettings.privacyBody` est vide (CLAUDE.md §8.5). */
+/** Repli, affiché tant que `privacyPage.body` est vide (CLAUDE.md §8.5). */
 function PrivacyFallback() {
   return (
     <div className="flex flex-col gap-6">

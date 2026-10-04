@@ -35,7 +35,7 @@ export const metadata = buildMetadata({
 export const revalidate = 300;
 
 /**
- * Repli, affiché tant que `siteSettings.legalBody` est vide (CLAUDE.md §8.5 :
+ * Repli, affiché tant que `legalPage.body` est vide (CLAUDE.md §8.5 :
  * Sanity est la source de vérité, ceci n'est qu'un filet). L'identité de
  * l'éditeur reste entre crochets EXPRÈS : seul Alexandre la connaît, et il la
  * saisit dans le Studio (Réglages du site → Page « Legal notice »). Tout le
