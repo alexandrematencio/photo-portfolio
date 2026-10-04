@@ -113,3 +113,37 @@ export function prepareSeries(
    Retiré le 2026-08-23 avec le contrat d'ancre de /series (cf.
    SeriesExperience) — l'URL n'ouvre plus de série, il n'y a donc plus rien à
    lire dans le fragment. */
+
+function cityOf(location: string): string {
+  const city = location.split(',')[0].trim();
+  return city.replace(/(^|\s)(\p{L})/gu, (_m, sp: string, ch: string) => sp + ch.toUpperCase());
+}
+
+/**
+ * Phrase factuelle sur une série, DÉDUITE de ses photos — le repli de
+ * `/series/[slug]` tant que l'éditeur n'a rien écrit : une page ne s'ouvre
+ * jamais sur du vide. « 22 photographs · Djerba · 2023–2026 ».
+ */
+export function seriesFacts(photos: Photo[]): string {
+  const counts = new Map<string, number>();
+  for (const p of photos) {
+    if (!p.location) continue;
+    const city = cityOf(p.location);
+    counts.set(city, (counts.get(city) ?? 0) + 1);
+  }
+  const places = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([c]) => c);
+  const years = photos.map((p) => p.year).filter((y): y is number => Number.isFinite(y));
+  const span =
+    years.length === 0
+      ? ''
+      : Math.min(...years) === Math.max(...years)
+        ? String(years[0])
+        : `${Math.min(...years)}–${Math.max(...years)}`;
+  const n = photos.length;
+  return [`${n} photograph${n > 1 ? 's' : ''}`, places.join(', '), span]
+    .filter(Boolean)
+    .join(' · ');
+}

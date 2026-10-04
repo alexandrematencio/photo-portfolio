@@ -1,5 +1,6 @@
 import { ScrollPhysicsGallery } from '@/components/gallery/ScrollPhysicsGallery';
 import { HomeHero } from '@/components/site/HomeHero';
+import { HomeIntro } from '@/components/site/HomeIntro';
 import { SplashScreen } from '@/components/site/SplashScreen';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { getHomepagePhotos, getSiteSettings } from '@/lib/sanity/queries';
@@ -61,7 +62,11 @@ export default async function HomePage() {
 
       <HomeHero hero={hero} />
 
-      <ScrollPhysicsGallery photos={photos} motion={motion} />
+      <ScrollPhysicsGallery
+        photos={photos}
+        motion={motion}
+        intro={<HomeIntro text={settings?.homeIntro} />}
+      />
     </>
   );
 }

@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { indexableImageUrl } from '@/lib/sanity/image';
-import { getAllPhotos } from '@/lib/sanity/queries';
+import { getAllPhotos, getSeriesWithPhotos } from '@/lib/sanity/queries';
+import { prepareSeries } from '@/lib/site/series';
 import { withSlash } from '@/lib/seo/metadata';
 
 // Requis pour `output: 'export'` sur les routes Metadata (sitemap, robots).
@@ -9,11 +10,14 @@ export const dynamic = 'force-static';
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base =
     process.env.NEXT_PUBLIC_SITE_URL ?? 'https://amatencio.com';
+  const { items, seriesOrderRefs } = await getSeriesWithPhotos();
+  const seriesRoutes = prepareSeries(items, seriesOrderRefs).map((s) => `/series/${s.slug}`);
   const routes = [
     '/',
     '/about',
     '/about/digital-agency',
     '/series',
+    ...seriesRoutes,
     '/archives',
     '/contact',
     '/socials',

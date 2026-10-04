@@ -35,12 +35,13 @@ export default async function SeriesPage() {
       { name: 'Home', path: '/' },
       { name: 'Series', path: '/series' },
     ]),
-    // Une galerie par série. L'URL n'ouvre aucune série (invariant 16 de
-    // /series) : l'@id porte le slug, l'`url` reste la page.
+    // Une galerie par série. L'URL de /series n'ouvre aucune série (invariant
+    // 16) : l'@id garde son ancre, mais l'`url` est désormais la page
+    // indexable de la série (/series/[slug]).
     ...series.map((s) =>
       imageGalleryJsonLd({
         name: s.title,
-        path: '/series',
+        path: `/series/${s.slug}`,
         id: `${pageUrl('/series')}#series-${s.slug}`,
         description: s.subtitle,
         photos: s.photos,
