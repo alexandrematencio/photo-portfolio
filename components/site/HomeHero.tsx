@@ -33,7 +33,7 @@ const FADE_FAST_DURATION = 0.15; // photo-profile, arrow, nom : vanish vite
 const MORPH_SLOW_DURATION = 1; // logo + nav items : morph lent, prend toute la timeline
 
 type HomeHeroProps = {
-  /** Images du hero définies dans le Studio (siteSettings.hero), résolues en
+  /** Images du hero définies dans le Studio (homePage.hero), résolues en
       URLs CDN par `resolveHeroImages`. Voir lib/site/hero.ts. */
   hero: HeroImages;
 };
@@ -327,8 +327,8 @@ export function HomeHero({ hero }: HomeHeroProps) {
   }, [reducedMotion]);
 
   // Photo profil — magnifier hover effect.
-  // Layer 1 (default, always visible)   : hero.defaultSrc  (CMS: siteSettings.hero.defaultImage)
-  // Layer 2 (revealed under the cursor) : hero.revealSrc   (CMS: siteSettings.hero.revealImage)
+  // Layer 1 (default, always visible)   : hero.defaultSrc  (CMS: homePage.hero.defaultImage)
+  // Layer 2 (revealed under the cursor) : hero.revealSrc   (CMS: homePage.hero.revealImage)
   // Les deux images sont choisies dans le Studio (/studio → « Réglages du site »).
   // The cursor itself is hidden inside the photo box; a 96 px circular clip on
   // layer 2 follows the pointer, "peeking" through the default image.

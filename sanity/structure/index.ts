@@ -4,6 +4,7 @@ import type {
 } from 'sanity/structure';
 
 import { photoGridPane } from './photoGrid';
+import { PAGE_DOCS } from '../schemas/pages';
 
 const API_VERSION = '2026-01-01';
 
@@ -17,6 +18,26 @@ function siteSettingsNode(S: StructureBuilder) {
     .id('siteSettings')
     .child(
       S.document().schemaType('siteSettings').documentId('siteSettings')
+    );
+}
+
+// Rubrique « Pages » : un document par page à texte, chacun avec son propre
+// brouillon et son propre Publish (cf. sanity/schemas/pages.ts).
+function pagesGroupNode(S: StructureBuilder) {
+  return S.listItem()
+    .title('Pages')
+    .id('pages')
+    .child(
+      S.list()
+        .title('Pages')
+        .items(
+          PAGE_DOCS.map((page) =>
+            S.listItem()
+              .title(page.title)
+              .id(page.type)
+              .child(S.document().schemaType(page.type).documentId(page.type))
+          )
+        )
     );
 }
 
@@ -481,6 +502,7 @@ export function buildStructure(
   return S.list()
     .title('Contenu')
     .items([
+      pagesGroupNode(S),
       siteSettingsNode(S),
       S.divider(),
       photosGroupNode(S, context),

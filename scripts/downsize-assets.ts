@@ -97,8 +97,8 @@ const TARGETS_QUERY = `
   "assetId": _id, url, originalFilename, size,
   "width": metadata.dimensions.width, "height": metadata.dimensions.height,
   "photoRefs": *[_type == "photo" && image.asset._ref == ^._id]{ _id, year },
-  "heroDefault": *[_id in ["siteSettings", "drafts.siteSettings"] && hero.defaultImage.asset._ref == ^._id]._id,
-  "heroReveal": *[_id in ["siteSettings", "drafts.siteSettings"] && hero.revealImage.asset._ref == ^._id]._id,
+  "heroDefault": *[_id in ["homePage", "drafts.homePage"] && hero.defaultImage.asset._ref == ^._id]._id,
+  "heroReveal": *[_id in ["homePage", "drafts.homePage"] && hero.revealImage.asset._ref == ^._id]._id,
   "refCount": count(*[references(^._id)])
 } | order(size desc)`;
 
