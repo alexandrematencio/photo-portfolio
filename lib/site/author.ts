@@ -8,6 +8,13 @@
 export const AUTHOR_NAME = 'Alexandre Matencio';
 export const AUTHOR_SHORT = 'A. Matencio';
 
+/** Profils publics de l'auteur — alimentent `sameAs` du Person (jsonld.ts), qui
+ *  est ce qui relie le nom aux comptes pour Google. Les mêmes que /socials. */
+export const AUTHOR_SAME_AS = [
+  'https://www.instagram.com/alxmtc',
+  'https://www.instagram.com/alxmtnc',
+];
+
 /** Avis de copyright, tel qu'il est écrit dans les fichiers ET dans le JSON-LD. */
 export function copyrightNotice(year: number = new Date().getFullYear()): string {
   return `© ${year} ${AUTHOR_NAME}. All rights reserved.`;

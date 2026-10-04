@@ -1,7 +1,7 @@
 import { indexableImageUrl, urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
 import { SITE_INFO, withSlash } from '@/lib/seo/metadata';
-import { AUTHOR_NAME, AUTHOR_SHORT, copyrightNotice } from '@/lib/site/author';
+import { AUTHOR_NAME, AUTHOR_SAME_AS, AUTHOR_SHORT, copyrightNotice } from '@/lib/site/author';
 
 /**
  * Constructeurs Schema.org — fonctions PURES, sans React.
@@ -44,7 +44,12 @@ export function personJsonLd(): JsonLdObject {
     name: AUTHOR_NAME,
     alternateName: AUTHOR_SHORT,
     jobTitle: 'Photographer',
+    description:
+      'Photographer and art director based in Villejuif, near Paris. Author photography — street, landscape and portrait.',
     url: pageUrl('/about'),
+    sameAs: AUTHOR_SAME_AS,
+    address: { '@type': 'PostalAddress', addressLocality: 'Villejuif', addressCountry: 'FR' },
+    knowsAbout: ['Street photography', 'Landscape photography', 'Portrait photography'],
     image: `${SITE_INFO.url}/img/photo-profile.jpg`,
   };
 }
@@ -54,7 +59,10 @@ export function webSiteJsonLd(): JsonLdObject {
     '@context': CONTEXT,
     '@type': 'WebSite',
     '@id': `${SITE_INFO.url}/#website`,
-    name: SITE_INFO.name,
+    // Le NOM de la personne est le nom du site : c'est lui que Google affiche
+    // au-dessus du titre dans les résultats.
+    name: AUTHOR_NAME,
+    alternateName: [AUTHOR_SHORT, 'ALXMTNC'],
     url: pageUrl('/'),
     description: SITE_INFO.description,
     inLanguage: 'en-US',

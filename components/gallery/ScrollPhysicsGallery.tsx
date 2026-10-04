@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PhotoBlock } from './PhotoBlock';
 import { PhotoLightbox } from './PhotoLightbox';
 import type { Photo } from '@/lib/sanity/queries';
@@ -12,6 +12,9 @@ import { createIdlePreloader, preloadImage } from '@/lib/utils/image-preload';
 type Props = {
   photos: Photo[];
   motion: MotionSettings;
+  /** Rendu DANS la section, avant le titre : la flèche du hero atterrit sur
+   *  `#gallery-start`, donc sur la phrase d'auteur et non au-delà. */
+  intro?: ReactNode;
 };
 
 /**
@@ -63,7 +66,7 @@ const GRAIN_PEAK = 4 / 27; // max de o²·(1−o), pour normaliser la courbe à 
  * FREELANCE/RESOURCES/existing-components/scroll-velocity-distortion/.
  * Respect strict de prefers-reduced-motion (CLAUDE.md §3.2), cleanup complet.
  */
-export function ScrollPhysicsGallery({ photos }: Props) {
+export function ScrollPhysicsGallery({ photos, intro }: Props) {
   const stageRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
   const items = photos.length > 0 ? photos : Array.from({ length: 6 }, () => null);
@@ -274,6 +277,7 @@ export function ScrollPhysicsGallery({ photos }: Props) {
   return (
     <>
       <section id="gallery-start" aria-labelledby="selected-works">
+        {intro}
         {/* Titre de section, CENTRÉ SUR L'ÉCRAN — d'où sa position hors du
             stage, qui est plafonné en largeur et calé à gauche. Il tombe
             « bien sous la ligne d'horizon » sans calcul : le hero est pinné

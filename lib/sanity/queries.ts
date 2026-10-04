@@ -42,7 +42,7 @@ export type Photo = {
   series?: { _ref: string }[] | null;
   /**
    * Séries d'appartenance déréférencées pour l'AFFICHAGE (bloc texte de la
-   * home, où le nom de série est un lien vers `/series#<slug>`). `series`
+   * home, où le nom de série est un lien vers `/series/<slug>/`). `series`
    * reste la source de vérité relationnelle ; on ne dérive ici qu'un libellé
    * et son ancre. `series[]->` sur une photo legacy dont `series` est une
    * référence unique (non migrée) rend `null` sans casser la requête — d'où
@@ -100,6 +100,8 @@ export type SiteSettings = {
   socialsBody?: unknown[];
   legalBody?: unknown[];
   privacyBody?: unknown[];
+  /** Phrase d'auteur affichée au-dessus de « Selected Works » (vide = rien). */
+  homeIntro?: string;
   motion?: MotionSettings;
 };
 
@@ -149,7 +151,7 @@ const allPhotosQuery = groq`
 
 const siteSettingsQuery = groq`
   *[_type == "siteSettings"][0] {
-    aboutBody, contactBody, digitalAgencyBody, socialsBody, legalBody, privacyBody, motion,
+    aboutBody, contactBody, digitalAgencyBody, socialsBody, legalBody, privacyBody, homeIntro, motion,
     hero {
       defaultImage { ..., "dimensions": asset->metadata.dimensions },
       revealImage { ..., "dimensions": asset->metadata.dimensions }
@@ -239,6 +241,29 @@ export type SeriesWithPhotosResult = {
 export async function getSeriesWithPhotos(): Promise<SeriesWithPhotosResult> {
   if (!sanityClient) return { seriesOrderRefs: null, items: [] };
   return sanityClient.fetch<SeriesWithPhotosResult>(seriesWithPhotosQuery, {}, {
+    next: { revalidate: 60 },
+  });
+}
+
+/**
+ * Textes des séries (sous-titre, description) — pour les pages /series/[slug].
+ * Volontairement HORS de `seriesWithPhotosQuery` : celle-ci alimente /series,
+ * un composant client, et la description (Portable Text) alourdirait son
+ * payload pour rien.
+ */
+export type SeriesText = {
+  slug: string;
+  subtitle?: string;
+  description?: unknown[];
+};
+
+const seriesTextsQuery = groq`
+  *[_type == "series" && defined(slug.current)]{ "slug": slug.current, subtitle, description }
+`;
+
+export async function getSeriesTexts(): Promise<SeriesText[]> {
+  if (!sanityClient) return [];
+  return sanityClient.fetch<SeriesText[]>(seriesTextsQuery, {}, {
     next: { revalidate: 60 },
   });
 }

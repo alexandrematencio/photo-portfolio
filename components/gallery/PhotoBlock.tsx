@@ -181,7 +181,7 @@ export const PhotoBlock = forwardRef<HTMLDivElement, Props>(
                           <span className="photo-meta-series-sep">, </span>
                         )}
                         <Link
-                          href={`/series#${s.slug}`}
+                          href={`/series/${s.slug}/`}
                           className="no-underline hover:opacity-60 transition-opacity motion-reduce:transition-none"
                         >
                           {s.title}

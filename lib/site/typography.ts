@@ -360,3 +360,44 @@ export const PAGE_TITLE_GAP = 96;
  * seul côté rejouerait exactement l'asymétrie qu'il corrige.
  */
 export const PAGE_CONTROLS_GAP = 48;
+
+/**
+ * TITRE DE PAGE À MOT LONG — pages dont le titre vient du CMS (`/series/[slug]`).
+ *
+ * `--page-title-size` est calibré pour que « ARCHIVES » (5,167 em en Helvetica
+ * Bold capitales) tienne pile dans le cadre : c'est le mot le plus large du
+ * site À TITRE FIXE. Un titre venu du Studio n'a pas cette garantie —
+ * « PHOTOGRAPHY » (7,8 em) ou « ПЕРЕДЕЛКИНО » débordent, et le conteneur de
+ * scroll étant en `overflow-x: hidden`, le mot est ROGNÉ sans le moindre
+ * signal (§7.8). Cette fonction rend le facteur (≤ 1) à appliquer au corps du
+ * titre : la largeur du mot le plus large est ESTIMÉE lettre par lettre
+ * (chasses Helvetica Bold, centièmes d'em), pas au nombre de caractères — un
+ * « O » pèse presque le double d'un « I », et compter les lettres sous-estimait
+ * « PHOTOGRAPHY » d'un tiers (mesuré à l'écran, 390 px).
+ */
+export const PAGE_TITLE_FIT_EM = 5.167;
+
+const CAP_WIDTH_EM: Record<string, number> = {
+  A: 0.722, B: 0.722, C: 0.722, D: 0.722, E: 0.667, F: 0.611, G: 0.778, H: 0.722,
+  I: 0.278, J: 0.556, K: 0.722, L: 0.611, M: 0.833, N: 0.722, O: 0.778, P: 0.667,
+  Q: 0.778, R: 0.722, S: 0.667, T: 0.611, U: 0.722, V: 0.667, W: 0.944, X: 0.667,
+  Y: 0.667, Z: 0.611,
+};
+
+function wordWidthEm(word: string): number {
+  let w = 0;
+  for (const ch of word.toUpperCase()) {
+    if (CAP_WIDTH_EM[ch] !== undefined) w += CAP_WIDTH_EM[ch];
+    else if (/[\u0400-\u04FF]/.test(ch)) w += 0.76; // capitales cyrilliques, plus larges
+    else if (/[0-9]/.test(ch)) w += 0.556;
+    else w += 0.6;
+  }
+  return w;
+}
+
+export function pageTitleFit(title: string): number {
+  const widest = title
+    .split(/[\s\-–—]+/)
+    .reduce((max, word) => Math.max(max, wordWidthEm(word)), 0);
+  return widest > PAGE_TITLE_FIT_EM ? PAGE_TITLE_FIT_EM / widest : 1;
+}

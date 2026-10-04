@@ -184,6 +184,15 @@ export const siteSettingsSchema = defineType({
       },
     }),
     defineField({
+      name: 'homeIntro',
+      title: 'Phrase d’auteur (page d’accueil)',
+      type: 'text',
+      rows: 3,
+      description:
+        'Une ou deux phrases affichées sur la home, juste au-dessus de « Selected Works » : qui tu es, où, ce que tu photographies. C’est aussi ce que Google lit en premier sur ta page d’accueil. Vise 25 à 40 mots, ton nom en toutes lettres. Laisse vide pour ne rien afficher. ℹ️ Après « Publish », le site en ligne se met à jour tout seul en 3 à 4 minutes.',
+      validation: (Rule) => Rule.max(300),
+    }),
+    defineField({
       name: 'aboutBody',
       title: 'Page « About »',
       type: 'array',

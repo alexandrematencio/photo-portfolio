@@ -7,7 +7,7 @@ import { PageShell } from '@/components/site/PageShell';
 export const metadata = buildMetadata({
   title: 'Socials',
   description:
-    'Where to find A. Matencio across social platforms.',
+    'Where to find Alexandre Matencio across social platforms.',
   path: '/socials',
 });
 

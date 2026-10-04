@@ -7,7 +7,7 @@
  * `<Image src="/img/x.jpg">` avec `images.unoptimized: true`).
  *
  * Cette fonction comble ce trou. La valeur vient de `NEXT_PUBLIC_BASE_PATH`
- * (`.env.development` → vide, `.env.production` → `/photo-portfolio`), la MÊME
+ * (vide en dev comme en prod depuis le domaine propre ; `/photo-portfolio` du temps de GitHub Pages), la MÊME
  * que celle lue par `next.config.ts`. C'est le point à ne pas défaire : deux
  * littéraux à garder d'accord, c'est un jour de migration où l'un des deux est
  * oublié et où toutes les images de `/public/` tombent en 404. Passer le site

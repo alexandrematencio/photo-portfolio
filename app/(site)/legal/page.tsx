@@ -28,7 +28,7 @@ const SECTION_TOP = 40;
 export const metadata = buildMetadata({
   title: 'Legal Notice',
   description:
-    'Legal information, copyright and licensing terms for the photographs of A. Matencio.',
+    'Legal information, copyright and licensing terms for the photographs of Alexandre Matencio.',
   path: '/legal',
 });
 
@@ -72,9 +72,9 @@ function LegalFallback() {
       </h2>
 
       <p className={EDITORIAL_BODY}>
-        Pages are hosted by GitHub, Inc., 88 Colin P. Kelly Jr. Street, San
-        Francisco, CA 94107, USA (GitHub Pages). Images are delivered by the
-        content network of Sanity AS, Oslo, Norway.
+        Pages are hosted by Hetzner Online GmbH, Industriestr. 25, 91710
+        Gunzenhausen, Germany. Images are delivered by the content network of
+        Sanity AS, Oslo, Norway.
       </p>
 
       <h2 className={EDITORIAL_H2} style={{ marginTop: SECTION_TOP }}>
