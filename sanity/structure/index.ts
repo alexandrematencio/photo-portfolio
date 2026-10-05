@@ -317,6 +317,49 @@ function curatedPhotosNode(S: StructureBuilder) {
 }
 
 /**
+ * La funnel curation — galerie du tunnel de design-folio, invisible sur le site
+ * (`schemas/funnelCuration.ts`). Même montage que « Par série » : le singleton
+ * (sélection + ordre au glisser-déposer) et la planche-contact dans son ordre.
+ * On y AJOUTE depuis la photo (« Ajouter à la funnel curation », menu « ⋯ »).
+ */
+function funnelCurationNode(S: StructureBuilder) {
+  return S.listItem()
+    .title('Funnel curation (design-folio)')
+    .id('photos-funnel')
+    .child(
+      S.list()
+        .title('Funnel curation')
+        .items([
+          S.listItem()
+            .title('Réglages — sélection et ordre')
+            .id('funnel-edit')
+            .child(
+              S.document()
+                .schemaType('funnelCuration')
+                .documentId('funnelCuration')
+            ),
+          S.listItem()
+            .title('Photos de la funnel curation — dans l’ordre du tunnel')
+            .id('funnel-photos')
+            .child(
+              photoGridPane(S, {
+                id: 'funnel-photos-grid',
+                title: 'Funnel curation',
+                filter: '_id in *[_id == "funnelCuration"][0].photos[]._ref',
+                orderQuery: '*[_id == "funnelCuration"][0].photos[]._ref',
+                listenAlso: '_id in ["funnelCuration", "drafts.funnelCuration"]',
+                // Même raison qu'à « La curation » : l'appartenance vit sur le
+                // singleton, une photo créée ici n'y serait pas.
+                create: null,
+                emptyText:
+                  'Aucune photo. Ouvre une photo et choisis « Ajouter à la funnel curation » dans son menu « ⋯ ».',
+              })
+            ),
+        ])
+    );
+}
+
+/**
  * Photos retirées du site par leur interrupteur `hidden` — la vue d'où on les
  * remet en ligne. `== true` et pas `!= false` : un champ absent veut dire
  * visible. Pas de bouton de création, même raison qu'à « La curation ».
@@ -425,6 +468,7 @@ function photosGroupNode(S: StructureBuilder, context: StructureResolverContext)
             emptyLabel: 'Sans objectif renseigné',
           }),
           curatedPhotosNode(S),
+          funnelCurationNode(S),
           hiddenPhotosNode(S),
           S.divider(),
           allPhotosNode(S),

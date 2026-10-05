@@ -9,6 +9,7 @@ import {
   AssignToSeriesAction,
   DeletePhotoAction,
   DeleteSeriesAction,
+  ToggleFunnelAction,
   ToggleVisibilityAction,
 } from '@/sanity/actions';
 // PhotoPreviewView / SiteSettingsPreviewView volontairement non importés (désactivés
@@ -17,9 +18,10 @@ import {
 import { apiVersion, dataset, projectId, siteUrl } from '@/lib/sanity/env';
 import { PAGE_DOCS } from '@/sanity/schemas/pages';
 
-// Réglages + un document par page (rubrique « Pages ») : tous singletons.
+// Réglages, funnel curation et un document par page : tous singletons.
 const SINGLETON_TYPES = new Set([
   'siteSettings',
+  'funnelCuration',
   ...PAGE_DOCS.map((p) => p.type),
 ]);
 const SINGLETON_FORBIDDEN_ACTIONS = new Set([
@@ -164,6 +166,9 @@ export const studioConfig = defineConfig({
           ),
           ToggleVisibilityAction,
           AssignToSeriesAction,
+          // Funnel curation (tunnel design-folio) : même doctrine qu'au
+          // masquage — un clic, écrit tout de suite. Cf. ToggleFunnelAction.
+          ToggleFunnelAction,
         ];
       }
       // Idem côté série : une série référencée par ses photos (`photo.series[]`)
