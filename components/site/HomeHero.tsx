@@ -2,7 +2,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react';
+import type GsapDefault from 'gsap';
+type Gsap = typeof GsapDefault;
 import { ChevronDown } from 'lucide-react';
 import { GlyphLogo } from './GlyphLogo';
 import {
@@ -13,6 +16,15 @@ import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import type { HeroImages } from '@/lib/site/hero';
 import { NAV_LINKS } from '@/lib/site/nav';
 import { peekHomeReturn, playHomeArrival } from '@/lib/site/home-return';
+import {
+  announcePageArrival,
+  boxOf,
+  ghostOf,
+  measureNavBar,
+  slideOut,
+  type Box,
+} from '@/lib/site/page-transition';
+import { smoothstep } from '@/lib/motion/rubber';
 import { lockBodyScroll, unlockBodyScroll } from '@/lib/utils/scrollLock';
 
 // Cibles de la transition (≈ taille finale du header)
@@ -31,6 +43,17 @@ const PAD_RIGHT = 64;
 // La durée totale en SECONDES est gérée par le `scrub` du ScrollTrigger.
 const FADE_FAST_DURATION = 0.15; // photo-profile, arrow, nom : vanish vite
 const MORPH_SLOW_DURATION = 1; // logo + nav items : morph lent, prend toute la timeline
+
+/** Clic dans le menu du hero : le scroll-morph joué tout seul, en secondes
+    (pour une timeline prise à 0 ; au prorata si le visiteur a déjà défilé).
+    La page suivante entre EN MÊME TEMPS, en `EXIT_DURATION` (page-transition.ts). */
+const MENU_LEAVE_DURATION = 0.45;
+/** Pas d'échantillonnage du morph pour le départ par le menu : bien plus
+    d'images que les ~27 que dure le vol, l'arrondi au pas le plus proche ne
+    se voit pas. */
+const MENU_LEAVE_SAMPLES = 120;
+
+const centerOf = (b: Box) => ({ x: b.left + b.width / 2, y: b.top + b.height / 2 });
 
 type HomeHeroProps = {
   /** Images du hero définies dans le Studio (homePage.hero), résolues en
@@ -51,6 +74,13 @@ export function HomeHero({ hero }: HomeHeroProps) {
   // measurements), the glyph the user actually sees is locked at top:18 / left:32.
   const staticGlyphRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
+  const router = useRouter();
+  /** Le scroll-morph une fois branché : le clic dans le menu le rejoue. */
+  const morphRef = useRef<{ gsap: Gsap; tl: gsap.core.Timeline; bg: string } | null>(
+    null
+  );
+  /** Un départ par le menu est en cours (il tient un verrou de scroll). */
+  const leavingRef = useRef(false);
 
   // ─── Splash entrance gating ──────────────────────────────────────────────
   // photo / nav items / arrow start at opacity 0 (inline style in JSX). When
@@ -400,7 +430,23 @@ export function HomeHero({ hero }: HomeHeroProps) {
   }, [reducedMotion]);
 
   useEffect(() => {
-    if (reducedMotion) return;
+    const section = sectionRef.current;
+    // Le fond opaque du hero ne sert qu'à masquer la galerie remontée dans
+    // le bas de l'écran (spacer à 67svh). En mouvement réduit il n'y a pas
+    // de timeline pour le fondre : on le retire, sinon la galerie reste
+    // cachée.
+    if (reducedMotion) {
+      // Pas de fondu : le fond opaque cacherait la galerie, et le spacer
+      // court laisserait la phrase d'auteur monter dans le hero. On rend
+      // le plein écran d'avant.
+      if (section) {
+        section.style.backgroundColor = 'transparent';
+        section.style.pointerEvents = 'none';
+      }
+      if (spacerRef.current) spacerRef.current.style.height = '100svh';
+      return;
+    }
+    if (spacerRef.current) spacerRef.current.style.height = '';
     // GATED behind the entrance: this scroll-morph timeline does
     // `fromTo({x:0,y:0,scale:1}, ...)` on the nav items with ScrollTrigger
     // scrub, which would forcibly set those properties to 0 at scroll-progress
@@ -492,6 +538,21 @@ export function HomeHero({ hero }: HomeHeroProps) {
         const isMobileViewport = window.matchMedia('(max-width: 768px)').matches;
         const pinEnd = isMobileViewport ? '+=90vh' : '+=105vh';
 
+        // Le spacer ne fait plus que 67svh : le bas de l'écran contient déjà
+        // le début de la galerie. Ce fond, de la couleur du papier, le cache
+        // tant que le hero est ouvert et disparaît sur la course du pin —
+        // au moment où le hero est replié, Selected Works est un tiers plus
+        // haut qu'avec un spacer plein écran. On fond la couleur vers sa
+        // propre valeur à alpha 0 (pas vers `transparent`, qui passe par
+        // le noir). `pointer-events` suit : tant que le fond couvre, il
+        // avale les clics ; une fois parti, la galerie redevient cliquable.
+        const section = sectionRef.current!;
+        const computedBg = getComputedStyle(section).backgroundColor;
+        const clearBg = computedBg.startsWith('rgba')
+          ? computedBg.replace(/[\d.]+\)$/, '0)')
+          : computedBg.replace('rgb(', 'rgba(').replace(')', ', 0)');
+        section.style.pointerEvents = 'auto';
+
         const tl = gsap.timeline({
           scrollTrigger: {
             trigger: spacerRef.current,
@@ -503,6 +564,19 @@ export function HomeHero({ hero }: HomeHeroProps) {
             invalidateOnRefresh: true,
           },
         });
+
+        tl.to(
+          section,
+          {
+            backgroundColor: clearBg,
+            ease: 'none',
+            duration: 1,
+            onUpdate: () => {
+              section.style.pointerEvents = tl.progress() > 0.98 ? 'none' : 'auto';
+            },
+          },
+          0
+        );
 
         // Fades RAPIDES (photo-profile + nom + down-arrow vanishent ensemble, vite).
         //
@@ -617,8 +691,10 @@ export function HomeHero({ hero }: HomeHeroProps) {
         // the settled layout against the current (top, on the splash-play path)
         // scroll position.
         ScrollTrigger.refresh();
+        morphRef.current = { gsap, tl, bg: computedBg };
 
         cleanup = () => {
+          morphRef.current = null;
           // On ne tue QUE notre timeline + son scrollTrigger.
           // `kill(true)` = revert : enlève le wrapper <pin-spacer> que GSAP a inséré
           // autour du spacer et restaure le DOM original. Sans le `true`, React
@@ -626,6 +702,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
           // parce qu'il essaie de retirer le spacer dont GSAP a changé le parent.
           tl.scrollTrigger?.kill(true);
           tl.kill();
+          section.style.pointerEvents = '';
         };
       }
     );
@@ -635,6 +712,184 @@ export function HomeHero({ hero }: HomeHeroProps) {
       cleanup?.();
     };
   }, [reducedMotion, entranceDone]);
+
+  // ────────────────────────────────────────────────────────────────────────
+  // DÉPART PAR LE MENU DU HERO (2026-10-15). Le hero MONTE en nav-bar — c'est
+  // le scroll-morph, joué tout seul au lieu d'être scrubbé — et, DANS LE MÊME
+  // TEMPS, la nouvelle page entre par la droite en poussant la photo vers la
+  // gauche (lib/site/page-transition.ts).
+  //
+  // La navigation part dès le clic. Or la home démonte le hero au commit :
+  // tout ce qui bouge est donc une COPIE posée sur <body>. Le morph n'est pas
+  // rejoué sur les copies — on l'ÉCHANTILLONNE : la timeline est parcourue
+  // une fois, synchrone, et chaque cible y laisse ses styles inline à chaque
+  // pas ; la copie les relit image par image. Même courbe, mêmes fondus, au
+  // pixel près, sans timeline vivante sur un arbre démonté.
+  //
+  // La nav-bar de la page d'arrivée reste masquée jusqu'à l'atterrissage des
+  // copies : sinon les libellés seraient en double pendant le vol.
+  //
+  // Repli sur la navigation simple quand le morph n'est pas encore branché
+  // (entrée en cours), en mouvement réduit, et pour un clic modifié.
+  // ────────────────────────────────────────────────────────────────────────
+  useEffect(
+    () => () => {
+      if (leavingRef.current) unlockBodyScroll();
+    },
+    []
+  );
+
+  const leaveFromMenu = (e: MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const morph = morphRef.current;
+    const section = sectionRef.current;
+    if (!morph || !section) return;
+    e.preventDefault();
+    if (leavingRef.current) return;
+    leavingRef.current = true;
+    lockBodyScroll();
+
+    const { gsap, tl, bg } = morph;
+    // Le scroll ne pilote plus la timeline. `false` : le pin reste en place,
+    // rien ne bouge dans la mise en page.
+    tl.scrollTrigger?.disable(false);
+
+    // Où la timeline pose les libellés, contre où la nav-bar de la page de
+    // destination les attend — son item actif est surligné, ce qui décale la
+    // rangée (cf. `measureNavBar`). L'écart est rattrapé le long du morph,
+    // pas en fin de course : à l'arrivée, nav-bar et copies coïncident.
+    const bar = measureNavBar(href);
+    // Une COPIE du tableau : au démontage du hero, React remet chaque
+    // référence à `null` dans le tableau même — en plein vol.
+    const items = [...navItemsRef.current];
+    const staticGlyph = staticGlyphRef.current;
+    const p0 = tl.progress();
+    tl.progress(1);
+    const landed = items.map((el) => (el && el.offsetParent !== null ? boxOf(el) : null));
+    tl.progress(p0);
+    const zero = { x: 0, y: 0 };
+    const shift = items.map((_, i) => {
+      const from = landed[i];
+      const to = bar?.nav[i];
+      if (!from || !to) return zero;
+      const a = centerOf(from);
+      const b = centerOf(to);
+      return { x: b.x - a.x, y: b.y - a.y };
+    });
+    const staticSvg = staticGlyph?.querySelector('svg');
+    const glyphShift =
+      bar && staticSvg
+        ? {
+            x: bar.glyph.left - staticSvg.getBoundingClientRect().left,
+            y: bar.glyph.top - staticSvg.getBoundingClientRect().top,
+          }
+        : zero;
+
+    // ── Échantillonnage du morph, de p0 à 1. ──
+    const targets = ([logoBlockRef.current, nameRef.current, ...items] as (HTMLElement | null)[])
+      .filter((el): el is HTMLElement => el !== null);
+    const frames = targets.map(() => [] as { t: string; o: string; v: string }[]);
+    for (let n = 0; n < MENU_LEAVE_SAMPLES; n++) {
+      tl.progress(p0 + ((1 - p0) * n) / (MENU_LEAVE_SAMPLES - 1));
+      targets.forEach((el, j) =>
+        frames[j].push({ t: el.style.transform, o: el.style.opacity, v: el.style.visibility })
+      );
+    }
+    tl.progress(p0);
+
+    // ── Les copies, à l'état du moment. ──
+    // Le hero entier, fond transparent : les cibles s'y retrouvent par leur
+    // rang dans l'arbre (cloneNode garde l'ordre).
+    const all = Array.from(section.querySelectorAll<HTMLElement>('*'));
+    const menu = ghostOf(section, 60);
+    menu.style.backgroundColor = 'transparent';
+    const twins = Array.from(menu.querySelectorAll<HTMLElement>('*'));
+    const twin = (el: HTMLElement) => twins[all.indexOf(el)];
+    const photo = photoRef.current;
+    if (photo) twin(photo).style.visibility = 'hidden';
+    // Le libellé cliqué est SURVOLÉ : CursorInvert l'a rendu transparent en
+    // style inline (il dessine son négatif par-dessus). La copie, elle, n'est
+    // plus survolée — elle reprend son encre.
+    for (const el of items) if (el) twin(el).style.color = '';
+    const glyphGhost = staticGlyph ? ghostOf(staticGlyph, 61) : null;
+
+    // La photo : sa propre copie, SOUS la page qui arrive — c'est elle qui la
+    // pousse. À son opacité du moment (le visiteur a pu commencer à défiler).
+    const arrival = announcePageArrival(href, 1);
+    let arrived = false;
+    let landedMenu = false;
+    if (photo && getComputedStyle(photo).visibility !== 'hidden') {
+      const ghost = ghostOf(photo, 40);
+      ghost.style.opacity = getComputedStyle(photo).opacity;
+      arrival.onArrive.push(() => slideOut(ghost, -1));
+      // Filet : la page d'arrivée n'est jamais venue.
+      window.setTimeout(() => ghost.remove(), 5000);
+    }
+
+    // L'original ne montre plus que son fond papier : il cache la galerie
+    // jusqu'au commit, et personne n'a demandé à la voir.
+    section.style.backgroundColor = bg;
+    for (const el of [...targets, photo, arrowRef.current, staticGlyph]) {
+      if (el) el.style.visibility = 'hidden';
+    }
+
+    // La nav-bar de la page d'arrivée attend les copies.
+    const header = document.querySelector<HTMLElement>('header[data-top-bar]');
+    if (header) header.style.visibility = 'hidden';
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (header) header.style.visibility = '';
+      menu.remove();
+      glyphGhost?.remove();
+    };
+    // On ne rend la main à la nav-bar qu'une fois les DEUX faits acquis : les
+    // copies posées, et la page d'arrivée montée (en dev, le commit peut
+    // tomber après l'atterrissage).
+    arrival.onArrive.push(() => {
+      arrived = true;
+      if (landedMenu) finish();
+    });
+    window.setTimeout(finish, 5000);
+
+    const span = 1 - p0;
+    const proxy = { k: 0 };
+    gsap.to(proxy, {
+      k: 1,
+      // `none` : chaque tween échantillonné porte déjà son propre ease
+      // (`power3.out` pour le morph) — c'est le geste du scroll, sans scroll.
+      ease: 'none',
+      duration: MENU_LEAVE_DURATION * Math.max(0.35, span),
+      onUpdate: () => {
+        const { k } = proxy;
+        const n = Math.round(k * (MENU_LEAVE_SAMPLES - 1));
+        targets.forEach((el, j) => {
+          const copy = twin(el);
+          const f = frames[j][n];
+          const i = (items as (HTMLElement | null)[]).indexOf(el);
+          const d = i >= 0 ? shift[i] : zero;
+          copy.style.transform = `translate(${d.x * k}px, ${d.y * k}px) ${f.t}`;
+          copy.style.opacity = f.o;
+          copy.style.visibility = f.v;
+        });
+        // Le glyph d'atterrissage suit d'habitude `scrollY` : ici, la
+        // progression. Mêmes fractions que son écouteur de scroll.
+        if (glyphGhost) {
+          glyphGhost.style.opacity = String(smoothstep(0.85, 1, p0 + span * k));
+          glyphGhost.style.transform = `translate(${glyphShift.x * k}px, ${glyphShift.y * k}px)`;
+        }
+      },
+      onComplete: () => {
+        landedMenu = true;
+        if (arrived) finish();
+      },
+    });
+
+    // Dès le clic : la page charge et entre pendant que le menu monte.
+    router.push(href);
+  };
 
   return (
     <>
@@ -660,7 +915,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
       <div
         ref={sectionRef}
         aria-label="Home"
-        className="fixed inset-0 z-30 pointer-events-none flex flex-col items-center justify-center gap-16 px-4 py-12 md:py-16 text-center"
+        className="fixed inset-0 z-30 pointer-events-none flex flex-col items-center justify-center gap-16 bg-[var(--color-bg)] px-4 py-12 md:py-16 text-center"
       >
         <div
           ref={logoBlockRef}
@@ -777,6 +1032,9 @@ export function HomeHero({ hero }: HomeHeroProps) {
               // Lettres en négatif du fond au survol : cette nav passe au-dessus
               // de la galerie (cf. CursorInvert.tsx).
               data-cursor-negative
+              // Le hero monte en nav-bar, puis la page entre par la droite
+              // (cf. `leaveFromMenu`).
+              onClick={(e) => leaveFromMenu(e, link.href)}
               // opacity: 0 initial — chacun est "pondu" par la photo via le
               // useEffect entrance (drop + bounce avec back.out(1.8)).
               className="text-2xl md:text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none motion-reduce:transition-none whitespace-nowrap"
@@ -815,9 +1073,10 @@ export function HomeHero({ hero }: HomeHeroProps) {
       </button>
 
       {/*
-        Spacer pinned : pendant 70vh de scroll, la page est "trappée" et la
-        timeline GSAP joue. Photos de la gallery ne peuvent pas entrer dans
-        le viewport tant que le pin n'est pas relâché → zéro overlap garanti.
+        Spacer pinned. 67svh et non 100svh (2026-10-05) : un plein écran
+        laissait, une fois le hero replié au centre, un viewport entier de
+        blanc avant Selected Works. Le tiers retiré est couvert au repos par
+        le fond du hero, qui se fond sur la course du pin.
 
         Le wrapper externe est un buffer React-stable : GSAP insère son
         <pin-spacer> à L'INTÉRIEUR. Au unmount, React supprime ce wrapper
@@ -827,7 +1086,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
       <div aria-hidden>
         <div
           ref={spacerRef}
-          className="h-[100svh] pointer-events-none"
+          className="h-[67svh] pointer-events-none"
         />
       </div>
     </>

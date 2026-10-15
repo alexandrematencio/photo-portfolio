@@ -305,17 +305,12 @@
    page dont le plus long mot dépasse « ARCHIVES » oblige à relever ce
    diviseur — sinon c'est elle qui déborde.
 
-   ⚠️ **`100vw` compte la barre de défilement CLASSIQUE, pas la largeur
-   utile.** Le viewport lui-même ne défile pas, mais `[data-scroll-container]`
-   si — et une barre classique (Windows par défaut, macOS « toujours
-   afficher ») lui prend ~15-17 px de largeur INTÉRIEURE que `100vw` ignore.
-   La marge de 1,6 % (~5 px sous 407 px de large) ne peut pas l'absorber :
-   fenêtre desktop rétrécie sous `md`, « ARCHIVES » se faisait rogner à
-   droite, sans le moindre signal. D'où l'override `pointer: fine` ci-dessous :
-   les barres classiques n'existent que dans les environnements à souris, les
-   écrans tactiles (barres en surimpression, largeur nulle) gardent la
-   calibration exacte. Coût assumé : ~3 px de corps en moins pour un macOS en
-   barres overlay dont la fenêtre passe sous 768 px — l'état le plus rare.
+   `100vw` est ici la largeur utile exacte : la page n'a plus de barre de
+   défilement native depuis le 2026-10-15 (cf. « Barre de défilement » plus
+   bas). Avant, une barre classique (Windows, macOS « toujours afficher »)
+   mangeait 15-17 px que `100vw` ignorait, et une réserve de 17 px sous
+   `pointer: fine` compensait. ⚠️ Rendre la barre native à la page oblige à
+   remettre cette réserve — sinon « ARCHIVES » se fait rogner à droite.
 
    Au-dessus de `md`, 96 px en dur : la colonne éditoriale (1107) l'encaisse,
    et les titres à deux mots (« LEGAL NOTICE », « DIGITAL AGENCY ») passent
@@ -364,19 +359,6 @@
   --page-title-size: min(68px, (100vw - 2 * var(--page-gutter)) / 5.25);
   --page-air-top: 32px;
   --editorial-measure: 680px;
-}
-
-/* Allocation barre de défilement classique (raisonnement dans le bloc
-   ci-dessus) : 17 px = la barre Windows à l'échelle 100 %, le pire cas.
-   AVANT la media query `md`, qui doit garder le dernier mot quand les deux
-   s'appliquent. */
-@media (pointer: fine) {
-  :root {
-    --page-title-size: min(
-      68px,
-      (100vw - 2 * var(--page-gutter) - 17px) / 5.25
-    );
-  }
 }
 
 @media (min-width: 48rem) {
@@ -456,6 +438,22 @@ body img {
   -webkit-user-drag: none;
   -webkit-touch-callout: none;
   user-select: none;
+}
+
+/* Barre de défilement : la native est masquée sur la page, `<ScrollThumb />`
+   la remplace — un curseur fin qui n'apparaît qu'au défilement (demande
+   Alexandre, 2026-10-15). Masquée SEULEMENT quand le composant l'a dit
+   (`data-scroll-thumb`, posé à son montage) : sans JavaScript, ou dans le
+   Studio, qui n'est pas dans ce groupe de routes, la barre native reste.
+   Les scrollers INTERNES (colonne de /series, listes déroulantes) gardent la
+   leur : ce ne sont pas des barres de page. */
+html[data-scroll-thumb],
+html[data-scroll-thumb] [data-scroll-container] {
+  scrollbar-width: none;
+}
+html[data-scroll-thumb]::-webkit-scrollbar,
+html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
+  display: none;
 }
 
 /* Indication scroll : flèche qui flotte légèrement vers le haut/bas */
@@ -986,11 +984,9 @@ body img {
        Descendu ENCORE à 8 dans la foulée (16 laissait encore trop d'air,
        arbitrage Alexandre) : la légende se lit désormais comme la suite
        immédiate de sa photo.
-       ⚠️ L'écart INTERNE de la légende (`.photo-meta`, 12 px juste en
-       dessous) est resté à 12 : il est donc désormais PLUS GRAND que celui
-       qui sépare la légende de sa photo. Hiérarchie inversée, assumée pour
-       l'instant faute d'arbitrage — si elle se voit, c'est 4 px qu'il faut
-       y mettre (pas préféré immédiatement sous 8, brand book §6.5). */
+       L'écart interne de la légende (`.photo-meta`, 6 px) est désormais
+       plus petit que ces 8 px : la photo et son texte restent plus liés
+       que les deux blocs de la légende entre eux. */
     gap: 8px;
   }
   .photo-figure {
@@ -999,11 +995,11 @@ body img {
   .photo-meta {
     width: 100%;
     /* Empilé, la colonne n'est plus tendue : le `gap` redevient l'écart
-       réel entre le titre et la fiche technique. 12 px et non 24 —
-       moitié demandée par Alexandre (2026-08-22) sur capture. C'est LE
+       réel entre le titre et la fiche technique. 24 → 12 (2026-08-22),
+       puis 12 → 6 (2026-10-05, moitié de l'écart alors en place). C'est LE
        seul écart de la légende empilée : le ≤ 767 le reprend tel quel,
        les deux bandes ne peuvent donc pas diverger. */
-    gap: 12px;
+    gap: 6px;
   }
 }
 
@@ -1013,7 +1009,7 @@ body img {
    1. AUCUNE gouttière à l'intérieur du bloc de tête — numéro, titre et série
       s'enchaînent sans respiration. La seule qui subsiste sépare ce bloc de la
       fiche technique, et elle est réglée une fois pour toutes dans la requête
-      ≤ 1023 px ci-dessus (12 px, moitié de la valeur d'origine).
+      ≤ 1023 px ci-dessus (6 px).
    2. UN SEUL pas vertical pour toutes les lignes. Le pas ne peut pas venir
       d'un facteur d'interligne commun : les corps diffèrent (14 px pour le
       numéro, 24 pour le titre, 18 pour le reste), un même facteur donnerait

@@ -27,6 +27,7 @@ import {
   settleAtRest,
   type Entrance,
 } from './entrance';
+import { peekPageArrival } from '@/lib/site/page-transition';
 import {
   OpenSeriesView,
   OPEN_LEFT_COL_W,
@@ -738,6 +739,9 @@ export function DesktopSeries({
       row,
       stacks: Array.from(row.querySelectorAll<HTMLElement>('[data-stack]')),
       wordmark,
+      // Arrivée par la nav : le train entre du côté que lui laisse la page de
+      // départ (lib/site/page-transition.ts). Chargement direct : la droite.
+      side: peekPageArrival('/series')?.side ?? 1,
     });
     entranceRef.current = entrance;
     return () => {

@@ -28,6 +28,13 @@
  */
 
 import { animate, rubberCurve, smoothstep, type RubberCurve } from '@/lib/motion/rubber';
+import {
+  boxOf,
+  contentBoxOf,
+  isExiting,
+  pushAway,
+  type Box,
+} from '@/lib/site/page-transition';
 
 // ─── Réglages ──────────────────────────────────────────────────────────────
 // Tout ce qui se règle à l'œil est ici. Les durées sont en secondes.
@@ -38,23 +45,9 @@ const BUDGET = 1;
 const ARRIVAL_MAX = 0.86;
 const ARRIVAL_MIN = 0.62;
 
-/** Sortie du corps de page. */
-const EXIT_DURATION = 0.64;
-/** Trajet en largeurs d'écran : au-delà de 1, le contenu sort encore lancé et
-    son freinage se passe hors champ. */
-const EXIT_TRAVEL = 1.12;
-/** Cisaillement maximal du contenu poussé, en degrés. Le haut (côté logo, d'où
-    vient la poussée) part devant, le bas traîne. */
-const EXIT_SKEW = 2.2;
+// La sortie du corps de page (durée, trajet, courbe) vit dans
+// `page-transition.ts` : c'est la même que celle d'une page à l'autre.
 
-/** `prompt` pour les deux corps qui RÉPONDENT au clic : le contenu, puis le
-    glyph. Les autres suivent, leur inertie est la bienvenue. */
-const CONTENT: RubberCurve = rubberCurve({
-  lead: 0.7,
-  stiffness: 420,
-  damping: 30,
-  onset: 'prompt',
-});
 /** Le glyph mène : il est ce qu'on a cliqué. */
 const LOGO: RubberCurve = rubberCurve({
   lead: 0.62,
@@ -87,8 +80,6 @@ const HANDOFF_TTL_MS = 10_000;
 
 // ─── Passage de témoin ─────────────────────────────────────────────────────
 
-type Box = { left: number; top: number; width: number; height: number };
-
 export type HomeReturnHandoff = {
   /** `performance.now()` au clic. */
   at: number;
@@ -100,8 +91,6 @@ export type HomeReturnHandoff = {
 };
 
 let pending: HomeReturnHandoff | null = null;
-/** Une copie du corps de page est en train de sortir. */
-let exiting = false;
 /** Effacement différé du témoin après un vol interrompu (cf. `playHomeArrival`). */
 let forget = 0;
 
@@ -115,28 +104,6 @@ export function peekHomeReturn(): HomeReturnHandoff | null {
   return pending;
 }
 
-function boxOf(el: Element): Box {
-  const r = el.getBoundingClientRect();
-  return { left: r.left, top: r.top, width: r.width, height: r.height };
-}
-
-/** La boîte du TEXTE d'un lien : l'item actif porte un padding (son fond
-    plein), et le libellé du hero, qui n'en a pas, doit naître sur les lettres. */
-function contentBoxOf(el: HTMLElement): Box {
-  const r = el.getBoundingClientRect();
-  const cs = getComputedStyle(el);
-  const pl = parseFloat(cs.paddingLeft) || 0;
-  const pr = parseFloat(cs.paddingRight) || 0;
-  const pt = parseFloat(cs.paddingTop) || 0;
-  const pb = parseFloat(cs.paddingBottom) || 0;
-  return {
-    left: r.left + pl,
-    top: r.top + pt,
-    width: r.width - pl - pr,
-    height: r.height - pt - pb,
-  };
-}
-
 // ─── Moitié DÉPART ─────────────────────────────────────────────────────────
 
 /**
@@ -145,7 +112,7 @@ function contentBoxOf(el: HTMLElement): Box {
  */
 export function beginHomeReturn(glyph: Element, navLinks: HTMLElement[]): void {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  if (exiting) return; // double clic : un seul départ
+  if (isExiting()) return; // double clic : un seul départ
 
   pending = {
     at: performance.now(),
@@ -154,90 +121,11 @@ export function beginHomeReturn(glyph: Element, navLinks: HTMLElement[]): void {
   };
 
   const page = document.querySelector<HTMLElement>('[data-scroll-container]');
-  if (page) pushAway(page);
-}
-
-/** Les positions de défilement ne se clonent pas : on les recopie, sinon la
-    copie repartirait du haut de page. Les deux arbres ont le même ordre. */
-function copyScroll(from: HTMLElement, to: HTMLElement): void {
-  to.scrollTop = from.scrollTop;
-  to.scrollLeft = from.scrollLeft;
-  const a = from.querySelectorAll<HTMLElement>('*');
-  const b = to.querySelectorAll<HTMLElement>('*');
-  for (let i = 0; i < a.length; i++) {
-    if (a[i].scrollTop || a[i].scrollLeft) {
-      b[i].scrollTop = a[i].scrollTop;
-      b[i].scrollLeft = a[i].scrollLeft;
-    }
-  }
-}
-
-function pushAway(page: HTMLElement): void {
-  const rect = page.getBoundingClientRect();
-  const ghost = page.cloneNode(true) as HTMLElement;
-  // La copie ne doit répondre à rien de ce qui cherche LE conteneur de scroll
-  // (TopBarAutoHide, /series), ni au clavier, ni aux lecteurs d'écran.
-  ghost.removeAttribute('data-scroll-container');
-  ghost.setAttribute('aria-hidden', 'true');
-  ghost.inert = true;
-  Object.assign(ghost.style, {
-    position: 'fixed',
-    left: `${rect.left}px`,
-    top: `${rect.top}px`,
-    right: 'auto',
-    bottom: 'auto',
-    width: `${rect.width}px`,
-    height: `${rect.height}px`,
-    // Sous le hero (z-30) et la nav-bar (z-50) : ce sont eux qui poussent.
-    zIndex: '20',
-    pointerEvents: 'none',
-    transition: 'none',
-    transformOrigin: '0 0',
-    willChange: 'transform',
-  });
-  document.body.appendChild(ghost);
-  copyScroll(page, ghost);
-  page.style.visibility = 'hidden';
-
-  const travel = window.innerWidth * EXIT_TRAVEL;
-  exiting = true;
-  let removed = false;
-  const remove = () => {
-    if (removed) return;
-    removed = true;
-    exiting = false;
-    stop();
-    ghost.remove();
-  };
-  const stop = animate(
-    EXIT_DURATION,
-    (p) => {
-      const x = travel * CONTENT.at(p);
-      const skew = -EXIT_SKEW * CONTENT.strain(p);
-      ghost.style.transform = `translate3d(${x}px, 0, 0) skewX(${skew}deg)`;
-    },
-    remove
-  );
-  // Filets qui ne dépendent PAS de l'horloge d'animation (onglet en
-  // arrière-plan : rAF gelé). La copie ne reste jamais à l'écran.
-  window.setTimeout(remove, EXIT_DURATION * 1000 + 400);
-
-  // L'original masqué n'est démonté QUE par l'arrivée sur la home. Si le
-  // visiteur a cliqué autre chose avant qu'elle n'arrive, le conteneur est
-  // réutilisé par la page suivante — encore masqué. On le rend dès que l'URL
-  // a changé alors qu'il est toujours là, ou au bout du délai si la navigation
-  // n'a jamais eu lieu. Tant que la home charge, il reste masqué : le voir
-  // revenir après l'avoir vu partir serait pire qu'un écran vide.
-  const from = location.pathname;
-  const born = performance.now();
-  const watch = window.setInterval(() => {
-    const expired = performance.now() - born > HANDOFF_TTL_MS;
-    if (page.isConnected && (location.pathname !== from || expired)) {
-      page.style.visibility = '';
+  // Vers la DROITE : la home est avant toutes les pages du menu.
+  if (page)
+    pushAway(page, 1, () => {
       pending = null;
-    }
-    if (!page.isConnected || page.style.visibility === '') window.clearInterval(watch);
-  }, 200);
+    });
 }
 
 // ─── Moitié ARRIVÉE ────────────────────────────────────────────────────────

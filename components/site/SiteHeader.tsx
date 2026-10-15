@@ -11,6 +11,7 @@ import {
   notifySamePageNav,
 } from '@/lib/site/nav';
 import { beginHomeReturn } from '@/lib/site/home-return';
+import { beginPageLeave } from '@/lib/site/page-transition';
 import { preloadImage } from '@/lib/utils/image-preload';
 
 type SiteHeaderProps = {
@@ -115,8 +116,18 @@ export function SiteHeader({ heroSrc }: SiteHeaderProps) {
                 // Cliquer le lien de la page courante doit la RAMENER À SON
                 // ÉTAT D'ACCUEIL (cf. notifySamePageNav) : Next ne remonte pas
                 // la page, son état interne survivrait sinon intact.
-                onClick={() => {
-                  if (active) notifySamePageNav(link.href);
+                onClick={(e) => {
+                  if (active) {
+                    notifySamePageNav(link.href);
+                    return;
+                  }
+                  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+                    return;
+                  }
+                  // La page part d'un côté, la suivante entre de l'autre, dans
+                  // le sens du menu (lib/site/page-transition.ts). Navigation
+                  // NON annulée : elle charge pendant la sortie.
+                  beginPageLeave(link.href);
                 }}
                 data-cursor-invert
                 // Repère de `beginHomeReturn` : les libellés dont le hero de
