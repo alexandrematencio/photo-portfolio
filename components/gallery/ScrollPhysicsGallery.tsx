@@ -280,8 +280,9 @@ export function ScrollPhysicsGallery({ photos, intro }: Props) {
         {intro}
         {/* Titre de section, CENTRÉ SUR L'ÉCRAN — d'où sa position hors du
             stage, qui est plafonné en largeur et calé à gauche. Il tombe
-            « bien sous la ligne d'horizon » sans calcul : le hero est pinné
-            sur 100svh + la course du morph, la galerie ne commence qu'après.
+            « bien sous la ligne d'horizon » sans calcul : le hero réserve
+            67svh (le blanc d'après-repli, réduit d'un tiers le 2026-10-05),
+            la galerie ne commence qu'après.
             H2 et non H1 — le H1 de la home est son titre sr-only (§5.4). */}
         <header className="gallery-heading">
           <h2 id="selected-works" className="gallery-title">

@@ -283,10 +283,19 @@ export function runEntrance({
   row,
   stacks,
   wordmark,
+  side = 1,
 }: {
   row: HTMLElement;
   stacks: HTMLElement[];
   wordmark: HTMLElement;
+  /**
+   * Bord par lequel le train entre : 1 = droite (chargement, arrivée depuis la
+   * home), -1 = gauche (arrivée depuis une page plus loin dans le menu,
+   * `lib/site/page-transition.ts`). La transition de page est IMBRIQUÉE dans
+   * cette entrée — le conteneur ne glisse pas en plus — et rien d'autre ne
+   * change : durées, freinage et lettrage sont ceux du chargement.
+   */
+  side?: 1 | -1;
 }): Entrance {
   // Le train part de HORS ÉCRAN à droite — une largeur de fenêtre pleine, la
   // même que celle qu'écrit `INITIAL_ROW_TRANSFORM`. On ne MESURE pas le bord
@@ -294,8 +303,15 @@ export function runEntrance({
   // au moment où cet appel a lieu, le rect ne dit donc plus où elle se pose.
   // Le débord ne crée pas de barre horizontale — le conteneur de scroll de la
   // page est en `overflow-x-hidden` (`FramedScroll`).
-  const travel = window.innerWidth;
-  const slack = (i: number) => Math.min(i * COUPLING_STEP, COUPLING_MAX);
+  //
+  // Par la gauche, le même train en miroir : départ à une largeur de fenêtre
+  // à gauche, et les wagons traînent à GAUCHE de leur place. La tête est
+  // alors la DERNIÈRE pile : le rang se compte depuis l'autre bout, et la
+  // fermeture de la rame court de droite à gauche (`stagger` depuis la fin).
+  const travel = window.innerWidth * side;
+  const last = stacks.length - 1;
+  const slack = (i: number) =>
+    side * Math.min((side === 1 ? i : last - i) * COUPLING_STEP, COUPLING_MAX);
 
   gsap.set(row, { x: travel });
   gsap.set(stacks, { x: (i: number) => slack(i) });
@@ -344,7 +360,7 @@ export function runEntrance({
         x: 0,
         duration: COUPLING_DUR,
         ease: 'power3.out',
-        stagger: { each: COUPLING_STAGGER },
+        stagger: { each: COUPLING_STAGGER, from: side === 1 ? 'start' : 'end' },
       },
       0
     );

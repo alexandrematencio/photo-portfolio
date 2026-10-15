@@ -3,6 +3,8 @@ import { SiteFooter } from '@/components/site/SiteFooter';
 import { FramedScroll } from '@/components/site/FramedScroll';
 import { MainPadding } from '@/components/site/MainPadding';
 import { MobileMenu } from '@/components/site/MobileMenu';
+import { PageArrival } from '@/components/site/PageArrival';
+import { ScrollThumb } from '@/components/site/ScrollThumb';
 import { TopBarAutoHide } from '@/components/site/TopBarAutoHide';
 import { CursorInvert } from '@/components/site/CursorInvert';
 import { EmailHoneypot } from '@/components/site/EmailHoneypot';
@@ -51,6 +53,12 @@ export default async function SiteLayout({
       <FramedScroll footer={<SiteFooter />}>
         <MainPadding>{children}</MainPadding>
       </FramedScroll>
+      {/* Entrée latérale de la page après un clic de nav (lib/site/page-transition.ts).
+          APRÈS FramedScroll : la page lit le témoin avant que lui ne le joue. */}
+      <PageArrival />
+      {/* Barre de défilement discrète, à la place de la native (masquée dans
+          globals.css tant que ce composant est monté). */}
+      <ScrollThumb />
     </>
   );
 }
