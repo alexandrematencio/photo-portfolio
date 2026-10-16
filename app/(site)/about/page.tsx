@@ -3,6 +3,7 @@ import { getSiteSettings } from '@/lib/sanity/queries';
 import { PortableBody } from '@/components/site/PortableBody';
 import { EDITORIAL_BODY } from '@/lib/site/typography';
 import { PageShell } from '@/components/site/PageShell';
+import { TextReveal } from '@/components/site/TextReveal';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { breadcrumbJsonLd, personJsonLd } from '@/lib/seo/jsonld';
 
@@ -41,15 +42,17 @@ export default async function AboutPage() {
         ]}
       />
       <PageShell title="ABOUT">
-        <PortableBody
-          value={aboutBody}
-          variant="editorial"
-          fallback={
-            <p className={`${EDITORIAL_BODY} whitespace-pre-line`}>
-              {BIO_FALLBACK}
-            </p>
-          }
-        />
+        <TextReveal>
+          <PortableBody
+            value={aboutBody}
+            variant="editorial"
+            fallback={
+              <p className={`${EDITORIAL_BODY} whitespace-pre-line`}>
+                {BIO_FALLBACK}
+              </p>
+            }
+          />
+        </TextReveal>
       </PageShell>
     </>
   );
