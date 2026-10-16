@@ -62,7 +62,10 @@ export function EmailAddressText() {
   useEffect(() => {
     setText(`${LOCAL_PART}@${DOMAIN}`);
   }, []);
-  return <>{text}</>;
+  // `data-reveal-atomic` : ce texte change APRÈS le montage. La révélation de
+  // texte (`lib/motion/text-reveal.ts`) l'anime donc d'un bloc, sans le
+  // découper — un nœud remplacé recevrait la mise à jour hors du document.
+  return <span data-reveal-atomic>{text}</span>;
 }
 
 export function ProtectedEmail({
