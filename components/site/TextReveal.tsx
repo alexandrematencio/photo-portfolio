@@ -10,6 +10,10 @@ import { peekPageArrival } from '@/lib/site/page-transition';
  * l'adopte n'a rien d'autre à brancher. Les nombres de `.tr-u` sont ceux de
  * `FROM` (`text-reveal.ts`) — les deux bougent ensemble.
  *
+ * Un caractère se brouille par son OMBRE, texte rendu transparent, jamais par
+ * `filter` : un filtre par lettre, c'est un calque par lettre (`paint`, dans
+ * `text-reveal.ts`). Seuls les atomiques (logo, SVG) gardent `filter`.
+ *
  * L'animation de secours rend le texte si le JS ne prend jamais la main
  * (bundle en erreur) : 3 s, puis visible. `live` et `done` l'annulent.
  * Les mots sont insécables : des caractères en `inline-block` offriraient une
@@ -24,8 +28,13 @@ const STYLES = `
 [data-text-reveal] .tr-w { white-space: nowrap }
 [data-text-reveal] .tr-w > .tr-u { display: inline-block }
 [data-text-reveal] a * { text-decoration: inherit }
-[data-text-reveal='live'] .tr-u { transform: scale(1.8, 0.1); filter: blur(10px); opacity: 0.5 }
-[data-text-reveal='live'] .tr-u.tr-on { transform: none; filter: none; opacity: 1 }
+[data-text-reveal='live'] .tr-u:not(.tr-on) { transform: scale(1.8, 0.1); filter: blur(10px); opacity: 0.5 }
+[data-text-reveal='live'] .tr-w > .tr-u:not(.tr-on) {
+  filter: none; opacity: 1;
+  -webkit-text-fill-color: transparent; text-decoration-color: transparent;
+  text-shadow: 0 0 20px color-mix(in srgb, currentColor 50%, transparent);
+}
+[data-text-reveal='live'] .tr-far { visibility: hidden }
 `;
 
 /**
