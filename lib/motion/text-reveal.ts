@@ -44,6 +44,15 @@ const LOAD_RATE = 280;
 /** Lissage du front quand le défilement le repousse (l'équivalent du `scrub`). */
 const SCROLL_DURATION = 0.6;
 
+/**
+ * Profondeur peinte sous le bas de l'écran, en hauteurs d'écran. Au-delà, les
+ * caractères ne sont pas peints du tout (`tr-far`, `visibility: hidden`, sans
+ * effet sur la mise en page) : Chrome rastérise d'avance plusieurs écrans sous
+ * la vue, et 1 251 glyphes flous rastérisés d'un coup bloquaient le GPU
+ * ~250 ms à l'arrivée, en plein glissé de la transition de page.
+ */
+const REACH = 1;
+
 const FROM = { scaleX: 1.8, scaleY: 0.1, blur: 10, opacity: 0.5 };
 
 /**
@@ -56,7 +65,11 @@ const ATOMIC = 'img, svg, [data-reveal-atomic]';
 /** Jamais découpé, jamais animé : texte invisible ou non rendu. */
 const SKIP = '.sr-only, noscript, style, script';
 
-type Unit = { el: HTMLElement; word: number };
+/**
+ * `glyph` : un caractère découpé, brouillé par `text-shadow` (voir `paint`).
+ * Sinon un atomique (image, SVG), le seul à garder `filter`.
+ */
+type Unit = { el: HTMLElement; word: number; glyph: boolean };
 type Line = { first: number; last: number; bottom: number };
 
 const segmenter =
@@ -106,7 +119,7 @@ function split(root: HTMLElement): { units: Unit[]; undo: () => void } {
   for (const node of nodes) {
     if (node instanceof Element) {
       node.classList.add('tr-u');
-      units.push({ el: node as HTMLElement, word: word++ });
+      units.push({ el: node as HTMLElement, word: word++, glyph: false });
       restores.push(() => node.classList.remove('tr-u'));
       continue;
     }
@@ -128,7 +141,7 @@ function split(root: HTMLElement): { units: Unit[]; undo: () => void } {
         c.className = 'tr-u';
         c.textContent = g;
         w.append(c);
-        units.push({ el: c, word });
+        units.push({ el: c, word, glyph: true });
       }
       visual.append(w);
       word++;
@@ -191,17 +204,34 @@ function frontFor(units: Unit[], lines: Line[], scroller: HTMLElement): number {
   return end + TAIL;
 }
 
-function paint(el: HTMLElement, p: number) {
+/**
+ * Le flou d'un caractère est une OMBRE, pas un filtre. `filter: blur()` et
+ * `opacity < 1` dessinent chaque boîte dans un calque à part (`saveLayer`),
+ * puis la composent : 1 251 calques flous, re-rastérisés à chaque image de
+ * l'animation — la page ramait (Alexandre, 2026-10-16 ; trace Chrome : 1 880 ms
+ * de rastérisation contre 20 sans l'effet). Une ombre floue se dessine
+ * directement avec le glyphe, sans calque : le texte lui-même est rendu
+ * transparent (`-webkit-text-fill-color`, cf. `STYLES` de `TextReveal`), son
+ * ombre porte la forme, le flou et la demi-teinte. Le rayon d'une ombre vaut
+ * deux écarts-types, celui de `blur()` un seul : d'où `2 ×`.
+ */
+function paint({ el, glyph }: Unit, p: number) {
   if (p >= 1) {
-    el.style.transform = el.style.filter = el.style.opacity = '';
+    el.style.transform = el.style.filter = el.style.opacity = el.style.textShadow = '';
     el.classList.add('tr-on');
     return;
   }
   const sx = FROM.scaleX + (1 - FROM.scaleX) * p;
   const sy = FROM.scaleY + (1 - FROM.scaleY) * p;
+  const blur = FROM.blur * (1 - p);
+  const opacity = FROM.opacity + (1 - FROM.opacity) * p;
   el.style.transform = `scale(${sx}, ${sy})`;
-  el.style.filter = `blur(${FROM.blur * (1 - p)}px)`;
-  el.style.opacity = String(FROM.opacity + (1 - FROM.opacity) * p);
+  if (glyph) {
+    el.style.textShadow = `0 0 ${2 * blur}px color-mix(in srgb, currentColor ${opacity * 100}%, transparent)`;
+  } else {
+    el.style.filter = `blur(${blur}px)`;
+    el.style.opacity = String(opacity);
+  }
 }
 
 export type TextRevealOptions = {
@@ -222,6 +252,18 @@ export function attachTextReveal(
   const { units, undo } = split(root);
   let lines = measureLines(units, scroller);
 
+  /** Les caractères à partir de `painted` portent `tr-far` : rien n'est peint. */
+  const reachOf = () => {
+    const limit = scroller.scrollTop + scroller.clientHeight * (1 + REACH);
+    return lines.find((l) => l.bottom > limit)?.first ?? units.length;
+  };
+  let painted = reachOf();
+  for (let i = painted; i < units.length; i++) units[i].el.classList.add('tr-far');
+  const extend = () => {
+    const end = reachOf();
+    for (; painted < end; painted++) units[painted].el.classList.remove('tr-far');
+  };
+
   const state = { t: 0 };
   let target = 0;
   /** Tout ce qui est avant `settled` est net et nettoyé : on n'y revient plus. */
@@ -231,7 +273,7 @@ export function attachTextReveal(
     const t = state.t;
     for (let i = settled; i < units.length && i < t; i++) {
       const p = Math.min(1, (t - i) / TAIL);
-      paint(units[i].el, p);
+      paint(units[i], p);
       if (p >= 1 && i === settled) settled++;
     }
   };
@@ -255,7 +297,10 @@ export function attachTextReveal(
   let frame = 0;
   const onScroll = () => {
     cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(() => advance(SCROLL_DURATION, 'power2.out'));
+    frame = requestAnimationFrame(() => {
+      extend();
+      advance(SCROLL_DURATION, 'power2.out');
+    });
   };
   scroller.addEventListener('scroll', onScroll, { passive: true });
 
@@ -275,8 +320,8 @@ export function attachTextReveal(
     scroller.removeEventListener('scroll', onScroll);
     gsap.killTweensOf(state);
     for (const { el } of units) {
-      el.style.transform = el.style.filter = el.style.opacity = '';
-      el.classList.remove('tr-on');
+      el.style.transform = el.style.filter = el.style.opacity = el.style.textShadow = '';
+      el.classList.remove('tr-on', 'tr-far');
     }
     undo();
   };
