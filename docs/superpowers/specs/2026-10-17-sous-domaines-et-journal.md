@@ -33,7 +33,12 @@ Décisions d'Alexandre du 2026-10-17. Ce document fixe la cible et l'ordre des
 1 bis. **Le journal ouvert au public** — EN LIGNE le 2026-10-17 : « Journal »
    et « All sites » dans le menu, Contact + Socials en une page (`/contact`,
    encart sur /about), `/socials` en 301, `blog.amatencio.com` en 302 vers
-   `/journal/`. Le journal reste `noindex` jusqu'à `blog.amatencio.com`.
+   `/journal/`.
+1 ter. **Le journal sur `blog.amatencio.com`** — EN LIGNE le 2026-10-17, indexé.
+   Pas de monorepo à dossiers : le même dépôt produit deux builds
+   (`SITE_TARGET=blog`, cf. `docs/JOURNAL-CLAUDE.md`). L'étape 3 se réduit
+   donc au jour où les sites divergeront assez pour mériter chacun leur
+   application.
    **Le portfolio reste sur `amatencio.com`** (décision Alexandre) : il ne
    déménage qu'avec la page d'accueil, en un seul mouvement — la racine sert
    alors l'accueil, le reste part en 301 vers `photo.` (étape 4). Caddyfile
