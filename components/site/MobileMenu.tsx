@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { GlyphLogo } from './GlyphLogo';
+import { SitesList } from './SitesMenu';
 import { cn } from '@/lib/utils/cn';
 import {
   ACTIVE_FILL_MOBILE,
@@ -26,25 +27,46 @@ import {
  * - Open: full-screen overlay on the `--color-bg-raised` rung. Top bar 32 px above, page gutter on the sides, with the cobalt
  *   glyph on the left and an X close icon on the right. Nav items pushed to bottom-left with
  *   page-gutter padding (left), 32 px (bottom), gap 32 px, 48 px / bold.
- * - Items: Home, puis la nav principale (Series, Archives, About, Contact, Socials).
+ * - Items: Home, puis la nav principale (Series, Archives, About, Journal, All sites).
  *
  * Rendered once at the layout level — both home and editorial pages share this single instance.
  */
 
 // « Home » n'existe que dans ce drawer (le glyph joue ce rôle sur desktop) :
 // la liste est composée dans `lib/site/nav.ts`, jamais ici. Le lien Instagram
-// qui vivait là a été retiré le 2026-08-24 — les réseaux vivent sur /socials.
+// qui vivait là a été retiré le 2026-08-24 — les réseaux vivent sur /contact.
 
 const MOBILE_LINKS = MOBILE_NAV_LINKS;
 
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
+  const [sitesOpen, setSitesOpen] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
   // Close on route change so navigating from inside the menu dismisses it.
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  // Le tiroir rouvre toujours replié : « All sites » est un détour, pas un état.
+  useEffect(() => {
+    if (!open) setSitesOpen(false);
+  }, [open]);
+
+  // La colonne est calée en BAS de l'écran : dépliée, la liste des sites
+  // passe sous le bord. Le tiroir défile jusqu'à elle à la fin du dépliage
+  // (300 ms), sans animation si le mouvement est réduit.
+  useEffect(() => {
+    if (!sitesOpen) return;
+    const t = window.setTimeout(() => {
+      const el = drawerRef.current;
+      if (!el) return;
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      el.scrollTo({ top: el.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [sitesOpen]);
 
   // ESC closes + body scroll lock while open.
   useEffect(() => {
@@ -94,6 +116,7 @@ export function MobileMenu() {
           edge and the nav to the bottom edge (per Pencil mockup `jPTyJ`). */}
       {open && (
         <div
+          ref={drawerRef}
           id="mobile-menu"
           role="dialog"
           aria-modal="true"
@@ -105,7 +128,7 @@ export function MobileMenu() {
           // différentes. Le marqueur `data-scheme="light"` qui l'accompagnait a
           // disparu avec le mode immersif : plus rien n'inverse les encres du
           // site, il n'y a donc plus d'inversion à laquelle échapper.
-          className="fixed inset-0 z-[60] md:hidden flex flex-col justify-between"
+          className="fixed inset-0 z-[60] md:hidden flex flex-col justify-between overflow-y-auto"
           style={{ backgroundColor: 'var(--color-bg-raised)' }}
         >
           {/* Top bar — 32 px vertical, page gutter on the sides, glyph left + X close right */}
@@ -170,6 +193,57 @@ export function MobileMenu() {
                 // deux grammaires.
                 active && 'bg-[var(--color-active-bg)]'
               );
+              // « All sites » : un tiroir dans le tiroir. La liste se déplie
+              // SOUS le libellé (grille 0fr → 1fr, 300 ms, le contenu 60 ms
+              // après — même geste que les lignes de la page d'accueil du
+              // journal) et pousse la colonne vers le haut ; le tiroir défile
+              // si un petit écran n'a plus la place.
+              if (link.menu === 'sites') {
+                return (
+                  <div key={link.label} className="flex flex-col">
+                    <button
+                      type="button"
+                      aria-expanded={sitesOpen}
+                      aria-controls="mobile-sites"
+                      onClick={() => setSitesOpen((v) => !v)}
+                      style={itemStyle}
+                      className={cn(itemClass, 'flex items-center text-left')}
+                    >
+                      {link.label}
+                      <svg
+                        aria-hidden
+                        viewBox="0 0 12 12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2.2}
+                        className={cn(
+                          'transition-[rotate] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+                          sitesOpen && 'rotate-180'
+                        )}
+                        style={{ width: '0.46em', height: '0.46em', marginLeft: '0.2em', marginTop: '0.06em' }}
+                      >
+                        <path d="M1.5 4 6 8.5 10.5 4" />
+                      </svg>
+                    </button>
+                    <div
+                      id="mobile-sites"
+                      className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
+                      style={{ gridTemplateRows: sitesOpen ? '1fr' : '0fr' }}
+                      inert={!sitesOpen}
+                    >
+                      <div className="min-h-0 overflow-hidden">
+                        <SitesList
+                          onNavigate={() => setOpen(false)}
+                          className={cn(
+                            'transition-opacity duration-300 ease-out motion-reduce:transition-none',
+                            sitesOpen ? 'opacity-100 delay-[60ms]' : 'opacity-0'
+                          )}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
               return (
                 <Link
                   key={link.href}

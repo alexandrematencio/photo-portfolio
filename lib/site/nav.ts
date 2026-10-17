@@ -17,6 +17,13 @@
 export type NavLink = {
   href: string;
   label: string;
+  /**
+   * `'sites'` : l'entrée n'est pas un lien mais le déclencheur du menu
+   * « All sites » (`SitesMenu`). Elle garde sa place dans la liste — le morph
+   * du hero et `measureNavBar` comptent les entrées par leur rang — et son
+   * `href` vide ne correspond à aucune page, donc jamais active.
+   */
+  menu?: 'sites';
 };
 
 /**
@@ -32,13 +39,47 @@ export type NavLink = {
  * celui de TOUTES les surfaces de nav ; il n'y a pas de variante par surface.
  * Le morph du hero mesure les largeurs rendues (`getBoundingClientRect`) et
  * répartit l'espace restant : il suit l'ordre sans rien à mettre à jour.
+ *
+ * 2026-10-17 : le journal ouvre au public. « Journal » prend la place de
+ * « Contact », et « Socials » cède la sienne à « All sites », le menu des
+ * sites d'amatencio.com. Contact et Socials ne font plus qu'une page,
+ * `/contact`, accessible depuis /about (demande Alexandre). Cinq entrées,
+ * comme avant : la géométrie du morph ne change que par les largeurs.
  */
 export const NAV_LINKS: NavLink[] = [
   { href: '/series', label: 'Series' },
   { href: '/archives', label: 'Archives' },
   { href: '/about', label: 'About' },
-  { href: '/contact', label: 'Contact' },
-  { href: '/socials', label: 'Socials' },
+  { href: '/journal', label: 'Journal' },
+  { href: '', label: 'All sites', menu: 'sites' },
+];
+
+/**
+ * Les sites d'amatencio.com, dans le menu « All sites ». `href: null` : site
+ * annoncé mais pas encore en ligne — affiché grisé, avec « Soon », jamais un
+ * lien mort.
+ *
+ * Le journal vit encore DANS ce site (`/journal`) : `blog.amatencio.com` y
+ * renvoie en attendant le monorepo (docs/superpowers/specs/
+ * 2026-10-17-sous-domaines-et-journal.md). Le lien va donc droit à la page,
+ * sans détour par la redirection.
+ */
+export type SiteEntry = {
+  label: string;
+  host: string;
+  href: string | null;
+  external?: boolean;
+  /** Chemins de CE site qui appartiennent à l'entrée (voyant « vous êtes ici »). */
+  owns?: (pathname: string) => boolean;
+};
+
+const isJournal = (pathname: string) => /^\/journal(\/|$)/.test(pathname);
+
+export const SITES: SiteEntry[] = [
+  { label: 'Photography', host: 'photo.amatencio.com', href: '/', owns: (p) => !isJournal(p) },
+  { label: 'Journal', host: 'blog.amatencio.com', href: '/journal/', owns: isJournal },
+  { label: 'Agency', host: 'aaxlo.com', href: 'https://www.aaxlo.com/', external: true },
+  { label: 'Design', host: 'design.amatencio.com', href: null },
 ];
 
 /**

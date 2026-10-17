@@ -50,14 +50,16 @@ const BODY_PAGES: (PageDoc & { intro: string })[] = [
     title: 'Contact',
     path: '/contact/',
     intro:
-      'Le texte complet de la page /contact — titre « CONTACT » mis à part, tout ce qui s’affiche vient d’ici.',
+      'Le début de la page /contact — titre « CONTACT » mis à part. Les réseaux (document suivant) s’affichent à la suite. Le même texte sert l’encart Contact de /about.',
   },
   {
+    // Socials a été fondue dans /contact le 2026-10-17 : le document reste
+    // (un brouillon et un Publish à lui), affiché à la suite de `contactPage`.
     type: 'socialsPage',
-    title: 'Socials',
-    path: '/socials/',
+    title: 'Contact — réseaux',
+    path: '/contact/',
     intro:
-      'Le texte complet de la page /socials — les liens vers les plateformes s’écrivent ici, en annotations de lien.',
+      'La fin de la page /contact, après le texte de Contact : les liens vers les plateformes, en annotations de lien. Aussi repris dans l’encart Contact de /about.',
   },
   {
     type: 'legalPage',

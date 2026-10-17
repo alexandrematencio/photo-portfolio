@@ -401,3 +401,37 @@ export function pageTitleFit(title: string): number {
     .reduce((max, word) => Math.max(max, wordWidthEm(word)), 0);
   return widest > PAGE_TITLE_FIT_EM ? PAGE_TITLE_FIT_EM / widest : 1;
 }
+
+/**
+ * ══ JOURNAL — les registres qu'un article ajoute à l'échelle éditoriale.
+ * Maquette du 2026-10-17 (`/journal/prototype`), à arbitrer avec Alexandre.
+ */
+
+/**
+ * CITATION EXTRAITE — une phrase de l'article remontée en exergue, comme en
+ * presse. Helvetica (pas de `font-sans`) : c'est un objet de MISE EN PAGE,
+ * pas du texte à lire une seconde fois, il parle donc la voix des titres.
+ * Casse de phrase et graisse 700, entre le H2 (capitales) et le chapô
+ * (Inter) : elle ne se confond avec aucun des deux. Jamais d'italique (§5.2),
+ * jamais d'orange (§4.3) — l'exergue tient par le corps seul.
+ */
+export const EDITORIAL_PULLQUOTE =
+  'text-[28px] md:text-[44px] font-bold tracking-[-0.02em] leading-[1.08] text-[var(--color-fg)] [text-wrap:balance]';
+
+/**
+ * NOTE EN MARGE — la référence posée à côté du paragraphe qui l'appelle.
+ * Registre de légende : Helvetica 13 px, gris de métadonnée. Le gris est
+ * permis ici parce que ce n'est pas du corps (brand book §4 : `fg-muted`
+ * interdit au CORPS sous 16 px, prescrit pour les légendes).
+ */
+export const EDITORIAL_SIDENOTE =
+  'text-[13px] font-normal leading-[1.45] text-[var(--color-fg-muted)]';
+
+/**
+ * APPEL DE NOTE — le chiffre en exposant dans le corps. Noir et non orange :
+ * à ce corps l'orange tombe sous le seuil texte (§4.2). L'état « note
+ * active » est porté par l'aplat `--color-active-bg` derrière le chiffre et
+ * par le voyant de la note en marge, pas par la couleur du chiffre.
+ */
+export const NOTE_CALL =
+  'text-[0.62em] font-bold leading-none tabular-nums align-super no-underline';

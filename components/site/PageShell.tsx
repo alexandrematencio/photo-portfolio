@@ -50,9 +50,16 @@ const EDITORIAL_WIDTH = 1107;
  */
 const SUBTITLE_GAP = 12;
 
-export function PageTitle({ children }: { children: ReactNode }) {
+export function PageTitle({
+  children,
+  size = 'var(--page-title-size)',
+}: {
+  children: ReactNode;
+  /** Expression CSS du corps — jamais un nombre (cf. ⚠️ plus haut). Défaut : le corps unique du site. */
+  size?: string;
+}) {
   return (
-    <h1 className={PAGE_TITLE} style={{ fontSize: 'var(--page-title-size)' }}>
+    <h1 className={PAGE_TITLE} style={{ fontSize: size }}>
       {children}
     </h1>
   );
@@ -65,8 +72,26 @@ export function PageShell({
   bleed = false,
   controlBand = false,
   width = EDITORIAL_WIDTH,
+  titleSize,
+  centered = false,
 }: {
   title: ReactNode;
+  /**
+   * Corps du titre quand ce n'est pas un MOT de page mais une PHRASE — un
+   * titre d'article du journal fait douze mots, et au corps unique il
+   * remplissait neuf lignes d'un téléphone. Toujours dérivé de
+   * `--page-title-size`, jamais un nombre.
+   */
+  titleSize?: string;
+  /**
+   * `true` : la colonne (même largeur) est centrée dans la fenêtre au lieu
+   * d'être calée à gauche. Réservé au journal (demande Alexandre,
+   * 2026-10-17) — une exception assumée à la colonne de 1107 alignée à
+   * gauche du brand book §10.2, qui reste la règle des autres pages.
+   * `marginInline` en style inline : le reset `* { margin: 0 }` avale les
+   * utilities.
+   */
+  centered?: boolean;
   /** Ligne d'étiquette sous le titre (compteur, résumé). Facultative. */
   subtitle?: ReactNode;
   children: ReactNode;
@@ -103,6 +128,8 @@ export function PageShell({
         gap: controlBand ? PAGE_CONTROLS_GAP : PAGE_TITLE_GAP,
         paddingInline: bleed ? undefined : 'var(--page-gutter)',
         maxWidth: bleed ? undefined : maxWidth,
+        marginInline: centered && !bleed ? 'auto' : undefined,
+        width: centered && !bleed ? '100%' : undefined,
       }}
     >
       <header
@@ -114,7 +141,7 @@ export function PageShell({
           maxWidth: bleed ? maxWidth : undefined,
         }}
       >
-        <PageTitle>{title}</PageTitle>
+        <PageTitle size={titleSize}>{title}</PageTitle>
         {subtitle}
       </header>
       {children}

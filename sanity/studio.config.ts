@@ -194,6 +194,10 @@ export const studioConfig = defineConfig({
           return slug ? `${base}/archives/#series-${slug}` : prev;
         case 'siteSettings':
           return `${base}/`;
+        case 'post':
+          return slug ? `${base}/journal/${slug}/` : prev;
+        case 'journalSeries':
+          return `${base}/journal/`;
         default: {
           const page = PAGE_DOCS.find((p) => p.type === document._type);
           return page ? `${base}${page.path}` : prev;

@@ -10,6 +10,7 @@ import { SPLASH_REVEAL_EVENT, type SplashRevealDetail } from './SplashScreen';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import type { HeroImages } from '@/lib/site/hero';
 import { NAV_LINKS } from '@/lib/site/nav';
+import { SitesMenu } from './SitesMenu';
 import { lockBodyScroll, unlockBodyScroll } from '@/lib/utils/scrollLock';
 
 /**
@@ -57,7 +58,7 @@ export function HomeHeroSplash({ hero }: HomeHeroSplashProps) {
   const logoBlockRef = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLHeadingElement>(null);
   const photoRef = useRef<HTMLDivElement>(null);
-  const navItemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
+  const navItemsRef = useRef<(HTMLElement | null)[]>([]);
   const arrowRef = useRef<HTMLDivElement>(null);
   const spacerRef = useRef<HTMLDivElement>(null);
   const staticGlyphRef = useRef<HTMLDivElement>(null);
@@ -111,7 +112,7 @@ export function HomeHeroSplash({ hero }: HomeHeroSplashProps) {
 
         const photo = photoRef.current;
         const arrow = arrowRef.current;
-        const navItems = navItemsRef.current.filter(Boolean) as HTMLAnchorElement[];
+        const navItems = navItemsRef.current.filter(Boolean) as HTMLElement[];
 
         // Read the photo bottom in viewport coords — that's where every nav
         // item is "laid" from. We don't need to re-read it per-item: all
@@ -578,7 +579,21 @@ export function HomeHeroSplash({ hero }: HomeHeroSplashProps) {
           aria-label="Main navigation"
           className="pointer-events-auto hidden md:flex flex-col items-center gap-2 md:gap-3"
         >
-          {NAV_LINKS.map((link, i) => (
+          {NAV_LINKS.map((link, i) =>
+            link.menu === 'sites' ? (
+              // « All sites » : mesuré et déplacé par le morph comme un lien.
+              <SitesMenu
+                key={link.label}
+                label={link.label}
+                ref={(el) => {
+                  navItemsRef.current[i] = el;
+                }}
+                data-cursor-invert
+                data-cursor-negative
+                className="text-2xl md:text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none motion-reduce:transition-none whitespace-nowrap"
+                style={{ opacity: 0 }}
+              />
+            ) : (
             <Link
               key={link.href}
               href={link.href}
@@ -593,7 +608,8 @@ export function HomeHeroSplash({ hero }: HomeHeroSplashProps) {
             >
               {link.label}
             </Link>
-          ))}
+            )
+          )}
         </nav>
       </div>
 

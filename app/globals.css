@@ -259,6 +259,52 @@
   }
 }
 
+/* Cellules du bilan d'un article du journal (`VerdictTable`). Même montage
+   que le footer, pour la même raison : un tableau au-dessus de `md`, une
+   pile de fiches en dessous — deux paddings, donc une règle unlayered. */
+[data-verdict-cell] {
+  padding: 0;
+}
+[data-verdict-row] {
+  padding-block: 16px;
+}
+
+@media (min-width: 48rem) {
+  [data-verdict-cell] {
+    padding: 14px 24px 14px 0;
+  }
+  [data-verdict-cell]:last-child {
+    padding-right: 0;
+  }
+  [data-verdict-row] {
+    padding-block: 0;
+  }
+}
+
+/* Encart Contact de /about (`ContactAside`) : la variante `default` de
+   `PortableBody` espace ses paragraphes en `mb-6`, que le reset avale. */
+[data-contact-aside] .prose-content > * + * {
+  margin-top: 12px;
+}
+
+/* Panneau « All sites » (`SitesMenu`) : il descend de 6 px en apparaissant,
+   200 ms en expo.out — une entrée de petit panneau, qui ne retarde rien.
+   Pas de sortie animée : un clic ailleurs doit rendre la page tout de suite. */
+@keyframes sites-panel-in {
+  from {
+    opacity: 0;
+    translate: 0 -6px;
+  }
+}
+[data-sites-panel] {
+  animation: sites-panel-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-sites-panel] {
+    animation: none;
+  }
+}
+
 /* ══ CADRE DE PAGE ════════════════════════════════════════════════════════
    Les trois nombres qui font qu'une page ressemble à la suivante : la
    gouttière latérale, le corps du titre, l'écart sous le titre. Ils vivent
@@ -359,6 +405,9 @@
   --page-title-size: min(68px, (100vw - 2 * var(--page-gutter)) / 5.25);
   --page-air-top: 32px;
   --editorial-measure: 680px;
+  /* Titre d'ARTICLE du journal, en fraction du corps de page : une phrase de
+     douze mots n'est pas un mot de page (PageShell `titleSize`). */
+  --article-title-scale: 0.6;
 }
 
 @media (min-width: 48rem) {
@@ -366,6 +415,7 @@
     --page-gutter: 32px;
     --page-title-size: 96px;
     --page-air-top: 64px;
+    --article-title-scale: 0.75;
   }
 }
 

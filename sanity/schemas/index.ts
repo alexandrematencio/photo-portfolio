@@ -4,6 +4,7 @@ import { siteSettingsSchema } from './siteSettings';
 import { funnelCurationSchema } from './funnelCuration';
 import { pageSchemas } from './pages';
 import { styleSchema, cameraSchema, lensSchema } from './taxonomies';
+import { journalSchemas } from './journal';
 
 export const schemaTypes = [
   photoSchema,
@@ -14,4 +15,5 @@ export const schemaTypes = [
   siteSettingsSchema,
   funnelCurationSchema,
   ...pageSchemas,
+  ...journalSchemas,
 ];

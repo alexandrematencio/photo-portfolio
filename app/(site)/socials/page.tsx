@@ -1,37 +1,18 @@
-import { buildMetadata } from '@/lib/seo/metadata';
-import { getSiteSettings } from '@/lib/sanity/queries';
-import { PortableBody } from '@/components/site/PortableBody';
-import { EDITORIAL_BODY } from '@/lib/site/typography';
-import { PageShell } from '@/components/site/PageShell';
+import type { Metadata } from 'next';
+import { LegacyRedirect } from '@/components/site/LegacyRedirect';
 
-export const metadata = buildMetadata({
+/**
+ * Ancienne page Socials, fondue dans /contact le 2026-10-17 (demande
+ * Alexandre) : les réseaux sont une façon de prendre contact. Le serveur
+ * (Caddy) répond déjà 301 sur cette adresse ; ce stub ne sert qu'au
+ * développement local et à un hébergement sans redirections serveur.
+ * `noindex` : /contact est la seule canonique.
+ */
+export const metadata: Metadata = {
   title: 'Socials',
-  description:
-    'Where to find Alexandre Matencio across social platforms.',
-  path: '/socials',
-});
+  robots: { index: false, follow: true },
+};
 
-export const revalidate = 300;
-
-// Fallback only — used when `siteSettings.socialsBody` is empty. The page is
-// edited from Studio (Réglages du site → Page « Socials »). CLAUDE.md §8.5.
-const FALLBACK = `Edit this copy from Studio (Réglages du site → Page « Socials ») to take over.`;
-
-export default async function SocialsPage() {
-  const settings = await getSiteSettings();
-  const body = settings?.socialsBody;
-
-  return (
-    <PageShell title="SOCIALS">
-      <PortableBody
-        value={body}
-        variant="editorial"
-        fallback={
-          <p className={`${EDITORIAL_BODY} whitespace-pre-line`}>
-            {FALLBACK}
-          </p>
-        }
-      />
-    </PageShell>
-  );
+export default function LegacySocialsPage() {
+  return <LegacyRedirect to="/contact" />;
 }

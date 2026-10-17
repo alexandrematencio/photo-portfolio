@@ -89,6 +89,16 @@ export type HeroImage = {
   dimensions?: { width: number; height: number; aspectRatio: number };
 };
 
+/**
+ * Le texte de la page Contact : `contactPage` puis `socialsPage`, bout à bout
+ * (2026-10-17 — Socials fondue dans Contact). Deux documents gardés exprès :
+ * chacun son brouillon et son Publish (CLAUDE.md §8.5), et rien à migrer.
+ * Consommé par /contact et par l'encart de /about.
+ */
+export function contactBlocks(settings: SiteSettings | null | undefined): unknown[] {
+  return [...(settings?.contactBody ?? []), ...(settings?.socialsBody ?? [])];
+}
+
 export type SiteSettings = {
   hero?: {
     defaultImage?: HeroImage;

@@ -1,0 +1,294 @@
+import Link from 'next/link';
+import { Fragment, type CSSProperties, type ReactNode } from 'react';
+import {
+  EDITORIAL_ANNEX,
+  EDITORIAL_BODY,
+  EDITORIAL_H2,
+  EDITORIAL_LEAD,
+  EDITORIAL_PULLQUOTE,
+  EDITORIAL_SIDENOTE,
+  MICRO_LABEL,
+} from '@/lib/site/typography';
+import { cn } from '@/lib/utils/cn';
+import type { Article, ArticleSummary, Inline, InlineMark } from '@/lib/journal/types';
+import { StateDot } from '@/components/site/StateDot';
+import { DraftLabel, NoteCall, NoteRow, NotesProvider, type RowNote } from './Notes';
+import { LoopFigure } from './LoopFigure';
+import { VerdictTable } from './VerdictTable';
+import { DataTable } from './DataTable';
+
+/**
+ * Corps d'un article du journal (brand book §14). Rythme vertical repris de
+ * `RHYTHM` (PortableBody) — chapô 40, courant 24, H2 64 / 24 — et un cran
+ * ajouté pour les objets que l'article introduit (exergue, figure, tableau) :
+ * 64 de part et d'autre. Marges en style inline : le reset `* { margin: 0 }`
+ * avale les utilities (CLAUDE.md §7.5–7.8).
+ */
+const RHYTHM = { lead: 40, body: 24, h2Top: 64, h2Bottom: 24, object: 64 } as const;
+
+/** Largeur d'une exergue : plus large que la mesure, moins que la colonne. */
+const PULLQUOTE_MAX = 920;
+
+const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
+
+/**
+ * Espaces insécables de la typographie française : un « ou un : ne doit
+ * jamais finir seul en bout de ligne (constaté sur téléphone, 390 px).
+ * Fine insécable devant ; : ! ?, insécable pleine dans les guillemets.
+ */
+function frenchSpaces(text: string): string {
+  return text
+    .replace(/« /g, '«\u00a0')
+    .replace(/ »/g, '\u00a0»')
+    .replace(/ ([:;!?])/g, '\u202f$1');
+}
+
+/**
+ * Numérotation : références en chiffres dans l'ordre de leur premier appel,
+ * notes à trancher en lettres dans l'ordre du texte. Les deux suites ne se
+ * mélangent pas — une question de l'auteur n'est pas une source. Une note à
+ * trancher est identifiée par sa POSITION (bloc, rang), pas par son texte :
+ * deux questions identiques restent deux notes.
+ */
+type Numbering = { refs: Map<string, string>; drafts: Map<Inline, string> };
+
+function numberNotes(article: Article): Numbering {
+  const refs = new Map<string, string>();
+  const drafts = new Map<Inline, string>();
+  for (const block of article.blocks) {
+    if (block.type !== 'p') continue;
+    for (const node of block.inline) {
+      if (node.t === 'ref' && !refs.has(node.key)) refs.set(node.key, String(refs.size + 1));
+      if (node.t === 'draft') drafts.set(node, LETTERS[drafts.size] ?? `z${drafts.size}`);
+    }
+  }
+  return { refs, drafts };
+}
+
+function renderMarked(text: string, marks: InlineMark[], key: number): ReactNode {
+  let node: ReactNode = frenchSpaces(text);
+  if (marks.includes('cite')) {
+    // Titre d'œuvre : la graisse remplace l'italique (brand book §5.2).
+    node = <cite className="not-italic font-bold">{node}</cite>;
+  }
+  if (marks.includes('em')) node = <em>{node}</em>;
+  if (marks.includes('strong')) node = <strong>{node}</strong>;
+  return <Fragment key={key}>{node}</Fragment>;
+}
+
+function renderInline(nodes: Inline[], numbering?: Numbering): ReactNode[] {
+  return nodes.map((node, i) => {
+    if (node.t === 'text') return renderMarked(node.text, node.marks, i);
+    if (!numbering) return null;
+    if (node.t === 'ref') {
+      const id = numbering.refs.get(node.key);
+      return id ? <NoteCall key={i} id={id} kind="ref" href={`#ref-${node.key}`} /> : null;
+    }
+    const id = numbering.drafts.get(node)!;
+    return <NoteCall key={i} id={id} kind="draft" href={`#sn-${id}`} />;
+  });
+}
+
+function notesOf(nodes: Inline[], article: Article, numbering: Numbering): RowNote[] {
+  const notes: RowNote[] = [];
+  for (const node of nodes) {
+    if (node.t === 'ref') {
+      const ref = article.references.find((r) => r.key === node.key);
+      const id = numbering.refs.get(node.key);
+      if (ref && id) notes.push({ id, kind: 'ref', body: renderInline(ref.citation) });
+    } else if (node.t === 'draft') {
+      notes.push({ id: numbering.drafts.get(node)!, kind: 'draft', body: frenchSpaces(node.text) });
+    }
+  }
+  // Une référence appelée deux fois dans le même paragraphe n'a qu'une note.
+  return notes.filter((n, i) => notes.findIndex((m) => m.id === n.id) === i);
+}
+
+/**
+ * H2 d'article. La plupart des intertitres d'Alexandre sont construits
+ * « sujet : verdict » (« La douleur fabriquée : convergence nette »). Le
+ * sujet fait la dalle en capitales ; le verdict descend en étiquette sous
+ * elle — même balise, la phrase reste entière pour un lecteur d'écran.
+ */
+function ArticleH2({ text, style }: { text: string; style: CSSProperties }) {
+  const cut = text.indexOf(' : ');
+  const subject = cut === -1 ? text : text.slice(0, cut);
+  const verdict = cut === -1 ? null : text.slice(cut + 3);
+  return (
+    <h2 className={EDITORIAL_H2} style={style}>
+      {frenchSpaces(subject)}
+      {verdict && (
+        <>
+          <span className="sr-only"> : </span>
+          <span
+            className={cn(MICRO_LABEL, 'block tracking-normal leading-[1.2] text-[var(--color-fg-muted)]')}
+            style={{ marginTop: 14 }}
+          >
+            {frenchSpaces(verdict)}
+          </span>
+        </>
+      )}
+    </h2>
+  );
+}
+
+/**
+ * La série à laquelle appartient l'article, en fin de lecture : les parties
+ * dans l'ordre, la partie courante allumée (`StateDot`, l'orange dit « vous
+ * êtes ici »), les autres en liens.
+ */
+function SeriesNav({ current, parts, style }: { current: string; parts: ArticleSummary[]; style: CSSProperties }) {
+  return (
+    <nav aria-label={`La série ${parts[0]?.series}`} className="flex flex-col gap-4" style={style}>
+      <span className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
+        La série · {parts[0]?.series} · {parts.length} articles
+      </span>
+      <ol className="flex flex-col" style={{ borderTop: '1px solid var(--color-line)' }}>
+        {parts.map((p) => {
+          const here = p.slug === current;
+          return (
+            <li key={p.slug} style={{ borderBottom: '1px solid var(--color-line)' }}>
+              <Link
+                href={`/journal/${p.slug}`}
+                aria-current={here ? 'page' : undefined}
+                className="flex items-baseline gap-3 group"
+                style={{ paddingBlock: 14 }}
+              >
+                <span className="flex self-center">
+                  <StateDot on={here} />
+                </span>
+                <span className={cn(MICRO_LABEL, 'w-6 shrink-0 text-[var(--color-fg-muted)]')}>{p.part}</span>
+                <span
+                  className={cn(
+                    'text-[19px] md:text-[24px] font-bold tracking-[-0.02em] leading-[1.25]',
+                    here ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] group-hover:text-[var(--color-fg)]',
+                  )}
+                >
+                  {frenchSpaces(p.title)}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
+export function ArticleBody({ article, series }: { article: Article; series: ArticleSummary[] }) {
+  const numbering = numberNotes(article);
+  const callsOf = new Map<string, string[]>();
+  for (const [key, id] of numbering.refs) callsOf.set(key, [...(callsOf.get(key) ?? []), id]);
+  const blocks = article.blocks;
+  const leadIndex = blocks.findIndex((b) => b.type === 'p');
+
+  return (
+    <NotesProvider>
+      <div className="flex flex-col">
+        {blocks.map((block, i) => {
+          const prev = blocks[i - 1];
+          const afterObject =
+            prev && (prev.type === 'quote' || prev.type === 'figure' || prev.type === 'table' || prev.type === 'verdicts');
+          const top = (base: number) => (i === 0 ? 0 : afterObject ? RHYTHM.object : base);
+
+          switch (block.type) {
+            case 'p': {
+              const notes = notesOf(block.inline, article, numbering);
+              const isLead = i === leadIndex;
+              const after = prev?.type === 'h2' ? RHYTHM.h2Bottom : i - 1 === leadIndex ? RHYTHM.lead : RHYTHM.body;
+              if (isLead && notes.length === 0) {
+                return (
+                  <p key={i} className={EDITORIAL_LEAD} style={{ marginTop: top(0) }}>
+                    {renderInline(block.inline, numbering)}
+                  </p>
+                );
+              }
+              return (
+                <NoteRow key={i} notes={notes} style={{ marginTop: top(isLead ? 0 : after) }}>
+                  <p className={isLead ? EDITORIAL_LEAD : EDITORIAL_BODY}>{renderInline(block.inline, numbering)}</p>
+                </NoteRow>
+              );
+            }
+            case 'h2':
+              return <ArticleH2 key={i} text={block.text} style={{ marginTop: top(RHYTHM.h2Top) }} />;
+            case 'quote':
+              return (
+                // Doublon visuel d'une phrase déjà dans le texte : masqué aux
+                // lecteurs d'écran, qui la liraient deux fois.
+                <aside
+                  key={i}
+                  aria-hidden
+                  style={{
+                    marginTop: RHYTHM.object,
+                    maxWidth: PULLQUOTE_MAX,
+                    borderTop: '2px solid var(--color-fg)',
+                    paddingTop: 20,
+                  }}
+                >
+                  <p className={EDITORIAL_PULLQUOTE}>«&nbsp;{frenchSpaces(block.text)}&nbsp;»</p>
+                </aside>
+              );
+            case 'figure':
+              return <LoopFigure key={i} style={{ marginTop: RHYTHM.object }} />;
+            case 'table':
+              return <DataTable key={i} head={block.head} rows={block.rows} style={{ marginTop: top(RHYTHM.object) }} />;
+            case 'verdicts':
+              return <VerdictTable key={i} rows={block.rows} style={{ marginTop: top(RHYTHM.h2Bottom) + 16 }} />;
+            case 'draft':
+              return (
+                <aside
+                  key={i}
+                  className={cn(EDITORIAL_SIDENOTE, 'flex flex-col gap-1 max-w-[var(--editorial-measure)]')}
+                  style={{
+                    marginTop: top(RHYTHM.body),
+                    borderLeft: '2px solid var(--color-line)',
+                    paddingLeft: 14,
+                  }}
+                >
+                  <DraftLabel />
+                  <span>{frenchSpaces(block.text)}</span>
+                </aside>
+              );
+          }
+        })}
+
+        {series.length > 1 && <SeriesNav current={article.slug} parts={series} style={{ marginTop: RHYTHM.h2Top + 32 }} />}
+
+        {article.referenceCount > 0 && (
+          <>
+            <ArticleH2 text="Références" style={{ marginTop: RHYTHM.h2Top + 32 }} />
+            {article.referencesNote && (
+              <p className={cn(EDITORIAL_SIDENOTE, 'max-w-[var(--editorial-measure)]')} style={{ marginTop: RHYTHM.h2Bottom }}>
+                {article.referencesNote}
+              </p>
+            )}
+            <ul className="flex flex-col gap-3" style={{ marginTop: RHYTHM.body }}>
+              {article.references.map(({ key, citation }) => {
+                const calls = callsOf.get(key) ?? [];
+                return (
+                  <li key={key} id={`ref-${key}`} className={cn(EDITORIAL_ANNEX, 'scroll-mt-24 flex gap-3')}>
+                    <span className="flex-1">{renderInline(citation)}</span>
+                    {calls.length > 0 && (
+                      <span className="shrink-0 flex gap-2">
+                        {calls.map((n) => (
+                          <a
+                            key={n}
+                            href={`#call-${n}`}
+                            aria-label={`Retour à l'appel de note ${n}`}
+                            className={cn(MICRO_LABEL, 'relative top-[5px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')}
+                          >
+                            ↑{n}
+                          </a>
+                        ))}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+      </div>
+    </NotesProvider>
+  );
+}

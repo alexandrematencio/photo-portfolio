@@ -539,6 +539,33 @@ function taxonomiesGroupNode(S: StructureBuilder) {
     );
 }
 
+/**
+ * LE JOURNAL — rubrique à part, sous un filet : rien de ce qui suit ne
+ * touche à la photo. Deviendra son propre espace (« workspace ») quand le
+ * Studio partira sur studio.amatencio.com.
+ */
+function journalGroupNode(S: StructureBuilder) {
+  return S.listItem()
+    .title('Journal')
+    .id('journal')
+    .child(
+      S.list()
+        .title('Journal')
+        .items([
+          S.listItem()
+            .title('Articles')
+            .id('journal-posts')
+            .schemaType('post')
+            .child(
+              S.documentTypeList('post')
+                .title('Articles')
+                .defaultOrdering([{ field: 'date', direction: 'desc' }]),
+            ),
+          S.documentTypeListItem('journalSeries').title('Séries d’articles'),
+        ]),
+    );
+}
+
 export function buildStructure(
   S: StructureBuilder,
   context: StructureResolverContext
@@ -552,5 +579,7 @@ export function buildStructure(
       photosGroupNode(S, context),
       seriesGroupNode(S, context),
       taxonomiesGroupNode(S),
+      S.divider(),
+      journalGroupNode(S),
     ]);
 }

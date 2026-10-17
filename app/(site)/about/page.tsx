@@ -1,9 +1,10 @@
 import { buildMetadata } from '@/lib/seo/metadata';
-import { getSiteSettings } from '@/lib/sanity/queries';
+import { contactBlocks, getSiteSettings } from '@/lib/sanity/queries';
 import { PortableBody } from '@/components/site/PortableBody';
 import { EDITORIAL_BODY } from '@/lib/site/typography';
 import { PageShell } from '@/components/site/PageShell';
 import { TextReveal } from '@/components/site/TextReveal';
+import { ContactAside } from '@/components/site/ContactAside';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { breadcrumbJsonLd, personJsonLd } from '@/lib/seo/jsonld';
 
@@ -42,17 +43,31 @@ export default async function AboutPage() {
         ]}
       />
       <PageShell title="ABOUT">
-        <TextReveal>
-          <PortableBody
-            value={aboutBody}
-            variant="editorial"
-            fallback={
-              <p className={`${EDITORIAL_BODY} whitespace-pre-line`}>
-                {BIO_FALLBACK}
-              </p>
-            }
+        {/* Deux zones dans la colonne de 1107 : la bio, calée à gauche sur sa
+            mesure, et l'encart Contact (Contact a quitté le menu le
+            2026-10-17). Au-dessus de `lg`, l'encart prend la colonne de droite
+            que la mesure laisse libre, et reste en vue au défilement ; en
+            dessous, il passe en tête, entre le titre et la bio. L'encart est
+            PREMIER dans le DOM : c'est l'ordre lu sur téléphone. */}
+        <div className="grid grid-cols-1 gap-y-12 lg:grid-cols-[minmax(0,var(--editorial-measure))_minmax(0,1fr)] lg:gap-x-16">
+          <ContactAside
+            blocks={contactBlocks(settings)}
+            className="max-w-[var(--editorial-measure)] lg:col-start-2 lg:row-start-1 lg:sticky lg:top-8 lg:self-start lg:justify-self-end lg:w-full lg:max-w-[300px]"
           />
-        </TextReveal>
+          <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+            <TextReveal>
+              <PortableBody
+                value={aboutBody}
+                variant="editorial"
+                fallback={
+                  <p className={`${EDITORIAL_BODY} whitespace-pre-line`}>
+                    {BIO_FALLBACK}
+                  </p>
+                }
+              />
+            </TextReveal>
+          </div>
+        </div>
       </PageShell>
     </>
   );

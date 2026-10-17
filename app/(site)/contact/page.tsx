@@ -1,5 +1,5 @@
 import { buildMetadata } from '@/lib/seo/metadata';
-import { getSiteSettings } from '@/lib/sanity/queries';
+import { contactBlocks, getSiteSettings } from '@/lib/sanity/queries';
 import { PortableBody } from '@/components/site/PortableBody';
 import { ContactForm } from '@/components/site/ContactForm';
 import { CONTACT_FORM_ENABLED } from '@/lib/contact/config';
@@ -9,13 +9,17 @@ import { PageShell } from '@/components/site/PageShell';
 
 export const metadata = buildMetadata({
   title: 'Contact',
-  description: 'Get in touch with Alexandre Matencio — press, exhibitions, prints and editorial collaboration.',
+  description:
+    'Get in touch with Alexandre Matencio — press, exhibitions, prints, editorial collaboration, and where to follow the work.',
   path: '/contact',
 });
 
 export const revalidate = 300;
 
-// Repli SEUL — utilisé quand `contactPage.body` est vide (Sanity vierge,
+// Le corps est `contactPage` PUIS `socialsPage` (Socials fondue ici le
+// 2026-10-17, cf. `contactBlocks`) : un seul flux, un seul chapô.
+//
+// Repli SEUL — utilisé quand les deux documents sont vides (Sanity vierge,
 // ou dev local sans client configuré). La page est éditée depuis le Studio
 // (Réglages du site → Page « Contact »). CLAUDE.md §8.5 : ne pas faire grossir
 // ce repli pour recopier le contenu publié, c'est exactement la divergence
@@ -45,7 +49,7 @@ export default async function ContactPage() {
           Studio et le formulaire gardent donc leur propre rythme, ici. */}
       <div className="flex flex-col gap-14">
         <PortableBody
-          value={settings?.contactBody}
+          value={contactBlocks(settings)}
           variant="editorial"
           fallback={<ContactFallback />}
         />

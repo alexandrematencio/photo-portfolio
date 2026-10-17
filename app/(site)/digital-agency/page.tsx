@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { LegacyRedirect } from './LegacyRedirect';
+import { LegacyRedirect } from '@/components/site/LegacyRedirect';
 
 /**
  * Ancienne adresse de la page Digital Agency, déplacée sous /about

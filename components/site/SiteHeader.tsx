@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
 import { ACTIVE_FILL_PADDING, CONTROL_RADIUS } from '@/lib/site/controls';
 import { GlyphLogo } from './GlyphLogo';
+import { SitesMenu } from './SitesMenu';
 import {
   NAV_LINKS as LINKS,
   isSamePage,
@@ -22,7 +23,7 @@ type SiteHeaderProps = {
 
 /**
  * Nav-bar globale, identique sur toutes les pages publiques.
- * Layout : full-width flex space-between, [32px PAD_LEFT] LOGO ─ About ─ Archives ─ Contact ─ Digital Agency ─ Socials [64px PAD_RIGHT].
+ * Layout : full-width flex space-between, [32px PAD_LEFT] LOGO ─ Series ─ Archives ─ About ─ Journal ─ All sites [64px PAD_RIGHT].
  * Cohérent pixel-pour-pixel avec l'état final du morph hero de la home.
  * Masqué sur `/` (le HomeHero gère son propre morph qui devient la nav-bar).
  *
@@ -111,6 +112,20 @@ export function SiteHeader({ heroSrc }: SiteHeaderProps) {
           {/* 4 nav-links : visibles sur desktop, distribuées par space-between.
               `data-cursor-invert` déclenche le disque d'inversion (CursorInvert.tsx). */}
           {LINKS.map((link) => {
+            // « All sites » : même place, mêmes classes et mêmes repères
+            // qu'un lien (`data-nav-link` : `measureNavBar` compte les
+            // entrées par leur rang), mais un menu, jamais actif.
+            if (link.menu === 'sites') {
+              return (
+                <SitesMenu
+                  key={link.label}
+                  label={link.label}
+                  data-cursor-invert
+                  data-nav-link
+                  className="hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none"
+                />
+              );
+            }
             const active = isSamePage(link.href, pathname);
             return (
               <Link
