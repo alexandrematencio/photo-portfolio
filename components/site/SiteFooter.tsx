@@ -12,9 +12,9 @@ import { asset } from '@/lib/utils/asset';
  * (2 cols × 3 rows, last cell empty, left-aligned) — no longer a perfect
  * 2×2, but the grid auto-flows correctly with an odd count.
  *
- * Gouttières : 32 px de chaque côté — valeur relevée dans le .pen
- * (main-container `padding: [16, 32]`, logo à x=32, « legal notice » finissant
- * à 1728−32) et cohérente avec les 32 px de toutes les autres pages.
+ * Gouttières : `--page-gutter` de chaque côté — 32 au-dessus de `md` (valeur
+ * relevée dans le .pen : logo à x=32, « legal notice » finissant à 1728−32),
+ * 20 sur téléphone, comme le corps de toutes les pages.
  *
  * ⚠️ Padding en style INLINE, pas `px-8` : le reset global `* {padding:0}`
  * d'app/globals.css vit HORS @layer et écrase donc toutes les utilities
@@ -61,8 +61,7 @@ export function SiteFooter() {
       <div
         className="md:flex md:h-full md:items-center"
         style={{
-          paddingLeft: 32,
-          paddingRight: 32,
+          paddingInline: 'var(--page-gutter)',
         }}
       >
         {/* Sous `md`, la rangée passe en `flex-wrap` et ne porte plus que DEUX

@@ -8,8 +8,8 @@ import { EDITORIAL_LEAD } from '@/lib/site/typography';
  * Le texte vient du Studio (`siteSettings.homeIntro`, CLAUDE.md §8.5) ; vide,
  * le composant ne rend RIEN — la page reste exactement ce qu'elle était.
  *
- * Mêmes bornes que la galerie (1920 de plafond, calé à gauche, 32 px de
- * gouttière) pour tomber sur le bord gauche des photos et du lettrage. Registre
+ * Mêmes bornes que la galerie (1920 de plafond, calé à gauche, gouttière de
+ * page) pour tomber sur le bord gauche des photos et du lettrage. Registre
  * du chapô, pas un nouveau cran : « silence visuel » (§3.1). Padding en style
  * INLINE — le reset `* { padding: 0 }` avale les utilities (§7.6).
  */
@@ -21,7 +21,7 @@ export function HomeIntro({ text }: { text?: string }) {
       style={{
         width: '100%',
         maxWidth: 1920,
-        paddingInline: 32,
+        paddingInline: 'var(--page-gutter)',
         paddingTop: '12vh',
       }}
     >

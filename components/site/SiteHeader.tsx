@@ -66,7 +66,11 @@ export function SiteHeader({ heroSrc }: SiteHeaderProps) {
         <nav
           aria-label="Main navigation"
           className="flex h-full items-center justify-between"
-          style={{ paddingLeft: 32, paddingRight: 64 }}
+          // Gauche : la gouttière de page (20 sous `md`, 32 au-dessus), pour
+          // que le glyph tombe sur la verticale du contenu sur téléphone aussi.
+          // Droite : 64 au desktop, inchangé — sous `md` les libellés sont
+          // cachés et seul le bouton MENU (`MobileMenu`) occupe ce bord.
+          style={{ paddingLeft: 'var(--page-gutter)', paddingRight: 64 }}
         >
           <Link
             href="/"
