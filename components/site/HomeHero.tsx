@@ -35,8 +35,12 @@ const NAV_FONT_INITIAL = 32;
 // en mode nav-bar fixed top. Seule la position morphe (vertical → horizontal).
 const NAV_FONT_TARGET = 32;
 const HEADER_HEIGHT = 64; // h-16 — identique sur toutes les pages (SiteHeader)
-// Nav-bar final = pleine largeur, items space-between
-const PAD_LEFT = 32;
+// Nav-bar final = pleine largeur, items space-between. Gauche : la gouttière
+// de page, lue sur le token (20 sous `md`, 32 au-dessus) — c'est là que se
+// pose le glyph de `SiteHeader`. Droite : 64, desktop seulement (les libellés
+// sont cachés sous `md`).
+const pageGutter = () =>
+  parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--page-gutter')) || 32;
 const PAD_RIGHT = 64;
 
 // Timing du morph dans la timeline (en "unités" timeline, 1 = full)
@@ -71,7 +75,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
   const spacerRef = useRef<HTMLDivElement>(null);
   // CSS-anchored landing glyph. Independent of the GSAP morph math so that even
   // when the morph drifts (mobile address-bar resize invalidates viewport-relative
-  // measurements), the glyph the user actually sees is locked at top:18 / left:32.
+  // measurements), the glyph the user actually sees is locked at top:18 / left: page gutter.
   const staticGlyphRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
   const router = useRouter();
@@ -99,7 +103,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
   const lockHeldRef = useRef(false);
 
   // Static landing glyph — fade-in DÉLIBÉRÉMENT TARDIF sur les 15 % finaux de la
-  // pin range. Le morphing logoBlock voyage vers (32, 18) avec `power3.out` —
+  // pin range. Le morphing logoBlock voyage vers (gouttière, 18) avec `power3.out` —
   // il est visuellement à 99 %+ de sa destination à 85 % du timeline. Avant ça,
   // afficher le static glyph donnerait l'impression de deux glyphs simultanés
   // (un en mouvement, un fixé). En commençant le fade-in à 85 %, le static
@@ -493,21 +497,22 @@ export function HomeHero({ hero }: HomeHeroProps) {
 
         const totalContentWidth =
           logoVisibleWidth + navTargetWidths.reduce((a, b) => a + b, 0);
-        const availableWidth = window.innerWidth - PAD_LEFT - PAD_RIGHT;
+        const padLeft = pageGutter();
+        const availableWidth = window.innerWidth - padLeft - PAD_RIGHT;
         const itemGap = (availableWidth - totalContentWidth) / NAV_LINKS.length;
 
         const logoTargetTop = (HEADER_HEIGHT - GLYPH_TARGET) / 2;
         // Le block logo contient glyph + ligne « PHOTOGRAPHY », plus large que
         // le glyph → le glyph est centré dans un bloc plus large.
         // Compensation pour que le GLYPH (pas le block)
-        // atterrisse à PAD_LEFT exactement.
+        // atterrisse sur la gouttière exactement.
         const glyphOffsetInBlock = (logoInit.width - GLYPH_INITIAL) / 2;
         const logoDx =
-          PAD_LEFT - glyphOffsetInBlock * logoTargetScale - logoInit.left;
+          padLeft - glyphOffsetInBlock * logoTargetScale - logoInit.left;
         const logoDy = logoTargetTop - logoInit.top;
 
         const targetLeftFor = (i: number) => {
-          let cursor = PAD_LEFT + logoVisibleWidth + itemGap;
+          let cursor = padLeft + logoVisibleWidth + itemGap;
           for (let j = 0; j < i; j++) {
             cursor += navTargetWidths[j] + itemGap;
           }
@@ -621,7 +626,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
         const getLogoDx = () => {
           const init = capture(logoBlockRef.current!);
           const glyphOffset = (init.width - GLYPH_INITIAL) / 2;
-          return PAD_LEFT - glyphOffset * logoTargetScale - init.left;
+          return pageGutter() - glyphOffset * logoTargetScale - init.left;
         };
         const getLogoDy = () => {
           const init = capture(logoBlockRef.current!);
@@ -647,7 +652,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
         // landing position is unreliable (viewport mutates during scroll, refresh
         // events lag), so we make sure the morphing element is invisible by the
         // time it'd hit its drifted target. The static glyph (CSS-anchored) takes
-        // over as the visible element at top:18/left:32.
+        // over as the visible element at top:18 / left: page gutter.
         // autoAlpha, même raison que les fades ci-dessus : ce bloc est
         // `pointer-events-auto` et resterait un obstacle invisible en haut au
         // centre de l'écran une fois fondu.
@@ -894,10 +899,10 @@ export function HomeHero({ hero }: HomeHeroProps) {
   return (
     <>
       {/*
-        Static landing glyph — CSS-anchored at (32, 18). The morphing logoBlock
+        Static landing glyph — CSS-anchored at (page gutter, 18). The morphing logoBlock
         targets this position via GSAP transforms, but on mobile the math drifts
         when the address-bar resizes mid-scroll. This element doesn't move: pure
-        CSS `fixed top: 18 / left: 32`. Fade-in matches the pin range so it's at
+        CSS `fixed top: 18 / left: var(--page-gutter)`. Fade-in matches the pin range so it's at
         opacity 1 exactly when the morphing block fades to 0. Aria-hidden — the
         accessible navigation lives in <SiteHeader /> (other pages) and
         <MobileMenu /> (mobile burger drawer).
@@ -905,8 +910,8 @@ export function HomeHero({ hero }: HomeHeroProps) {
       <div
         ref={staticGlyphRef}
         aria-hidden
-        className="fixed top-[18px] left-[32px] z-50 pointer-events-none"
-        style={{ opacity: 0 }}
+        className="fixed top-[18px] z-50 pointer-events-none"
+        style={{ left: 'var(--page-gutter)', opacity: 0 }}
       >
         <GlyphLogo size={GLYPH_TARGET} title="A. Matencio" />
       </div>

@@ -762,7 +762,7 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
   max-width: 1920px;
   /* Le padding haut est porté par `.gallery-heading`, qui vit HORS du stage
      (il doit être centré sur l'ÉCRAN, pas dans la colonne calée à gauche). */
-  padding: 128px 32px 20vh 32px;
+  padding: 128px var(--page-gutter) 20vh var(--page-gutter);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -797,8 +797,8 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
    Alexandre, 2026-08-22). Le centrage écran d'origine n'a plus d'objet : un
    titre qui remplit sa boîte est centré par construction.
 
-   Mêmes bornes que `.gallery-stage` — 1920 de plafond, calé à gauche, 32 px
-   de gouttière — pour que le titre tombe exactement sur le bord gauche des
+   Mêmes bornes que `.gallery-stage` — 1920 de plafond, calé à gauche,
+   gouttière de page — pour que le titre tombe exactement sur le bord gauche des
    photos. Sous 1920 (dont les 1728 points d'un MacBook Pro 16", cas de
    référence), la page est fluide de bout en bout et le plafond ne mord
    jamais ; au-delà, titre et photos restent alignés et le blanc part à
@@ -806,7 +806,7 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
 .gallery-heading {
   width: 100%;
   max-width: 1920px;
-  padding: 16vh 32px 0 32px;
+  padding: 16vh var(--page-gutter) 0 var(--page-gutter);
 }
 
 .gallery-title,
@@ -962,12 +962,13 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
    que ~360 px de large pour la photo — l'image n'était plus le sujet. */
 @media (max-width: 1023px) {
   .gallery-heading {
-    padding: 12vh 32px 0 32px;
+    padding: 12vh var(--page-gutter) 0 var(--page-gutter);
   }
   .gallery-stage {
-    /* Gouttières à 32 px comme partout ailleurs (brand book §6.1) : le
-       texte tombe sur la même verticale que le footer. */
-    padding: 96px 32px 15vh 32px;
+    /* Gouttière de page comme partout ailleurs (`--page-gutter` : 32 dès
+       `md`, 20 sur téléphone) : le texte tombe sur la même verticale que le
+       footer et le glyph du header. */
+    padding: 96px var(--page-gutter) 15vh var(--page-gutter);
     gap: 96px;
     /* Pas de `--pair-gap` ici : empilés, ni `.photo-item` (écart explicite
        de 8 px) ni `.photo-figure` (largeur en `min(100%, …)`) ne le lisent.

@@ -21,11 +21,11 @@ import {
  * Mobile menu — closed state + open drawer.
  * Spec from templates.pen: `burger-menu-open-btn` (vCfHj) + `iPhone 17 - menu-open` (jPTyJ).
  *
- * - Closed: a 16/700 "MENU" text button with a 1 px black border. Position: fixed top-8 right-8
- *   (32 px from the viewport edges, matching the 32 px margin rule of the open menu).
- * - Open: full-screen overlay on the `--color-bg-raised` rung. Top bar 32 px padding all sides with the cobalt
+ * - Closed: a 16/700 "MENU" text button. Position: fixed top-0, right edge on `--page-gutter`
+ *   (same vertical as the page content and the header glyph).
+ * - Open: full-screen overlay on the `--color-bg-raised` rung. Top bar 32 px above, page gutter on the sides, with the cobalt
  *   glyph on the left and an X close icon on the right. Nav items pushed to bottom-left with
- *   32 px padding (left + bottom), gap 32 px, 48 px / bold.
+ *   page-gutter padding (left), 32 px (bottom), gap 32 px, 48 px / bold.
  * - Items: Home, puis la nav principale (Series, Archives, About, Contact, Socials).
  *
  * Rendered once at the layout level — both home and editorial pages share this single instance.
@@ -74,7 +74,7 @@ export function MobileMenu() {
       <div
         data-top-bar
         className="md:hidden fixed top-0 right-0 z-[55] h-16 flex items-center"
-        style={{ paddingRight: 32 }}
+        style={{ paddingRight: 'var(--page-gutter)' }}
       >
         <button
           type="button"
@@ -108,10 +108,10 @@ export function MobileMenu() {
           className="fixed inset-0 z-[60] md:hidden flex flex-col justify-between"
           style={{ backgroundColor: 'var(--color-bg-raised)' }}
         >
-          {/* Top bar — 32 px padding all sides, glyph left + X close right */}
+          {/* Top bar — 32 px vertical, page gutter on the sides, glyph left + X close right */}
           <div
             className="flex items-center justify-between"
-            style={{ padding: 32 }}
+            style={{ paddingBlock: 32, paddingInline: 'var(--page-gutter)' }}
           >
             <Link
               href="/"
@@ -132,10 +132,10 @@ export function MobileMenu() {
           </div>
 
           {/* Nav items — bottom-left aligned via `justify-between` on the parent.
-              paddingBottom 32 + gouttière de 32 px (per Pencil mockup `jPTyJ`).
+              paddingBottom 32 + gouttière de page (`--page-gutter`).
 
               ⚠️ La gouttière est amputée de l'inset du surlignage et rendue par
-              le padding des items : c'est le TEXTE qui doit tomber sur les 32 px,
+              le padding des items : c'est le TEXTE qui doit tomber sur la gouttière,
               pas la boîte qui le porte. Et l'écart vertical se réduit d'autant
               que le padding haut+bas, pour la même raison — il s'ajoute sinon à
               l'écart, et la colonne s'aère par rapport au mockup. Les deux se
@@ -150,9 +150,9 @@ export function MobileMenu() {
             aria-label="Mobile navigation"
             className="flex flex-col"
             style={{
-              paddingLeft: 32 - ACTIVE_FILL_MOBILE.inset,
+              paddingLeft: `calc(var(--page-gutter) - ${ACTIVE_FILL_MOBILE.inset}px)`,
               paddingBottom: 32,
-              paddingRight: 32,
+              paddingRight: 'var(--page-gutter)',
               rowGap: 32 - ACTIVE_FILL_MOBILE.top - ACTIVE_FILL_MOBILE.bottom,
             }}
           >
