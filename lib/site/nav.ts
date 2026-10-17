@@ -14,6 +14,8 @@
  * en chargement à froid ET au rechargement.
  */
 
+import { IS_BLOG, blogHref, photoHref } from './sites';
+
 export type NavLink = {
   href: string;
   label: string;
@@ -46,38 +48,41 @@ export type NavLink = {
  * `/contact`, accessible depuis /about (demande Alexandre). Cinq entrées,
  * comme avant : la géométrie du morph ne change que par les largeurs.
  */
-export const NAV_LINKS: NavLink[] = [
-  { href: '/series', label: 'Series' },
-  { href: '/archives', label: 'Archives' },
-  { href: '/about', label: 'About' },
-  { href: '/journal', label: 'Journal' },
-  { href: '', label: 'All sites', menu: 'sites' },
-];
+export const NAV_LINKS: NavLink[] = IS_BLOG
+  ? [
+      // Le journal (blog.amatencio.com) : sa page d'accueil, puis le portfolio
+      // et la page About — qui porte le contact — chez lui.
+      { href: '/', label: 'Journal' },
+      { href: photoHref('/'), label: 'Photography' },
+      { href: photoHref('/about/'), label: 'About' },
+      { href: '', label: 'All sites', menu: 'sites' },
+    ]
+  : [
+      { href: '/series', label: 'Series' },
+      { href: '/archives', label: 'Archives' },
+      { href: '/about', label: 'About' },
+      { href: blogHref('/'), label: 'Journal' },
+      { href: '', label: 'All sites', menu: 'sites' },
+    ];
 
 /**
  * Les sites d'amatencio.com, dans le menu « All sites ». `href: null` : site
  * annoncé mais pas encore en ligne — affiché grisé, avec « Soon », jamais un
- * lien mort.
- *
- * Le journal vit encore DANS ce site (`/journal`) : `blog.amatencio.com` y
- * renvoie en attendant le monorepo (docs/superpowers/specs/
- * 2026-10-17-sous-domaines-et-journal.md). Le lien va donc droit à la page,
- * sans détour par la redirection.
+ * lien mort. Adresses écrites par `photoHref` / `blogHref` : elles restent
+ * justes depuis l'un comme l'autre site.
  */
 export type SiteEntry = {
   label: string;
   host: string;
   href: string | null;
   external?: boolean;
-  /** Chemins de CE site qui appartiennent à l'entrée (voyant « vous êtes ici »). */
-  owns?: (pathname: string) => boolean;
+  /** Le site que ce build produit (voyant « vous êtes ici »). */
+  here?: boolean;
 };
 
-const isJournal = (pathname: string) => /^\/journal(\/|$)/.test(pathname);
-
 export const SITES: SiteEntry[] = [
-  { label: 'Photography', host: 'photo.amatencio.com', href: '/', owns: (p) => !isJournal(p) },
-  { label: 'Journal', host: 'blog.amatencio.com', href: '/journal/', owns: isJournal },
+  { label: 'Photography', host: 'photo.amatencio.com', href: photoHref('/'), here: !IS_BLOG },
+  { label: 'Journal', host: 'blog.amatencio.com', href: blogHref('/'), here: IS_BLOG },
   { label: 'Agency', host: 'aaxlo.com', href: 'https://www.aaxlo.com/', external: true },
   { label: 'Design', host: 'design.amatencio.com', href: null },
 ];
@@ -92,10 +97,9 @@ export const SITES: SiteEntry[] = [
  * ce qui autorise à ne padder que l'actif). Le drawer, lui, padde tous ses
  * items : il peut porter une entrée active sans toucher à aucune géométrie.
  */
-export const MOBILE_NAV_LINKS: NavLink[] = [
-  { href: '/', label: 'Home' },
-  ...NAV_LINKS,
-];
+export const MOBILE_NAV_LINKS: NavLink[] = IS_BLOG
+  ? NAV_LINKS // « Journal » y est déjà l'accueil
+  : [{ href: '/', label: 'Home' }, ...NAV_LINKS];
 
 /**
  * Clic sur un lien de nav qui pointe vers la page DÉJÀ affichée.

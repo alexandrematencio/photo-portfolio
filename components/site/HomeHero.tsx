@@ -16,6 +16,7 @@ import { useReducedMotion } from '@/lib/motion/useReducedMotion';
 import type { HeroImages } from '@/lib/site/hero';
 import { NAV_LINKS } from '@/lib/site/nav';
 import { SitesMenu } from './SitesMenu';
+import { isExternal } from '@/lib/site/sites';
 import { peekHomeReturn, playHomeArrival } from '@/lib/site/home-return';
 import {
   announcePageArrival,
@@ -747,6 +748,8 @@ export function HomeHero({ hero }: HomeHeroProps) {
 
   const leaveFromMenu = (e: MouseEvent<HTMLAnchorElement>, href: string) => {
     if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    // Lien vers un autre site (le journal) : chargement complet, pas de vol.
+    if (isExternal(href)) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const morph = morphRef.current;
     const section = sectionRef.current;

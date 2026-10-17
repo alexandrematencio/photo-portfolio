@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { isPhotoHome } from '@/lib/site/sites';
 import type { ReactNode } from 'react';
 
 /**
@@ -45,7 +46,7 @@ import type { ReactNode } from 'react';
  */
 export function MainPadding({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const isHome = pathname === '/';
+  const isHome = isPhotoHome(pathname);
   const isSeries = pathname === '/series' || pathname === '/series/';
 
   return (

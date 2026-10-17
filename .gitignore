@@ -14,6 +14,8 @@
 # next.js
 /.next/
 /out/
+/out-blog/
+/.next-blog/
 .next/dev/
 
 # production

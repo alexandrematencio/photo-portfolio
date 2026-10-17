@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { isPhotoHome } from '@/lib/site/sites';
 import { useEffect, useRef } from 'react';
 
 /** Épaisseur au repos et sous le doigt / le curseur, en px. */
@@ -46,7 +47,7 @@ export function ScrollThumb() {
     const thumb = thumbRef.current;
     if (!thumb) return;
     const container =
-      pathname === '/'
+      isPhotoHome(pathname)
         ? null
         : document.querySelector<HTMLElement>('[data-scroll-container]');
     const root = document.documentElement;

@@ -41,6 +41,12 @@ export type ArticleSummary = {
 
 export type Article = ArticleSummary & {
   referencesNote?: string;
+  /** Dernière modification dans Sanity (ISO) — `dateModified`, sitemap. */
+  updatedAt?: string;
+  words: number;
+  /** Champs « Référencement » du Studio, facultatifs. */
+  seoTitle?: string;
+  seoDescription?: string;
   blocks: ArticleBlock[];
   /** Clé de référence → citation, dans l'ordre d'affichage de la bibliographie. */
   references: { key: string; citation: Inline[] }[];

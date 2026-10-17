@@ -29,6 +29,9 @@ export const postsQuery = /* groq */ `
     "series": series->title,
     part,
     referencesNote,
+    seoTitle,
+    seoDescription,
+    "updatedAt": _updatedAt,
     body,
     references[]{ _key, citation }
   }
@@ -55,6 +58,9 @@ export type RawPost = {
   series: string | null;
   part: number | null;
   referencesNote: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  updatedAt?: string;
   body: PTBlock[] | null;
   references: { _key: string; citation?: { children?: PTChild[] }[] }[] | null;
 };
@@ -127,6 +133,7 @@ export function toArticle(raw: RawPost): Article {
     key: r._key,
     citation: (r.citation ?? []).flatMap((b) => inlineOf(b.children)),
   }));
+  const wordCount = words(blocks);
   return {
     slug: raw.slug,
     title: raw.title,
@@ -135,7 +142,11 @@ export function toArticle(raw: RawPost): Article {
     series: raw.series ?? null,
     part: raw.part ?? 0,
     referencesNote: raw.referencesNote ?? undefined,
-    minutes: Math.max(1, Math.round(words(blocks) / WORDS_PER_MINUTE)),
+    minutes: Math.max(1, Math.round(wordCount / WORDS_PER_MINUTE)),
+    words: wordCount,
+    updatedAt: raw.updatedAt,
+    seoTitle: raw.seoTitle ?? undefined,
+    seoDescription: raw.seoDescription ?? undefined,
     referenceCount: references.length,
     blocks,
     references,

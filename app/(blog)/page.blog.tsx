@@ -2,25 +2,28 @@ import type { Metadata } from 'next';
 import { PageShell } from '@/components/site/PageShell';
 import { JournalIndex } from '@/components/journal/JournalIndex';
 import { getArticles, summarize } from '@/lib/journal/articles';
-import { buildMetadata } from '@/lib/seo/metadata';
+import { SITE_INFO, buildMetadata } from '@/lib/seo/metadata';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { blogJsonLd } from '@/lib/seo/journal-jsonld';
 
 /**
- * Page d'accueil du journal (brand book §14.7), reprise de stripe.dev/blog.
- * MAQUETTE : `noindex` et hors sitemap tant que le journal n'est pas ouvert.
+ * Page d'accueil du journal (brand book §14.7), reprise de stripe.dev/blog —
+ * racine de blog.amatencio.com. Indexée : c'est la page qui présente le
+ * journal dans les résultats, et elle relie chaque article.
  */
 export const metadata: Metadata = {
   ...buildMetadata({
-    title: 'Journal',
-    description: 'Textes de A. Matencio : marchés de collection, conscience.',
-    path: '/journal',
+    // Le nom du site EST le titre de cette page : pas de suffixe répété.
+    absoluteTitle: SITE_INFO.name,
+    path: '/',
   }),
-  robots: { index: false, follow: false },
 };
 
 export default async function JournalPage() {
   const articles = (await getArticles()).map(summarize);
   return (
-    <div lang="fr">
+    <>
+      <JsonLd data={blogJsonLd(articles)} />
       <PageShell
         centered
         title={
@@ -41,6 +44,6 @@ export default async function JournalPage() {
       >
         <JournalIndex articles={articles} />
       </PageShell>
-    </div>
+    </>
   );
 }

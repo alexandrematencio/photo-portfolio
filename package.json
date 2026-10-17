@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3010",
+    "dev:blog": "SITE_TARGET=blog next dev -p 3011",
     "build": "next build",
+    "build:blog": "SITE_TARGET=blog next build",
     "start": "next start -p 3010",
     "lint": "next lint",
     "backup": "bash scripts/backup-client-files.sh",
@@ -12,6 +14,7 @@
     "clean": "rm -rf .next out",
     "predeploy": "npm run clean && npm run build",
     "deploy": "rsync -az --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r out/ amatencio-vps:/srv/www/photo/",
+    "deploy:blog": "rm -rf out-blog && npm run build:blog && rsync -az --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r out-blog/ amatencio-vps:/srv/www/blog/",
     "deploy:gh-pages": "gh-pages -d out --dotfiles -m \"chore(deploy): publish static export\"",
     "upload-photos": "node --env-file=.env.production --env-file=.env.local --import tsx scripts/upload-photos.ts",
     "import-journal": "node --env-file=.env.local --import tsx scripts/import-journal.ts",

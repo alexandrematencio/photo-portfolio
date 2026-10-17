@@ -2,6 +2,7 @@ import { indexableImageUrl, urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
 import { SITE_INFO, withSlash } from '@/lib/seo/metadata';
 import { AUTHOR_NAME, AUTHOR_SAME_AS, AUTHOR_SHORT, copyrightNotice } from '@/lib/site/author';
+import { PHOTO_URL } from '@/lib/site/sites';
 
 /**
  * Constructeurs Schema.org — fonctions PURES, sans React.
@@ -21,18 +22,24 @@ export function pageUrl(path: string): string {
   return `${SITE_INFO.url}${withSlash(path)}`;
 }
 
-export const AUTHOR_ID = `${pageUrl('/about')}#person`;
+/** Une page du PORTFOLIO, quel que soit le site construit : la personne, la
+ *  licence et le contact y vivent, et le journal les désigne là-bas. */
+function photoPageUrl(path: string): string {
+  return `${PHOTO_URL}${withSlash(path)}`;
+}
+
+export const AUTHOR_ID = `${photoPageUrl('/about')}#person`;
 /** Page qui porte la clause de réutilisation (spec R4). */
-export const LICENSE_URL = pageUrl('/legal');
+export const LICENSE_URL = photoPageUrl('/legal');
 /** Page par laquelle on demande une licence — Google l'affiche en bouton. */
-export const ACQUIRE_LICENSE_URL = pageUrl('/contact');
+export const ACQUIRE_LICENSE_URL = photoPageUrl('/contact');
 
 /**
  * Nœud Person INLINE, pas une simple référence `@id` : Google ne résout pas
  * les `@id` d'une page à l'autre, et le Person complet n'existe que sur
  * /about. Sans `@type` ni `name`, `copyrightHolder` serait vide pour lui.
  */
-function authorRef(): JsonLdObject {
+export function authorRef(): JsonLdObject {
   return { '@type': 'Person', '@id': AUTHOR_ID, name: AUTHOR_NAME };
 }
 
@@ -46,11 +53,11 @@ export function personJsonLd(): JsonLdObject {
     jobTitle: 'Photographer',
     description:
       'Photographer and art director based in Villejuif, near Paris. Author photography — street, landscape and portrait.',
-    url: pageUrl('/about'),
+    url: photoPageUrl('/about'),
     sameAs: AUTHOR_SAME_AS,
     address: { '@type': 'PostalAddress', addressLocality: 'Villejuif', addressCountry: 'FR' },
     knowsAbout: ['Street photography', 'Landscape photography', 'Portrait photography'],
-    image: `${SITE_INFO.url}/img/photo-profile.jpg`,
+    image: `${PHOTO_URL}/img/photo-profile.jpg`,
   };
 }
 

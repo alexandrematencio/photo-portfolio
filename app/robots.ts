@@ -15,7 +15,7 @@ export const dynamic = 'force-static';
  * adresse où les robots le lisent. Les balises <meta> de buildMetadata
  * doublent ces règles pour les copies et les miroirs.
  */
-const AI_TRAINING_CRAWLERS = [
+export const AI_TRAINING_CRAWLERS = [
   'GPTBot',
   'ClaudeBot',
   'Claude-Web',

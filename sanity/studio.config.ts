@@ -1,4 +1,5 @@
 import { defineConfig } from 'sanity';
+import { BLOG_URL } from '@/lib/site/sites';
 import { structureTool } from 'sanity/structure';
 import { visionTool } from '@sanity/vision';
 import { schemaTypes } from '@/sanity/schemas';
@@ -194,10 +195,11 @@ export const studioConfig = defineConfig({
           return slug ? `${base}/archives/#series-${slug}` : prev;
         case 'siteSettings':
           return `${base}/`;
+        // Le journal a son propre site (lib/site/sites.ts).
         case 'post':
-          return slug ? `${base}/journal/${slug}/` : prev;
+          return slug ? `${BLOG_URL}/${slug}/` : prev;
         case 'journalSeries':
-          return `${base}/journal/`;
+          return `${BLOG_URL}/`;
         default: {
           const page = PAGE_DOCS.find((p) => p.type === document._type);
           return page ? `${base}${page.path}` : prev;

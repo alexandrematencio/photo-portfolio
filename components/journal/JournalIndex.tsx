@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { articlePath } from '@/lib/site/sites';
 import { useId, useMemo, useState } from 'react';
 import { StateDot } from '@/components/site/StateDot';
 import { ListSelector } from '@/components/site/ListSelector';
@@ -108,7 +109,7 @@ export function JournalIndex({ articles }: { articles: ArticleSummary[] }) {
           </ul>
         </div>
 
-        <Link href="/journal/face-a-la-recherche" className="flex flex-col gap-2 group" aria-label="Fig. 1 — lire l'article d'où vient la figure">
+        <Link href={articlePath('face-a-la-recherche')} className="flex flex-col gap-2 group" aria-label="Fig. 1 — lire l'article d'où vient la figure">
           <span className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)] group-hover:text-[var(--color-fg)]')}>[ Fig. 1 ]</span>
           <LoopFigure bare />
         </Link>
@@ -181,7 +182,7 @@ function Row({ article }: { article: ArticleSummary }) {
             <time dateTime={article.date}>{stamp(article.date)}</time>
           </span>
           <Link
-            href={`/journal/${article.slug}`}
+            href={articlePath(article.slug)}
             className={cn(
               'text-[21px] md:text-[28px] font-bold tracking-[-0.02em] leading-[1.15] text-[var(--color-fg)] md:truncate',
               'transition-colors duration-200 motion-reduce:transition-none',
@@ -241,7 +242,7 @@ function Row({ article }: { article: ArticleSummary }) {
                   {article.referenceCount > 0 && <span>{article.referenceCount} références</span>}
                 </p>
                 <Link
-                  href={`/journal/${article.slug}`}
+                  href={articlePath(article.slug)}
                   className={cn(MICRO_LABEL, 'w-fit text-[var(--color-fg)] underline underline-offset-4')}
                 >
                   Lire l&apos;article →

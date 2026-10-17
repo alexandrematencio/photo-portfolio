@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { isPhotoHome } from '@/lib/site/sites';
 import { useLayoutEffect } from 'react';
 import { peekPageArrival, playPageArrival } from '@/lib/site/page-transition';
 
@@ -18,7 +19,7 @@ import { peekPageArrival, playPageArrival } from '@/lib/site/page-transition';
 export function PageArrival() {
   const pathname = usePathname();
   useLayoutEffect(() => {
-    if (pathname === '/') return;
+    if (isPhotoHome(pathname)) return;
     const arrival = peekPageArrival(pathname);
     if (!arrival) return;
     return playPageArrival(arrival, pathname);

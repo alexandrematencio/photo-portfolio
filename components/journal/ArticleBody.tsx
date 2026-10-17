@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { articlePath } from '@/lib/site/sites';
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import {
   EDITORIAL_ANNEX,
@@ -149,7 +150,7 @@ function SeriesNav({ current, parts, style }: { current: string; parts: ArticleS
           return (
             <li key={p.slug} style={{ borderBottom: '1px solid var(--color-line)' }}>
               <Link
-                href={`/journal/${p.slug}`}
+                href={articlePath(p.slug)}
                 aria-current={here ? 'page' : undefined}
                 className="flex items-baseline gap-3 group"
                 style={{ paddingBlock: 14 }}

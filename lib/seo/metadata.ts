@@ -1,9 +1,14 @@
 import type { Metadata } from 'next';
+import { IS_BLOG, PHOTO_URL } from '@/lib/site/sites';
 
-const SITE_NAME = 'Alexandre Matencio — Photographer';
+// Nom, description et langue dépendent du site construit (lib/site/sites.ts) :
+// le journal est en français, le portfolio en anglais.
+const SITE_NAME = IS_BLOG ? 'Journal d’Alexandre Matencio' : 'Alexandre Matencio — Photographer';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
-const DEFAULT_DESC =
-  "Author photography — street, landscape and portrait. Portfolio of Alexandre Matencio, photographer based near Paris.";
+const DEFAULT_DESC = IS_BLOG
+  ? 'Le journal d’Alexandre Matencio : des textes longs et sourcés sur les marchés de collection, la conscience et ce que la recherche en dit.'
+  : "Author photography — street, landscape and portrait. Portfolio of Alexandre Matencio, photographer based near Paris.";
+const LOCALE = IS_BLOG ? 'fr_FR' : 'en_US';
 
 /** Chemin de route terminé par un slash (cf. `trailingSlash: true`). */
 export function withSlash(path: string): string {
@@ -18,6 +23,8 @@ export function buildMetadata(opts: {
   description?: string;
   path?: string;
   image?: string;
+  /** Article du journal : `og:type=article` et ses dates (Open Graph). */
+  article?: { publishedTime: string; modifiedTime?: string; section?: string };
 }): Metadata {
   const title =
     opts.absoluteTitle ??
@@ -38,11 +45,19 @@ export function buildMetadata(opts: {
     openGraph: {
       title,
       description,
-      type: 'website',
       url,
       siteName: SITE_NAME,
-      locale: 'en_US',
+      locale: LOCALE,
       images: [{ url: image, width: 1200, height: 630, alt: title }],
+      ...(opts.article
+        ? {
+            type: 'article' as const,
+            publishedTime: opts.article.publishedTime,
+            modifiedTime: opts.article.modifiedTime,
+            section: opts.article.section,
+            authors: [`${PHOTO_URL}/about/`],
+          }
+        : { type: 'website' as const }),
     },
     twitter: {
       card: 'summary_large_image',
@@ -61,9 +76,10 @@ export function buildMetadata(opts: {
     other: {
       robots: 'noai, noimageai',
       'tdm-reservation': '1',
-      'tdm-policy': `${SITE_URL}${withSlash('/legal')}`,
+      // Les mentions légales vivent sur le portfolio, pour les deux sites.
+      'tdm-policy': `${PHOTO_URL}${withSlash('/legal')}`,
     },
   };
 }
 
-export const SITE_INFO = { name: SITE_NAME, url: SITE_URL, description: DEFAULT_DESC };
+export const SITE_INFO = { name: SITE_NAME, url: SITE_URL, description: DEFAULT_DESC, locale: LOCALE };

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { asset } from '@/lib/utils/asset';
+import { photoHref } from '@/lib/site/sites';
 
 /**
  * Base structure is an exact replication of the footer in
@@ -74,7 +75,7 @@ export function SiteFooter() {
         <div className="flex w-full flex-wrap items-center gap-x-8 gap-y-10 md:flex-nowrap md:justify-between lg:gap-x-32">
         {/* Child 1: logo (exact glyph asset + vertical texts, gap 24) */}
         <Link
-          href="/"
+          href={photoHref('/')}
           className="flex w-full items-center gap-6 md:w-auto md:shrink-0"
           aria-label="A. Matencio — home"
         >
@@ -103,7 +104,7 @@ export function SiteFooter() {
         <div className="grid w-full grid-cols-2 items-center gap-x-8 gap-y-4 md:contents">
         {/* Child 2: PHOTOGRAPHY (direct sibling, per pen) */}
         <Link
-          href="/archives"
+          href={photoHref('/archives/')}
           className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none md:text-[16px]"
         >
           PHOTOGRAPHY
@@ -111,7 +112,7 @@ export function SiteFooter() {
 
         {/* Child 3: DIGITAL AGENCY (direct sibling, per pen) */}
         <Link
-          href="/about/digital-agency"
+          href={photoHref('/about/digital-agency/')}
           className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none md:text-[16px]"
         >
           DIGITAL AGENCY
@@ -119,7 +120,7 @@ export function SiteFooter() {
 
         {/* Child 4: CONTACT (direct sibling, per pen) */}
         <Link
-          href="/contact"
+          href={photoHref('/contact/')}
           className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none md:text-[16px]"
         >
           CONTACT
@@ -127,7 +128,7 @@ export function SiteFooter() {
 
         {/* Child 5: legal notice (icon + LEGAL NOTICE, gap 8 inside, exact pen icon structure) */}
         <Link
-          href="/legal"
+          href={photoHref('/legal/')}
           className="flex items-center justify-start gap-2 shrink-0 hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none"
         >
           <span className="inline-flex items-center p-[1px] pr-[3px]">
@@ -158,7 +159,7 @@ export function SiteFooter() {
 
         {/* Child 6: PRIVACY — added 2026-09-11, no equivalent in the .pen */}
         <Link
-          href="/privacy"
+          href={photoHref('/privacy/')}
           className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none md:text-[16px]"
         >
           PRIVACY

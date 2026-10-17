@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils/cn';
 import { ACTIVE_FILL_PADDING, CONTROL_RADIUS } from '@/lib/site/controls';
 import { GlyphLogo } from './GlyphLogo';
 import { SitesMenu } from './SitesMenu';
+import { IS_BLOG, isExternal, isPhotoHome } from '@/lib/site/sites';
 import {
   NAV_LINKS as LINKS,
   isSamePage,
@@ -37,7 +38,9 @@ export function SiteHeader({ heroSrc }: SiteHeaderProps) {
   const warmHero = () => {
     if (heroSrc) void preloadImage(heroSrc, 'high');
   };
-  const isHome = pathname === '/';
+  // Sur le journal, `/` est la page d'accueil du journal, sans hero : la
+  // nav-bar y est affichée comme partout (lib/site/sites.ts).
+  const isHome = isPhotoHome(pathname);
   // /splash-test est un sandbox qui clone la home pour prototyper le splash —
   // on masque le header ici aussi pour que le test reflète exactement `/`.
   // À supprimer en même temps que `app/(site)/splash-test/` pour rollback total.
@@ -76,7 +79,7 @@ export function SiteHeader({ heroSrc }: SiteHeaderProps) {
           <Link
             href="/"
             className="flex items-center shrink-0"
-            aria-label="A. Matencio — home"
+            aria-label={IS_BLOG ? 'Journal — accueil' : 'A. Matencio — home'}
             onPointerEnter={warmHero}
             onPointerDown={warmHero}
             onFocus={warmHero}
@@ -85,6 +88,7 @@ export function SiteHeader({ heroSrc }: SiteHeaderProps) {
             // annulée — elle part en même temps. Clic modifié (nouvel onglet,
             // nouvelle fenêtre) : rien, c'est une autre page qui s'ouvre.
             onClick={(e) => {
+              if (IS_BLOG) return;
               if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
                 return;
               }
@@ -105,7 +109,7 @@ export function SiteHeader({ heroSrc }: SiteHeaderProps) {
             <GlyphLogo
               size={28}
               color="var(--color-logo)"
-              title="A. Matencio — home"
+              title={IS_BLOG ? 'Journal — accueil' : 'A. Matencio — home'}
             />
           </Link>
 
@@ -143,6 +147,9 @@ export function SiteHeader({ heroSrc }: SiteHeaderProps) {
                   if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
                     return;
                   }
+                  // Lien vers l'autre site : chargement complet, pas de sortie
+                  // de page animée (elle attendrait une page qui n'arrive pas).
+                  if (isExternal(link.href)) return;
                   // La page part d'un côté, la suivante entre de l'autre, dans
                   // le sens du menu (lib/site/page-transition.ts). Navigation
                   // NON annulée : elle charge pendant la sortie.

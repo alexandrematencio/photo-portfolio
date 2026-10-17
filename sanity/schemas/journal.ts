@@ -278,7 +278,7 @@ export const post = defineType({
     defineField({
       name: 'slug',
       title: 'Adresse',
-      description: 'La fin de l’adresse de l’article : /journal/<adresse>. Ne plus la changer une fois l’article partagé.',
+      description: 'La fin de l’adresse de l’article : blog.amatencio.com/<adresse>. Ne plus la changer une fois l’article partagé : les liens et Google la gardent.',
       type: 'slug',
       options: { source: 'title' },
       validation: (Rule) => Rule.required(),
@@ -372,7 +372,33 @@ export const post = defineType({
       type: 'text',
       rows: 2,
     }),
+    // Référencement (2026-10-17). Facultatifs : à défaut, Google reçoit le
+    // titre et le sous-titre. Utiles quand le titre est une formule (« Ni
+    // maître ni esclave ») et ne contient pas les mots que les gens cherchent.
+    defineField({
+      name: 'seoTitle',
+      title: 'Titre pour Google',
+      description:
+        'Facultatif. Le titre affiché dans les résultats de recherche, s’il doit différer du titre : y mettre les mots qu’un lecteur taperait. ~60 signes au plus, au-delà Google le coupe.',
+      type: 'string',
+      group: 'seo',
+      validation: (Rule) => Rule.max(70).warning('Au-delà de ~60 signes, Google coupe le titre.'),
+    }),
+    defineField({
+      name: 'seoDescription',
+      title: 'Description pour Google',
+      description:
+        'Facultative. Les deux lignes sous le titre dans les résultats. À défaut, le sous-titre. 120 à 160 signes : dire de quoi parle l’article et ce que le lecteur y trouvera.',
+      type: 'text',
+      rows: 3,
+      group: 'seo',
+      validation: (Rule) => Rule.max(170).warning('Au-delà de ~160 signes, Google coupe la description.'),
+    }),
   ],
+  // Un seul groupe : l'onglet par défaut reste « Tous les champs », et
+  // « Référencement » isole les deux champs pour Google. Un groupe `default`
+  // masquerait tous les champs qui n'en déclarent pas.
+  groups: [{ name: 'seo', title: 'Référencement' }],
   orderings: [{ title: 'Date, récent d’abord', name: 'dateDesc', by: [{ field: 'date', direction: 'desc' }] }],
   preview: {
     select: { title: 'title', date: 'date', series: 'series.title', part: 'part' },

@@ -18,6 +18,7 @@ import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils/cn';
 import { CONTROL_RADIUS } from '@/lib/site/controls';
 import { SITES, type SiteEntry } from '@/lib/site/nav';
+import { isExternal } from '@/lib/site/sites';
 import { MICRO_LABEL, MICRO_LABEL_XS } from '@/lib/site/typography';
 import { StateDot } from './StateDot';
 
@@ -27,8 +28,8 @@ import { StateDot } from './StateDot';
  * `SitesMenu` le déclencheur et le panneau de la nav-bar.
  *
  * Grammaire reprise du site, rien d'inventé :
- * - le voyant (`StateDot`) dit « vous êtes ici » — sur Photography, ou sur
- *   Journal quand on lit le journal ;
+ * - le voyant (`StateDot`) dit « vous êtes ici » — Photography sur le
+ *   portfolio, Journal sur blog.amatencio.com ;
  * - la rangée s'inverse au survol et au focus, 200 ms ease-out, comme les
  *   lignes de la page d'accueil du journal (brand book §14.8) ;
  * - le panneau se pose sur `--color-bg-raised`, le barreau « calque posé sur
@@ -109,6 +110,11 @@ function Row({ site, here, onNavigate }: { site: SiteEntry; here: boolean; onNav
           {body}
           <span className="sr-only"> (opens in a new tab)</span>
         </a>
+      ) : isExternal(site.href) ? (
+        // L'autre site d'amatencio.com : même onglet, chargement complet.
+        <a href={site.href} className={interactive} style={rowStyle} onClick={onNavigate}>
+          {body}
+        </a>
       ) : (
         <Link href={site.href} className={interactive} style={rowStyle} onClick={onNavigate}>
           {body}
@@ -119,11 +125,10 @@ function Row({ site, here, onNavigate }: { site: SiteEntry; here: boolean; onNav
 }
 
 export function SitesList({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
-  const pathname = usePathname() ?? '/';
   return (
     <ul className={cn('flex flex-col', className)}>
       {SITES.map((site) => (
-        <Row key={site.host} site={site} here={site.owns?.(pathname) ?? false} onNavigate={onNavigate} />
+        <Row key={site.host} site={site} here={site.here ?? false} onNavigate={onNavigate} />
       ))}
     </ul>
   );
