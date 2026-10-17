@@ -199,7 +199,7 @@ export const studioConfig = defineConfig({
         case 'post':
           return slug ? `${BLOG_URL}/${slug}/` : prev;
         case 'journalSeries':
-          return `${BLOG_URL}/`;
+          return slug ? `${BLOG_URL}/serie/${slug}/` : `${BLOG_URL}/`;
         default: {
           const page = PAGE_DOCS.find((p) => p.type === document._type);
           return page ? `${base}${page.path}` : prev;

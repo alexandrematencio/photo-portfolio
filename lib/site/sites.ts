@@ -40,6 +40,11 @@ export function articlePath(slug: string): string {
   return `/${slug}/`;
 }
 
+/** Chemin de la page d'une série sur le blog. */
+export function seriesPath(slug: string): string {
+  return `/serie/${slug}/`;
+}
+
 export function isExternal(href: string): boolean {
   return /^https?:\/\//.test(href);
 }

@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { articlePath } from '@/lib/site/sites';
+import { articlePath, seriesPath } from '@/lib/site/sites';
+import { frenchSpaces } from '@/lib/journal/french';
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import {
   EDITORIAL_ANNEX,
@@ -31,18 +32,6 @@ const RHYTHM = { lead: 40, body: 24, h2Top: 64, h2Bottom: 24, object: 64 } as co
 const PULLQUOTE_MAX = 920;
 
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
-
-/**
- * Espaces insécables de la typographie française : un « ou un : ne doit
- * jamais finir seul en bout de ligne (constaté sur téléphone, 390 px).
- * Fine insécable devant ; : ! ?, insécable pleine dans les guillemets.
- */
-function frenchSpaces(text: string): string {
-  return text
-    .replace(/« /g, '«\u00a0')
-    .replace(/ »/g, '\u00a0»')
-    .replace(/ ([:;!?])/g, '\u202f$1');
-}
 
 /**
  * Numérotation : références en chiffres dans l'ordre de leur premier appel,
@@ -141,9 +130,23 @@ function ArticleH2({ text, style }: { text: string; style: CSSProperties }) {
 function SeriesNav({ current, parts, style }: { current: string; parts: ArticleSummary[]; style: CSSProperties }) {
   return (
     <nav aria-label={`La série ${parts[0]?.series}`} className="flex flex-col gap-4" style={style}>
-      <span className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
-        La série · {parts[0]?.series} · {parts.length} articles
-      </span>
+      {parts[0]?.seriesSlug ? (
+        <Link
+          href={seriesPath(parts[0].seriesSlug)}
+          className={cn(MICRO_LABEL, 'group flex items-center justify-between text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')}
+        >
+          <span>
+            La série · {parts[0].series} · {parts.length} articles
+          </span>
+          <span aria-hidden className="transition-[translate] duration-200 ease-out group-hover:translate-x-[3px] motion-reduce:transition-none">
+            →
+          </span>
+        </Link>
+      ) : (
+        <span className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
+          La série · {parts[0]?.series} · {parts.length} articles
+        </span>
+      )}
       <ol className="flex flex-col" style={{ borderTop: '1px solid var(--color-line)' }}>
         {parts.map((p) => {
           const here = p.slug === current;

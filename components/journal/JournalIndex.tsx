@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { articlePath } from '@/lib/site/sites';
+import { articlePath, seriesPath } from '@/lib/site/sites';
 import { useId, useMemo, useState } from 'react';
 import { StateDot } from '@/components/site/StateDot';
 import { ListSelector } from '@/components/site/ListSelector';
@@ -56,6 +56,20 @@ export function JournalIndex({ articles }: { articles: ArticleSummary[] }) {
     ];
   }, [articles]);
 
+  // La page de la série choisie dans les filtres : le filtre trie, la page présente.
+  const seriesSlug = series === ALL ? null : (articles.find((a) => a.series === series)?.seriesSlug ?? null);
+  const seriesLink = seriesSlug && (
+    <Link
+      href={seriesPath(seriesSlug)}
+      className={cn(MICRO_LABEL, 'group flex w-fit items-center gap-2 text-[var(--color-fg)] underline underline-offset-4')}
+    >
+      Page de la série
+      <span aria-hidden className="no-underline transition-[translate] duration-200 ease-out group-hover:translate-x-[3px] motion-reduce:transition-none">
+        →
+      </span>
+    </Link>
+  );
+
   const shown = series === ALL ? articles : articles.filter((a) => (a.series ?? HORS_SERIE) === series);
 
   return (
@@ -72,6 +86,7 @@ export function JournalIndex({ articles }: { articles: ArticleSummary[] }) {
           tone="plate"
           lit={series !== ALL}
         />
+        {seriesLink && <div style={{ marginTop: 16 }}>{seriesLink}</div>}
       </div>
 
       {/* FILTRES — desktop, colonne collante */}
@@ -107,6 +122,7 @@ export function JournalIndex({ articles }: { articles: ArticleSummary[] }) {
               );
             })}
           </ul>
+          {seriesLink && <div style={{ paddingTop: 16 }}>{seriesLink}</div>}
         </div>
 
         <Link href={articlePath('face-a-la-recherche')} className="flex flex-col gap-2 group" aria-label="Fig. 1 — lire l'article d'où vient la figure">
@@ -237,7 +253,14 @@ function Row({ article }: { article: ArticleSummary }) {
                   {article.dek}
                 </p>
                 <p className={cn(EDITORIAL_SIDENOTE, 'flex flex-wrap gap-x-4')}>
-                  {article.series && <span>{article.series}</span>}
+                  {article.series &&
+                    (article.seriesSlug ? (
+                      <Link href={seriesPath(article.seriesSlug)} className="underline underline-offset-4 hover:text-[var(--color-fg)]">
+                        {article.series}
+                      </Link>
+                    ) : (
+                      <span>{article.series}</span>
+                    ))}
                   <span>{article.minutes} min de lecture</span>
                   {article.referenceCount > 0 && <span>{article.referenceCount} références</span>}
                 </p>

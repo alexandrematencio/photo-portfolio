@@ -250,8 +250,18 @@ export const journalSeries = defineType({
       name: 'slug',
       title: 'Identifiant',
       type: 'slug',
+      description: 'L’adresse de la page de la série : blog.amatencio.com/serie/<identifiant>. Ne plus la changer une fois la page partagée.',
       options: { source: 'title' },
       validation: (Rule) => Rule.required(),
+    }),
+    defineField({
+      name: 'description',
+      title: 'Présentation',
+      description:
+        'Deux ou trois phrases : de quoi parle la série, pour qui. Affichée en tête de sa page, et reprise par Google sous le titre (les 160 premiers signes). Vide : une phrase générée à partir des titres.',
+      type: 'text',
+      rows: 3,
+      validation: (Rule) => Rule.max(400).warning('Au-delà de 400 signes, la présentation devient un article.'),
     }),
   ],
 });

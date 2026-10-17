@@ -1,6 +1,7 @@
 import { sanityClient } from '@/lib/sanity/client';
 import type {
   Article,
+  JournalSeries,
   ArticleBlock,
   ArticleSummary,
   Inline,
@@ -27,6 +28,7 @@ export const postsQuery = /* groq */ `
     dek,
     date,
     "series": series->title,
+    "seriesSlug": series->slug.current,
     part,
     referencesNote,
     seoTitle,
@@ -56,6 +58,7 @@ export type RawPost = {
   dek: string;
   date: string;
   series: string | null;
+  seriesSlug: string | null;
   part: number | null;
   referencesNote: string | null;
   seoTitle?: string | null;
@@ -140,6 +143,7 @@ export function toArticle(raw: RawPost): Article {
     dek: raw.dek,
     date: raw.date,
     series: raw.series ?? null,
+    seriesSlug: raw.seriesSlug ?? null,
     part: raw.part ?? 0,
     referencesNote: raw.referencesNote ?? undefined,
     minutes: Math.max(1, Math.round(wordCount / WORDS_PER_MINUTE)),
@@ -179,8 +183,8 @@ export async function getArticle(slug: string): Promise<Article | undefined> {
 }
 
 export function summarize(article: Article): ArticleSummary {
-  const { slug, title, dek, series, part, date, minutes, referenceCount } = article;
-  return { slug, title, dek, series, part, date, minutes, referenceCount };
+  const { slug, title, dek, series, seriesSlug, part, date, minutes, referenceCount } = article;
+  return { slug, title, dek, series, seriesSlug, part, date, minutes, referenceCount };
 }
 
 /** Les articles d'une série, dans l'ordre de lecture. Vide pour un article isolé. */
@@ -190,4 +194,45 @@ export async function getSeries(series: string | null): Promise<ArticleSummary[]
     .filter((a) => a.series === series)
     .sort((a, b) => a.part - b.part)
     .map(summarize);
+}
+
+const seriesQuery = /* groq */ `
+  *[_type == "journalSeries" && defined(slug.current)] { "slug": slug.current, title, description }
+`;
+
+/**
+ * Les séries qui ont au moins un article publié — une page de série vide
+ * n'existe pas. Ordre : la série dont le dernier article est le plus récent
+ * d'abord.
+ */
+export async function getAllSeries(): Promise<JournalSeries[]> {
+  if (!sanityClient) return [];
+  const [docs, articles] = await Promise.all([
+    sanityClient.fetch<{ slug: string; title: string; description?: string | null }[]>(
+      seriesQuery,
+      {},
+      { next: { revalidate: 60 } },
+    ),
+    getArticles(),
+  ]);
+  return docs
+    .map((d) => ({
+      slug: d.slug,
+      title: d.title,
+      description: d.description?.trim() || undefined,
+      articles: articles
+        .filter((a) => a.seriesSlug === d.slug)
+        .sort((a, b) => a.part - b.part)
+        .map(summarize),
+    }))
+    .filter((s) => s.articles.length > 0)
+    .sort((a, b) => latest(b).localeCompare(latest(a)));
+}
+
+function latest(s: JournalSeries) {
+  return s.articles.map((a) => a.date).sort().at(-1) ?? '';
+}
+
+export async function getSeriesBySlug(slug: string): Promise<JournalSeries | undefined> {
+  return (await getAllSeries()).find((s) => s.slug === slug);
 }

@@ -32,6 +32,8 @@ export type ArticleSummary = {
   dek: string;
   /** Titre de la série, `null` pour un article isolé. */
   series: string | null;
+  /** Identifiant de la série (son adresse, `seriesPath`), `null` hors série. */
+  seriesSlug: string | null;
   part: number;
   /** AAAA-MM-JJ */
   date: string;
@@ -50,4 +52,14 @@ export type Article = ArticleSummary & {
   blocks: ArticleBlock[];
   /** Clé de référence → citation, dans l'ordre d'affichage de la bibliographie. */
   references: { key: string; citation: Inline[] }[];
+};
+
+/** Une série d'articles et sa page (`blog.amatencio.com/serie/<slug>/`). */
+export type JournalSeries = {
+  slug: string;
+  title: string;
+  /** Champ « Présentation » du Studio, facultatif. */
+  description?: string;
+  /** Dans l'ordre de lecture. */
+  articles: ArticleSummary[];
 };

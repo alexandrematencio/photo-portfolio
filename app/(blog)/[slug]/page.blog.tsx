@@ -6,7 +6,8 @@ import { getArticle, getArticles, getSeries } from '@/lib/journal/articles';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { blogPostingJsonLd, journalBreadcrumbJsonLd } from '@/lib/seo/journal-jsonld';
-import { articlePath } from '@/lib/site/sites';
+import Link from 'next/link';
+import { articlePath, seriesPath } from '@/lib/site/sites';
 import { EDITORIAL_H3, MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 
@@ -56,9 +57,10 @@ export default async function JournalArticlePage({
   const series = await getSeries(article.series);
 
   const published = DATE.format(new Date(article.date));
+  const seriesLabel = series.length > 1 ? `${article.series} ${article.part} / ${series.length}` : article.series;
   const meta = [
     'Journal',
-    series.length > 1 ? `${article.series} ${article.part} / ${series.length}` : article.series,
+    seriesLabel,
     published,
     `${article.minutes} min de lecture`,
     article.referenceCount > 0 ? `${article.referenceCount} références` : null,
@@ -82,6 +84,15 @@ export default async function JournalArticlePage({
                   <time key={m} dateTime={article.date}>
                     {m}
                   </time>
+                ) : m === seriesLabel && article.seriesSlug ? (
+                  // La série mène à sa page : le sujet entier, pas seulement cet article.
+                  <Link
+                    key={m}
+                    href={seriesPath(article.seriesSlug)}
+                    className="underline decoration-[var(--color-line)] underline-offset-4 hover:text-[var(--color-fg)] hover:decoration-current"
+                  >
+                    {m}
+                  </Link>
                 ) : (
                   <span key={m}>{m}</span>
                 ),

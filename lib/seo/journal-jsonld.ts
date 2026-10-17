@@ -1,7 +1,7 @@
-import type { Article, ArticleSummary, Inline } from '@/lib/journal/types';
+import type { Article, ArticleSummary, Inline, JournalSeries } from '@/lib/journal/types';
 import { SITE_INFO, withSlash } from '@/lib/seo/metadata';
 import { authorRef, type JsonLdObject } from '@/lib/seo/jsonld';
-import { articlePath } from '@/lib/site/sites';
+import { articlePath, seriesPath } from '@/lib/site/sites';
 
 /**
  * Données structurées du journal (blog.amatencio.com). Ce que Google en tire :
@@ -54,19 +54,68 @@ export function blogPostingJsonLd(article: Article): JsonLdObject {
     inLanguage: 'fr-FR',
     author: authorRef(),
     publisher: authorRef(),
-    isPartOf: { '@type': 'Blog', '@id': `${url('/')}#blog`, name: SITE_INFO.name },
+    isPartOf: blogRef(),
     timeRequired: `PT${article.minutes}M`,
     wordCount: article.words,
     ...(article.series ? { articleSection: article.series } : {}),
+    ...(article.seriesSlug
+      ? { isPartOf: [blogRef(), { '@type': 'CollectionPage', '@id': `${url(seriesPath(article.seriesSlug))}#series`, name: article.series }] }
+      : {}),
     ...(article.references.length
       ? { citation: article.references.map((r) => plain(r.citation)).filter(Boolean) }
       : {}),
   };
 }
 
+function blogRef() {
+  return { '@type': 'Blog', '@id': `${url('/')}#blog`, name: SITE_INFO.name };
+}
+
+/**
+ * La page d'une série : une `CollectionPage` dont l'objet principal est la
+ * liste ORDONNÉE de ses articles (`ItemList`, positions = parties).
+ */
+export function seriesJsonLd(series: JournalSeries, description: string): JsonLdObject {
+  const self = url(seriesPath(series.slug));
+  return {
+    '@context': CONTEXT,
+    '@type': 'CollectionPage',
+    '@id': `${self}#series`,
+    name: series.title,
+    description,
+    url: self,
+    inLanguage: 'fr-FR',
+    author: authorRef(),
+    isPartOf: blogRef(),
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListOrder: 'https://schema.org/ItemListOrderAscending',
+      numberOfItems: series.articles.length,
+      itemListElement: series.articles.map((a, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: url(articlePath(a.slug)),
+        name: a.title,
+      })),
+    },
+  };
+}
+
+export function seriesBreadcrumbJsonLd(series: JournalSeries): JsonLdObject {
+  return breadcrumb([
+    { name: 'Journal', item: url('/') },
+    { name: series.title, item: url(seriesPath(series.slug)) },
+  ]);
+}
+
 export function journalBreadcrumbJsonLd(article?: Article): JsonLdObject {
   const items = [{ name: 'Journal', item: url('/') }];
+  if (article?.series && article.seriesSlug) items.push({ name: article.series, item: url(seriesPath(article.seriesSlug)) });
   if (article) items.push({ name: article.title, item: url(articlePath(article.slug)) });
+  return breadcrumb(items);
+}
+
+function breadcrumb(items: { name: string; item: string }[]): JsonLdObject {
   return {
     '@context': CONTEXT,
     '@type': 'BreadcrumbList',
