@@ -215,7 +215,8 @@ export function ArticleBody({ article, series }: { article: Article; series: Art
             case 'quote':
               return (
                 // Doublon visuel d'une phrase déjà dans le texte : masqué aux
-                // lecteurs d'écran, qui la liraient deux fois.
+                // lecteurs d'écran, qui la liraient deux fois. Deux filets, haut
+                // ET bas : un seul se lisait comme un séparateur de sections.
                 <aside
                   key={i}
                   aria-hidden
@@ -223,7 +224,9 @@ export function ArticleBody({ article, series }: { article: Article; series: Art
                     marginTop: RHYTHM.object,
                     maxWidth: PULLQUOTE_MAX,
                     borderTop: '2px solid var(--color-fg)',
+                    borderBottom: '2px solid var(--color-fg)',
                     paddingTop: 20,
+                    paddingBottom: 24,
                   }}
                 >
                   <p className={EDITORIAL_PULLQUOTE}>«&nbsp;{frenchSpaces(block.text)}&nbsp;»</p>

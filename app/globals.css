@@ -296,8 +296,18 @@
     translate: 0 -6px;
   }
 }
+@keyframes sites-panel-in-above {
+  from {
+    opacity: 0;
+    translate: -6px 6px;
+  }
+}
 [data-sites-panel] {
   animation: sites-panel-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Ouvert au-dessus (nav de la home) : il sort du coin du déclencheur. */
+[data-sites-panel='above'] {
+  animation-name: sites-panel-in-above;
 }
 @media (prefers-reduced-motion: reduce) {
   [data-sites-panel] {

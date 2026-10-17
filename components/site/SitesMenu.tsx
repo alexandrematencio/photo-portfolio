@@ -40,6 +40,8 @@ import { StateDot } from './StateDot';
 
 /** Écart nav-bar → panneau. */
 const PANEL_OFFSET = 14;
+/** Écart coin à coin quand le panneau s'ouvre au-dessus (nav de la home). */
+const CORNER_OFFSET = 4;
 const PANEL_WIDTH = 300;
 
 function Row({ site, here, onNavigate }: { site: SiteEntry; here: boolean; onNavigate?: () => void }) {
@@ -148,13 +150,20 @@ type TriggerProps = Omit<ComponentPropsWithoutRef<'button'>, 'children' | 'onCli
  * rapport à lui. Conséquence côté clavier, traitée à la main : le panneau
  * reçoit le focus à l'ouverture, Échap et la sortie par Tab le referment et
  * rendent le focus au déclencheur.
+ *
+ * Placement : sous le déclencheur, calé à droite, quand il est dans la moitié
+ * haute de l'écran (nav-bar). Dans la moitié basse — la nav de la home, posée
+ * sous la photo — le panneau s'ouvrirait sous l'horizon : il se pose alors
+ * AU-DESSUS, son coin bas gauche contre le coin haut droit du déclencheur.
  */
 export const SitesMenu = forwardRef<HTMLButtonElement, TriggerProps>(function SitesMenu(
   { label, className, style, ...rest },
   ref,
 ) {
   const [open, setOpen] = useState(false);
-  const [box, setBox] = useState<{ top: number; right: number } | null>(null);
+  const [box, setBox] = useState<
+    { above: false; top: number; right: number } | { above: true; bottom: number; left: number } | null
+  >(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -197,7 +206,16 @@ export const SitesMenu = forwardRef<HTMLButtonElement, TriggerProps>(function Si
   const toggle = (viaKeyboard: boolean) => {
     if (open) return close(false);
     const r = triggerRef.current!.getBoundingClientRect();
-    setBox({ top: r.bottom + PANEL_OFFSET, right: Math.max(16, window.innerWidth - r.right) });
+    const vw = window.innerWidth;
+    setBox(
+      r.top > window.innerHeight / 2
+        ? {
+            above: true,
+            bottom: window.innerHeight - r.top + CORNER_OFFSET,
+            left: Math.min(r.right + CORNER_OFFSET, vw - PANEL_WIDTH - 16),
+          }
+        : { above: false, top: r.bottom + PANEL_OFFSET, right: Math.max(16, vw - r.right) },
+    );
     setOpen(true);
     if (viaKeyboard) {
       requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>('a')?.focus());
@@ -256,11 +274,10 @@ export const SitesMenu = forwardRef<HTMLButtonElement, TriggerProps>(function Si
             ref={panelRef}
             id={id}
             onKeyDown={onPanelKey}
-            data-sites-panel
+            data-sites-panel={box.above ? 'above' : 'below'}
             className="fixed z-[70]"
             style={{
-              top: box.top,
-              right: box.right,
+              ...(box.above ? { bottom: box.bottom, left: box.left } : { top: box.top, right: box.right }),
               width: PANEL_WIDTH,
               padding: 6,
               borderRadius: CONTROL_RADIUS,
