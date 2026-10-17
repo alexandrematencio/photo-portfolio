@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { PageShell } from '@/components/site/PageShell';
 import { SeriesArticleList } from '@/components/journal/SeriesArticleList';
+import { BackLink } from '@/components/journal/BackLink';
 import { getAllSeries, getSeriesBySlug } from '@/lib/journal/articles';
 import { frenchSpaces } from '@/lib/journal/french';
 import type { JournalSeries } from '@/lib/journal/types';
@@ -63,6 +64,7 @@ export default async function JournalSeriesPage({ params }: { params: Promise<{ 
       <JsonLd data={[seriesJsonLd(series, seriesDescription(series)), seriesBreadcrumbJsonLd(series)]} />
       <PageShell
         title={series.title}
+        back={<BackLink href="/" />}
         centered
         titleSize="calc(var(--page-title-size) * var(--article-title-scale))"
         subtitle={

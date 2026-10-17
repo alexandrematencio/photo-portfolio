@@ -12,6 +12,7 @@ import { ScrollThumb } from '@/components/site/ScrollThumb';
 import { TopBarAutoHide } from '@/components/site/TopBarAutoHide';
 import { CursorInvert } from '@/components/site/CursorInvert';
 import { EmailHoneypot } from '@/components/site/EmailHoneypot';
+import { NavMemory } from '@/components/journal/BackLink';
 
 /**
  * Layout RACINE du journal (blog.amatencio.com) — compilé dans le seul build
@@ -56,6 +57,7 @@ export default function BlogLayout({ children }: { children: React.ReactNode }) 
           <MainPadding>{children}</MainPadding>
         </FramedScroll>
         <PageArrival />
+        <NavMemory />
         <ScrollThumb />
       </body>
     </html>

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { PageShell } from '@/components/site/PageShell';
 import { ArticleBody } from '@/components/journal/ArticleBody';
+import { BackLink } from '@/components/journal/BackLink';
 import { getArticle, getArticles, getSeries } from '@/lib/journal/articles';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { JsonLd } from '@/components/seo/JsonLd';
@@ -71,6 +72,7 @@ export default async function JournalArticlePage({
       <JsonLd data={[blogPostingJsonLd(article), journalBreadcrumbJsonLd(article)]} />
       <PageShell
         title={article.title}
+        back={<BackLink href={article.seriesSlug ? seriesPath(article.seriesSlug) : '/'} />}
         centered
         titleSize="calc(var(--page-title-size) * var(--article-title-scale))"
         subtitle={

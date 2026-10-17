@@ -74,8 +74,11 @@ export function PageShell({
   width = EDITORIAL_WIDTH,
   titleSize,
   centered = false,
+  back,
 }: {
   title: ReactNode;
+  /** Lien de retour au-dessus du titre (journal : `BackLink`). Facultatif. */
+  back?: ReactNode;
   /**
    * Corps du titre quand ce n'est pas un MOT de page mais une PHRASE — un
    * titre d'article du journal fait douze mots, et au corps unique il
@@ -141,6 +144,8 @@ export function PageShell({
           maxWidth: bleed ? maxWidth : undefined,
         }}
       >
+        {/* 12 + le `gap` de 12 : le retour se détache du titre sans s'en éloigner. */}
+        {back && <div style={{ marginBottom: 12 }}>{back}</div>}
         <PageTitle size={titleSize}>{title}</PageTitle>
         {subtitle}
       </header>
