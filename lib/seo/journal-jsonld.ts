@@ -1,7 +1,7 @@
 import type { Article, ArticleSummary, Inline, JournalSeries } from '@/lib/journal/types';
 import { SITE_INFO, withSlash } from '@/lib/seo/metadata';
 import { authorRef, type JsonLdObject } from '@/lib/seo/jsonld';
-import { articlePath, seriesPath } from '@/lib/site/sites';
+import { DICT, LOCALE, articlePath, homePath, seriesPath, type Lang } from '@/lib/journal/i18n';
 
 /**
  * Données structurées du journal (blog.amatencio.com). Ce que Google en tire :
@@ -17,29 +17,29 @@ function plain(nodes: Inline[]): string {
   return nodes.map((n) => (n.t === 'text' ? n.text : '')).join('').trim();
 }
 
-export function blogJsonLd(articles: ArticleSummary[]): JsonLdObject {
+export function blogJsonLd(articles: ArticleSummary[], lang: Lang): JsonLdObject {
   return {
     '@context': CONTEXT,
     '@type': 'Blog',
-    '@id': `${url('/')}#blog`,
-    name: SITE_INFO.name,
-    description: SITE_INFO.description,
-    url: url('/'),
-    inLanguage: 'fr-FR',
+    '@id': `${url(homePath(lang))}#blog`,
+    name: DICT[lang].siteName,
+    description: DICT[lang].siteDescription,
+    url: url(homePath(lang)),
+    inLanguage: LOCALE[lang].bcp47,
     author: authorRef(),
     publisher: authorRef(),
     blogPost: articles.map((a) => ({
       '@type': 'BlogPosting',
       headline: a.title,
       description: a.dek,
-      url: url(articlePath(a.slug)),
+      url: url(articlePath(a.slug, a.lang)),
       datePublished: a.date,
     })),
   };
 }
 
 export function blogPostingJsonLd(article: Article): JsonLdObject {
-  const self = url(articlePath(article.slug));
+  const self = url(articlePath(article.slug, article.lang));
   return {
     '@context': CONTEXT,
     '@type': 'BlogPosting',
@@ -51,15 +51,15 @@ export function blogPostingJsonLd(article: Article): JsonLdObject {
     mainEntityOfPage: self,
     datePublished: article.date,
     dateModified: article.updatedAt ?? article.date,
-    inLanguage: 'fr-FR',
+    inLanguage: LOCALE[article.lang].bcp47,
     author: authorRef(),
     publisher: authorRef(),
-    isPartOf: blogRef(),
+    isPartOf: blogRef(article.lang),
     timeRequired: `PT${article.minutes}M`,
     wordCount: article.words,
     ...(article.series ? { articleSection: article.series } : {}),
     ...(article.seriesSlug
-      ? { isPartOf: [blogRef(), { '@type': 'CollectionPage', '@id': `${url(seriesPath(article.seriesSlug))}#series`, name: article.series }] }
+      ? { isPartOf: [blogRef(article.lang), { '@type': 'CollectionPage', '@id': `${url(seriesPath(article.seriesSlug, article.lang))}#series`, name: article.series }] }
       : {}),
     ...(article.references.length
       ? { citation: article.references.map((r) => plain(r.citation)).filter(Boolean) }
@@ -67,8 +67,8 @@ export function blogPostingJsonLd(article: Article): JsonLdObject {
   };
 }
 
-function blogRef() {
-  return { '@type': 'Blog', '@id': `${url('/')}#blog`, name: SITE_INFO.name };
+function blogRef(lang: Lang) {
+  return { '@type': 'Blog', '@id': `${url(homePath(lang))}#blog`, name: DICT[lang].siteName };
 }
 
 /**
@@ -76,7 +76,7 @@ function blogRef() {
  * liste ORDONNÉE de ses articles (`ItemList`, positions = parties).
  */
 export function seriesJsonLd(series: JournalSeries, description: string): JsonLdObject {
-  const self = url(seriesPath(series.slug));
+  const self = url(seriesPath(series.slug, series.lang));
   return {
     '@context': CONTEXT,
     '@type': 'CollectionPage',
@@ -84,9 +84,9 @@ export function seriesJsonLd(series: JournalSeries, description: string): JsonLd
     name: series.title,
     description,
     url: self,
-    inLanguage: 'fr-FR',
+    inLanguage: LOCALE[series.lang].bcp47,
     author: authorRef(),
-    isPartOf: blogRef(),
+    isPartOf: blogRef(series.lang),
     mainEntity: {
       '@type': 'ItemList',
       itemListOrder: 'https://schema.org/ItemListOrderAscending',
@@ -94,7 +94,7 @@ export function seriesJsonLd(series: JournalSeries, description: string): JsonLd
       itemListElement: series.articles.map((a, i) => ({
         '@type': 'ListItem',
         position: i + 1,
-        url: url(articlePath(a.slug)),
+        url: url(articlePath(a.slug, a.lang)),
         name: a.title,
       })),
     },
@@ -103,15 +103,15 @@ export function seriesJsonLd(series: JournalSeries, description: string): JsonLd
 
 export function seriesBreadcrumbJsonLd(series: JournalSeries): JsonLdObject {
   return breadcrumb([
-    { name: 'Journal', item: url('/') },
-    { name: series.title, item: url(seriesPath(series.slug)) },
+    { name: 'Journal', item: url(homePath(series.lang)) },
+    { name: series.title, item: url(seriesPath(series.slug, series.lang)) },
   ]);
 }
 
-export function journalBreadcrumbJsonLd(article?: Article): JsonLdObject {
-  const items = [{ name: 'Journal', item: url('/') }];
-  if (article?.series && article.seriesSlug) items.push({ name: article.series, item: url(seriesPath(article.seriesSlug)) });
-  if (article) items.push({ name: article.title, item: url(articlePath(article.slug)) });
+export function journalBreadcrumbJsonLd(article: Article): JsonLdObject {
+  const items = [{ name: 'Journal', item: url(homePath(article.lang)) }];
+  if (article.series && article.seriesSlug) items.push({ name: article.series, item: url(seriesPath(article.seriesSlug, article.lang)) });
+  items.push({ name: article.title, item: url(articlePath(article.slug, article.lang)) });
   return breadcrumb(items);
 }
 

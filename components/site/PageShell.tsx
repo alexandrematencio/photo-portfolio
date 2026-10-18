@@ -44,6 +44,20 @@ import {
 const EDITORIAL_WIDTH = 1107;
 
 /**
+ * Le RAIL du journal (2026-10-18, demande Alexandre) : le bouton Back et le
+ * sélecteur de langue, glissés à GAUCHE de l'article et collés sous le menu
+ * au défilement — le retour reste à portée de main. Deux rails de même
+ * largeur, le second vide : la colonne reste centrée.
+ *
+ * Dès 1280 px seulement (`xl`) : en dessous, la marge ne loge pas un bouton
+ * sans écraser la colonne de notes (seuil 1100, Notes.tsx). Le rail
+ * redevient alors une rangée au-dessus du titre, dans le flux.
+ */
+const RAIL_WIDTH = 176;
+/** Sous le menu : le conteneur de défilement commence déjà sous la nav-bar (FramedScroll). */
+const RAIL_STICKY_TOP = 24;
+
+/**
  * Écart titre → sous-titre. Serré exprès : le sous-titre appartient au bloc de
  * titre, il n'est pas le corps de la page. C'est bien le BLOC entier
  * (titre + sous-titre) que `PAGE_TITLE_GAP` sépare ensuite du contenu.
@@ -75,10 +89,13 @@ export function PageShell({
   titleSize,
   centered = false,
   back,
+  language,
 }: {
   title: ReactNode;
-  /** Lien de retour au-dessus du titre (journal : `BackLink`). Facultatif. */
+  /** Lien de retour (journal : `BackLink`) — dans le rail. Facultatif. */
   back?: ReactNode;
+  /** Sélecteur de langue (journal : `LanguageSwitch`) — sous le retour, dans le rail. */
+  language?: ReactNode;
   /**
    * Corps du titre quand ce n'est pas un MOT de page mais une PHRASE — un
    * titre d'article du journal fait douze mots, et au corps unique il
@@ -119,7 +136,8 @@ export function PageShell({
   width?: number | false;
 }) {
   const maxWidth = width === false ? undefined : width;
-  return (
+  const hasRail = Boolean(back || language);
+  const page = (
     <article
       // `gap` en style inline plutôt qu'en utility Tailwind : il échappe au
       // reset `* { padding: 0 }` (qui ne parle que de padding et de margin),
@@ -144,12 +162,37 @@ export function PageShell({
           maxWidth: bleed ? maxWidth : undefined,
         }}
       >
-        {/* 12 + le `gap` de 12 : le retour se détache du titre sans s'en éloigner. */}
-        {back && <div style={{ marginBottom: 12 }}>{back}</div>}
+        {/* Sous `xl`, le rail est une rangée au-dessus du titre. 12 + le
+            `gap` de 12 : il se détache du titre sans s'en éloigner. */}
+        {hasRail && (
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 xl:hidden" style={{ marginBottom: 12 }}>
+            {back}
+            {language}
+          </div>
+        )}
         <PageTitle size={titleSize}>{title}</PageTitle>
         {subtitle}
       </header>
       {children}
     </article>
+  );
+
+  if (!hasRail) return page;
+  return (
+    <div
+      className="xl:grid"
+      style={{ gridTemplateColumns: `${RAIL_WIDTH}px minmax(0, ${maxWidth ?? EDITORIAL_WIDTH}px) ${RAIL_WIDTH}px`, justifyContent: 'center' }}
+    >
+      {/* La cellule court sur toute la hauteur de l'article : c'est elle qui
+          borne le collant. Le rail se cale sur son bord DROIT, contre la
+          gouttière de l'article. */}
+      <div className="hidden xl:block">
+        <div className="sticky flex flex-col items-end gap-5" style={{ top: RAIL_STICKY_TOP }}>
+          {back}
+          {language}
+        </div>
+      </div>
+      {page}
+    </div>
   );
 }

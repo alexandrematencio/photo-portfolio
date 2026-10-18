@@ -5,7 +5,9 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { GlyphLogo } from './GlyphLogo';
-import { SitesList } from './SitesMenu';
+import { SitesList, type MenuEntry } from './SitesMenu';
+import { IS_BLOG } from '@/lib/site/sites';
+import { DICT, homePath, langOfPath } from '@/lib/journal/i18n';
 import { cn } from '@/lib/utils/cn';
 import {
   ACTIVE_FILL_MOBILE,
@@ -38,27 +40,29 @@ import {
 
 const MOBILE_LINKS = MOBILE_NAV_LINKS;
 
-export function MobileMenu() {
+export function MobileMenu({ journalMenu }: { journalMenu?: MenuEntry[] }) {
   const [open, setOpen] = useState(false);
-  const [sitesOpen, setSitesOpen] = useState(false);
+  // Le sous-menu déplié — « All sites » ou, sur le blog, « Journal ». Un seul à la fois.
+  const [subOpen, setSubOpen] = useState<'sites' | 'journal' | null>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const lang = langOfPath(pathname);
 
   // Close on route change so navigating from inside the menu dismisses it.
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
-  // Le tiroir rouvre toujours replié : « All sites » est un détour, pas un état.
+  // Le tiroir rouvre toujours replié : un sous-menu est un détour, pas un état.
   useEffect(() => {
-    if (!open) setSitesOpen(false);
+    if (!open) setSubOpen(null);
   }, [open]);
 
   // La colonne est calée en BAS de l'écran : dépliée, la liste des sites
   // passe sous le bord. Le tiroir défile jusqu'à elle à la fin du dépliage
   // (300 ms), sans animation si le mouvement est réduit.
   useEffect(() => {
-    if (!sitesOpen) return;
+    if (!subOpen) return;
     const t = window.setTimeout(() => {
       const el = drawerRef.current;
       if (!el) return;
@@ -66,7 +70,7 @@ export function MobileMenu() {
       el.scrollTo({ top: el.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
     }, 300);
     return () => window.clearTimeout(t);
-  }, [sitesOpen]);
+  }, [subOpen]);
 
   // ESC closes + body scroll lock while open.
   useEffect(() => {
@@ -137,8 +141,8 @@ export function MobileMenu() {
             style={{ paddingBlock: 32, paddingInline: 'var(--page-gutter)' }}
           >
             <Link
-              href="/"
-              aria-label="Home"
+              href={IS_BLOG ? homePath(lang) : '/'}
+              aria-label={IS_BLOG ? DICT[lang].journalHome : 'Home'}
               onClick={() => setOpen(false)}
               className="inline-flex"
             >
@@ -193,21 +197,31 @@ export function MobileMenu() {
                 // deux grammaires.
                 active && 'bg-[var(--color-active-bg)]'
               );
-              // « All sites » : un tiroir dans le tiroir. La liste se déplie
-              // SOUS le libellé (grille 0fr → 1fr, 300 ms, le contenu 60 ms
-              // après — même geste que les lignes de la page d'accueil du
-              // journal) et pousse la colonne vers le haut ; le tiroir défile
-              // si un petit écran n'a plus la place.
-              if (link.menu === 'sites') {
+              // « All sites » (et « Journal » sur le blog) : un tiroir dans le
+              // tiroir. La liste se déplie SOUS le libellé (grille 0fr → 1fr,
+              // 300 ms, le contenu 60 ms après — même geste que les lignes de
+              // la page d'accueil du journal) et pousse la colonne vers le
+              // haut ; le tiroir défile si un petit écran n'a plus la place.
+              // « Journal » y est surligné comme la page active : on est dans
+              // le journal, quelle que soit la page.
+              if (link.menu) {
+                const menu = link.menu;
+                const subOn = subOpen === menu;
+                const panelId = `mobile-${menu}`;
                 return (
                   <div key={link.label} className="flex flex-col">
                     <button
                       type="button"
-                      aria-expanded={sitesOpen}
-                      aria-controls="mobile-sites"
-                      onClick={() => setSitesOpen((v) => !v)}
+                      aria-expanded={subOn}
+                      aria-controls={panelId}
+                      aria-current={menu === 'journal' ? 'page' : undefined}
+                      onClick={() => setSubOpen((v) => (v === menu ? null : menu))}
                       style={itemStyle}
-                      className={cn(itemClass, 'flex items-center text-left')}
+                      className={cn(
+                        itemClass,
+                        'flex items-center text-left',
+                        menu === 'journal' && 'bg-[var(--color-active-bg)]'
+                      )}
                     >
                       {link.label}
                       <svg
@@ -218,7 +232,7 @@ export function MobileMenu() {
                         strokeWidth={2.2}
                         className={cn(
                           'transition-[rotate] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
-                          sitesOpen && 'rotate-180'
+                          subOn && 'rotate-180'
                         )}
                         style={{ width: '0.46em', height: '0.46em', marginLeft: '0.2em', marginTop: '0.06em' }}
                       >
@@ -226,17 +240,18 @@ export function MobileMenu() {
                       </svg>
                     </button>
                     <div
-                      id="mobile-sites"
+                      id={panelId}
                       className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
-                      style={{ gridTemplateRows: sitesOpen ? '1fr' : '0fr' }}
-                      inert={!sitesOpen}
+                      style={{ gridTemplateRows: subOn ? '1fr' : '0fr' }}
+                      inert={!subOn}
                     >
                       <div className="min-h-0 overflow-hidden">
                         <SitesList
+                          entries={menu === 'journal' ? (journalMenu ?? []) : undefined}
                           onNavigate={() => setOpen(false)}
                           className={cn(
                             'transition-opacity duration-300 ease-out motion-reduce:transition-none',
-                            sitesOpen ? 'opacity-100 delay-[60ms]' : 'opacity-0'
+                            subOn ? 'opacity-100 delay-[60ms]' : 'opacity-0'
                           )}
                         />
                       </div>

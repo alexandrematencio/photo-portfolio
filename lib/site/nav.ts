@@ -24,8 +24,12 @@ export type NavLink = {
    * « All sites » (`SitesMenu`). Elle garde sa place dans la liste — le morph
    * du hero et `measureNavBar` comptent les entrées par leur rang — et son
    * `href` vide ne correspond à aucune page, donc jamais active.
+   *
+   * `'journal'` : le menu « Journal » de blog.amatencio.com — tous les
+   * articles, puis chaque série. Toujours ACTIF sur le blog : on y est dans
+   * le journal, quelle que soit la page.
    */
-  menu?: 'sites';
+  menu?: 'sites' | 'journal';
 };
 
 /**
@@ -50,13 +54,13 @@ export type NavLink = {
  */
 export const NAV_LINKS: NavLink[] = IS_BLOG
   ? [
-      // Le journal (blog.amatencio.com) : sa page d'accueil, puis la page
-      // About du portfolio — qui porte le contact. Le portfolio lui-même se
-      // rejoint par « All sites » (« Photography » retiré le 2026-10-18,
-      // demande Alexandre).
-      { href: '/', label: 'Journal' },
-      { href: photoHref('/about/'), label: 'About' },
+      // Le journal (blog.amatencio.com) : « All sites », puis « Journal » —
+      // un menu, surligné comme page active —, puis la page About du
+      // portfolio, qui porte le contact (ordre demandé par Alexandre le
+      // 2026-10-18).
       { href: '', label: 'All sites', menu: 'sites' },
+      { href: '/', label: 'Journal', menu: 'journal' },
+      { href: photoHref('/about/'), label: 'About' },
     ]
   : [
       { href: '/series', label: 'Series' },

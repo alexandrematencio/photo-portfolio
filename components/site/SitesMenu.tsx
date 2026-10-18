@@ -17,7 +17,7 @@ import {
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils/cn';
 import { CONTROL_RADIUS } from '@/lib/site/controls';
-import { SITES, type SiteEntry } from '@/lib/site/nav';
+import { SITES, isSamePage } from '@/lib/site/nav';
 import { isExternal } from '@/lib/site/sites';
 import { MICRO_LABEL, MICRO_LABEL_XS } from '@/lib/site/typography';
 import { StateDot } from './StateDot';
@@ -36,7 +36,24 @@ import { StateDot } from './StateDot';
  *   le papier » du tiroir mobile et de la lightbox ;
  * - un site pas encore en ligne reste VISIBLE, grisé, avec « Soon » : jamais
  *   un lien mort, et la place est déjà prise dans la liste.
+ *
+ * Le même panneau porte le menu « Journal » de blog.amatencio.com
+ * (2026-10-18) : tous les articles, puis une rangée par série — `entries`.
+ * Le voyant y dit la page affichée.
  */
+
+/** Une rangée de menu : un nom, une ligne de détail (domaine, nombre d'articles). */
+export type MenuEntry = {
+  label: string;
+  detail: string;
+  /** `null` : pas encore en ligne — grisé, « Soon ». */
+  href: string | null;
+  external?: boolean;
+  /** Forcé (le site que ce build produit) ; à défaut, comparé à la page affichée. */
+  here?: boolean;
+};
+
+const SITE_ENTRIES: MenuEntry[] = SITES.map(({ host, ...site }) => ({ ...site, detail: host }));
 
 /** Écart nav-bar → panneau. */
 const PANEL_OFFSET = 14;
@@ -44,7 +61,7 @@ const PANEL_OFFSET = 14;
 const CORNER_OFFSET = 4;
 const PANEL_WIDTH = 300;
 
-function Row({ site, here, onNavigate }: { site: SiteEntry; here: boolean; onNavigate?: () => void }) {
+function Row({ site, here, onNavigate }: { site: MenuEntry; here: boolean; onNavigate?: () => void }) {
   const rowStyle: CSSProperties = { padding: '14px 16px', borderRadius: CONTROL_RADIUS };
   const body = (
     <>
@@ -54,7 +71,7 @@ function Row({ site, here, onNavigate }: { site: SiteEntry; here: boolean; onNav
       <span className="flex min-w-0 flex-col" style={{ gap: 7 }}>
         <span className="text-[22px] font-bold tracking-[-0.02em] leading-none">
           {site.label}
-          {here && <span className="sr-only"> (current site)</span>}
+          {here && <span className="sr-only"> (current)</span>}
         </span>
         <span
           className={cn(
@@ -63,7 +80,7 @@ function Row({ site, here, onNavigate }: { site: SiteEntry; here: boolean; onNav
             site.href ? 'text-[var(--color-fg-muted)] group-hover:text-[var(--color-fg-faint)] group-focus-visible:text-[var(--color-fg-faint)]' : 'text-[var(--color-fg-faint)]',
           )}
         >
-          {site.host}
+          {site.detail}
         </span>
       </span>
       {site.href === null ? (
@@ -126,17 +143,35 @@ function Row({ site, here, onNavigate }: { site: SiteEntry; here: boolean; onNav
   );
 }
 
-export function SitesList({ onNavigate, className }: { onNavigate?: () => void; className?: string }) {
+export function SitesList({
+  onNavigate,
+  className,
+  entries = SITE_ENTRIES,
+}: {
+  onNavigate?: () => void;
+  className?: string;
+  entries?: MenuEntry[];
+}) {
+  const pathname = usePathname();
   return (
     <ul className={cn('flex flex-col', className)}>
-      {SITES.map((site) => (
-        <Row key={site.host} site={site} here={site.here ?? false} onNavigate={onNavigate} />
+      {entries.map((site) => (
+        <Row
+          key={site.href ?? site.label}
+          site={site}
+          here={site.here ?? Boolean(site.href && !isExternal(site.href) && pathname && isSamePage(site.href, pathname))}
+          onNavigate={onNavigate}
+        />
       ))}
     </ul>
   );
 }
 
-type TriggerProps = Omit<ComponentPropsWithoutRef<'button'>, 'children' | 'onClick'> & { label: string };
+type TriggerProps = Omit<ComponentPropsWithoutRef<'button'>, 'children' | 'onClick'> & {
+  label: string;
+  /** Les rangées du panneau ; à défaut, les sites d'amatencio.com. */
+  entries?: MenuEntry[];
+};
 
 /**
  * Déclencheur de la nav-bar + panneau. Le déclencheur est une ENTRÉE de la
@@ -151,18 +186,18 @@ type TriggerProps = Omit<ComponentPropsWithoutRef<'button'>, 'children' | 'onCli
  * reçoit le focus à l'ouverture, Échap et la sortie par Tab le referment et
  * rendent le focus au déclencheur.
  *
- * Placement : sous le déclencheur, calé à droite, quand il est dans la moitié
+ * Placement : sous le déclencheur, calé à droite (à gauche faute de place), quand il est dans la moitié
  * haute de l'écran (nav-bar). Dans la moitié basse — la nav de la home, posée
  * sous la photo — le panneau s'ouvrirait sous l'horizon : il se pose alors
  * AU-DESSUS, son coin bas gauche contre le coin haut droit du déclencheur.
  */
 export const SitesMenu = forwardRef<HTMLButtonElement, TriggerProps>(function SitesMenu(
-  { label, className, style, ...rest },
+  { label, entries, className, style, ...rest },
   ref,
 ) {
   const [open, setOpen] = useState(false);
   const [box, setBox] = useState<
-    { above: false; top: number; right: number } | { above: true; bottom: number; left: number } | null
+    { above: false; top: number; left: number } | { above: true; bottom: number; left: number } | null
   >(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -214,7 +249,13 @@ export const SitesMenu = forwardRef<HTMLButtonElement, TriggerProps>(function Si
             bottom: window.innerHeight - r.top + CORNER_OFFSET,
             left: Math.min(r.right + CORNER_OFFSET, vw - PANEL_WIDTH - 16),
           }
-        : { above: false, top: r.bottom + PANEL_OFFSET, right: Math.max(16, vw - r.right) },
+        : {
+            above: false,
+            top: r.bottom + PANEL_OFFSET,
+            // Calé à droite du déclencheur ; à gauche s'il n'y a pas la place
+            // (« All sites » est la première entrée de la nav du journal).
+            left: Math.min(r.right - PANEL_WIDTH < 16 ? r.left : r.right - PANEL_WIDTH, vw - PANEL_WIDTH - 16),
+          },
     );
     setOpen(true);
     if (viaKeyboard) {
@@ -277,7 +318,7 @@ export const SitesMenu = forwardRef<HTMLButtonElement, TriggerProps>(function Si
             data-sites-panel={box.above ? 'above' : 'below'}
             className="fixed z-[70]"
             style={{
-              ...(box.above ? { bottom: box.bottom, left: box.left } : { top: box.top, right: box.right }),
+              ...(box.above ? { bottom: box.bottom, left: box.left } : { top: box.top, left: box.left }),
               width: PANEL_WIDTH,
               padding: 6,
               borderRadius: CONTROL_RADIUS,
@@ -286,7 +327,7 @@ export const SitesMenu = forwardRef<HTMLButtonElement, TriggerProps>(function Si
             }}
           >
             <nav aria-label={label}>
-              <SitesList onNavigate={() => setOpen(false)} />
+              <SitesList entries={entries} onNavigate={() => setOpen(false)} />
             </nav>
           </div>,
           document.body,

@@ -6,6 +6,7 @@ import {
 } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import type { Verdict, VerdictKind } from '@/lib/journal/types';
+import { DICT, type Lang } from '@/lib/journal/i18n';
 
 /**
  * Le BILAN de l'annexe : une planche-contact des verdicts, puis le tableau.
@@ -18,13 +19,6 @@ import type { Verdict, VerdictKind } from '@/lib/journal/types';
  * Au-dessus de `md` un vrai tableau ; en dessous, la même table en fiches
  * empilées (les cellules passent en `block`), sans perdre la sémantique.
  */
-
-const KIND_LABEL: Record<VerdictKind, string> = {
-  converge: 'Converge',
-  nuance: 'Converge avec réserve',
-  open: 'Ouvert, à tester',
-  fails: 'Ne tient pas',
-};
 
 const KIND_ORDER: VerdictKind[] = ['converge', 'nuance', 'open', 'fails'];
 
@@ -57,7 +51,8 @@ export function VerdictMark({ kind, size = 12 }: { kind: VerdictKind; size?: num
   );
 }
 
-export function VerdictTable({ rows, style }: { rows: Verdict[]; style?: CSSProperties }) {
+export function VerdictTable({ rows, style, lang }: { rows: Verdict[]; style?: CSSProperties; lang: Lang }) {
+  const t = DICT[lang].verdicts;
   const counts = KIND_ORDER.map((kind) => ({
     kind,
     count: rows.filter((v) => v.kind === kind).length,
@@ -71,21 +66,21 @@ export function VerdictTable({ rows, style }: { rows: Verdict[]; style?: CSSProp
             <VerdictMark key={i} kind={v.kind} size={22} />
           ))}
         </div>
-        <ul className="flex flex-wrap gap-x-6 gap-y-2" aria-label="Répartition des verdicts">
+        <ul className="flex flex-wrap gap-x-6 gap-y-2" aria-label={t.distribution}>
           {counts.map(({ kind, count }) => (
             <li key={kind} className={cn(MICRO_LABEL, 'flex items-center gap-2')}>
               <VerdictMark kind={kind} />
-              {KIND_LABEL[kind]} ({count})
+              {t[kind]} ({count})
             </li>
           ))}
         </ul>
       </div>
 
       <table className="w-full border-collapse max-md:block">
-        <caption className="sr-only">Le bilan idée par idée</caption>
+        <caption className="sr-only">{t.caption}</caption>
         <thead className="max-md:sr-only">
           <tr>
-            {["Ce que j'ai déduit", 'Ce qui existait', 'Verdict'].map((h) => (
+            {t.head.map((h) => (
               <th
                 key={h}
                 scope="col"

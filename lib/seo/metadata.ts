@@ -1,12 +1,15 @@
 import type { Metadata } from 'next';
 import { IS_BLOG, PHOTO_URL } from '@/lib/site/sites';
+import { DICT, LOCALE as JOURNAL_LOCALE, type Lang } from '@/lib/journal/i18n';
+import type { Alternates } from '@/lib/journal/types';
 
 // Nom, description et langue dépendent du site construit (lib/site/sites.ts) :
-// le journal est en français, le portfolio en anglais.
-const SITE_NAME = IS_BLOG ? 'Journal d’Alexandre Matencio' : 'Alexandre Matencio — Photographer';
+// le journal est en français (et en anglais, en russe : `opts.lang`), le
+// portfolio en anglais.
+const SITE_NAME = IS_BLOG ? DICT.fr.siteName : 'Alexandre Matencio — Photographer';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 const DEFAULT_DESC = IS_BLOG
-  ? 'Le journal d’Alexandre Matencio : des textes longs et sourcés sur les marchés de collection, la conscience et ce que la recherche en dit.'
+  ? DICT.fr.siteDescription
   : "Author photography — street, landscape and portrait. Portfolio of Alexandre Matencio, photographer based near Paris.";
 const LOCALE = IS_BLOG ? 'fr_FR' : 'en_US';
 
@@ -25,11 +28,22 @@ export function buildMetadata(opts: {
   image?: string;
   /** Article du journal : `og:type=article` et ses dates (Open Graph). */
   article?: { publishedTime: string; modifiedTime?: string; section?: string };
+  /** Journal : la langue de la page (nom du site, locale Open Graph). */
+  lang?: Lang;
+  /**
+   * Journal : la même page dans chaque langue (chemins). Devient les liens
+   * `hreflang` — que Google lit, et que le script de langue suit
+   * (`languageScript`, lib/journal/i18n.ts).
+   */
+  alternates?: Alternates;
 }): Metadata {
+  const dict = IS_BLOG && opts.lang ? DICT[opts.lang] : null;
+  const siteName = dict?.siteName ?? SITE_NAME;
+  const locale = IS_BLOG && opts.lang ? JOURNAL_LOCALE[opts.lang].og : LOCALE;
   const title =
     opts.absoluteTitle ??
-    (opts.title ? `${opts.title} — ${SITE_NAME}` : SITE_NAME);
-  const description = opts.description ?? DEFAULT_DESC;
+    (opts.title ? `${opts.title} — ${siteName}` : siteName);
+  const description = opts.description ?? dict?.siteDescription ?? DEFAULT_DESC;
   // Slash final imposé : le site est en `trailingSlash: true` (next.config.ts,
   // GH Pages ne réécrit pas /series → /series/index.html). Une canonical sans
   // slash désignerait donc une URL qui REDIRIGE vers la vraie — l'inverse de ce
@@ -41,13 +55,13 @@ export function buildMetadata(opts: {
     metadataBase: new URL(SITE_URL),
     title,
     description,
-    alternates: { canonical: url },
+    alternates: { canonical: url, ...(opts.alternates ? { languages: hreflang(opts.alternates) } : {}) },
     openGraph: {
       title,
       description,
       url,
-      siteName: SITE_NAME,
-      locale: LOCALE,
+      siteName,
+      locale,
       images: [{ url: image, width: 1200, height: 630, alt: title }],
       ...(opts.article
         ? {
@@ -80,6 +94,22 @@ export function buildMetadata(opts: {
       'tdm-policy': `${PHOTO_URL}${withSlash('/legal')}`,
     },
   };
+}
+
+/**
+ * `hreflang` : chaque langue où la page existe, plus `x-default` — la
+ * version que reçoit un lecteur dont la langue n'est pas servie. C'est
+ * l'anglais, comme dans `languageScript` ; le français à défaut.
+ */
+function hreflang(alternates: Alternates): Record<string, string> {
+  const abs = (path: string) => `${SITE_URL}${withSlash(path)}`;
+  const out: Record<string, string> = {};
+  for (const [lang, path] of Object.entries(alternates) as [Lang, string][]) {
+    out[JOURNAL_LOCALE[lang].bcp47] = abs(path);
+  }
+  const fallback = alternates.en ?? alternates.fr;
+  if (fallback) out['x-default'] = abs(fallback);
+  return out;
 }
 
 export const SITE_INFO = { name: SITE_NAME, url: SITE_URL, description: DEFAULT_DESC, locale: LOCALE };

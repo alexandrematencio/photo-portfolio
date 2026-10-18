@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils/cn';
 import { ACTIVE_FILL_PADDING, CONTROL_RADIUS } from '@/lib/site/controls';
 import { GlyphLogo } from './GlyphLogo';
-import { SitesMenu } from './SitesMenu';
+import { SitesMenu, type MenuEntry } from './SitesMenu';
+import { DICT, homePath, langOfPath } from '@/lib/journal/i18n';
 import { IS_BLOG, isExternal, isPhotoHome } from '@/lib/site/sites';
 import {
   NAV_LINKS as LINKS,
@@ -20,6 +21,8 @@ type SiteHeaderProps = {
   /** Photo du hero de la home (`homePage.hero`) : préchargée dès que le
       visiteur vise le logo, pour qu'elle soit là quand le hero naît. */
   heroSrc?: string | null;
+  /** Journal : les rangées du menu « Journal » (BlogShell), dans la langue de la page. */
+  journalMenu?: MenuEntry[];
 };
 
 /**
@@ -30,8 +33,10 @@ type SiteHeaderProps = {
  *
  * Mobile menu (burger button + drawer) lives in `<MobileMenu />` at the layout level.
  */
-export function SiteHeader({ heroSrc }: SiteHeaderProps) {
+export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
   const pathname = usePathname();
+  const lang = langOfPath(pathname);
+  const glyphLabel = IS_BLOG ? DICT[lang].journalHome : 'A. Matencio — home';
   // L'intention, pas l'anticipation : appui, focus ou survol du logo
   // (cf. lib/utils/image-preload.ts). La nav-bar ne défile jamais sous le
   // curseur, le survol y est donc toujours un geste.
@@ -84,9 +89,9 @@ export function SiteHeader({ heroSrc }: SiteHeaderProps) {
           style={{ paddingLeft: 'var(--page-gutter)', paddingRight: 64 }}
         >
           <Link
-            href="/"
+            href={IS_BLOG ? homePath(lang) : '/'}
             className="flex items-center shrink-0"
-            aria-label={IS_BLOG ? 'Journal — accueil' : 'A. Matencio — home'}
+            aria-label={glyphLabel}
             onPointerEnter={warmHero}
             onPointerDown={warmHero}
             onFocus={warmHero}
@@ -116,7 +121,7 @@ export function SiteHeader({ heroSrc }: SiteHeaderProps) {
             <GlyphLogo
               size={28}
               color="var(--color-logo)"
-              title={IS_BLOG ? 'Journal — accueil' : 'A. Matencio — home'}
+              title={glyphLabel}
             />
           </Link>
 
@@ -134,6 +139,23 @@ export function SiteHeader({ heroSrc }: SiteHeaderProps) {
                   data-cursor-invert
                   data-nav-link
                   className="hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none"
+                />
+              );
+            }
+            // « Journal » sur le blog : le même menu, ses rangées en plus, et
+            // TOUJOURS surligné — on est dans le journal sur toutes ses pages.
+            // Pas de morph sur le blog : padder l'actif ne décale rien.
+            if (link.menu === 'journal') {
+              return (
+                <SitesMenu
+                  key={link.label}
+                  label={link.label}
+                  entries={journalMenu ?? []}
+                  aria-current="page"
+                  data-cursor-invert
+                  data-nav-link
+                  style={{ padding: ACTIVE_FILL_PADDING, borderRadius: CONTROL_RADIUS }}
+                  className="hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none bg-[var(--color-active-bg)]"
                 />
               );
             }

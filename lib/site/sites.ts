@@ -35,15 +35,8 @@ export function blogHref(path: string): string {
   return IS_BLOG ? path : `${BLOG_URL}${path}`;
 }
 
-/** Chemin d'un article sur le blog (slash final : `trailingSlash: true`). */
-export function articlePath(slug: string): string {
-  return `/${slug}/`;
-}
-
-/** Chemin de la page d'une série sur le blog. */
-export function seriesPath(slug: string): string {
-  return `/serie/${slug}/`;
-}
+/** Chemins d'un article, d'une série, de l'accueil — dans une langue (lib/journal/i18n.ts). */
+export { articlePath, seriesPath, homePath } from '@/lib/journal/i18n';
 
 export function isExternal(href: string): boolean {
   return /^https?:\/\//.test(href);

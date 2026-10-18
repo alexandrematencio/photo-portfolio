@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { articlePath } from '@/lib/site/sites';
+import { DICT, articlePath, type Lang } from '@/lib/journal/i18n';
 import { frenchSpaces } from '@/lib/journal/french';
 import { EDITORIAL_SIDENOTE, MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
@@ -14,13 +14,14 @@ import type { ArticleSummary } from '@/lib/journal/types';
  * Même inversion au survol que les lignes de l'index (brand book §14.8) :
  * encre sur papier devient papier sur encre, 200 ms.
  */
-export function SeriesArticleList({ articles }: { articles: ArticleSummary[] }) {
+export function SeriesArticleList({ articles, lang }: { articles: ArticleSummary[]; lang: Lang }) {
+  const t = DICT[lang];
   return (
     <ol className="flex flex-col" style={{ borderTop: '1px solid var(--color-line)' }}>
       {articles.map((a) => (
         <li key={a.slug} style={{ borderBottom: '1px solid var(--color-line)' }}>
           <Link
-            href={articlePath(a.slug)}
+            href={articlePath(a.slug, a.lang)}
             className={cn(
               'group grid grid-cols-[40px_minmax(0,1fr)] md:grid-cols-[72px_minmax(0,1fr)] items-baseline text-[var(--color-fg)]',
               'transition-colors duration-200 ease-out motion-reduce:transition-none',
@@ -38,8 +39,8 @@ export function SeriesArticleList({ articles }: { articles: ArticleSummary[] }) 
               </span>
               <span className={cn(EDITORIAL_SIDENOTE, 'flex flex-wrap gap-x-4 text-current opacity-70')}>
                 <time dateTime={a.date}>{a.date.replaceAll('-', '.')}</time>
-                <span>{a.minutes} min de lecture</span>
-                {a.referenceCount > 0 && <span>{a.referenceCount} références</span>}
+                <span>{t.minutes(a.minutes)}</span>
+                {a.referenceCount > 0 && <span>{t.references(a.referenceCount)}</span>}
               </span>
             </span>
           </Link>

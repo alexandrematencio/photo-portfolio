@@ -35,6 +35,40 @@ function bodyText(body: unknown): string {
     .join(' ');
 }
 
+// ── Langues (2026-10-18, lib/journal/i18n.ts) ──────────────────────────────
+
+const LANGUAGE_OPTIONS = [
+  { title: 'Français', value: 'fr' },
+  { title: 'English', value: 'en' },
+  { title: 'Русский', value: 'ru' },
+];
+
+/** Une traduction (anglais, russe) hérite de son original : date, série, partie. */
+const isTranslation = (document: Record<string, unknown> | undefined) =>
+  Boolean(document?.language && document.language !== 'fr');
+
+/**
+ * Les traductions d'une série ou de la signature : un objet par langue, les
+ * mêmes champs que l'original. Le français reste dans les champs du document.
+ */
+function translationsField(fields: (lang: 'en' | 'ru') => ReturnType<typeof defineField>[]) {
+  return defineField({
+    name: 'translations',
+    title: 'Traductions',
+    description: 'Les versions anglaise et russe. Vides : le site affiche le français.',
+    type: 'object',
+    options: { collapsible: true, collapsed: true },
+    fields: (['en', 'ru'] as const).map((lang) =>
+      defineField({
+        name: lang,
+        title: lang === 'en' ? 'English' : 'Русский',
+        type: 'object',
+        fields: fields(lang),
+      }),
+    ),
+  });
+}
+
 // ── Objets en ligne (dans un paragraphe) ──────────────────────────────────
 
 export const journalNoteRef = defineType({
@@ -263,6 +297,17 @@ export const journalSeries = defineType({
       rows: 3,
       validation: (Rule) => Rule.max(400).warning('Au-delà de 400 signes, la présentation devient un article.'),
     }),
+    translationsField((lang) => [
+      defineField({ name: 'title', title: 'Titre', type: 'string' }),
+      defineField({
+        name: 'slug',
+        title: 'Identifiant',
+        description: `L’adresse de la page : blog.amatencio.com/${lang}/${lang === 'en' ? 'series' : 'seriya'}/<identifiant>. En caractères latins.`,
+        type: 'slug',
+        options: { source: `translations.${lang}.title` },
+      }),
+      defineField({ name: 'description', title: 'Présentation', type: 'text', rows: 3 }),
+    ]),
   ],
 });
 
@@ -271,6 +316,28 @@ export const post = defineType({
   title: 'Article',
   type: 'document',
   fields: [
+    defineField({
+      name: 'language',
+      title: 'Langue',
+      description: 'Une traduction est un article à part, qui pointe son original français.',
+      type: 'string',
+      options: { list: LANGUAGE_OPTIONS, layout: 'radio', direction: 'horizontal' },
+      initialValue: 'fr',
+      validation: (Rule) => Rule.required(),
+    }),
+    defineField({
+      name: 'translationOf',
+      title: 'Traduction de',
+      description: 'L’article français dont celui-ci est la traduction. Date, série et partie viennent de lui.',
+      type: 'reference',
+      to: [{ type: 'post' }],
+      options: { filter: '!defined(language) || language == "fr"' },
+      hidden: ({ document }) => !isTranslation(document),
+      validation: (Rule) =>
+        Rule.custom((value, context) =>
+          isTranslation(context.document) && !value ? 'Une traduction doit pointer son original français.' : true,
+        ),
+    }),
     defineField({
       name: 'title',
       title: 'Titre',
@@ -298,15 +365,23 @@ export const post = defineType({
       title: 'Date',
       type: 'date',
       initialValue: () => new Date().toISOString().slice(0, 10),
-      validation: (Rule) => Rule.required(),
+      hidden: ({ document }) => isTranslation(document),
+      validation: (Rule) =>
+        Rule.custom((value, context) => (isTranslation(context.document) || value ? true : 'La date est obligatoire.')),
     }),
-    defineField({ name: 'series', title: 'Série', type: 'reference', to: [{ type: 'journalSeries' }] }),
+    defineField({
+      name: 'series',
+      title: 'Série',
+      type: 'reference',
+      to: [{ type: 'journalSeries' }],
+      hidden: ({ document }) => isTranslation(document),
+    }),
     defineField({
       name: 'part',
       title: 'Partie',
       description: 'Le rang de l’article dans sa série (1, 2, 3…).',
       type: 'number',
-      hidden: ({ document }) => !document?.series,
+      hidden: ({ document }) => !document?.series || isTranslation(document),
       validation: (Rule) => Rule.integer().min(1),
     }),
     defineField({
@@ -411,11 +486,30 @@ export const post = defineType({
   groups: [{ name: 'seo', title: 'Référencement' }],
   orderings: [{ title: 'Date, récent d’abord', name: 'dateDesc', by: [{ field: 'date', direction: 'desc' }] }],
   preview: {
-    select: { title: 'title', date: 'date', series: 'series.title', part: 'part' },
-    prepare: ({ title, date, series, part }) => ({
-      title,
-      subtitle: [date, series ? `${series}${part ? ` ${part}` : ''}` : null].filter(Boolean).join(' · '),
-    }),
+    select: {
+      title: 'title',
+      language: 'language',
+      date: 'date',
+      series: 'series.title',
+      part: 'part',
+      originalDate: 'translationOf.date',
+      originalSeries: 'translationOf.series.title',
+      originalPart: 'translationOf.part',
+    },
+    prepare: ({ title, language, date, series, part, originalDate, originalSeries, originalPart }) => {
+      const s = series ?? originalSeries;
+      const p = part ?? originalPart;
+      return {
+        title,
+        subtitle: [
+          String(language ?? 'fr').toUpperCase(),
+          date ?? originalDate,
+          s ? `${s}${p ? ` ${p}` : ''}` : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      };
+    },
   },
 });
 
@@ -438,6 +532,7 @@ export const journalSettings = defineType({
       rows: 3,
       validation: (Rule) => Rule.max(300),
     }),
+    translationsField(() => [defineField({ name: 'signature', title: 'Signature', type: 'text', rows: 3 })]),
   ],
   preview: { prepare: () => ({ title: 'Signature des articles' }) },
 });

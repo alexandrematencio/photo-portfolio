@@ -15,6 +15,7 @@ import {
   NOTE_CALL,
 } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
+import { DICT, DEFAULT_LANG, type Lang } from '@/lib/journal/i18n';
 
 /**
  * NOTES D'UN ARTICLE — l'appel dans le texte, la note en marge, le tiroir
@@ -42,6 +43,8 @@ import { cn } from '@/lib/utils/cn';
 export type NoteKind = 'ref' | 'draft';
 
 type NotesState = {
+  /** La langue de l'article : étiquettes et noms des notes. */
+  lang: Lang;
   lit: string | null;
   pinned: string | null;
   setHover: (id: string | null) => void;
@@ -56,33 +59,34 @@ function useNotes(): NotesState {
   return ctx;
 }
 
-export function NotesProvider({ children }: { children: ReactNode }) {
+export function NotesProvider({ children, lang }: { children: ReactNode; lang: Lang }) {
   const [hover, setHover] = useState<string | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
   const value = useMemo<NotesState>(
     () => ({
+      lang,
       lit: hover ?? pinned,
       pinned,
       setHover,
       togglePin: (id) => setPinned((p) => (p === id ? null : id)),
     }),
-    [hover, pinned],
+    [hover, pinned, lang],
   );
   return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>;
 }
 
-function noteName(id: string, kind: NoteKind) {
-  return kind === 'draft' ? `Note d'atelier ${id}` : `Note ${id}`;
+function noteName(id: string, kind: NoteKind, lang: Lang) {
+  return kind === 'draft' ? DICT[lang].workshopNote(id) : DICT[lang].note(id);
 }
 
 export function NoteCall({ id, kind, href }: { id: string; kind: NoteKind; href: string }) {
-  const { lit, pinned, setHover, togglePin } = useNotes();
+  const { lang, lit, pinned, setHover, togglePin } = useNotes();
   const n = id;
   return (
     <a
       href={href}
       id={`call-${id}`}
-      aria-label={noteName(id, kind)}
+      aria-label={noteName(id, kind, lang)}
       aria-describedby={`sn-${id}`}
       aria-expanded={pinned === id}
       className={cn(NOTE_CALL, 'text-[var(--color-fg)] scroll-mt-24')}
@@ -133,7 +137,8 @@ export function NoteRow({
   children: ReactNode;
   style?: CSSProperties;
 }) {
-  const { lit, pinned, setHover, togglePin } = useNotes();
+  const { lang, lit, pinned, setHover, togglePin } = useNotes();
+  const t = DICT[lang];
   const open = notes.find((note) => note.id === pinned);
 
   return (
@@ -147,7 +152,7 @@ export function NoteRow({
       {children}
 
       {notes.length > 0 && (
-        <aside aria-label="Notes" className="hidden min-[1100px]:flex flex-col gap-3" style={{ paddingTop: 5 }}>
+        <aside aria-label={t.notes} className="hidden min-[1100px]:flex flex-col gap-3" style={{ paddingTop: 5 }}>
           {notes.map(({ id, kind, body }) => (
             <p
               key={id}
@@ -173,7 +178,7 @@ export function NoteRow({
                 <span className="font-bold tabular-nums text-[var(--color-fg)]">{id}</span>
               </span>
               <span className="flex flex-col gap-1">
-                {kind === 'draft' && <DraftLabel />}
+                {kind === 'draft' && <DraftLabel lang={lang} />}
                 <span>{body}</span>
               </span>
             </p>
@@ -193,14 +198,14 @@ export function NoteRow({
           <div className="flex items-center justify-between">
             <span className={cn(MICRO_LABEL, 'flex items-center gap-[6px]')}>
               <StateDot on />
-              {open.kind === 'draft' ? `À trancher (${open.id})` : `Note ${open.id}`}
+              {open.kind === 'draft' ? `${t.toDecide} (${open.id})` : t.note(open.id)}
             </span>
             <button
               type="button"
               className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}
               onClick={() => togglePin(open.id)}
             >
-              Fermer
+              {t.close}
             </button>
           </div>
           <p className={cn(EDITORIAL_SIDENOTE, 'text-[var(--color-fg)]')}>{open.body}</p>
@@ -211,6 +216,6 @@ export function NoteRow({
 }
 
 /** Étiquette d'une note d'atelier — une question de l'auteur, pas une source. */
-export function DraftLabel() {
-  return <span className={cn(MICRO_LABEL, 'text-[var(--color-fg)]')}>À trancher</span>;
+export function DraftLabel({ lang = DEFAULT_LANG }: { lang?: Lang }) {
+  return <span className={cn(MICRO_LABEL, 'text-[var(--color-fg)]')}>{DICT[lang].toDecide}</span>;
 }

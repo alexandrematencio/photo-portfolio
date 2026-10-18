@@ -3,6 +3,11 @@
  * journal (composant client) les importe.
  */
 
+import type { Lang } from './i18n';
+
+/** Chemin de la même page dans chaque langue où elle existe (hreflang, sélecteur). */
+export type Alternates = Partial<Record<Lang, string>>;
+
 export type VerdictKind = 'converge' | 'nuance' | 'open' | 'fails';
 
 export type Verdict = { idea: string; prior: string; verdict: string; kind: VerdictKind };
@@ -28,6 +33,8 @@ export type ArticleBlock =
 /** Ce que la page d'accueil du journal sait d'un article — pas son corps. */
 export type ArticleSummary = {
   slug: string;
+  /** Langue de cette version (lib/journal/i18n.ts). */
+  lang: Lang;
   title: string;
   dek: string;
   /** Titre de la série, `null` pour un article isolé. */
@@ -42,6 +49,8 @@ export type ArticleSummary = {
 };
 
 export type Article = ArticleSummary & {
+  /** L'article dans les autres langues — l'original et ses traductions publiées. */
+  alternates: Alternates;
   referencesNote?: string;
   /** Dernière modification dans Sanity (ISO) — `dateModified`, sitemap. */
   updatedAt?: string;
@@ -57,6 +66,9 @@ export type Article = ArticleSummary & {
 /** Une série d'articles et sa page (`blog.amatencio.com/serie/<slug>/`). */
 export type JournalSeries = {
   slug: string;
+  lang: Lang;
+  /** La page de la série dans chaque langue où elle a au moins un article. */
+  alternates: Alternates;
   title: string;
   /** Champ « Présentation » du Studio, facultatif. */
   description?: string;

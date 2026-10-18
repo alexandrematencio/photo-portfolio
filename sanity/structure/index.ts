@@ -552,14 +552,33 @@ function journalGroupNode(S: StructureBuilder) {
       S.list()
         .title('Journal')
         .items([
+          // Les originaux français d'un côté, les traductions de l'autre
+          // (2026-10-18). Le « + » des articles crée un article français
+          // (valeur initiale de `language`), qui appartient bien à cette
+          // liste ; celui des traductions est coupé — une traduction se crée
+          // depuis « Articles », en changeant sa langue.
           S.listItem()
             .title('Articles')
             .id('journal-posts')
             .schemaType('post')
             .child(
-              S.documentTypeList('post')
+              S.documentList()
                 .title('Articles')
+                .schemaType('post')
+                .filter('_type == "post" && (!defined(language) || language == "fr")')
                 .defaultOrdering([{ field: 'date', direction: 'desc' }]),
+            ),
+          S.listItem()
+            .title('Traductions')
+            .id('journal-translations')
+            .schemaType('post')
+            .child(
+              S.documentList()
+                .title('Traductions')
+                .schemaType('post')
+                .filter('_type == "post" && defined(language) && language != "fr"')
+                .defaultOrdering([{ field: 'title', direction: 'asc' }])
+                .initialValueTemplates([]),
             ),
           S.documentTypeListItem('journalSeries').title('Séries d’articles'),
           S.listItem()

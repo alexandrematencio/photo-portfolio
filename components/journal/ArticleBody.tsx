@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { articlePath, seriesPath } from '@/lib/site/sites';
+import { DICT, articlePath, headingSeparator, quoteMarks, seriesPath, type Lang } from '@/lib/journal/i18n';
 import { frenchSpaces } from '@/lib/journal/french';
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import {
@@ -101,16 +101,17 @@ function notesOf(nodes: Inline[], article: Article, numbering: Numbering): RowNo
  * sujet fait la dalle en capitales ; le verdict descend en étiquette sous
  * elle — même balise, la phrase reste entière pour un lecteur d'écran.
  */
-function ArticleH2({ text, style }: { text: string; style: CSSProperties }) {
-  const cut = text.indexOf(' : ');
+function ArticleH2({ text, style, lang }: { text: string; style: CSSProperties; lang: Lang }) {
+  const sep = headingSeparator(lang);
+  const cut = text.indexOf(sep);
   const subject = cut === -1 ? text : text.slice(0, cut);
-  const verdict = cut === -1 ? null : text.slice(cut + 3);
+  const verdict = cut === -1 ? null : text.slice(cut + sep.length);
   return (
     <h2 className={EDITORIAL_H2} style={style}>
       {frenchSpaces(subject)}
       {verdict && (
         <>
-          <span className="sr-only"> : </span>
+          <span className="sr-only">{sep}</span>
           <span
             className={cn(MICRO_LABEL, 'block tracking-normal leading-[1.2] text-[var(--color-fg-muted)]')}
             style={{ marginTop: 14 }}
@@ -128,25 +129,23 @@ function ArticleH2({ text, style }: { text: string; style: CSSProperties }) {
  * dans l'ordre, la partie courante allumée (`StateDot`, l'orange dit « vous
  * êtes ici »), les autres en liens.
  */
-function SeriesNav({ current, parts, style }: { current: string; parts: ArticleSummary[]; style: CSSProperties }) {
+function SeriesNav({ current, parts, style, lang }: { current: string; parts: ArticleSummary[]; style: CSSProperties; lang: Lang }) {
+  const t = DICT[lang];
+  const line = t.seriesLine(parts[0]?.series ?? '', parts.length);
   return (
-    <nav aria-label={`La série ${parts[0]?.series}`} className="flex flex-col gap-4" style={style}>
+    <nav aria-label={t.seriesNav(parts[0]?.series ?? '')} className="flex flex-col gap-4" style={style}>
       {parts[0]?.seriesSlug ? (
         <Link
-          href={seriesPath(parts[0].seriesSlug)}
+          href={seriesPath(parts[0].seriesSlug, lang)}
           className={cn(MICRO_LABEL, 'group flex items-center justify-between text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')}
         >
-          <span>
-            La série · {parts[0].series} · {parts.length} articles
-          </span>
+          <span>{line}</span>
           <span aria-hidden className="transition-[translate] duration-200 ease-out group-hover:translate-x-[3px] motion-reduce:transition-none">
             →
           </span>
         </Link>
       ) : (
-        <span className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
-          La série · {parts[0]?.series} · {parts.length} articles
-        </span>
+        <span className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>{line}</span>
       )}
       <ol className="flex flex-col" style={{ borderTop: '1px solid var(--color-line)' }}>
         {parts.map((p) => {
@@ -154,7 +153,7 @@ function SeriesNav({ current, parts, style }: { current: string; parts: ArticleS
           return (
             <li key={p.slug} style={{ borderBottom: '1px solid var(--color-line)' }}>
               <Link
-                href={articlePath(p.slug)}
+                href={articlePath(p.slug, p.lang)}
                 aria-current={here ? 'page' : undefined}
                 className="flex items-baseline gap-3 group"
                 style={{ paddingBlock: 14 }}
@@ -189,6 +188,9 @@ export function ArticleBody({
   series: ArticleSummary[];
   signature: string;
 }) {
+  const lang = article.lang;
+  const t = DICT[lang];
+  const [open, close] = quoteMarks(lang);
   const numbering = numberNotes(article);
   const callsOf = new Map<string, string[]>();
   for (const [key, id] of numbering.refs) callsOf.set(key, [...(callsOf.get(key) ?? []), id]);
@@ -196,7 +198,7 @@ export function ArticleBody({
   const leadIndex = blocks.findIndex((b) => b.type === 'p');
 
   return (
-    <NotesProvider>
+    <NotesProvider lang={lang}>
       <div className="flex flex-col">
         {blocks.map((block, i) => {
           const prev = blocks[i - 1];
@@ -223,7 +225,7 @@ export function ArticleBody({
               );
             }
             case 'h2':
-              return <ArticleH2 key={i} text={block.text} style={{ marginTop: top(RHYTHM.h2Top) }} />;
+              return <ArticleH2 key={i} text={block.text} lang={lang} style={{ marginTop: top(RHYTHM.h2Top) }} />;
             case 'quote':
               return (
                 // Doublon visuel d'une phrase déjà dans le texte : masqué aux
@@ -241,15 +243,19 @@ export function ArticleBody({
                     paddingBottom: 24,
                   }}
                 >
-                  <p className={EDITORIAL_PULLQUOTE}>«&nbsp;{frenchSpaces(block.text)}&nbsp;»</p>
+                  <p className={EDITORIAL_PULLQUOTE}>
+                    {open}
+                    {frenchSpaces(block.text)}
+                    {close}
+                  </p>
                 </aside>
               );
             case 'figure':
-              return <LoopFigure key={i} style={{ marginTop: RHYTHM.object }} />;
+              return <LoopFigure key={i} lang={lang} style={{ marginTop: RHYTHM.object }} />;
             case 'table':
               return <DataTable key={i} head={block.head} rows={block.rows} style={{ marginTop: top(RHYTHM.object) }} />;
             case 'verdicts':
-              return <VerdictTable key={i} rows={block.rows} style={{ marginTop: top(RHYTHM.h2Bottom) + 16 }} />;
+              return <VerdictTable key={i} lang={lang} rows={block.rows} style={{ marginTop: top(RHYTHM.h2Bottom) + 16 }} />;
             case 'draft':
               return (
                 <aside
@@ -261,7 +267,7 @@ export function ArticleBody({
                     paddingLeft: 14,
                   }}
                 >
-                  <DraftLabel />
+                  <DraftLabel lang={lang} />
                   <span>{frenchSpaces(block.text)}</span>
                 </aside>
               );
@@ -277,11 +283,11 @@ export function ArticleBody({
           <strong className="font-bold">{AUTHOR_NAME}</strong> — {frenchSpaces(signature)}
         </p>
 
-        {series.length > 1 && <SeriesNav current={article.slug} parts={series} style={{ marginTop: RHYTHM.h2Top + 32 }} />}
+        {series.length > 1 && <SeriesNav current={article.slug} parts={series} lang={lang} style={{ marginTop: RHYTHM.h2Top + 32 }} />}
 
         {article.referenceCount > 0 && (
           <>
-            <ArticleH2 text="Références" style={{ marginTop: RHYTHM.h2Top + 32 }} />
+            <ArticleH2 text={t.referencesTitle} lang={lang} style={{ marginTop: RHYTHM.h2Top + 32 }} />
             {article.referencesNote && (
               <p className={cn(EDITORIAL_SIDENOTE, 'max-w-[var(--editorial-measure)]')} style={{ marginTop: RHYTHM.h2Bottom }}>
                 {article.referencesNote}
@@ -299,7 +305,7 @@ export function ArticleBody({
                           <a
                             key={n}
                             href={`#call-${n}`}
-                            aria-label={`Retour à l'appel de note ${n}`}
+                            aria-label={t.backToCall(n)}
                             className={cn(MICRO_LABEL, 'relative top-[5px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')}
                           >
                             ↑{n}

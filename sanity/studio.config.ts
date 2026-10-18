@@ -197,8 +197,10 @@ export const studioConfig = defineConfig({
         case 'siteSettings':
           return `${base}/`;
         // Le journal a son propre site (lib/site/sites.ts).
-        case 'post':
-          return slug ? `${BLOG_URL}/${slug}/` : prev;
+        case 'post': {
+          const lang = document.language === 'en' || document.language === 'ru' ? `/${document.language}` : '';
+          return slug ? `${BLOG_URL}${lang}/${slug}/` : prev;
+        }
         case 'journalSettings':
           return `${BLOG_URL}/`;
         case 'journalSeries':
