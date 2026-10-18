@@ -49,6 +49,91 @@ const BRAND_LOGO_KEYS = Object.keys(BRAND_LOGOS) as BrandLogoKey[];
 const EMAIL_TOKEN = '@EMAIL';
 const EMAIL_MARK = 'protectedEmailToken';
 
+/**
+ * Drapeaux : l'éditeur tape l'emoji (🇫🇷) dans Studio, le site le remplace par
+ * le SVG de `public/img/flags/<code>.svg` — les emojis drapeau ne s'affichent
+ * pas sous Windows. Un code absent de cette liste reste un emoji : ajouter un
+ * pays = déposer `<code>.svg` dans le dossier ET l'ajouter ici.
+ */
+const FLAG_CODES = ['fr', 'es', 'nl', 'tn', 'vn'] as const;
+const FLAG_NAMES: Record<(typeof FLAG_CODES)[number], string> = {
+  fr: 'France',
+  es: 'Spain',
+  nl: 'Netherlands',
+  tn: 'Tunisia',
+  vn: 'Vietnam',
+};
+// Deux indicateurs régionaux consécutifs = un drapeau.
+const FLAG_REGEX = /([\u{1F1E6}-\u{1F1FF}]{2})/u;
+const flagMarkKey = (code: string) => `flag_${code}`;
+const flagCodeOf = (emoji: string) =>
+  [...emoji]
+    .map((c) => String.fromCharCode((c.codePointAt(0) ?? 0) - 0x1f1e6 + 97))
+    .join('');
+const isKnownFlag = (code: string): code is (typeof FLAG_CODES)[number] =>
+  (FLAG_CODES as readonly string[]).includes(code);
+
+/** Découpe chaque span pour isoler les drapeaux connus sous une mark `flag_xx`. */
+function injectFlagMarks(value: unknown): unknown {
+  if (!Array.isArray(value)) return value;
+  return value.map((rawBlock) => {
+    const block = rawBlock as
+      | { _type?: string; children?: unknown[] }
+      | undefined;
+    if (!block || block._type !== 'block' || !Array.isArray(block.children)) {
+      return rawBlock;
+    }
+    const children: unknown[] = [];
+    for (const rawChild of block.children) {
+      const child = rawChild as
+        | { _type?: string; text?: string; marks?: string[]; _key?: string }
+        | undefined;
+      if (
+        !child ||
+        child._type !== 'span' ||
+        typeof child.text !== 'string' ||
+        !FLAG_REGEX.test(child.text)
+      ) {
+        children.push(rawChild);
+        continue;
+      }
+      const baseKey = child._key ?? Math.random().toString(36).slice(2);
+      child.text.split(FLAG_REGEX).forEach((part, i) => {
+        if (!part) return;
+        const code = FLAG_REGEX.test(part) ? flagCodeOf(part) : null;
+        children.push({
+          ...child,
+          _key: `${baseKey}-f${i}`,
+          text: part,
+          marks:
+            code && isKnownFlag(code)
+              ? [...(child.marks ?? []), flagMarkKey(code)]
+              : child.marks ?? [],
+        });
+      });
+    }
+    return { ...block, children };
+  });
+}
+
+function renderFlagMark(code: (typeof FLAG_CODES)[number]): React.ReactNode {
+  return (
+    <span
+      className="inline-flex items-center align-baseline"
+      style={{ height: '1cap', minHeight: '0.78em', verticalAlign: '-0.05em' }}
+    >
+      <span className="sr-only">{FLAG_NAMES[code]}</span>
+      <img
+        src={asset(`/img/flags/${code}.svg`)}
+        alt=""
+        aria-hidden
+        className="h-full w-auto"
+        draggable={false}
+      />
+    </span>
+  );
+}
+
 const TOKEN_REGEX = new RegExp(
   `(${[...BRAND_LOGO_KEYS, EMAIL_TOKEN].join('|')})`
 );
@@ -198,7 +283,7 @@ export function PortableBody({ value, fallback, variant = 'default' }: Props) {
   const components =
     variant === 'editorial' ? EDITORIAL_COMPONENTS : DEFAULT_COMPONENTS;
 
-  const processedValue = injectBrandLogoMarks(value);
+  const processedValue = injectFlagMarks(injectBrandLogoMarks(value));
 
   return (
     <div className="prose-content">
@@ -301,6 +386,12 @@ const makeMarks = (
       brandLogoMarkKey(key),
       ({ children }: { children: React.ReactNode }) =>
         renderBrandLogoMark(key, children),
+    ])
+  ),
+  ...Object.fromEntries(
+    FLAG_CODES.map((code) => [
+      flagMarkKey(code),
+      () => renderFlagMark(code),
     ])
   ),
   // Le texte du span est le jeton `@EMAIL` lui-même : on ne le rend PAS
