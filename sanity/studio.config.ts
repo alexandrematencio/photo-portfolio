@@ -8,6 +8,7 @@ import { dashboardTool } from '@/sanity/tools';
 import { StudioLayout } from '@/sanity/components/StudioLayout';
 import {
   AssignToSeriesAction,
+  createPublishAndTranslateAction,
   DeletePhotoAction,
   DeleteSeriesAction,
   ToggleFunnelAction,
@@ -179,6 +180,15 @@ export const studioConfig = defineConfig({
       if (schemaType === 'series') {
         return prev.map((action) =>
           action.action === 'delete' ? DeleteSeriesAction : action
+        );
+      }
+      // Journal : sur un article FRANÇAIS, le Publish devient « Publish +
+      // generate EN & RU » — la traduction est obligatoire (2026-10-18).
+      // L'action se rend au Publish natif sur une traduction ; voir
+      // PublishAndTranslateAction et lib/journal/translate/job.ts.
+      if (schemaType === 'post') {
+        return prev.map((action) =>
+          action.action === 'publish' ? createPublishAndTranslateAction(action) : action
         );
       }
       return prev;

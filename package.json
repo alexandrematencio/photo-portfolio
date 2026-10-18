@@ -18,12 +18,14 @@
     "deploy:gh-pages": "gh-pages -d out --dotfiles -m \"chore(deploy): publish static export\"",
     "upload-photos": "node --env-file=.env.production --env-file=.env.local --import tsx scripts/upload-photos.ts",
     "import-journal": "node --env-file=.env.local --import tsx scripts/import-journal.ts",
+    "translate-post": "node --env-file=.env.local --import tsx scripts/translate-post.ts",
     "migrate-taxonomy": "node --env-file=.env.local --import tsx scripts/migrate-taxonomy.ts",
     "migrate-series-multi": "node --env-file=.env.local --import tsx scripts/migrate-photo-series-multi.ts",
     "assign-series-by-location": "node --env-file=.env.local --import tsx scripts/assign-series-by-location.ts",
     "check-parser": "node --import tsx scripts/check-filename-parser.ts",
     "check-image-prep": "node --import tsx scripts/check-image-prep.ts",
     "check-search": "node --import tsx scripts/check-search.ts",
+    "check-translate-markup": "node --import tsx scripts/check-translate-markup.ts",
     "check-jsonld": "node --env-file=.env.local --import tsx scripts/check-jsonld.ts",
     "wipe-photos": "node --env-file=.env.local --import tsx scripts/wipe-photos.ts",
     "set-hero": "node --env-file=.env.production --env-file=.env.local --import tsx scripts/set-hero.ts",
@@ -33,6 +35,7 @@
     "purge-orphan-assets": "node --env-file=.env.local --import tsx scripts/purge-orphan-assets.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "@portabletext/react": "^3.2.0",
     "@sanity/client": "^7.22.0",
     "@sanity/image-url": "^2.1.1",
