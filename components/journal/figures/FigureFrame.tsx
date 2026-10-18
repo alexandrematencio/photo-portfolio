@@ -53,10 +53,15 @@ export function svgProps(id: string, viewBox: string) {
   };
 }
 
-/** Pointe de flèche, à poser dans les `<defs>` (`markerEnd={`url(#${id}-arrow)`}`). */
-export function ArrowMarker({ id, color = 'currentColor' }: { id: string; color?: string }) {
+/**
+ * Pointe de flèche, à poser dans les `<defs>` (`markerEnd={`url(#${id}-arrow)`}`).
+ * Par défaut elle suit l'épaisseur du trait ; `size` la fige en unités du
+ * viewBox, pour des traits d'épaisseurs différentes qui gardent la même pointe.
+ */
+export function ArrowMarker({ id, color = 'currentColor', size }: { id: string; color?: string; size?: number }) {
+  const dims = size ? { markerUnits: 'userSpaceOnUse' as const, markerWidth: size, markerHeight: size } : { markerWidth: 9, markerHeight: 9 };
   return (
-    <marker id={id} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+    <marker id={id} viewBox="0 0 10 10" refX="8" refY="5" {...dims} orient="auto-start-reverse">
       <path d="M0 0 L10 5 L0 10 z" fill={color} />
     </marker>
   );

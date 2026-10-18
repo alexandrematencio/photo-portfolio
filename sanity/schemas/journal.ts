@@ -1,6 +1,7 @@
 import { defineArrayMember, defineField, defineType } from 'sanity';
 import { NoteRefInput } from '../inputs/NoteRefInput';
 import { assetWithinCap } from '../validation/assetWithinCap';
+import type { FigureName } from '@/lib/journal/types';
 
 /**
  * LE JOURNAL — articles et séries d'articles (2026-10-17). Rubrique à part
@@ -148,6 +149,22 @@ export const journalPullQuote = defineType({
   },
 });
 
+/**
+ * Les figures dessinées, préfixées par l'article qui les porte : la liste est
+ * commune à tous les articles, et elle grandit.
+ */
+const FIGURE_OPTIONS: { title: string; value: FigureName }[] = [
+  { title: 'Ni maître ni esclave — La boucle corps-cerveau et le décalage', value: 'loop' },
+  { title: 'Ni maître ni esclave — La cascade intérieure du samedi matin', value: 'cascade' },
+  { title: 'Ni maître ni esclave — Maître, esclave ou pont', value: 'bridge' },
+  { title: 'Protéger tout le monde — La bulle et le retour du réel', value: 'bubble' },
+  { title: 'Protéger tout le monde — Deux façons de se perdre', value: 'drift' },
+  { title: 'Protéger tout le monde — Protégés contre exposés (LEAP, Amish)', value: 'exposure' },
+  { title: 'Protéger tout le monde — Les quatre générations d’Ibn Khaldoun', value: 'generations' },
+  { title: 'Protéger tout le monde — Les couches, jusqu’au vote', value: 'layers' },
+  { title: 'Protéger tout le monde — L’épreuve traverse les couches', value: 'shock' },
+];
+
 export const journalFigure = defineType({
   name: 'journalFigure',
   title: 'Figure',
@@ -159,11 +176,7 @@ export const journalFigure = defineType({
       description: 'Les figures sont dessinées une à une (SVG), et numérotées toutes seules dans l’ordre de l’article (Fig. 1, Fig. 2…). Pour en ajouter une, la demander : elle apparaîtra dans cette liste.',
       type: 'string',
       options: {
-        list: [
-          { title: 'La boucle corps-cerveau et le décalage', value: 'loop' },
-          { title: 'La cascade intérieure du samedi matin', value: 'cascade' },
-          { title: 'Maître, esclave ou pont', value: 'bridge' },
-        ],
+        list: FIGURE_OPTIONS,
         layout: 'radio',
       },
       validation: (Rule) => Rule.required(),
@@ -173,7 +186,7 @@ export const journalFigure = defineType({
     select: { figure: 'figure' },
     prepare: ({ figure }) => ({
       title:
-        { loop: 'La boucle corps-cerveau', cascade: 'La cascade intérieure', bridge: 'Maître, esclave ou pont' }[figure as string] ??
+        FIGURE_OPTIONS.find((o) => o.value === figure)?.title ??
         'Figure à choisir',
       subtitle: 'Figure',
     }),

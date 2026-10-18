@@ -15,7 +15,7 @@ export type Verdict = { idea: string; prior: string; verdict: string; kind: Verd
 export type InlineMark = 'strong' | 'em' | 'cite';
 
 /** Les figures dessinées (components/journal/figures/) — la liste du champ « Figure » du Studio. */
-export const FIGURE_NAMES = ['loop', 'cascade', 'bridge'] as const;
+export const FIGURE_NAMES = ['loop', 'cascade', 'bridge', 'bubble', 'drift', 'exposure', 'generations', 'layers', 'shock'] as const;
 export type FigureName = (typeof FIGURE_NAMES)[number];
 
 /**
