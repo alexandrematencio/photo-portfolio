@@ -8,14 +8,13 @@ import { ListSelector } from '@/components/site/ListSelector';
 import { EDITORIAL_SIDENOTE, MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import type { ArticleSummary } from '@/lib/journal/types';
-import { LoopFigure } from './LoopFigure';
 
 /**
  * PAGE D'ACCUEIL DU JOURNAL — reprise de stripe.dev/blog (demande Alexandre,
  * 2026-10-17), traduite dans la grammaire du site (brand book §14.7) :
  *
- * - une colonne de filtres à gauche (« / Séries »), collante ;
- * - un index en lignes : « / Date », « / Titre », un « + » qui déplie le
+ * - une colonne de filtres à gauche (« Séries »), collante ;
+ * - un index en lignes : « Date », « Titre », un « + » qui déplie le
  *   chapeau de l'article sans quitter la page ;
  * - au survol, la ligne s'inverse — encre sur papier devient papier sur
  *   encre. Stripe la passe en vert ; ici l'orange n'a pas le droit d'être une
@@ -24,6 +23,12 @@ import { LoopFigure } from './LoopFigure';
  *
  * Sous `md`, la colonne de filtres devient un module `ListSelector` (le
  * composant unique du site pour une rangée de choix sur téléphone).
+ *
+ * Sous les filtres, la COUVERTURE de l'article survolé (champ « Image de
+ * couverture » du Studio, 2026-10-18 — elle remplace la vignette de la
+ * Fig. 1). Toutes les couvertures sont montées, empilées, et seule celle de
+ * la ligne active s'ouvre : rien ne se charge au survol. Mécanique et
+ * timings : bloc « COUVERTURES DU JOURNAL » de `globals.css`.
  */
 
 const ALL = '__all';
@@ -44,18 +49,18 @@ function stamp(date: string) {
 export function JournalIndex({
   articles,
   lang,
-  figureHref,
   language,
 }: {
   articles: ArticleSummary[];
   lang: Lang;
-  /** L'article d'où vient la Fig. 1, dans cette langue — sinon pas de vignette. */
-  figureHref: string | null;
   /** Le sélecteur de langue, posé en tête de la colonne de filtres. */
   language: ReactNode;
 }) {
   const t = DICT[lang];
   const [series, setSeries] = useState(ALL);
+  // La ligne survolée (ou focalisée) : sa couverture s'ouvre dans la colonne de gauche.
+  const [active, setActive] = useState<string | null>(null);
+  const covers = articles.filter((a) => a.cover);
 
   const filters = useMemo(() => {
     const counts = new Map<string, number>();
@@ -111,7 +116,7 @@ export function JournalIndex({
             className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}
             style={{ paddingBottom: 12, borderBottom: '1px solid var(--color-line)' }}
           >
-            / {t.seriesHeading}
+            {t.seriesHeading}
           </span>
           <ul className="flex flex-col" style={{ paddingTop: 12 }}>
             {filters.map((f) => {
@@ -140,11 +145,22 @@ export function JournalIndex({
           {seriesLink && <div style={{ paddingTop: 16 }}>{seriesLink}</div>}
         </div>
 
-        {figureHref && (
-          <Link href={figureHref} className="flex flex-col gap-2 group" aria-label={t.figureLink}>
-            <span className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)] group-hover:text-[var(--color-fg)]')}>[ {t.figure.caption} ]</span>
-            <LoopFigure bare lang={lang} />
-          </Link>
+        {covers.length > 0 && (
+          <div className="journal-covers" aria-hidden>
+            {covers.map((a) => (
+              <div key={a.slug} className="journal-cover" data-on={a.slug === active ? '' : undefined}>
+                <img
+                  src={a.cover!.src}
+                  srcSet={a.cover!.srcSet}
+                  sizes={`${FILTER_COL}px`}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  style={{ objectPosition: a.cover!.position }}
+                />
+              </div>
+            ))}
+          </div>
         )}
       </aside>
 
@@ -169,7 +185,7 @@ export function JournalIndex({
         ) : (
           <ol className="flex flex-col">
             {shown.map((a) => (
-              <Row key={a.slug} article={a} lang={lang} />
+              <Row key={a.slug} article={a} lang={lang} onHot={(on) => setActive((cur) => (on ? a.slug : cur === a.slug ? null : cur))} />
             ))}
           </ol>
         )}
@@ -178,10 +194,14 @@ export function JournalIndex({
   );
 }
 
-function Row({ article, lang }: { article: ArticleSummary; lang: Lang }) {
+function Row({ article, lang, onHot }: { article: ArticleSummary; lang: Lang; onHot: (on: boolean) => void }) {
   const t = DICT[lang];
   const [open, setOpen] = useState(false);
-  const [hot, setHot] = useState(false);
+  const [hot, setHotState] = useState(false);
+  const setHot = (on: boolean) => {
+    setHotState(on);
+    onHot(on);
+  };
   const panelId = useId();
 
   return (

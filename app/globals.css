@@ -240,6 +240,22 @@
   box-sizing: border-box;
 }
 
+/* Curseur MAIN sur tout ce qui se clique, standard d'amatencio.com et de ses
+   sous-domaines (demande Alexandre, 2026-10-18) : le preflight de Tailwind v4
+   rend la flèche aux <button>, et un lien sans `href` n'en a pas. En
+   `@layer base`, exprès : une utility `cursor-*` posée sur un composant
+   (`cursor-default` de l'item actif de /series) garde le dernier mot. */
+@layer base {
+  a[href],
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  summary,
+  label[for],
+  select {
+    cursor: pointer;
+  }
+}
+
 /* Respiration verticale du footer — 24 px sous md, 16 px au-dessus, où les
    70 px de hauteur sont verrouillés (16 + 38 + 16) et servent au calcul de
    scène de /series. Elle vit ICI, et pas en utility Tailwind ni en style
@@ -1131,3 +1147,63 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
     line-height: 1.3333;
   }
 }
+
+/* ── COUVERTURES DU JOURNAL ─────────────────────────────────────────────────
+   Accueil du journal, colonne de gauche : la couverture de l'article survolé
+   (JournalIndex, 2026-10-18). Toutes empilées dans un cadre 4:5, une seule
+   ouverte (`data-on`).
+
+   - Entrée : le cadre s'ouvre de bas en haut (clip-path) en 480 ms expo.out,
+     l'image redescend de 1,06 à 1 en 700 ms — elle finit de se poser après
+     l'ouverture (chevauchement, principe 5) ; scale ≤ 1,06 : en deçà du zoom
+     de survol autorisé pour une photo + une marge (CLAUDE.md §3.2).
+   - Sortie : un fondu de 200 ms ease-in, plus court que l'entrée (principe 9),
+     PUIS le cadre se referme d'un coup (délai 200 ms, durée 0) pour être prêt à
+     se rouvrir par le bas. Une sortie par le haut demanderait deux états de
+     repos et du JS ; le fondu suffit.
+   - La couverture qui entre passe AU-DESSUS de celle qui sort (z-index) : d'une
+     ligne à l'autre, la nouvelle se lève sur l'ancienne.
+   - Mouvement réduit : bascule sans transition. */
+.journal-covers {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+}
+.journal-cover {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  clip-path: inset(100% 0 0 0);
+  transition:
+    opacity 200ms cubic-bezier(0.55, 0, 1, 0.45),
+    clip-path 0s linear 200ms;
+}
+.journal-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  scale: 1.06;
+  transition: scale 0s linear 200ms;
+}
+.journal-cover[data-on] {
+  z-index: 1;
+  opacity: 1;
+  clip-path: inset(0 0 0 0);
+  transition:
+    opacity 0s,
+    clip-path 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.journal-cover[data-on] img {
+  scale: 1;
+  transition: scale 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .journal-cover,
+  .journal-cover img,
+  .journal-cover[data-on],
+  .journal-cover[data-on] img {
+    transition: none;
+  }
+}
+

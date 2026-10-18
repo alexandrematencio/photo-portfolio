@@ -57,10 +57,11 @@ export function langOfPath(pathname: string | null): Lang {
 }
 
 /** Les attributs BCP 47 et Open Graph de chaque langue. */
-export const LOCALE: Record<Lang, { bcp47: string; og: string; native: string; code: string }> = {
-  fr: { bcp47: 'fr-FR', og: 'fr_FR', native: 'Français', code: 'FR' },
-  en: { bcp47: 'en-US', og: 'en_US', native: 'English', code: 'EN' },
-  ru: { bcp47: 'ru-RU', og: 'ru_RU', native: 'Русский', code: 'RU' },
+/** `flag` : le fichier de `public/img/flags/` qui représente la langue dans le sélecteur. */
+export const LOCALE: Record<Lang, { bcp47: string; og: string; native: string; code: string; flag: string }> = {
+  fr: { bcp47: 'fr-FR', og: 'fr_FR', native: 'Français', code: 'FR', flag: 'fr' },
+  en: { bcp47: 'en-US', og: 'en_US', native: 'English', code: 'EN', flag: 'uk' },
+  ru: { bcp47: 'ru-RU', og: 'ru_RU', native: 'Русский', code: 'RU', flag: 'ru' },
 };
 
 /**
@@ -133,7 +134,6 @@ type Dict = {
   readArticle: string;
   expand: (title: string) => string;
   collapse: (title: string) => string;
-  figureLink: string;
   referencesTitle: string;
   backToCall: (n: string) => string;
   note: (n: string) => string;
@@ -205,13 +205,12 @@ export const DICT: Record<Lang, Dict> = {
     seriesHint: 'SÉRIE',
     all: 'Tout',
     noSeries: 'Hors série',
-    dateCol: '/ Date',
-    titleCol: '/ Titre',
+    dateCol: 'Date',
+    titleCol: 'Titre',
     noArticles: 'Aucun article publié pour l’instant.',
     readArticle: 'Lire l’article →',
     expand: (t) => `Déplier « ${t} »`,
     collapse: (t) => `Replier « ${t} »`,
-    figureLink: 'Fig. 1 — lire l’article d’où vient la figure',
     referencesTitle: 'Références',
     backToCall: (n) => `Retour à l’appel de note ${n}`,
     note: (n) => `Note ${n}`,
@@ -270,13 +269,12 @@ export const DICT: Record<Lang, Dict> = {
     seriesHint: 'SERIES',
     all: 'All',
     noSeries: 'Standalone',
-    dateCol: '/ Date',
-    titleCol: '/ Title',
+    dateCol: 'Date',
+    titleCol: 'Title',
     noArticles: 'Nothing published yet.',
     readArticle: 'Read the article →',
     expand: (t) => `Expand “${t}”`,
     collapse: (t) => `Collapse “${t}”`,
-    figureLink: 'Fig. 1 — read the article the figure comes from',
     referencesTitle: 'References',
     backToCall: (n) => `Back to note call ${n}`,
     note: (n) => `Note ${n}`,
@@ -336,13 +334,12 @@ export const DICT: Record<Lang, Dict> = {
     seriesHint: 'СЕРИЯ',
     all: 'Все',
     noSeries: 'Вне серий',
-    dateCol: '/ Дата',
-    titleCol: '/ Заголовок',
+    dateCol: 'Дата',
+    titleCol: 'Заголовок',
     noArticles: 'Пока ничего не опубликовано.',
     readArticle: 'Читать статью →',
     expand: (t) => `Развернуть «${t}»`,
     collapse: (t) => `Свернуть «${t}»`,
-    figureLink: 'Рис. 1 — читать статью, из которой взят рисунок',
     referencesTitle: 'Источники',
     backToCall: (n) => `Вернуться к сноске ${n}`,
     note: (n) => `Сноска ${n}`,

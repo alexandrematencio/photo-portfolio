@@ -17,12 +17,9 @@ import { DICT, type Lang } from '@/lib/journal/i18n';
  * 390 px. C'est la limite basse ; un schéma plus chargé demanderait une
  * seconde géométrie en portrait sous `md`.
  */
-export function LoopFigure({ style, bare = false, lang }: { style?: CSSProperties; bare?: boolean; lang: Lang }) {
+export function LoopFigure({ style, lang }: { style?: CSSProperties; lang: Lang }) {
   const t = DICT[lang].figure;
-  // `bare` : la plaque seule, sans légende — la vignette de la page d'accueil
-  // du journal. Les identifiants du titre SVG changent pour ne jamais doubler
-  // ceux de la figure de l'article.
-  const ids = bare ? 'fig1b' : 'fig1';
+  const ids = 'fig1';
   return (
     <figure
       className="flex flex-col gap-3"
@@ -70,12 +67,10 @@ export function LoopFigure({ style, bare = false, lang }: { style?: CSSPropertie
           <text x="640" y="400" fontSize="13" textAnchor="end" fill="var(--color-fg-muted)">{t.time}</text>
         </svg>
       </div>
-      {!bare && (
       <figcaption className="flex flex-col gap-1">
         <span className={MICRO_LABEL}>{t.caption}</span>
         <span className={cn(EDITORIAL_SIDENOTE)}>{t.legend}</span>
       </figcaption>
-      )}
     </figure>
   );
 }
