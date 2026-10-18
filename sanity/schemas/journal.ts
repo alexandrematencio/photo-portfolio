@@ -370,6 +370,14 @@ export const post = defineType({
         Rule.custom((value, context) => (isTranslation(context.document) || value ? true : 'La date est obligatoire.')),
     }),
     defineField({
+      name: 'publishedAt',
+      title: 'Première publication',
+      description: 'Posée seule au premier Publish, jamais modifiée ensuite. Départage deux articles du même jour : le dernier publié passe devant.',
+      type: 'datetime',
+      readOnly: true,
+      hidden: ({ document }) => isTranslation(document) || !document?.publishedAt,
+    }),
+    defineField({
       name: 'series',
       title: 'Série',
       type: 'reference',

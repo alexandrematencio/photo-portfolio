@@ -35,6 +35,8 @@ export const postsQuery = /* groq */ `
     title,
     dek,
     "date": select(defined(translationOf) => translationOf->date, date),
+    // Départage du même jour. Sans première publication (articles d'avant le 2026-10-18), la création.
+    "publishedAt": select(defined(translationOf) => coalesce(translationOf->publishedAt, translationOf->_createdAt), coalesce(publishedAt, _createdAt)),
     "seriesId": select(defined(translationOf) => translationOf->series._ref, series._ref),
     "part": select(defined(translationOf) => translationOf->part, part),
     referencesNote,
@@ -66,6 +68,7 @@ export type RawPost = {
   title: string;
   dek: string;
   date: string | null;
+  publishedAt: string;
   seriesId: string | null;
   part: number | null;
   referencesNote: string | null;
@@ -208,6 +211,8 @@ async function fetchCorpus(): Promise<Corpus> {
   const articles = raws
     // Sans date, c'est une traduction dont l'original n'est pas publié.
     .filter((r): r is RawPost & { date: string; lang: Lang } => Boolean(r.date) && isLang(r.lang))
+    // Du plus récent au plus ancien ; le même jour, le dernier publié devant.
+    .sort((a, b) => b.date.localeCompare(a.date) || b.publishedAt.localeCompare(a.publishedAt) || (b.part ?? 0) - (a.part ?? 0))
     .map((r) => ({ article: toArticle(r, r.seriesId ? seriesById.get(r.seriesId) : undefined), group: r.group }));
   // Chaque version connaît ses sœurs : c'est le sélecteur de langue et le hreflang.
   const groups = new Map<string, Article[]>();
@@ -218,8 +223,7 @@ async function fetchCorpus(): Promise<Corpus> {
   }
   return {
     articles: articles
-      .map((a) => a.article)
-      .sort((a, b) => b.date.localeCompare(a.date) || b.part - a.part),
+      .map((a) => a.article),
     series,
   };
 }
