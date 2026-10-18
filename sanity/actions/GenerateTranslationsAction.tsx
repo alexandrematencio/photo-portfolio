@@ -34,7 +34,10 @@ export function createDatedPublishAction(original: DocumentActionComponent): Doc
     return {
       ...nativeResult,
       onHandle: () => {
-        if (!draft?.publishedAt && !published?.publishedAt) patch.execute([{ set: { publishedAt: new Date().toISOString() } }]);
+        // Seulement s'il n'existe AUCUNE version publiée : un article publié
+        // avant ce champ qu'on republie le recevait à l'heure de la retouche,
+        // et doublait les articles plus récents (2026-10-19).
+        if (!published && !draft?.publishedAt) patch.execute([{ set: { publishedAt: new Date().toISOString() } }]);
         nativeResult.onHandle?.();
       },
     };

@@ -87,7 +87,7 @@ function getCorpus(): Promise<Corpus> {
   return cached;
 }
 
-/** Les articles d'une langue, du plus récent au plus ancien ; à date égale, la partie la plus avancée d'abord. */
+/** Les articles d’une langue, du plus récent au plus ancien ; à date égale, le dernier publié devant. */
 export async function getArticles(lang: Lang = DEFAULT_LANG): Promise<Article[]> {
   return (await getCorpus()).articles.filter((a) => a.lang === lang);
 }
