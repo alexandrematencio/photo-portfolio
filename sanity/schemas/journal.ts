@@ -419,8 +419,32 @@ export const post = defineType({
   },
 });
 
+/**
+ * Ce que le journal dit de son auteur, au pied de chaque article. Singleton
+ * (`_id` === `_type`, cf. SINGLETON_TYPES dans studio.config.ts). Vide : la
+ * phrase de repli de `lib/site/author.ts`.
+ */
+export const journalSettings = defineType({
+  name: 'journalSettings',
+  title: 'Signature des articles',
+  type: 'document',
+  fields: [
+    defineField({
+      name: 'signature',
+      title: 'Signature',
+      description:
+        'Une ou deux phrases sous ton nom, à la fin de chaque article : ce que tu fais, ce sur quoi tu écris. Ton nom s’ajoute tout seul devant. Vide : la phrase par défaut. ℹ️ Après « Publish », le journal se met à jour au prochain déploiement.',
+      type: 'text',
+      rows: 3,
+      validation: (Rule) => Rule.max(300),
+    }),
+  ],
+  preview: { prepare: () => ({ title: 'Signature des articles' }) },
+});
+
 export const journalSchemas = [
   post,
+  journalSettings,
   journalSeries,
   journalNoteRef,
   journalDraftNote,

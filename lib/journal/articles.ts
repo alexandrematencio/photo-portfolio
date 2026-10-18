@@ -1,4 +1,5 @@
 import { sanityClient } from '@/lib/sanity/client';
+import { AUTHOR_JOURNAL_SIGNATURE } from '@/lib/site/author';
 import type {
   Article,
   JournalSeries,
@@ -194,6 +195,18 @@ export async function getSeries(series: string | null): Promise<ArticleSummary[]
     .filter((a) => a.series === series)
     .sort((a, b) => a.part - b.part)
     .map(summarize);
+}
+
+/** La phrase sous le nom de l'auteur, au pied des articles. */
+export async function getSignature(): Promise<string> {
+  const text = sanityClient
+    ? await sanityClient.fetch<string | null>(
+        /* groq */ `*[_id == "journalSettings"][0].signature`,
+        {},
+        { next: { revalidate: 60 } },
+      )
+    : null;
+  return text?.trim() || AUTHOR_JOURNAL_SIGNATURE;
 }
 
 const seriesQuery = /* groq */ `

@@ -23,6 +23,7 @@ import { PAGE_DOCS } from '@/sanity/schemas/pages';
 const SINGLETON_TYPES = new Set([
   'siteSettings',
   'funnelCuration',
+  'journalSettings',
   ...PAGE_DOCS.map((p) => p.type),
 ]);
 const SINGLETON_FORBIDDEN_ACTIONS = new Set([
@@ -198,6 +199,8 @@ export const studioConfig = defineConfig({
         // Le journal a son propre site (lib/site/sites.ts).
         case 'post':
           return slug ? `${BLOG_URL}/${slug}/` : prev;
+        case 'journalSettings':
+          return `${BLOG_URL}/`;
         case 'journalSeries':
           return slug ? `${BLOG_URL}/serie/${slug}/` : `${BLOG_URL}/`;
         default: {

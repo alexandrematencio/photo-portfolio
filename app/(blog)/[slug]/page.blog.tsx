@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { PageShell } from '@/components/site/PageShell';
 import { ArticleBody } from '@/components/journal/ArticleBody';
 import { BackLink } from '@/components/journal/BackLink';
-import { getArticle, getArticles, getSeries } from '@/lib/journal/articles';
+import { getArticle, getArticles, getSeries, getSignature } from '@/lib/journal/articles';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { blogPostingJsonLd, journalBreadcrumbJsonLd } from '@/lib/seo/journal-jsonld';
@@ -55,7 +55,7 @@ export default async function JournalArticlePage({
   const { slug } = await params;
   const article = await getArticle(slug);
   if (!article) notFound();
-  const series = await getSeries(article.series);
+  const [series, signature] = await Promise.all([getSeries(article.series), getSignature()]);
 
   const published = DATE.format(new Date(article.date));
   const seriesLabel = series.length > 1 ? `${article.series} ${article.part} / ${series.length}` : article.series;
@@ -103,7 +103,7 @@ export default async function JournalArticlePage({
           </div>
         }
       >
-        <ArticleBody article={article} series={series} />
+        <ArticleBody article={article} series={series} signature={signature} />
       </PageShell>
     </>
   );

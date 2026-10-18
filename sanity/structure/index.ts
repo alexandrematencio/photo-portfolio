@@ -562,6 +562,10 @@ function journalGroupNode(S: StructureBuilder) {
                 .defaultOrdering([{ field: 'date', direction: 'desc' }]),
             ),
           S.documentTypeListItem('journalSeries').title('Séries d’articles'),
+          S.listItem()
+            .title('Signature des articles')
+            .id('journalSettings')
+            .child(S.document().schemaType('journalSettings').documentId('journalSettings')),
         ]),
     );
 }

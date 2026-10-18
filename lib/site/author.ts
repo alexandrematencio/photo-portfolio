@@ -8,6 +8,11 @@
 export const AUTHOR_NAME = 'Alexandre Matencio';
 export const AUTHOR_SHORT = 'A. Matencio';
 
+/** Signature des articles du journal quand le Studio n'en donne pas
+ *  (`journalSettings.signature`) — filet de sécurité, pas la source. */
+export const AUTHOR_JOURNAL_SIGNATURE =
+  'designer produit, fondateur de Zalem et cofondateur d’OpenCNFT. J’écris sur les marchés de collection et sur la façon dont on décide.';
+
 /** Profils publics de l'auteur — alimentent `sameAs` du Person (jsonld.ts), qui
  *  est ce qui relie le nom aux comptes pour Google. Les mêmes que /socials. */
 export const AUTHOR_SAME_AS = [

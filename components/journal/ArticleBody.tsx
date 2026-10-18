@@ -12,6 +12,7 @@ import {
   MICRO_LABEL,
 } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
+import { AUTHOR_NAME } from '@/lib/site/author';
 import type { Article, ArticleSummary, Inline, InlineMark } from '@/lib/journal/types';
 import { StateDot } from '@/components/site/StateDot';
 import { DraftLabel, NoteCall, NoteRow, NotesProvider, type RowNote } from './Notes';
@@ -179,7 +180,15 @@ function SeriesNav({ current, parts, style }: { current: string; parts: ArticleS
   );
 }
 
-export function ArticleBody({ article, series }: { article: Article; series: ArticleSummary[] }) {
+export function ArticleBody({
+  article,
+  series,
+  signature,
+}: {
+  article: Article;
+  series: ArticleSummary[];
+  signature: string;
+}) {
   const numbering = numberNotes(article);
   const callsOf = new Map<string, string[]>();
   for (const [key, id] of numbering.refs) callsOf.set(key, [...(callsOf.get(key) ?? []), id]);
@@ -258,6 +267,15 @@ export function ArticleBody({ article, series }: { article: Article; series: Art
               );
           }
         })}
+
+        {/* Qui écrit, à la fin du texte : le lecteur arrivé par un lien
+            partagé n'a vu le nom nulle part ailleurs sur la page. */}
+        <p
+          className={EDITORIAL_ANNEX}
+          style={{ marginTop: RHYTHM.h2Top, paddingTop: 20, borderTop: '1px solid var(--color-line)' }}
+        >
+          <strong className="font-bold">{AUTHOR_NAME}</strong> — {frenchSpaces(signature)}
+        </p>
 
         {series.length > 1 && <SeriesNav current={article.slug} parts={series} style={{ marginTop: RHYTHM.h2Top + 32 }} />}
 
