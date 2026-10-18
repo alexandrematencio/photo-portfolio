@@ -53,7 +53,11 @@ const BLOG_ORIGIN = new URL(BLOG_URL).origin;
 
 export function ArticlePreviewView({ document }: { document: { displayed: Displayed } }) {
   const d = document.displayed;
-  const client = useClient({ apiVersion: '2025-02-19' }).withConfig({ perspective: 'drafts' });
+  const baseClient = useClient({ apiVersion: '2025-02-19' });
+  // `withConfig` rend un client NEUF à chaque appel : sans mémo, chaque rendu
+  // relançait la lecture des extras, dont le retour re-rendait, et le délai
+  // de 300 ms n'arrivait jamais au bout — l'aperçu restait vide.
+  const client = useMemo(() => baseClient.withConfig({ perspective: 'drafts' }), [baseClient]);
   const frame = useRef<HTMLIFrameElement>(null);
   // Compte les montages de la page d'aperçu : chacun réclame l'état courant.
   const [ready, setReady] = useState(0);
