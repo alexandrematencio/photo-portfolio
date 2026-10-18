@@ -12,9 +12,9 @@ export const AUTHOR_SHORT = 'A. Matencio';
  *  (`journalSettings.signature` et ses traductions) — filet de sécurité, pas
  *  la source. Une par langue du journal (lib/journal/i18n.ts). */
 export const AUTHOR_JOURNAL_SIGNATURE = {
-  fr: 'designer produit, fondateur de Zalem et cofondateur d’OpenCNFT. J’écris sur les marchés de collection et sur la façon dont on décide.',
-  en: 'product designer, founder of Zalem and co-founder of OpenCNFT. I write about collectible markets and about how we decide.',
-  ru: 'продуктовый дизайнер, основатель Zalem и сооснователь OpenCNFT. Пишу о коллекционных рынках и о том, как мы принимаем решения.',
+  fr: 'directeur artistique, designer produit, photographe, fondateur de feu Zalem Industries et cofondateur de feu OpenCNFT.io. J’écris sur les dynamiques cognitives et les dynamiques de foule, à partir des mécanismes qui les produisent.',
+  en: 'Art Director, Product Designer, Photographer, founder of the late Zalem Industries and cofounder of the late OpenCNFT.io. I write about cognitive and crowd dynamics, through the mechanisms that produce them.',
+  ru: 'арт-директор, продуктовый дизайнер, фотограф, основатель ныне закрытой Zalem Industries и сооснователь ныне закрытого OpenCNFT.io. Пишу о когнитивной динамике и динамике толпы — через механизмы, которые их порождают.',
 } as const;
 
 /** Profils publics de l'auteur — alimentent `sameAs` du Person (jsonld.ts), qui
