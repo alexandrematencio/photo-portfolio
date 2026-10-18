@@ -1,171 +1,101 @@
 import Link from 'next/link';
-import { asset } from '@/lib/utils/asset';
 import { photoHref } from '@/lib/site/sites';
+import { SITES } from '@/lib/site/nav';
+import { getSiteSettings, socialLinks } from '@/lib/sanity/queries';
+import { FooterWordmark } from './FooterWordmark';
+import { ProtectedEmail } from './ProtectedEmail';
 
 /**
- * Base structure is an exact replication of the footer in
- * resources/alxmtc-footer.pen (full scan) — 5 direct flex children inside
- * main-container, space-between, no grouping of middle items, exact gray
- * glyph asset, matched icon paths. A 6th item (PRIVACY) was added on
- * 2026-09-11 (RGPD requirement, /privacy has no equivalent in the .pen) —
- * same plain-link style as PHOTOGRAPHY/DIGITAL AGENCY/CONTACT, placed after
- * LEGAL NOTICE. Under `md` this makes the entries grid 5 items instead of 4
- * (2 cols × 3 rows, last cell empty, left-aligned) — no longer a perfect
- * 2×2, but the grid auto-flows correctly with an odd count.
+ * Pied de page — reprise de l'IDÉE du pied de page d'AAXLO (`AppFooterV2.vue` :
+ * grille de liens à filets, logo sur toute la largeur, ligne de bas), pas de
+ * sa copie (2026-10-18, demande Alexandre). Fond = le `--color-dark` d'AAXLO.
  *
- * Gouttières : `--page-gutter` de chaque côté — 32 au-dessus de `md` (valeur
- * relevée dans le .pen : logo à x=32, « legal notice » finissant à 1728−32),
- * 20 sur téléphone, comme le corps de toutes les pages.
+ * Quatre colonnes : le travail, la personne, les sites d'amatencio.com (lus
+ * dans `SITES`, la liste du menu « All sites » — un site pas encore en ligne
+ * y reste grisé avec « Soon », jamais un lien mort), et le contact. Le contact
+ * ne montre JAMAIS l'adresse (CLAUDE.md §8.5) : « Write to me » passe par
+ * `ProtectedEmail`, les réseaux sont lus dans le texte de `socialsPage`.
  *
- * ⚠️ Padding en style INLINE, pas `px-8` : le reset global `* {padding:0}`
- * d'app/globals.css vit HORS @layer et écrase donc toutes les utilities
- * Tailwind de padding. C'est exactement pourquoi le footer n'avait AUCUNE
- * marge latérale malgré son `px-6`. Corollaire : le padding ne peut pas être
- * responsive (un style inline ne connaît pas les media queries) — d'où une
- * hauteur pilotée par le CONTENU (16 + 38 + 16 = 70 px sur une ligne) plutôt
- * que par une hauteur fixe qu'il faudrait décliner par breakpoint. Seul le
- * padding LATÉRAL reste donc inline ; le padding VERTICAL doit varier (24 px
- * sous md, 16 px au-dessus) et vit dans globals.css, en règle
- * `[data-site-footer] > div` posée après le reset — spécificité (0,1,1) contre
- * (0,0,0), elle gagne sans avoir besoin de l'inline.
+ * ⚠️ Toute la géométrie vit dans le bloc « PIED DE PAGE » de `globals.css`,
+ * en règles unlayered : le reset `* { padding: 0 }` avale les utilities
+ * Tailwind de padding, et le style inline ne connaît pas les media queries.
  *
- * Sous `md`, les cinq enfants ne tiennent pas sur 326 px et le footer se
- * faisait couper à droite (le conteneur de scroll est en `overflow-x-hidden` —
- * rien ne le signalait, le contenu disparaissait simplement). Le mobile a donc
- * sa propre composition (demande Alexandre, 2026-08-23) : bloc logo sur toute
- * la largeur, puis les quatre entrées en GRILLE 2 × 2, toutes alignées à GAUCHE
- * de leur cellule et d'un cran plus petites (14 px). Le logo partage donc son
- * bord gauche avec la première colonne — les deux tombent sur la gouttière de
- * 32 px du .pen. La structure « 5 enfants
- * directs » du .pen n'est pas perdue pour autant : la boîte de grille repasse
- * en `display: contents` au-dessus de `md`, elle disparaît alors de la mise en
- * page et les quatre entrées redeviennent enfants directs de la rangée.
- *
- * SURVOL EN ORANGE (`--color-link`), et non plus en blanc — 2026-08-23,
- * brand book §4.3. Le pied de page est la seule surface sombre permanente du
- * site : l'orange y monte à 4,94:1 sur la dalle, donc au-dessus du seuil AA
- * du petit texte, ce qui n'est vrai NULLE PART ailleurs (sur le papier il
- * plafonne à 3,59:1 et n'a le droit qu'aux traits et aux fonds). C'est aussi
- * le seul endroit du site où l'orange a le droit d'écrire un mot en 14 px.
+ * ⚠️ Plus de hauteur verrouillée à 70 px (levée le 2026-10-18, accord
+ * Alexandre) : /series mesure son débord (`scrollHeight − clientHeight`) et
+ * le consomme en bout de rangée, quelle que soit la hauteur du pied de page.
  */
-export function SiteFooter() {
+export async function SiteFooter() {
+  const settings = await getSiteSettings();
+  const socials = socialLinks(settings);
+
   return (
-    <footer
-      className="w-full shrink-0 md:h-[70px] bg-[var(--color-bg-footer)] text-[var(--color-fg-muted-footer)]"
-      data-site-footer
-    >
-      {/* Le fond sombre file jusqu'aux bords ; seul le contenu est en retrait.
-          70 px verrouillés au-dessus de `md` (16 + 38 + 16, la hauteur du
-          main-container du .pen) : /series calcule la hauteur de sa scène à
-          partir de ce nombre pour tenir pile dans l'écran — un footer dont la
-          hauteur dériverait avec le contenu ferait dériver la page avec lui. */}
-      <div
-        className="md:flex md:h-full md:items-center"
-        style={{
-          paddingInline: 'var(--page-gutter)',
-        }}
-      >
-        {/* Sous `md`, la rangée passe en `flex-wrap` et ne porte plus que DEUX
-            enfants : le bloc logo (pleine largeur) et la grille des entrées.
-            `gap-y-10` (40 px) est donc l'écart logo ↔ menu (demande Alexandre,
-            2026-08-23) ; l'écart entre les lignes du menu vit dans la grille.
-            Sans effet au-dessus de `md`, où la grille repasse en
-            `display: contents` et les cinq enfants du .pen redeviennent les
-            enfants directs d'une seule rangée `flex-nowrap`. */}
-        <div className="flex w-full flex-wrap items-center gap-x-8 gap-y-10 md:flex-nowrap md:justify-between lg:gap-x-32">
-        {/* Child 1: logo (exact glyph asset + vertical texts, gap 24) */}
-        <Link
-          href={photoHref('/')}
-          className="flex w-full items-center gap-6 md:w-auto md:shrink-0"
-          aria-label="A. Matencio — home"
-        >
-          <img
-            src={asset('/img/logos/glyph-alxmtnc-gray.svg')}
-            width={32}
-            height={30}
-            alt=""
-            className="block"
-          />
-          <div className="flex flex-col justify-center leading-none">
-            <div className="text-[16px] font-bold tracking-[-0.02em]">
-              ALEXANDRE MATENCIO
-            </div>
-            <div className="text-[12px] tracking-[-0.015em]">
-              © {new Date().getFullYear()} / All rights reserved
-            </div>
-          </div>
-        </Link>
-
-        {/* Sous `md` : grille 2 colonnes × 2 rangs, chaque entrée alignée à
-            GAUCHE de SA cellule, avec 32 px de gouttière entre les colonnes pour
-            qu'une entrée longue ne colle jamais à sa voisine. Au-dessus de `md`,
-            `contents` efface cette boîte : les quatre entrées redeviennent des
-            enfants directs de la rangée flex, comme dans le .pen. */}
-        <div className="grid w-full grid-cols-2 items-center gap-x-8 gap-y-4 md:contents">
-        {/* Child 2: PHOTOGRAPHY (direct sibling, per pen) */}
-        <Link
-          href={photoHref('/archives/')}
-          className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none md:text-[16px]"
-        >
-          PHOTOGRAPHY
-        </Link>
-
-        {/* Child 3: DIGITAL AGENCY (direct sibling, per pen) */}
-        <Link
-          href={photoHref('/about/digital-agency/')}
-          className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none md:text-[16px]"
-        >
-          DIGITAL AGENCY
-        </Link>
-
-        {/* Child 4: CONTACT (direct sibling, per pen) */}
-        <Link
-          href={photoHref('/contact/')}
-          className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none md:text-[16px]"
-        >
-          CONTACT
-        </Link>
-
-        {/* Child 5: legal notice (icon + LEGAL NOTICE, gap 8 inside, exact pen icon structure) */}
-        <Link
-          href={photoHref('/legal/')}
-          className="flex items-center justify-start gap-2 shrink-0 hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none"
-        >
-          <span className="inline-flex items-center p-[1px] pr-[3px]">
-            <svg
-              width="10"
-              height="14"
-              viewBox="0 0 10 14"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              {/* Vertical line - matches pen */}
-              <path d="M1 0.5v13" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
-              {/* Flag shape - matches pen path geometry */}
-              <path
-                d="M9 7 L1 7 L1 1 L9 1 L6 3.5 L9 7"
-                stroke="currentColor"
-                strokeWidth="1"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-            </svg>
-          </span>
-          <span className="text-[14px] font-bold leading-none tracking-[-0.02em] md:text-[16px]">
-            LEGAL NOTICE
-          </span>
-        </Link>
-
-        {/* Child 6: PRIVACY — added 2026-09-11, no equivalent in the .pen */}
-        <Link
-          href={photoHref('/privacy/')}
-          className="text-left text-[14px] font-bold leading-none tracking-[-0.02em] hover:text-[var(--color-link)] transition-colors motion-reduce:transition-none md:text-[16px]"
-        >
-          PRIVACY
-        </Link>
+    <footer className="site-footer" data-site-footer>
+      <nav className="footer-grid" aria-label="Footer">
+        <div className="footer-col">
+          <p className="footer-label">Work</p>
+          <ul className="footer-links">
+            <li><Link href={photoHref('/series/')}>Series</Link></li>
+            <li><Link href={photoHref('/archives/')}>Archives</Link></li>
+          </ul>
         </div>
-      </div>
+
+        <div className="footer-col">
+          <p className="footer-label">About</p>
+          <ul className="footer-links">
+            <li><Link href={photoHref('/about/')}>About</Link></li>
+            <li><Link href={photoHref('/about/digital-agency/')}>Digital agency</Link></li>
+          </ul>
+        </div>
+
+        <div className="footer-col">
+          <p className="footer-label">Sites</p>
+          <ul className="footer-links">
+            {SITES.map((site) => (
+              <li key={site.label}>
+                {site.href ? (
+                  <a
+                    href={site.href}
+                    {...(site.external ? { target: '_blank', rel: 'noopener' } : {})}
+                  >
+                    {site.label}
+                    {site.external && <span aria-hidden="true"> ↗</span>}
+                  </a>
+                ) : (
+                  <span className="footer-soon">
+                    {site.label} <span className="footer-soon-tag">Soon</span>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="footer-col">
+          <p className="footer-label">Contact</p>
+          <ul className="footer-links">
+            <li><ProtectedEmail>Write to me</ProtectedEmail></li>
+            {socials.map((s) => (
+              <li key={s.href}>
+                <a href={s.href} target="_blank" rel="noopener">
+                  {s.label}
+                  <span aria-hidden="true"> ↗</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </nav>
+
+      <Link href={photoHref('/')} className="footer-logo" aria-label="Alexandre Matencio — home">
+        <FooterWordmark />
+      </Link>
+
+      <div className="footer-bottom">
+        <span>© {new Date().getFullYear()} Alexandre Matencio. All rights reserved.</span>
+        <span className="footer-legal">
+          <Link href={photoHref('/legal/')}>Legal notice</Link>
+          <Link href={photoHref('/privacy/')}>Privacy</Link>
+        </span>
       </div>
     </footer>
   );

@@ -209,16 +209,21 @@
   --color-bg-plate-dark: var(--surface-4);
   --color-fg-muted-dark: #a5a19a;
 
-  /* Dalle du pied de page. Vivait en hex dans `SiteFooter.tsx` — une valeur de
-     surface dans un composant, alors qu'aucune couleur n'a le droit d'y vivre
-     (CLAUDE.md §7.7). C'est le barreau le plus profond de l'échelle, et la
-     seule surface sombre PERMANENTE du site. */
-  --color-bg-footer: var(--surface-5);
-  /* Encre du pied de page — 5,23:1 sur la dalle. Même raison que ci-dessus :
-     elle vivait en hex dans le composant. Chaque surface sombre porte SON
-     encre atténuée (`-plate`, `-plate-low`, `-dark`, `-footer`), parce qu'un
-     seul gris ne peut pas tenir AA sur quatre valeurs de fond. */
-  --color-fg-muted-footer: #888888;
+  /* Dalle du pied de page — le `--color-dark` d'AAXLO (2026-10-18, demande
+     Alexandre : reprendre l'idée du pied de page d'AAXLO, sa couleur comprise).
+     Gris bleuté froid, hors de la famille chaude de l'échelle (h 88°) : c'est
+     voulu, le pied de page est le seul endroit où le site parle de toute la
+     maison, pas seulement de la photo. Ne vit plus sur `--surface-5`.
+     Contrastes mesurés sur la dalle : encre 14,6:1, atténuée 8,2:1,
+     étiquette 4,7:1. ⚠️ L'orange n'y fait plus que 3,98:1 — il ne peut plus
+     écrire de texte ici (il en avait le droit à 4,94:1 sur #151312) : le
+     survol des liens passe à l'encre pleine. */
+  --color-bg-footer: #24272e;
+  --color-fg-footer: #fcfcfc;
+  --color-fg-muted-footer: #c0c0c2;
+  --color-fg-label-footer: #909194;
+  --color-fg-dim-footer: rgba(252, 252, 252, 0.4);
+  --color-rule-footer: rgba(252, 252, 252, 0.14);
 }
 
 /* Couleur du glyph. Le token reste, même s'il ne vaut plus qu'une seule chose :
@@ -240,22 +245,127 @@
   box-sizing: border-box;
 }
 
-/* Respiration verticale du footer — 24 px sous md, 16 px au-dessus, où les
-   70 px de hauteur sont verrouillés (16 + 38 + 16) et servent au calcul de
-   scène de /series. Elle vit ICI, et pas en utility Tailwind ni en style
-   inline, pour deux raisons qui se contredisent ailleurs :
-   - le reset `* {padding:0}` juste au-dessus est HORS @layer, il bat donc
-     toutes les utilities Tailwind de padding (voir SiteFooter.tsx) ;
-   - un style inline y échapperait mais ne connaît pas les media queries.
-   Une règle unlayered de spécificité (0,1,1) posée APRÈS le reset satisfait
-   les deux. */
-[data-site-footer] > div {
-  padding-block: 24px;
+/* ── PIED DE PAGE (`SiteFooter.tsx`) ─────────────────────────────────────
+   Unlayered et APRÈS le reset `* { padding: 0 }` : une classe (0,1,0) bat
+   `*` (0,0,0), alors qu'une utility Tailwind de padding se ferait avaler, et
+   qu'un style inline ignorerait les media queries. Gouttière = celle de la
+   page (`--page-gutter`), jamais un nombre recopié. */
+.site-footer {
+  flex-shrink: 0;
+  width: 100%;
+  background: var(--color-bg-footer);
+  color: var(--color-fg-muted-footer);
+  font-family: var(--font-display);
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid var(--color-rule-footer);
+}
+.footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px var(--page-gutter) 32px;
+}
+.footer-col:nth-child(even) {
+  border-left: 1px solid var(--color-rule-footer);
+}
+.footer-col:nth-child(n + 3) {
+  border-top: 1px solid var(--color-rule-footer);
+}
+
+.footer-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-fg-label-footer);
+}
+
+.footer-links {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.footer-links a,
+.footer-legal a {
+  display: inline-block;
+  transition:
+    color 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    translate 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.footer-links a:hover,
+.footer-links a:focus-visible,
+.footer-legal a:hover,
+.footer-legal a:focus-visible {
+  color: var(--color-fg-footer);
+}
+.footer-links a:hover,
+.footer-links a:focus-visible {
+  translate: 4px 0;
+}
+.footer-soon {
+  color: var(--color-fg-dim-footer);
+}
+.footer-soon-tag {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.footer-logo {
+  display: block;
+  padding: 48px var(--page-gutter) 24px;
+  color: var(--color-fg-footer);
+}
+
+.footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 20px var(--page-gutter) 24px;
+  border-top: 1px solid var(--color-rule-footer);
+  font-size: 12px;
+}
+.footer-legal {
+  display: flex;
+  gap: 20px;
 }
 
 @media (min-width: 48rem) {
-  [data-site-footer] > div {
-    padding-block: 16px;
+  .footer-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .footer-col {
+    padding: 32px var(--page-gutter) 48px;
+  }
+  .footer-col + .footer-col {
+    border-left: 1px solid var(--color-rule-footer);
+  }
+  .footer-col:nth-child(n + 3) {
+    border-top: 0;
+  }
+  .footer-logo {
+    padding-top: 72px;
+    padding-bottom: 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer-links a,
+  .footer-legal a {
+    transition: none;
+  }
+  .footer-links a:hover,
+  .footer-links a:focus-visible {
+    translate: none;
   }
 }
 

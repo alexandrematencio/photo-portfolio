@@ -62,7 +62,7 @@ export function FramedScroll({
   // `data-scroll-container` : marqueur, pas un comportement. C'est CE nœud qui
   // porte le scroll de la page (le body ne scrolle pas), donc une page qui doit
   // piloter son propre défilement a besoin de le retrouver depuis son sous-arbre
-  // (`closest`). /series s'en sert pour consommer les 70 px de débord vertical —
+  // (`closest`). /series s'en sert pour consommer le débord vertical —
   // la réserve du footer — à la fin de son défilement VERTICAL.
   return (
     <div

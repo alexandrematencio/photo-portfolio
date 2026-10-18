@@ -99,6 +99,30 @@ export function contactBlocks(settings: SiteSettings | null | undefined): unknow
   return [...(settings?.contactBody ?? []), ...(settings?.socialsBody ?? [])];
 }
 
+export type SocialLink = { label: string; href: string };
+
+/**
+ * Les liens posés dans le texte de `socialsPage` (« Instagram Main » →
+ * instagram.com/…), à plat : libellé du span + URL de son annotation. Le pied
+ * de page les liste ; ils restent édités dans le Studio, pas recopiés en dur
+ * (CLAUDE.md §8.5). Les `mailto:` sont écartés — l'adresse n'arrive jamais en
+ * clair dans le HTML exporté, le pied de page passe par `ProtectedEmail`.
+ */
+export function socialLinks(settings: SiteSettings | null | undefined): SocialLink[] {
+  type Span = { text?: string; marks?: string[] };
+  type Block = { children?: Span[]; markDefs?: { _key: string; href?: string }[] };
+  const links: SocialLink[] = [];
+  for (const block of (settings?.socialsBody ?? []) as Block[]) {
+    for (const span of block.children ?? []) {
+      const def = block.markDefs?.find((d) => span.marks?.includes(d._key));
+      const label = span.text?.trim();
+      if (!def?.href || !label || def.href.startsWith('mailto:')) continue;
+      links.push({ label, href: def.href });
+    }
+  }
+  return links;
+}
+
 export type SiteSettings = {
   hero?: {
     defaultImage?: HeroImage;
