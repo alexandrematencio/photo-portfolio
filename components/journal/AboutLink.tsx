@@ -1,0 +1,41 @@
+import Link from 'next/link';
+
+/**
+ * « → À propos de ce journal », sous le titre de l'accueil du journal
+ * (demande Alexandre, 2026-10-19). Calé à gauche, au corps du bouton « Back »
+ * des articles (`BackLink`) mais sans cadre : le cadre dit « retour », la
+ * flèche dit « par ici ».
+ *
+ * La flèche est la `arrow-right` de Lucide, tracée à la main pour que ses deux
+ * chemins se déforment au survol : la hampe s'allonge ET la pointe se
+ * resserre (squash & stretch, `RESOURCES/animation-principles.md` §1).
+ * Mécanique : bloc « LIEN À PROPOS DU JOURNAL » de `globals.css`. Safari
+ * n'interpole pas `d` — la flèche y saute à sa forme étirée, sans casse.
+ */
+export function AboutLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="journal-about-link flex w-fit items-center text-[20px] leading-none uppercase font-bold text-[var(--color-fg)] underline-offset-4 hover:underline focus-visible:underline"
+      // 12 sous le `gap` du bloc de titre : le lien appartient au titre, pas à l'index.
+      style={{ gap: 10, marginTop: 4 }}
+    >
+      <svg
+        aria-hidden
+        width={18}
+        height={18}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2.25}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="flex-none"
+      >
+        <path className="journal-about-shaft" d="M5 12h14" />
+        <path className="journal-about-head" d="M12 5l7 7-7 7" />
+      </svg>
+      {label}
+    </Link>
+  );
+}

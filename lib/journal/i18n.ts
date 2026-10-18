@@ -50,6 +50,13 @@ export function seriesPath(slug: string, lang: Lang = DEFAULT_LANG): string {
   return `${langPrefix(lang)}/${SERIES_SEGMENT[lang]}/${slug}/`;
 }
 
+/** La page « À propos de ce journal », adresse traduite comme celle des séries. */
+const ABOUT_SEGMENT: Record<Lang, string> = { fr: 'a-propos', en: 'about', ru: 'o-zhurnale' };
+
+export function aboutPath(lang: Lang = DEFAULT_LANG): string {
+  return `${langPrefix(lang)}/${ABOUT_SEGMENT[lang]}/`;
+}
+
 /** La langue d'une adresse du journal, lue sur son premier segment. */
 export function langOfPath(pathname: string | null): Lang {
   const first = pathname?.split('/')[1];
@@ -123,6 +130,11 @@ type Dict = {
   seriesHeading: string;
   seriesKicker: string;
   seriesPage: string;
+  /** Le lien sous le titre de l'accueil, et le H1 de la page qu'il ouvre. */
+  aboutLink: string;
+  aboutTitle: string;
+  /** Lu par les lecteurs d'écran à la place de la marque de série d'une ligne de l'index. */
+  seriesMark: (title: string, part: number, total: number) => string;
   seriesNav: (title: string) => string;
   seriesLine: (title: string, n: number) => string;
   seriesFallback: (title: string, n: number, titles: string, author: string) => string;
@@ -274,6 +286,9 @@ export const DICT: Record<Lang, Dict> = {
     seriesHeading: 'Séries',
     seriesKicker: 'Journal · Série',
     seriesPage: 'Page de la série',
+    aboutLink: 'À propos de ce journal',
+    aboutTitle: 'À propos',
+    seriesMark: (t, p, n) => `Série ${t}, partie ${p} sur ${n}`,
     seriesNav: (t) => `La série ${t}`,
     seriesLine: (t, n) => `La série · ${t} · ${n} articles`,
     seriesFallback: (t, n, titles, author) => `${t} : une série en ${n} articles d’${author} — ${titles}.`,
@@ -435,6 +450,9 @@ export const DICT: Record<Lang, Dict> = {
     seriesHeading: 'Series',
     seriesKicker: 'Journal · Series',
     seriesPage: 'Series page',
+    aboutLink: 'About this journal',
+    aboutTitle: 'About',
+    seriesMark: (t, p, n) => `Series ${t}, part ${p} of ${n}`,
     seriesNav: (t) => `The ${t} series`,
     seriesLine: (t, n) => `The series · ${t} · ${n} articles`,
     seriesFallback: (t, n, titles, author) => `${t}: a series of ${n} articles by ${author} — ${titles}.`,
@@ -596,6 +614,9 @@ export const DICT: Record<Lang, Dict> = {
     seriesHeading: 'Серии',
     seriesKicker: 'Журнал · Серия',
     seriesPage: 'Страница серии',
+    aboutLink: 'Об этом журнале',
+    aboutTitle: 'О журнале',
+    seriesMark: (t, p, n) => `Серия «${t}», часть ${p} из ${n}`,
     seriesNav: (t) => `Серия «${t}»`,
     seriesLine: (t, n) => `Серия · ${t} · ${n} ${ru(n, 'статья', 'статьи', 'статей')}`,
     seriesFallback: (t, n, titles, author) =>

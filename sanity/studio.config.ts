@@ -27,6 +27,7 @@ const SINGLETON_TYPES = new Set([
   'siteSettings',
   'funnelCuration',
   'journalSettings',
+  'journalAboutPage',
   ...PAGE_DOCS.map((p) => p.type),
 ]);
 const SINGLETON_FORBIDDEN_ACTIONS = new Set([
@@ -227,6 +228,8 @@ export const studioConfig = defineConfig({
         }
         case 'journalSettings':
           return `${BLOG_URL}/`;
+        case 'journalAboutPage':
+          return `${BLOG_URL}/a-propos/`;
         case 'journalSeries':
           return slug ? `${BLOG_URL}/serie/${slug}/` : `${BLOG_URL}/`;
         default: {

@@ -1,6 +1,7 @@
 import { defineArrayMember, defineField, defineType } from 'sanity';
 import { NoteRefInput } from '../inputs/NoteRefInput';
 import { assetWithinCap } from '../validation/assetWithinCap';
+import { editorialBlockType, editorialBodyDescription } from './pageFields';
 import type { FigureName } from '@/lib/journal/types';
 
 /**
@@ -650,7 +651,35 @@ export const journalSettings = defineType({
   preview: { prepare: () => ({ title: 'Signature des articles' }) },
 });
 
+/**
+ * La page « À propos de ce journal » (`blog.amatencio.com/a-propos/`, et ses
+ * traductions), liée sous le titre de l'accueil du journal (2026-10-19).
+ * Singleton (`_id` === `_type`). Vide : la description du journal
+ * (`DICT.siteDescription`) en un paragraphe — filet de sécurité, pas source.
+ */
+export const journalAboutPage = defineType({
+  name: 'journalAboutPage',
+  title: 'À propos du journal',
+  type: 'document',
+  fields: [
+    defineField({
+      name: 'body',
+      title: 'Texte',
+      description: editorialBodyDescription(
+        'Le texte de la page « À propos de ce journal », sous le titre « À propos » : pourquoi ce journal, ce qu’on y lit, à quel rythme, comment il est écrit et sourcé.',
+      ),
+      type: 'array',
+      of: [editorialBlockType],
+    }),
+    translationsField(() => [
+      defineField({ name: 'body', title: 'Texte', type: 'array', of: [editorialBlockType] }),
+    ]),
+  ],
+  preview: { prepare: () => ({ title: 'À propos du journal' }) },
+});
+
 export const journalSchemas = [
+  journalAboutPage,
   post,
   journalSettings,
   journalSeries,
