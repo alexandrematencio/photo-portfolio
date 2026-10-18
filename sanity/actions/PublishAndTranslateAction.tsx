@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Card, Flex, Spinner, Stack, Text } from '@sanity/ui';
 import { CheckmarkCircleIcon, PublishIcon, TranslateIcon, WarningOutlineIcon } from '@sanity/icons';
-import { useClient, type DocumentActionComponent } from 'sanity';
+import { useClient, useDocumentOperation, type DocumentActionComponent } from 'sanity';
 import {
   isFrenchPost,
   STALE_JOB_MS,
@@ -34,7 +34,8 @@ const LANG_LABEL = { en: 'English', ru: 'Русский' } as const;
 export function createPublishAndTranslateAction(original: DocumentActionComponent): DocumentActionComponent {
   const PublishAndTranslateAction: DocumentActionComponent = (props) => {
     const nativeResult = original(props);
-    const { id, draft, published } = props;
+    const { id, type, draft, published } = props;
+    const { patch } = useDocumentOperation(id, type);
     const baseClient = useClient({ apiVersion: API_VERSION });
     const client = useMemo(() => baseClient.withConfig({ perspective: 'raw' }), [baseClient]);
     const jobId = translationJobId(id);
@@ -111,6 +112,8 @@ export function createPublishAndTranslateAction(original: DocumentActionComponen
         requested.current = false;
         if (somethingToPublish) {
           setPhase('publishing');
+          // Première publication : l'heure départage les articles du même jour (`lib/journal/articles.ts`).
+          if (!draft?.publishedAt && !published?.publishedAt) patch.execute([{ set: { publishedAt: new Date().toISOString() } }]);
           nativeResult.onHandle?.();
         } else void request();
       },
