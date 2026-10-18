@@ -3,11 +3,10 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, type MouseEvent } from 'react';
-import { MICRO_LABEL } from '@/lib/site/typography';
-import { cn } from '@/lib/utils/cn';
+import { Undo2 } from 'lucide-react';
 
 /**
- * « ← Back », en tête d'un article et d'une page de série du journal.
+ * « Back », en tête d'un article et d'une page de série du journal.
  *
  * Revient d'où l'on vient quand on vient du journal lui-même : l'index garde
  * alors sa position. Arrivé de Google ou d'un lien partagé, un retour arrière
@@ -44,14 +43,16 @@ export function BackLink({ href, label = 'Back' }: { href: string; label?: strin
     <Link
       href={href}
       onClick={onClick}
-      className={cn(MICRO_LABEL, 'group flex w-fit items-center gap-2 text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] transition-colors duration-200 motion-reduce:transition-none')}
+      // Bouton encadré (maquette d'Alexandre, 2026-10-18). Padding en style
+      // inline : le reset `* { padding: 0 }` avalerait une utility Tailwind.
+      // Au survol comme au focus clavier, le cadre se remplit — même geste
+      // que les rangées de la page de série.
+      style={{ padding: '6px 12px', border: '1px solid var(--color-fg)', gap: 10 }}
+      className="flex w-fit items-center text-[20px] leading-none uppercase font-bold text-[var(--color-fg)] transition-colors duration-200 hover:bg-[var(--color-fg)] hover:text-[var(--color-bg)] focus-visible:bg-[var(--color-fg)] focus-visible:text-[var(--color-bg)] motion-reduce:transition-none"
     >
-      <span
-        aria-hidden
-        className="transition-[translate] duration-200 ease-out group-hover:-translate-x-[3px] motion-reduce:transition-none"
-      >
-        ←
-      </span>
+      {/* Le demi-tour de « Back to All Series » (/series) : il dit « on
+          revient d'où l'on vient », pas « à gauche ». */}
+      <Undo2 size={18} strokeWidth={2.25} aria-hidden />
       {label}
     </Link>
   );

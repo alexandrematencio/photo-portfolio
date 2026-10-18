@@ -69,7 +69,14 @@ export function SiteHeader({ heroSrc }: SiteHeaderProps) {
       >
         <nav
           aria-label="Main navigation"
-          className="flex h-full items-center justify-between"
+          // Journal : un menu ordinaire, aligné à gauche après le glyph
+          // (demande Alexandre, 2026-10-18). Le portfolio garde
+          // `justify-between` : sa nav-bar est l'état d'arrivée du morph du
+          // hero de la home (CLAUDE.md §3.6), qui répartit l'espace restant.
+          className={cn(
+            'flex h-full items-center',
+            IS_BLOG ? 'justify-start md:gap-10' : 'justify-between'
+          )}
           // Gauche : la gouttière de page (20 sous `md`, 32 au-dessus), pour
           // que le glyph tombe sur la verticale du contenu sur téléphone aussi.
           // Droite : 64 au desktop, inchangé — sous `md` les libellés sont

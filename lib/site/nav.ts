@@ -50,10 +50,11 @@ export type NavLink = {
  */
 export const NAV_LINKS: NavLink[] = IS_BLOG
   ? [
-      // Le journal (blog.amatencio.com) : sa page d'accueil, puis le portfolio
-      // et la page About — qui porte le contact — chez lui.
+      // Le journal (blog.amatencio.com) : sa page d'accueil, puis la page
+      // About du portfolio — qui porte le contact. Le portfolio lui-même se
+      // rejoint par « All sites » (« Photography » retiré le 2026-10-18,
+      // demande Alexandre).
       { href: '/', label: 'Journal' },
-      { href: photoHref('/'), label: 'Photography' },
       { href: photoHref('/about/'), label: 'About' },
       { href: '', label: 'All sites', menu: 'sites' },
     ]
