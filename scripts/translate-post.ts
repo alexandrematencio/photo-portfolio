@@ -6,14 +6,20 @@
  *   npm run translate-post -- <id de l'article>           → écrit les deux brouillons
  *   npm run translate-post -- <id> --lang ru              → une seule langue
  *   npm run translate-post -- <id> --dry-run              → affiche, n'écrit rien
+ *   npm run translate-post -- <id> --full                 → tout retraduire, sans rien reprendre
+ *   npm run translate-post -- <id> --adopt                → marque les traductions existantes à jour, sans appel
  *   npm run translate-post -- --job translationJob.<id>   → ce que lance le VPS
  *
  * Le mode `--job` est celui du bouton du Studio (`lib/journal/translate/job.ts`) :
  * il ne prend la demande que si elle est encore `requested` (une livraison
  * doublée du webhook ne traduit pas deux fois) et y écrit l'avancement.
  *
- * Toujours régénérées (décision du 2026-10-18) : le brouillon est réécrit à
- * chaque demande. La version PUBLIÉE de la traduction, elle, n'est jamais
+ * INCRÉMENTAL (`lib/journal/translate/incremental.ts`) : seules les unités
+ * dont le français a changé depuis la dernière traduction partent au modèle,
+ * avec leur ancienne version ; le reste est repris tel quel, retouches
+ * comprises. Rien de changé → aucun appel, aucun brouillon écrit.
+ *
+ * Le brouillon est réécrit ; la version PUBLIÉE de la traduction n'est jamais
  * touchée — elle reste en ligne jusqu'à ce qu'Alexandre publie le brouillon.
  * L'ADRESSE d'une traduction existante est conservée : un lien partagé ne
  * casse pas parce que le français a été corrigé.
@@ -24,14 +30,16 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@sanity/client';
 import { z } from 'zod';
-import { OUTPUT_SCHEMA, systemPrompt } from '../lib/journal/translate/prompt';
+import { outputSchema, systemPrompt } from '../lib/journal/translate/prompt';
+import { canonical, planUnits, readSnapshot, snapshotOf, type UnitPlan } from '../lib/journal/translate/incremental';
 import {
   isFrenchPost,
   TRANSLATION_LANGS,
   type TranslationJob,
   type TranslationLang,
+  type TranslationResult,
 } from '../lib/journal/translate/job';
-import { applyUnits, extractUnits, type SourcePost, type TranslatedFields } from '../lib/journal/translate/units';
+import { applyUnits, type SourcePost, type TranslatedFields } from '../lib/journal/translate/units';
 
 const MODEL = 'claude-opus-5-5';
 /** Une réponse invalide (unité manquante, appel de note perdu) est redemandée une fois. */
@@ -44,6 +52,8 @@ const flag = (name: string) => {
 };
 const JOB_ID = flag('--job');
 const DRY_RUN = args.includes('--dry-run');
+const FULL = args.includes('--full');
+const ADOPT = args.includes('--adopt');
 const LANGS = (flag('--lang')?.split(',') ?? [...TRANSLATION_LANGS]) as TranslationLang[];
 const POST_ARG = args.find((a, i) => !a.startsWith('--') && !['--job', '--lang'].includes(args[i - 1]));
 
@@ -64,10 +74,31 @@ const sanity = createClient({
 });
 const anthropic = new Anthropic();
 
-const Output = z.object({ slug: z.string(), units: z.array(z.object({ id: z.string(), text: z.string() })) });
+const Output = z.object({
+  slug: z.string().optional(),
+  units: z.array(z.object({ id: z.string(), text: z.string() })),
+});
 
-async function translate(post: SourcePost, lang: TranslationLang): Promise<{ fields: TranslatedFields; slug: string }> {
-  const units = extractUnits(post);
+type PostDoc = SourcePost & {
+  _type: string;
+  language?: string;
+  slug?: { current?: string };
+  translationOf?: { _ref: string };
+  translationSource?: string;
+};
+
+/**
+ * Ce que le modèle doit traduire, et rien d'autre : les unités modifiées ou
+ * neuves (`planUnits`). Sans unité à traduire, aucun appel.
+ */
+async function translate(
+  post: SourcePost,
+  lang: TranslationLang,
+  plan: UnitPlan,
+  needSlug: boolean,
+): Promise<{ fields: TranslatedFields; slug?: string }> {
+  if (!plan.pending.length) return { fields: applyUnits(post, [...plan.reused].map(([id, text]) => ({ id, text }))) };
+  const wanted = new Set(plan.pending.map((u) => u.id));
   let lastError: unknown;
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     const stream = anthropic.beta.messages.stream({
@@ -76,9 +107,9 @@ async function translate(post: SourcePost, lang: TranslationLang): Promise<{ fie
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
       thinking: { type: 'adaptive' },
-      output_config: { effort: 'high', format: { type: 'json_schema', schema: OUTPUT_SCHEMA } },
-      system: systemPrompt(lang),
-      messages: [{ role: 'user', content: JSON.stringify(units, null, 1) }],
+      output_config: { effort: 'high', format: { type: 'json_schema', schema: outputSchema(needSlug) } },
+      system: systemPrompt(lang, { slug: needSlug }),
+      messages: [{ role: 'user', content: JSON.stringify(plan.pending, null, 1) }],
     });
     const message = await stream.finalMessage();
     if (message.stop_reason === 'refusal') throw new Error(`${lang} : le modèle a refusé (${message.stop_details?.category ?? 'sans catégorie'})`);
@@ -87,7 +118,10 @@ async function translate(post: SourcePost, lang: TranslationLang): Promise<{ fie
     console.log(`  ${lang} : ${message.usage.input_tokens} → ${message.usage.output_tokens} jetons (essai ${attempt})`);
     try {
       const out = Output.parse(JSON.parse(text));
-      return { fields: applyUnits(post, out.units), slug: out.slug };
+      // Une unité reprise ne peut pas être écrasée par le modèle, même s'il la renvoie.
+      const fresh = out.units.filter((u) => wanted.has(u.id));
+      const units = [...[...plan.reused].map(([id, t]) => ({ id, text: t })), ...fresh];
+      return { fields: applyUnits(post, units), slug: out.slug };
     } catch (e) {
       lastError = e;
       console.warn(`  ${lang} : réponse refusée — ${(e as Error).message}`);
@@ -99,36 +133,55 @@ async function translate(post: SourcePost, lang: TranslationLang): Promise<{ fie
 const slugify = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
 
-/** Id publié de la traduction et adresse : celles qui existent déjà, sinon `<id>-<langue>` et l'adresse proposée, dé-doublonnée. */
-async function target(postId: string, lang: TranslationLang, proposed: string) {
-  const existing = await sanity.fetch<{ _id: string; slug?: string }[]>(
-    `*[_type == "post" && language == $lang && translationOf._ref == $postId]{_id, "slug": slug.current}`,
-    { lang, postId },
-  );
-  const publishedId = existing.find((d) => !d._id.startsWith('drafts.'))?._id ?? existing[0]?._id.replace(/^drafts\./, '') ?? `${postId}-${lang}`;
-  const kept = existing.find((d) => d._id.replace(/^drafts\./, '') === publishedId && d.slug)?.slug;
-  if (kept) return { publishedId, slug: kept };
+/**
+ * La traduction existante : son id publié (celui qui existe, sinon
+ * `<id>-<langue>`) et la version à reprendre — le BROUILLON s'il existe (il
+ * porte les dernières retouches d'Alexandre), sinon la version publiée.
+ */
+async function existingTranslation(postId: string, lang: TranslationLang) {
+  const docs = await sanity.fetch<PostDoc[]>(`*[_type == "post" && language == $lang && translationOf._ref == $postId]`, {
+    lang,
+    postId,
+  });
+  const publishedId =
+    docs.find((d) => !d._id.startsWith('drafts.'))?._id ?? docs[0]?._id.replace(/^drafts\./, '') ?? `${postId}-${lang}`;
+  const doc = docs.find((d) => d._id === `drafts.${publishedId}`) ?? docs.find((d) => d._id === publishedId) ?? null;
+  return { publishedId, doc, all: docs.filter((d) => d._id.replace(/^drafts\./, '') === publishedId) };
+}
 
-  const base = slugify(proposed) || publishedId;
+/** Adresse d'une traduction NEUVE : celle que propose le modèle, dé-doublonnée. */
+async function freshSlug(lang: TranslationLang, publishedId: string, proposed: string | undefined) {
+  const base = slugify(proposed ?? '') || publishedId;
   const taken = new Set(
     await sanity.fetch<string[]>(`*[_type == "post" && language == $lang && !(_id in [$id, "drafts." + $id])].slug.current`, { lang, id: publishedId }),
   );
   let slug = base;
   for (let n = 2; taken.has(slug); n++) slug = `${base}-${n}`;
-  return { publishedId, slug };
+  return slug;
 }
 
-async function run(postId: string, onLang?: (lang: TranslationLang, result: { draftId?: string; slug?: string; error?: string }) => Promise<void>) {
-  const post = await sanity.getDocument<SourcePost & { language?: string; _type: string }>(postId);
+async function sourcePost(postId: string) {
+  const post = await sanity.getDocument<PostDoc>(postId);
   if (!post || post._type !== 'post') throw new Error(`Article publié introuvable : ${postId}`);
   if (!isFrenchPost(post)) throw new Error(`${postId} n'est pas un article français`);
-  console.log(`▸ ${post.title} (${postId}) → ${LANGS.join(', ')}`);
+  return post;
+}
+
+async function run(postId: string, onLang?: (lang: TranslationLang, result: TranslationResult) => Promise<void>) {
+  const post = await sourcePost(postId);
+  console.log(`▸ ${post.title} (${postId}) → ${LANGS.join(', ')}${FULL ? ' — tout retraduire' : ''}`);
+  const source = JSON.stringify(snapshotOf(post));
 
   const outcomes = await Promise.allSettled(
     LANGS.map(async (lang) => {
       try {
-        const { fields, slug: proposed } = await translate(post, lang);
-        const { publishedId, slug } = await target(postId, lang, proposed);
+        const { publishedId, doc: existing } = await existingTranslation(postId, lang);
+        const plan = planUnits(post, existing, readSnapshot(existing?.translationSource), FULL);
+        const keptSlug = existing?.slug?.current;
+        console.log(`  ${lang} : ${plan.pending.length} unité(s) à traduire, ${plan.reused.size} reprise(s)`);
+
+        const { fields, slug: proposed } = await translate(post, lang, plan, !keptSlug);
+        const slug = keptSlug ?? (await freshSlug(lang, publishedId, proposed));
         const draftId = `drafts.${publishedId}`;
         const doc = {
           _id: draftId,
@@ -137,11 +190,24 @@ async function run(postId: string, onLang?: (lang: TranslationLang, result: { dr
           translationOf: { _type: 'reference', _ref: postId },
           slug: { _type: 'slug', current: slug },
           ...fields,
+          translationSource: source,
         };
+        const counts = { translated: plan.pending.length, reused: plan.reused.size };
+
+        // Rien n'a changé (ni texte ni structure) : pas de brouillon inutile.
+        const { _id: _ignored, ...content } = doc;
+        const same =
+          existing && canonical(content) === canonical(Object.fromEntries(Object.keys(content).map((k) => [k, existing[k as keyof PostDoc]])));
+        if (same) {
+          console.log(`  = ${lang} : déjà à jour — ${existing._id}`);
+          await onLang?.(lang, { draftId: existing._id, slug, unchanged: true, ...counts });
+          return;
+        }
+
         if (DRY_RUN) console.log(JSON.stringify(doc, null, 2));
         else await sanity.createOrReplace(doc);
         console.log(`  ✓ ${lang} : ${DRY_RUN ? '(non écrit) ' : ''}${draftId} — /${lang}/${slug}/`);
-        await onLang?.(lang, { draftId, slug });
+        await onLang?.(lang, { draftId, slug, ...counts });
       } catch (e) {
         console.error(`  ✗ ${(e as Error).message}`);
         await onLang?.(lang, { error: (e as Error).message });
@@ -151,6 +217,30 @@ async function run(postId: string, onLang?: (lang: TranslationLang, result: { dr
   );
   const failed = outcomes.filter((o) => o.status === 'rejected');
   if (failed.length) throw new Error(failed.map((o) => ((o as PromiseRejectedResult).reason as Error).message).join(' · '));
+}
+
+/**
+ * `--adopt` : déclare les traductions existantes À JOUR du français publié,
+ * sans appel au modèle. Pour les traductions écrites avant la traduction
+ * incrémentale (pas de `translationSource`), qui seraient sinon retraduites
+ * en entier à la prochaine demande. À ne lancer que si le français n'a pas
+ * changé depuis leur génération : une phrase modifiée entre-temps ne serait
+ * jamais retraduite.
+ */
+async function adopt(postId: string) {
+  const post = await sourcePost(postId);
+  const source = JSON.stringify(snapshotOf(post));
+  for (const lang of LANGS) {
+    const { all } = await existingTranslation(postId, lang);
+    if (!all.length) {
+      console.log(`  – ${lang} : aucune traduction`);
+      continue;
+    }
+    const tx = sanity.transaction();
+    for (const d of all) tx.patch(d._id, (p) => p.set({ translationSource: source }));
+    if (!DRY_RUN) await tx.commit();
+    console.log(`  ✓ ${lang} : ${all.map((d) => d._id).join(', ')} ${DRY_RUN ? '(non écrit)' : 'marquées à jour'}`);
+  }
 }
 
 async function runJob(jobId: string) {
@@ -176,7 +266,8 @@ async function runJob(jobId: string) {
   }
 }
 
-(JOB_ID ? runJob(JOB_ID) : run(POST_ARG!.replace(/^drafts\./, ''))).catch((e) => {
+const POST_ID = POST_ARG?.replace(/^drafts\./, '');
+(JOB_ID ? runJob(JOB_ID) : ADOPT ? adopt(POST_ID!) : run(POST_ID!)).catch((e) => {
   console.error(`✗ ${(e as Error).message}`);
   process.exit(1);
 });
