@@ -14,6 +14,10 @@ export type Verdict = { idea: string; prior: string; verdict: string; kind: Verd
 
 export type InlineMark = 'strong' | 'em' | 'cite';
 
+/** Les figures dessinées (components/journal/figures/) — la liste du champ « Figure » du Studio. */
+export const FIGURE_NAMES = ['loop', 'cascade', 'bridge'] as const;
+export type FigureName = (typeof FIGURE_NAMES)[number];
+
 /**
  * Une image du Studio, déjà résolue en URL du CDN Sanity (`lib/journal/convert.ts`).
  * `width` / `height` : les proportions de l'asset, lues dans son identifiant —
@@ -40,7 +44,7 @@ export type ArticleBlock =
   | { type: 'p'; inline: Inline[] }
   | { type: 'h2'; text: string }
   | { type: 'quote'; text: string }
-  | { type: 'figure'; name: 'loop' }
+  | { type: 'figure'; name: FigureName }
   /** Image posée dans le texte. `wide` : toute la colonne, sinon la mesure de lecture. */
   | { type: 'image'; image: JournalImage; caption?: string; wide: boolean }
   | { type: 'table'; head: string[]; rows: string[][] }

@@ -156,15 +156,27 @@ export const journalFigure = defineType({
     defineField({
       name: 'figure',
       title: 'Figure dessinée',
-      description: 'Les figures sont dessinées une à une (SVG). Pour en ajouter une, la demander : elle apparaîtra dans cette liste.',
+      description: 'Les figures sont dessinées une à une (SVG), et numérotées toutes seules dans l’ordre de l’article (Fig. 1, Fig. 2…). Pour en ajouter une, la demander : elle apparaîtra dans cette liste.',
       type: 'string',
-      options: { list: [{ title: 'Fig. 1 — La boucle corps-cerveau et le décalage', value: 'loop' }], layout: 'radio' },
+      options: {
+        list: [
+          { title: 'La boucle corps-cerveau et le décalage', value: 'loop' },
+          { title: 'La cascade intérieure du samedi matin', value: 'cascade' },
+          { title: 'Maître, esclave ou pont', value: 'bridge' },
+        ],
+        layout: 'radio',
+      },
       validation: (Rule) => Rule.required(),
     }),
   ],
   preview: {
     select: { figure: 'figure' },
-    prepare: ({ figure }) => ({ title: figure === 'loop' ? 'Fig. — La boucle corps-cerveau' : 'Figure', subtitle: 'Figure' }),
+    prepare: ({ figure }) => ({
+      title:
+        { loop: 'La boucle corps-cerveau', cascade: 'La cascade intérieure', bridge: 'Maître, esclave ou pont' }[figure as string] ??
+        'Figure à choisir',
+      subtitle: 'Figure',
+    }),
   },
 });
 

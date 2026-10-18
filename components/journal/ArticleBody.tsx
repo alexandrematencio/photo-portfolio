@@ -16,7 +16,7 @@ import { AUTHOR_NAME } from '@/lib/site/author';
 import type { Article, ArticleSummary, Inline, InlineMark } from '@/lib/journal/types';
 import { StateDot } from '@/components/site/StateDot';
 import { DraftLabel, NoteCall, NoteRow, NotesProvider, type RowNote } from './Notes';
-import { LoopFigure } from './LoopFigure';
+import { JournalFigure } from './figures';
 import { ArticleImage } from './ArticleImage';
 import { VerdictTable } from './VerdictTable';
 import { DataTable } from './DataTable';
@@ -197,6 +197,10 @@ export function ArticleBody({
   for (const [key, id] of numbering.refs) callsOf.set(key, [...(callsOf.get(key) ?? []), id]);
   const blocks = article.blocks;
   const leadIndex = blocks.findIndex((b) => b.type === 'p');
+  // Les figures sont numérotées dans l'ordre de l'article : la boucle est Fig. 1
+  // dans un texte, Fig. 3 dans un autre.
+  const figureNumber = new Map<number, number>();
+  blocks.forEach((b, i) => b.type === 'figure' && figureNumber.set(i, figureNumber.size + 1));
 
   return (
     <NotesProvider lang={lang}>
@@ -253,7 +257,9 @@ export function ArticleBody({
                 </aside>
               );
             case 'figure':
-              return <LoopFigure key={i} lang={lang} style={{ marginTop: RHYTHM.object }} />;
+              return (
+                <JournalFigure key={i} name={block.name} number={figureNumber.get(i)!} lang={lang} style={{ marginTop: RHYTHM.object }} />
+              );
             case 'image':
               return (
                 <ArticleImage

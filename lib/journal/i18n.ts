@@ -105,6 +105,9 @@ export function rememberLang(lang: Lang): void {
  * Les mots de l'interface du journal. Le menu principal (All sites, Journal,
  * About) reste en anglais sur les trois langues, comme sur tout amatencio.com.
  */
+/** Titre et description lus par les machines (<title>, <desc>), légende lue par tous. */
+type FigureText = { title: string; desc: string; legend: string };
+
 type Dict = {
   siteName: string;
   siteDescription: string;
@@ -150,20 +153,43 @@ type Dict = {
     distribution: string;
     head: [string, string, string];
   };
-  figure: {
-    title: string;
-    brain: string;
-    body: string;
-    sends: string;
-    returns: string;
-    relief: string;
-    head: string;
-    gut: string;
-    lag: string;
-    time: string;
-    caption: string;
-    desc: string;
-    legend: string;
+  /** « Fig. 3 » — numérotée dans l'ordre de l'article (`ArticleBody`). */
+  figureLabel: (n: number) => string;
+  /** Les libellés des figures dessinées (components/journal/figures/), une entrée par figure. */
+  figures: {
+    loop: FigureText & {
+      brain: string;
+      body: string;
+      sends: string;
+      returns: string;
+      relief: string;
+      head: string;
+      gut: string;
+      lag: string;
+      time: string;
+    };
+    cascade: FigureText & {
+      conscious: string;
+      unconscious: string;
+      light: string;
+      mood: string;
+      urge: string;
+      memory: string;
+      bodyState: string;
+      lived: string;
+      decision: string;
+      unseen: string;
+    };
+    bridge: FigureText & {
+      master: string;
+      slave: string;
+      bridge: string;
+      consciousness: string;
+      mechanisms: string;
+      commands: string;
+      watches: string;
+      links: string;
+    };
   };
   journalHome: string;
   dateLocale: string;
@@ -227,20 +253,50 @@ export const DICT: Record<Lang, Dict> = {
       distribution: 'Répartition des verdicts',
       head: ['Ce que j’ai déduit', 'Ce qui existait', 'Verdict'],
     },
-    figure: {
-      title: 'La boucle corps-cerveau et le décalage qu’elle prédit',
-      brain: 'CERVEAU',
-      body: 'CORPS',
-      sends: 'traite et envoie',
-      returns: 'garde et renvoie',
-      relief: 'soulagement',
-      head: 'TÊTE',
-      gut: 'VENTRE',
-      lag: 'décalage mesurable',
-      time: 'temps →',
-      caption: 'Fig. 1',
-      desc: 'En haut, le cerveau traite et envoie vers le corps, le corps garde et renvoie vers le cerveau. En bas, deux courbes d’activation après un soulagement : la tête redescend d’abord, le ventre ensuite ; l’écart entre les deux est le décalage mesurable.',
-      legend: 'La boucle, et ce qu’elle prédit : après un vrai soulagement, la tête lâche d’abord, le ventre ensuite. Schéma d’après le texte, pas une mesure.',
+    figureLabel: (n) => `Fig. ${n}`,
+    figures: {
+      loop: {
+        title: 'La boucle corps-cerveau et le décalage qu’elle prédit',
+        brain: 'CERVEAU',
+        body: 'CORPS',
+        sends: 'traite et envoie',
+        returns: 'garde et renvoie',
+        relief: 'soulagement',
+        head: 'TÊTE',
+        gut: 'VENTRE',
+        lag: 'décalage mesurable',
+        time: 'temps →',
+        desc: 'En haut, le cerveau traite et envoie vers le corps, le corps garde et renvoie vers le cerveau. En bas, deux courbes d’activation après un soulagement : la tête redescend d’abord, le ventre ensuite ; l’écart entre les deux est le décalage mesurable.',
+        legend: 'La boucle, et ce qu’elle prédit : après un vrai soulagement, la tête lâche d’abord, le ventre ensuite. Schéma d’après le texte, pas une mesure.',
+      },
+      cascade: {
+        title: 'La cascade intérieure du samedi matin',
+        desc: 'Une ligne horizontale figure le seuil de la conscience. En dessous, une variation de lumière, une disposition puis une envie de sortir s’enchaînent, nourries en chemin par un souvenir et par un état du corps. Seule la dernière étape franchit le seuil : la décision « Je sors, gare de Lyon », vécue comme un choix.',
+        legend: 'Le samedi matin, tel que je me le représente : plusieurs influences se combinent sous le seuil, et je n’éprouve que la dernière, comme une décision. Schéma d’après le texte, pas une mesure.',
+        conscious: 'CONSCIENT',
+        unconscious: 'NON CONSCIENT',
+        light: 'une variation de lumière',
+        mood: 'une disposition',
+        urge: 'une envie de sortir',
+        memory: 'un souvenir ?',
+        bodyState: 'un état du corps ?',
+        lived: 'CE QUE JE VIS',
+        decision: '« Je sors, gare de Lyon »',
+        unseen: 'ce qui a pu se passer, sans être vu',
+      },
+      bridge: {
+        title: 'Maître, esclave ou pont',
+        desc: 'Trois façons de placer la conscience au-dessus des mécanismes inconscients. Maître : elle envoie des ordres vers eux. Esclave : elle ne fait que recevoir ce qui monte d’eux. Pont : le flux entre dans la conscience, y est relié, et en ressort vers les mécanismes.',
+        legend: 'Trois places possibles pour la conscience. Celle que je retiens : un passage, qui reçoit, relie et renvoie vers ce qui l’a produit. Schéma d’après le texte, pas une mesure.',
+        master: 'MAÎTRE',
+        slave: 'ESCLAVE',
+        bridge: 'PONT',
+        consciousness: 'conscience',
+        mechanisms: 'mécanismes inconscients',
+        commands: 'elle commande tout',
+        watches: 'elle regarde passer',
+        links: 'elle relie et renvoie',
+      },
     },
     journalHome: 'Journal — accueil',
     dateLocale: 'fr-FR',
@@ -291,20 +347,50 @@ export const DICT: Record<Lang, Dict> = {
       distribution: 'Breakdown of verdicts',
       head: ['What I worked out', 'What already existed', 'Verdict'],
     },
-    figure: {
-      title: 'The body–brain loop and the lag it predicts',
-      brain: 'BRAIN',
-      body: 'BODY',
-      sends: 'processes and sends',
-      returns: 'holds and sends back',
-      relief: 'relief',
-      head: 'HEAD',
-      gut: 'GUT',
-      lag: 'measurable lag',
-      time: 'time →',
-      caption: 'Fig. 1',
-      desc: 'Top: the brain processes and sends to the body; the body holds and sends back to the brain. Bottom: two activation curves after a moment of relief — the head comes down first, the gut later; the gap between them is the measurable lag.',
-      legend: 'The loop, and what it predicts: after real relief, the head lets go first and the gut follows. A diagram drawn from the text, not a measurement.',
+    figureLabel: (n) => `Fig. ${n}`,
+    figures: {
+      loop: {
+        title: 'The body–brain loop and the lag it predicts',
+        brain: 'BRAIN',
+        body: 'BODY',
+        sends: 'processes and sends',
+        returns: 'holds and sends back',
+        relief: 'relief',
+        head: 'HEAD',
+        gut: 'GUT',
+        lag: 'measurable lag',
+        time: 'time →',
+        desc: 'Top: the brain processes and sends to the body; the body holds and sends back to the brain. Bottom: two activation curves after a moment of relief — the head comes down first, the gut later; the gap between them is the measurable lag.',
+        legend: 'The loop, and what it predicts: after real relief, the head lets go first and the gut follows. A diagram drawn from the text, not a measurement.',
+      },
+      cascade: {
+        title: 'The inner cascade of that Saturday morning',
+        desc: 'A horizontal line stands for the threshold of consciousness. Below it, a shift in the light, a disposition and then an urge to go out follow one another, fed along the way by a memory and a bodily state. Only the last step crosses the threshold: the decision “I’m going out, Gare de Lyon”, lived as a choice.',
+        legend: 'That Saturday morning as I picture it: several influences combine below the threshold, and I only experience the last one, as a decision. A diagram drawn from the text, not a measurement.',
+        conscious: 'CONSCIOUS',
+        unconscious: 'NOT CONSCIOUS',
+        light: 'a shift in the light',
+        mood: 'a disposition',
+        urge: 'an urge to go out',
+        memory: 'a memory?',
+        bodyState: 'a bodily state?',
+        lived: 'WHAT I EXPERIENCE',
+        decision: '“I’m going out, Gare de Lyon”',
+        unseen: 'what may have happened, unseen',
+      },
+      bridge: {
+        title: 'Master, slave or bridge',
+        desc: 'Three ways of placing consciousness above unconscious mechanisms. Master: it sends orders down to them. Slave: it only receives what rises from them. Bridge: the flow enters consciousness, is linked there, and goes back out to the mechanisms.',
+        legend: 'Three possible places for consciousness. The one I keep: a passage that receives, links and sends back to what produced it. A diagram drawn from the text, not a measurement.',
+        master: 'MASTER',
+        slave: 'SLAVE',
+        bridge: 'BRIDGE',
+        consciousness: 'consciousness',
+        mechanisms: 'unconscious mechanisms',
+        commands: 'it runs everything',
+        watches: 'it watches things go by',
+        links: 'it links and sends back',
+      },
     },
     journalHome: 'Journal — home',
     dateLocale: 'en-GB',
@@ -356,20 +442,50 @@ export const DICT: Record<Lang, Dict> = {
       distribution: 'Распределение вердиктов',
       head: ['Что я вывел', 'Что уже было', 'Вердикт'],
     },
-    figure: {
-      title: 'Петля «тело — мозг» и задержка, которую она предсказывает',
-      brain: 'МОЗГ',
-      body: 'ТЕЛО',
-      sends: 'обрабатывает и посылает',
-      returns: 'держит и возвращает',
-      relief: 'облегчение',
-      head: 'ГОЛОВА',
-      gut: 'ЖИВОТ',
-      lag: 'измеримая задержка',
-      time: 'время →',
-      caption: 'Рис. 1',
-      desc: 'Вверху: мозг обрабатывает сигнал и посылает его телу, тело держит и возвращает его мозгу. Внизу: две кривые активации после облегчения — голова успокаивается первой, живот позже; разрыв между ними и есть измеримая задержка.',
-      legend: 'Петля и то, что она предсказывает: после настоящего облегчения первой отпускает голова, живот — следом. Схема по тексту, а не измерение.',
+    figureLabel: (n) => `Рис. ${n}`,
+    figures: {
+      loop: {
+        title: 'Петля «тело — мозг» и задержка, которую она предсказывает',
+        brain: 'МОЗГ',
+        body: 'ТЕЛО',
+        sends: 'обрабатывает и посылает',
+        returns: 'держит и возвращает',
+        relief: 'облегчение',
+        head: 'ГОЛОВА',
+        gut: 'ЖИВОТ',
+        lag: 'измеримая задержка',
+        time: 'время →',
+        desc: 'Вверху: мозг обрабатывает сигнал и посылает его телу, тело держит и возвращает его мозгу. Внизу: две кривые активации после облегчения — голова успокаивается первой, живот позже; разрыв между ними и есть измеримая задержка.',
+        legend: 'Петля и то, что она предсказывает: после настоящего облегчения первой отпускает голова, живот — следом. Схема по тексту, а не измерение.',
+      },
+      cascade: {
+        title: 'Внутренний каскад того субботнего утра',
+        desc: 'Горизонтальная линия обозначает порог сознания. Под ней друг за другом идут перемена света, настрой и желание выйти, по пути их подпитывают воспоминание и состояние тела. Порог пересекает только последний шаг: решение «Иду гулять, к Лионскому вокзалу», пережитое как выбор.',
+        legend: 'То субботнее утро, каким я его себе представляю: под порогом складываются несколько влияний, а я переживаю только последнее — как решение. Схема по тексту, а не измерение.',
+        conscious: 'ОСОЗНАННОЕ',
+        unconscious: 'НЕОСОЗНАННОЕ',
+        light: 'перемена света',
+        mood: 'настрой',
+        urge: 'желание выйти',
+        memory: 'воспоминание?',
+        bodyState: 'состояние тела?',
+        lived: 'ЧТО Я ПЕРЕЖИВАЮ',
+        decision: '«Иду гулять, к Лионскому вокзалу»',
+        unseen: 'что могло произойти незаметно',
+      },
+      bridge: {
+        title: 'Хозяин, раб или мост',
+        desc: 'Три способа поместить сознание над бессознательными механизмами. Хозяин: оно отдаёт им приказы. Раб: оно лишь получает то, что поднимается от них. Мост: поток входит в сознание, связывается там и возвращается к механизмам.',
+        legend: 'Три возможных места для сознания. Я выбираю одно: проход, который принимает, связывает и возвращает туда, откуда всё пришло. Схема по тексту, а не измерение.',
+        master: 'ХОЗЯИН',
+        slave: 'РАБ',
+        bridge: 'МОСТ',
+        consciousness: 'сознание',
+        mechanisms: 'бессознательные механизмы',
+        commands: 'оно всем управляет',
+        watches: 'оно наблюдает со стороны',
+        links: 'оно связывает и возвращает',
+      },
     },
     journalHome: 'Журнал — главная',
     dateLocale: 'ru-RU',

@@ -71,7 +71,7 @@ export function ArticlePreview() {
       <span
         aria-hidden
         className={cn(MICRO_LABEL, 'fixed z-[60] bg-[var(--color-fg)] text-[var(--color-bg)] pointer-events-none')}
-        style={{ left: 12, bottom: 12, padding: '6px 10px' }}
+        style={{ right: 20, bottom: 12, padding: '6px 10px' }}
       >
         Aperçu · non publié
       </span>

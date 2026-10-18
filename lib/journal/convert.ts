@@ -5,9 +5,11 @@ import type {
   ArticleSummary,
   Inline,
   InlineMark,
+  FigureName,
   JournalImage,
   Verdict,
 } from './types';
+import { FIGURE_NAMES } from './types';
 import { DEFAULT_LANG, type Lang } from './i18n';
 
 /**
@@ -127,7 +129,7 @@ function blocksOf(body: PTBlock[]): ArticleBlock[] {
         if (b.text) blocks.push({ type: 'quote', text: b.text });
         break;
       case 'journalFigure':
-        if (b.figure === 'loop') blocks.push({ type: 'figure', name: 'loop' });
+        if ((FIGURE_NAMES as readonly string[]).includes(b.figure ?? '')) blocks.push({ type: 'figure', name: b.figure as FigureName });
         break;
       case 'journalImage': {
         const image = imageOf(b.image);
