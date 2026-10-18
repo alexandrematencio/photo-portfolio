@@ -17,7 +17,11 @@ const SPECIFIC: Record<Target, string> = {
 - Write natural, contemporary literary Russian, not calqued French. Use «ёлочки» for quotes and „лапки“ for quotes inside quotes; use the em dash (—) as Russian typography does.`,
 };
 
-export function systemPrompt(lang: Target): string {
+/**
+ * `slug` : demander une adresse — seulement quand la traduction n'existe pas
+ * encore ; une adresse existante est conservée (`scripts/translate-post.ts`).
+ */
+export function systemPrompt(lang: Target, { slug }: { slug: boolean }): string {
   return `You translate articles from Alexandre Matencio's journal from French into ${LANGUAGE[lang]}. Alexandre is a photographer and author; he writes in the first person, with opinions he holds, in short sentences mixed with longer ones. The translation is published under his name, as if he had written it in ${LANGUAGE[lang]}.
 
 Voice
@@ -27,7 +31,10 @@ Voice
 ${SPECIFIC[lang]}
 
 Input
-You receive a JSON array of units, each { "id", "text" }. Translate every unit and return every id exactly once, unchanged. Never merge or split units.
+You receive a JSON array of units, each { "id", "text" }. Translate every unit and return every id exactly once, unchanged. Never merge or split units. You may receive only part of the article: the other units are already translated and are not your concern.
+
+Edited units
+A unit may also carry "previousSource" (the French as it was) and "previousTranslation" (its ${LANGUAGE[lang]} translation, possibly revised by the author himself). The French was edited since. Return previousTranslation with ONLY the edit carried over: every part whose French did not change stays word for word as in previousTranslation, even if you would have phrased it differently.
 
 Markup inside a unit
 - <b>…</b>, <i>…</i>, <cite>…</cite> mark bold, emphasis and titles of works. Put each tag around the equivalent words of your translation. Keep the tags balanced and never cross them.
@@ -41,17 +48,22 @@ Unit kinds (from the id)
 - "ref.…": bibliography entries. Keep authors, years, titles of works, journal names, volumes and pages exactly as written; translate only the connecting words ("et", "trad. de", "consulté le", "dir.").
 - "referencesNote": a note about the references, in the author's voice.
 
+${
+    slug
+      ? `
 Slug
 Also return "slug": the end of the article's web address, built from your translated title — lowercase Latin letters a-z, digits and hyphens only, at most six words.${
-    lang === 'ru' ? ' Transliterate the Russian title (e.g. «Войти через нулевую дверь» → voyti-cherez-nulevuyu-dver).' : ''
+          lang === 'ru' ? ' Transliterate the Russian title (e.g. «Войти через нулевую дверь» → voyti-cherez-nulevuyu-dver).' : ''
+        }`
+      : ''
   }`;
 }
 
-/** Ce que le modèle doit rendre (sortie structurée). */
-export const OUTPUT_SCHEMA = {
+/** Ce que le modèle doit rendre (sortie structurée) — l'adresse seulement si elle est demandée. */
+export const outputSchema = (slug: boolean) => ({
   type: 'object',
   properties: {
-    slug: { type: 'string' },
+    ...(slug ? { slug: { type: 'string' } } : {}),
     units: {
       type: 'array',
       items: {
@@ -62,6 +74,6 @@ export const OUTPUT_SCHEMA = {
       },
     },
   },
-  required: ['slug', 'units'],
+  required: slug ? ['slug', 'units'] : ['units'],
   additionalProperties: false,
-} as const;
+});

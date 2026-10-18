@@ -11,11 +11,15 @@
  *    C'est ce qui prouve qu'aucune construction réelle n'est perdue en route.
  * 2. Des cas fabriqués pour ce que le modèle peut rendre de travers :
  *    appel déplacé (accepté), perdu, doublé, inventé, balise non fermée.
+ * 3. La traduction incrémentale (`incremental.ts`), sur les vrais articles :
+ *    rien de changé → rien à traduire ; une phrase, un titre ou une
+ *    description changés → cette unité seule, avec son ancienne version.
  */
 import { createClient } from '@sanity/client';
 import assert from 'node:assert/strict';
 import { parseMarkup, blockToMarkup, type PTBlock } from '../lib/journal/translate/markup';
 import { applyUnits, extractUnits, type SourcePost } from '../lib/journal/translate/units';
+import { canonical, planUnits, readSnapshot, snapshotOf } from '../lib/journal/translate/incremental';
 
 let passed = 0;
 const ok = (label: string, fn: () => void) => {
@@ -71,6 +75,7 @@ async function realPosts() {
       });
     });
   }
+  return posts;
 }
 
 function fabricated() {
@@ -111,9 +116,75 @@ function fabricated() {
   );
 }
 
+function incremental(posts: SourcePost[]) {
+  console.log('Étage 3 — traduction incrémentale');
+  for (const post of posts) {
+    // La « traduction » est l'article lui-même : on ne teste que le plan, pas la langue.
+    const snapshot = readSnapshot(JSON.stringify(snapshotOf(post)));
+    const total = extractUnits(post).length;
+    ok(`${post._id} : rien de changé → 0 unité à traduire`, () => {
+      const plan = planUnits(post, post, snapshot);
+      assert.equal(plan.pending.length, 0);
+      assert.equal(plan.reused.size, total);
+      const rebuilt = applyUnits(post, [...plan.reused].map(([id, text]) => ({ id, text })));
+      assert.equal(canonical(rebuilt.body), canonical(applyUnits(post, extractUnits(post)).body));
+    });
+    ok(`${post._id} : premier passage (sans source) → tout à traduire`, () =>
+      assert.equal(planUnits(post, post, null).pending.length, total),
+    );
+    ok(`${post._id} : --full → tout à traduire, sans ancienne version`, () => {
+      const plan = planUnits(post, post, snapshot, true);
+      assert.equal(plan.pending.length, total);
+      assert.ok(plan.pending.every((u) => u.previousSource === undefined));
+    });
+
+    const paragraph = (post.body ?? []).find((b) => b._type === 'block' && extractUnits({ _id: 'x', body: [b] }).length);
+    if (paragraph) {
+      ok(`${post._id} : une phrase changée → ce paragraphe seul, avec son ancienne version`, () => {
+        const edited = structuredClone(post);
+        const block = edited.body!.find((b) => b._key === paragraph._key) as unknown as PTBlock;
+        const span = block.children.find((c) => c._type === 'span') as { text: string };
+        span.text += ' Phrase ajoutée.';
+        const plan = planUnits(edited, post, snapshot);
+        assert.deepEqual(plan.pending.map((u) => u.id), [`body.${paragraph._key}`]);
+        assert.equal(plan.pending[0].previousSource, snapshot![`body.${paragraph._key}`]);
+        assert.ok(plan.pending[0].previousTranslation);
+        assert.equal(plan.reused.size, total - 1);
+      });
+    }
+    ok(`${post._id} : titre et description Google changés → ces deux champs seuls`, () => {
+      const edited = { ...post, title: `${post.title} (bis)`, seoDescription: 'Une description neuve.' };
+      const plan = planUnits(edited, post, snapshot);
+      assert.deepEqual(plan.pending.map((u) => u.id).sort(), ['seoDescription', 'title']);
+      // Sans description d'origine, il n'y a pas d'ancienne version à reprendre.
+      assert.equal(plan.pending.find((u) => u.id === 'seoDescription')!.previousSource, post.seoDescription?.trim() ? post.seoDescription : undefined);
+    });
+    ok(`${post._id} : bloc supprimé → disparaît, rien à traduire`, () => {
+      const edited = { ...post, body: (post.body ?? []).slice(1) };
+      const plan = planUnits(edited, post, snapshot);
+      assert.equal(plan.pending.length, 0);
+      assert.equal(applyUnits(edited, [...plan.reused].map(([id, text]) => ({ id, text }))).body.length, edited.body.length);
+    });
+  }
+  ok('retouche manuelle de la traduction conservée', () => {
+    const fr: SourcePost = { _id: 'p', title: 'Titre', dek: 'Sous-titre', body: [] };
+    const en: SourcePost = { _id: 'p-en', title: 'Title, revised by hand', dek: 'Subtitle', body: [] };
+    const plan = planUnits(fr, en, snapshotOf(fr));
+    assert.equal(plan.reused.get('title'), 'Title, revised by hand');
+  });
+  ok('unité absente de la traduction → retraduite même si le français n’a pas bougé', () => {
+    const fr: SourcePost = { _id: 'p', title: 'Titre', dek: 'Sous-titre', body: [] };
+    const plan = planUnits(fr, { _id: 'p-en', title: 'Title', body: [] }, snapshotOf(fr));
+    assert.deepEqual(plan.pending.map((u) => u.id), ['dek']);
+    assert.equal(plan.pending[0].previousTranslation, undefined);
+  });
+  ok('source illisible → tout traduire', () => assert.equal(readSnapshot('{pas du json'), null));
+}
+
 realPosts()
-  .then(() => {
+  .then((posts) => {
     fabricated();
+    incremental(posts);
     console.log(`\n${passed} assertions vertes.`);
   })
   .catch((e) => {

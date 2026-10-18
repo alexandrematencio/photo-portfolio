@@ -409,6 +409,16 @@ export const post = defineType({
           isTranslation(context.document) && !value ? 'Une traduction doit pointer son original français.' : true,
         ),
     }),
+    // Traduction incrémentale (lib/journal/translate/incremental.ts) : le
+    // français de chaque unité tel qu'il était quand la traduction a été
+    // écrite. Écrit par le traducteur, jamais à la main — d'où `hidden`.
+    defineField({
+      name: 'translationSource',
+      title: 'Source de la traduction',
+      type: 'text',
+      hidden: true,
+      readOnly: true,
+    }),
     defineField({
       name: 'title',
       title: 'Titre',
