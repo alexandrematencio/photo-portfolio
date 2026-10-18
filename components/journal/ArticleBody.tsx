@@ -16,14 +16,15 @@ import { AUTHOR_NAME } from '@/lib/site/author';
 import type { Article, ArticleSummary, Inline, InlineMark } from '@/lib/journal/types';
 import { StateDot } from '@/components/site/StateDot';
 import { DraftLabel, NoteCall, NoteRow, NotesProvider, type RowNote } from './Notes';
-import { LoopFigure } from './LoopFigure';
+import { JournalFigure } from './figures';
+import { ArticleImage } from './ArticleImage';
 import { VerdictTable } from './VerdictTable';
 import { DataTable } from './DataTable';
 
 /**
  * Corps d'un article du journal (brand book §14). Rythme vertical repris de
  * `RHYTHM` (PortableBody) — chapô 40, courant 24, H2 64 / 24 — et un cran
- * ajouté pour les objets que l'article introduit (exergue, figure, tableau) :
+ * ajouté pour les objets que l'article introduit (exergue, figure, image, tableau) :
  * 64 de part et d'autre. Marges en style inline : le reset `* { margin: 0 }`
  * avale les utilities (CLAUDE.md §7.5–7.8).
  */
@@ -196,6 +197,10 @@ export function ArticleBody({
   for (const [key, id] of numbering.refs) callsOf.set(key, [...(callsOf.get(key) ?? []), id]);
   const blocks = article.blocks;
   const leadIndex = blocks.findIndex((b) => b.type === 'p');
+  // Les figures sont numérotées dans l'ordre de l'article : la boucle est Fig. 1
+  // dans un texte, Fig. 3 dans un autre.
+  const figureNumber = new Map<number, number>();
+  blocks.forEach((b, i) => b.type === 'figure' && figureNumber.set(i, figureNumber.size + 1));
 
   return (
     <NotesProvider lang={lang}>
@@ -203,7 +208,8 @@ export function ArticleBody({
         {blocks.map((block, i) => {
           const prev = blocks[i - 1];
           const afterObject =
-            prev && (prev.type === 'quote' || prev.type === 'figure' || prev.type === 'table' || prev.type === 'verdicts');
+            prev &&
+            (prev.type === 'quote' || prev.type === 'figure' || prev.type === 'image' || prev.type === 'table' || prev.type === 'verdicts');
           const top = (base: number) => (i === 0 ? 0 : afterObject ? RHYTHM.object : base);
 
           switch (block.type) {
@@ -251,7 +257,19 @@ export function ArticleBody({
                 </aside>
               );
             case 'figure':
-              return <LoopFigure key={i} lang={lang} style={{ marginTop: RHYTHM.object }} />;
+              return (
+                <JournalFigure key={i} name={block.name} number={figureNumber.get(i)!} lang={lang} style={{ marginTop: RHYTHM.object }} />
+              );
+            case 'image':
+              return (
+                <ArticleImage
+                  key={i}
+                  image={block.image}
+                  caption={block.caption}
+                  wide={block.wide}
+                  style={{ marginTop: top(RHYTHM.object) }}
+                />
+              );
             case 'table':
               return <DataTable key={i} head={block.head} rows={block.rows} style={{ marginTop: top(RHYTHM.object) }} />;
             case 'verdicts':

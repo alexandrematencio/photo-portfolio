@@ -1,5 +1,6 @@
 import { defineArrayMember, defineField, defineType } from 'sanity';
 import { NoteRefInput } from '../inputs/NoteRefInput';
+import { assetWithinCap } from '../validation/assetWithinCap';
 
 /**
  * LE JOURNAL — articles et séries d'articles (2026-10-17). Rubrique à part
@@ -155,15 +156,72 @@ export const journalFigure = defineType({
     defineField({
       name: 'figure',
       title: 'Figure dessinée',
-      description: 'Les figures sont dessinées une à une (SVG). Pour en ajouter une, la demander : elle apparaîtra dans cette liste.',
+      description: 'Les figures sont dessinées une à une (SVG), et numérotées toutes seules dans l’ordre de l’article (Fig. 1, Fig. 2…). Pour en ajouter une, la demander : elle apparaîtra dans cette liste.',
       type: 'string',
-      options: { list: [{ title: 'Fig. 1 — La boucle corps-cerveau et le décalage', value: 'loop' }], layout: 'radio' },
+      options: {
+        list: [
+          { title: 'La boucle corps-cerveau et le décalage', value: 'loop' },
+          { title: 'La cascade intérieure du samedi matin', value: 'cascade' },
+          { title: 'Maître, esclave ou pont', value: 'bridge' },
+        ],
+        layout: 'radio',
+      },
       validation: (Rule) => Rule.required(),
     }),
   ],
   preview: {
     select: { figure: 'figure' },
-    prepare: ({ figure }) => ({ title: figure === 'loop' ? 'Fig. — La boucle corps-cerveau' : 'Figure', subtitle: 'Figure' }),
+    prepare: ({ figure }) => ({
+      title:
+        { loop: 'La boucle corps-cerveau', cascade: 'La cascade intérieure', bridge: 'Maître, esclave ou pont' }[figure as string] ??
+        'Figure à choisir',
+      subtitle: 'Figure',
+    }),
+  },
+});
+
+/**
+ * Une image dans le texte (2026-10-18). Même plafond que les photos
+ * (`assetWithinCap`, 2048 px) : une photo d'auteur glissée ici ne doit pas
+ * rester récupérable en pleine résolution (CLAUDE.md §11.12).
+ */
+export const journalImage = defineType({
+  name: 'journalImage',
+  title: 'Image',
+  type: 'object',
+  fields: [
+    defineField({
+      name: 'image',
+      title: 'Image',
+      type: 'image',
+      options: { hotspot: true },
+      validation: (Rule) => Rule.required().custom(assetWithinCap),
+    }),
+    defineField({
+      name: 'alt',
+      title: 'Description (texte alternatif)',
+      description: 'Ce que l’image montre, en une phrase courte, pour ceux qui ne la voient pas (lecteurs d’écran, Google).',
+      type: 'string',
+      validation: (Rule) => Rule.required().max(200),
+    }),
+    defineField({
+      name: 'caption',
+      title: 'Légende',
+      description: 'Facultative, sous l’image.',
+      type: 'text',
+      rows: 2,
+    }),
+    defineField({
+      name: 'wide',
+      title: 'Toute la largeur de la colonne',
+      description: 'Éteint : l’image a la largeur du texte. Allumé : celle de la colonne, plus large.',
+      type: 'boolean',
+      initialValue: false,
+    }),
+  ],
+  preview: {
+    select: { media: 'image', alt: 'alt', caption: 'caption' },
+    prepare: ({ media, alt, caption }) => ({ title: caption || alt || 'Image', subtitle: 'Image', media }),
   },
 });
 
@@ -393,10 +451,33 @@ export const post = defineType({
       validation: (Rule) => Rule.integer().min(1),
     }),
     defineField({
+      name: 'cover',
+      title: 'Image de couverture',
+      description:
+        'Révélée au survol de l’article, sur la page d’accueil du journal. Recadrée en portrait (4:5) : placer le point d’intérêt avec le bouton de recadrage. Les traductions reprennent celle-ci.',
+      type: 'image',
+      options: { hotspot: true },
+      hidden: ({ document }) => isTranslation(document),
+      fields: [
+        defineField({
+          name: 'alt',
+          title: 'Description (texte alternatif)',
+          description: 'Ce que l’image montre, en une phrase courte.',
+          type: 'string',
+        }),
+      ],
+      validation: (Rule) => [
+        Rule.custom(assetWithinCap),
+        Rule.custom((value, context) =>
+          isTranslation(context.document) || value ? true : 'Sans image de couverture, rien n’apparaît au survol de l’article sur l’accueil.',
+        ).warning(),
+      ],
+    }),
+    defineField({
       name: 'body',
       title: 'Texte',
       description:
-        'Le premier paragraphe devient le chapô (plus grand, en gras). Le menu « + » insère une citation en exergue, une figure, un tableau, un bilan ou une question à trancher ; dans une phrase, le bouton d’objet en ligne insère un appel de référence ou une note à trancher.',
+        'Le premier paragraphe devient le chapô (plus grand, en gras). Le menu « + » insère une citation en exergue, une figure, une image, un tableau, un bilan ou une question à trancher ; dans une phrase, le bouton d’objet en ligne insère un appel de référence ou une note à trancher.',
       type: 'array',
       of: [
         defineArrayMember({
@@ -418,6 +499,7 @@ export const post = defineType({
         }),
         defineArrayMember({ type: 'journalPullQuote' }),
         defineArrayMember({ type: 'journalFigure' }),
+        defineArrayMember({ type: 'journalImage' }),
         defineArrayMember({ type: 'journalTable' }),
         defineArrayMember({ type: 'journalVerdicts' }),
         defineArrayMember({ type: 'journalDraftBlock' }),
@@ -553,6 +635,7 @@ export const journalSchemas = [
   journalDraftNote,
   journalPullQuote,
   journalFigure,
+  journalImage,
   journalTable,
   journalVerdicts,
   journalDraftBlock,

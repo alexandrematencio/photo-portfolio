@@ -19,6 +19,7 @@ import {
 // `sanity/preview/` pour réactivation rapide.
 import { apiVersion, dataset, projectId, siteUrl } from '@/lib/sanity/env';
 import { PAGE_DOCS } from '@/sanity/schemas/pages';
+import { ArticlePreviewView } from '@/sanity/preview/ArticlePreviewView';
 
 // Réglages, funnel curation et un document par page : tous singletons.
 const SINGLETON_TYPES = new Set([
@@ -124,6 +125,14 @@ export const studioConfig = defineConfig({
       //     if (schemaType === 'siteSettings') return S.document().views([S.view.form(), S.view.component(SiteSettingsPreviewView).title('Aperçu').id('preview')]);
       //     return S.document().views([S.view.form()]);
       //   },
+      //
+      // Seule exception : l'article du journal (2026-10-18, demande Alexandre).
+      // Son aperçu est une page sans GSAP ni Lenis, qui ne se charge que si
+      // l'onglet est ouvert — pas le coût qui a fait couper les autres.
+      defaultDocumentNode: (S, { schemaType }) =>
+        schemaType === 'post'
+          ? S.document().views([S.view.form(), S.view.component(ArticlePreviewView).title('Aperçu').id('preview')])
+          : S.document().views([S.view.form()]),
     }),
     visionTool({ defaultApiVersion: apiVersion }),
   ],

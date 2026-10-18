@@ -65,6 +65,10 @@ export function extractUnits(post: SourcePost): Unit[] {
         for (const row of (b.rows as Row[] | undefined) ?? [])
           for (const f of ['idea', 'prior', 'verdict']) add(`${id}.rows.${row._key}.${f}`, row[f]);
         break;
+      case 'journalImage':
+        add(`${id}.alt`, b.alt);
+        add(`${id}.caption`, b.caption);
+        break;
       // journalFigure : une figure dessinée, choisie dans une liste — rien à traduire.
     }
   }
@@ -114,6 +118,8 @@ export function applyUnits(post: SourcePost, translated: Unit[]): TranslatedFiel
       case 'journalPullQuote':
       case 'journalDraftBlock':
         return { ...copy, text: tIf(`${id}.text`, b.text) };
+      case 'journalImage':
+        return { ...copy, alt: tIf(`${id}.alt`, b.alt), caption: tIf(`${id}.caption`, b.caption) };
       case 'journalTable':
         return {
           ...copy,

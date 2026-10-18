@@ -55,14 +55,18 @@ const EMAIL_MARK = 'protectedEmailToken';
  * pas sous Windows. Un code absent de cette liste reste un emoji : ajouter un
  * pays = déposer `<code>.svg` dans le dossier ET l'ajouter ici.
  */
-const FLAG_CODES = ['fr', 'es', 'nl', 'tn', 'vn'] as const;
+const FLAG_CODES = ['fr', 'es', 'nl', 'tn', 'vn', 'ru', 'gb'] as const;
 const FLAG_NAMES: Record<(typeof FLAG_CODES)[number], string> = {
   fr: 'France',
   es: 'Spain',
   nl: 'Netherlands',
   tn: 'Tunisia',
   vn: 'Vietnam',
+  ru: 'Russia',
+  gb: 'United Kingdom',
 };
+// L'emoji 🇬🇧 se lit « gb », le fichier s'appelle `uk.svg`.
+const FLAG_FILES: Partial<Record<(typeof FLAG_CODES)[number], string>> = { gb: 'uk' };
 // Deux indicateurs régionaux consécutifs = un drapeau.
 const FLAG_REGEX = /([\u{1F1E6}-\u{1F1FF}]{2})/u;
 const flagMarkKey = (code: string) => `flag_${code}`;
@@ -124,7 +128,7 @@ function renderFlagMark(code: (typeof FLAG_CODES)[number]): React.ReactNode {
     >
       <span className="sr-only">{FLAG_NAMES[code]}</span>
       <img
-        src={asset(`/img/flags/${code}.svg`)}
+        src={asset(`/img/flags/${FLAG_FILES[code] ?? code}.svg`)}
         alt=""
         aria-hidden
         className="h-full w-auto"

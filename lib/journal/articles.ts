@@ -1,31 +1,22 @@
 import { sanityClient } from '@/lib/sanity/client';
 import { AUTHOR_JOURNAL_SIGNATURE } from '@/lib/site/author';
-import type {
-  Article,
-  JournalSeries,
-  ArticleBlock,
-  ArticleSummary,
-  Inline,
-  InlineMark,
-  Verdict,
-} from './types';
+import type { Article, ArticleSummary, JournalSeries } from './types';
 import { DEFAULT_LANG, LANGS, articlePath, isLang, seriesPath, type Lang } from './i18n';
+import { seriesIn, summarize, toArticle, type RawPost, type RawSeries } from './convert';
+
+export { summarize };
 
 /**
  * Les articles du journal, lus dans Sanity au build (export statique,
  * perspective `published` — un brouillon du Studio n'arrive jamais ici).
- * Schéma : `sanity/schemas/journal.ts`. Ce module traduit le Portable Text
- * du Studio dans le modèle que rend `ArticleBody` (lib/journal/types.ts).
+ * Schéma : `sanity/schemas/journal.ts`. La traduction du Portable Text vers
+ * le modèle que rend `ArticleBody` vit dans `convert.ts`, partagée avec
+ * l'aperçu du Studio.
  *
  * Trois langues (lib/journal/i18n.ts) : une traduction est un `post` qui
  * pointe son original (`translationOf`) et lui emprunte date, série et
  * partie. Une traduction dont l'original n'est pas publié n'existe pas.
  */
-
-/** Lecture silencieuse d'un texte argumentatif, en mots par minute. */
-const WORDS_PER_MINUTE = 220;
-
-const MARKS: InlineMark[] = ['strong', 'em', 'cite'];
 
 export const postsQuery = /* groq */ `
   *[_type == "post" && defined(slug.current)] {
@@ -42,152 +33,13 @@ export const postsQuery = /* groq */ `
     referencesNote,
     seoTitle,
     seoDescription,
+    // Une traduction montre la couverture de son original.
+    "cover": select(defined(translationOf) => translationOf->cover, cover),
     "updatedAt": _updatedAt,
     body,
     references[]{ _key, citation }
   }
 `;
-
-type PTChild =
-  | { _type: 'span'; text: string; marks?: string[] }
-  | { _type: 'journalNoteRef'; refKey?: string }
-  | { _type: 'journalDraftNote'; text?: string };
-
-type PTBlock =
-  | { _type: 'block'; style?: string; children?: PTChild[] }
-  | { _type: 'journalPullQuote'; text?: string }
-  | { _type: 'journalFigure'; figure?: string }
-  | { _type: 'journalTable'; head?: string[]; rows?: { cells?: string[] }[] }
-  | { _type: 'journalVerdicts'; rows?: Verdict[] }
-  | { _type: 'journalDraftBlock'; text?: string };
-
-export type RawPost = {
-  slug: string;
-  lang: string;
-  group: string;
-  title: string;
-  dek: string;
-  date: string | null;
-  publishedAt: string;
-  seriesId: string | null;
-  part: number | null;
-  referencesNote: string | null;
-  seoTitle?: string | null;
-  seoDescription?: string | null;
-  updatedAt?: string;
-  body: PTBlock[] | null;
-  references: { _key: string; citation?: { children?: PTChild[] }[] }[] | null;
-};
-
-function inlineOf(children: PTChild[] = []): Inline[] {
-  const out: Inline[] = [];
-  for (const c of children) {
-    if (c._type === 'span') {
-      if (c.text) out.push({ t: 'text', text: c.text, marks: (c.marks ?? []).filter((m): m is InlineMark => MARKS.includes(m as InlineMark)) });
-    } else if (c._type === 'journalNoteRef') {
-      if (c.refKey) out.push({ t: 'ref', key: c.refKey });
-    } else if (c._type === 'journalDraftNote') {
-      if (c.text) out.push({ t: 'draft', text: c.text });
-    }
-  }
-  return out;
-}
-
-function plainOf(children: PTChild[] = []) {
-  return children.map((c) => (c._type === 'span' ? c.text : '')).join('');
-}
-
-function blocksOf(body: PTBlock[]): ArticleBlock[] {
-  const blocks: ArticleBlock[] = [];
-  for (const b of body) {
-    switch (b._type) {
-      case 'block': {
-        if (b.style === 'h2') {
-          const text = plainOf(b.children).trim();
-          if (text) blocks.push({ type: 'h2', text });
-        } else {
-          const inline = inlineOf(b.children);
-          if (inline.length) blocks.push({ type: 'p', inline });
-        }
-        break;
-      }
-      case 'journalPullQuote':
-        if (b.text) blocks.push({ type: 'quote', text: b.text });
-        break;
-      case 'journalFigure':
-        if (b.figure === 'loop') blocks.push({ type: 'figure', name: 'loop' });
-        break;
-      case 'journalTable':
-        blocks.push({ type: 'table', head: b.head ?? [], rows: (b.rows ?? []).map((r) => r.cells ?? []) });
-        break;
-      case 'journalVerdicts':
-        blocks.push({ type: 'verdicts', rows: b.rows ?? [] });
-        break;
-      case 'journalDraftBlock':
-        if (b.text) blocks.push({ type: 'draft', text: b.text });
-        break;
-    }
-  }
-  return blocks;
-}
-
-function words(blocks: ArticleBlock[]) {
-  let n = 0;
-  for (const b of blocks) {
-    const text =
-      b.type === 'p' ? b.inline.map((i) => (i.t === 'text' ? i.text : '')).join('') : 'text' in b ? b.text : '';
-    n += text.split(/\s+/).filter(Boolean).length;
-  }
-  return n;
-}
-
-/** La série telle qu'une langue la nomme (champ `translations` du Studio). */
-type RawSeries = {
-  _id: string;
-  slug: string;
-  title: string;
-  description?: string | null;
-  translations?: Partial<Record<Lang, { title?: string; slug?: { current?: string }; description?: string }>>;
-};
-
-function seriesIn(doc: RawSeries, lang: Lang) {
-  const t = lang === DEFAULT_LANG ? undefined : doc.translations?.[lang];
-  return {
-    title: t?.title?.trim() || doc.title,
-    slug: t?.slug?.current?.trim() || doc.slug,
-    description: (lang === DEFAULT_LANG ? doc.description : t?.description)?.trim() || undefined,
-  };
-}
-
-export function toArticle(raw: RawPost & { date: string; lang: Lang }, series: RawSeries | undefined): Article {
-  const blocks = blocksOf(raw.body ?? []);
-  const references = (raw.references ?? []).map((r) => ({
-    key: r._key,
-    citation: (r.citation ?? []).flatMap((b) => inlineOf(b.children)),
-  }));
-  const wordCount = words(blocks);
-  const named = series ? seriesIn(series, raw.lang) : null;
-  return {
-    slug: raw.slug,
-    lang: raw.lang,
-    alternates: {},
-    title: raw.title,
-    dek: raw.dek,
-    date: raw.date,
-    series: named?.title ?? null,
-    seriesSlug: named?.slug ?? null,
-    part: raw.part ?? 0,
-    referencesNote: raw.referencesNote ?? undefined,
-    minutes: Math.max(1, Math.round(wordCount / WORDS_PER_MINUTE)),
-    words: wordCount,
-    updatedAt: raw.updatedAt,
-    seoTitle: raw.seoTitle ?? undefined,
-    seoDescription: raw.seoDescription ?? undefined,
-    referenceCount: references.length,
-    blocks,
-    references,
-  };
-}
 
 const seriesQuery = /* groq */ `
   *[_type == "journalSeries" && defined(slug.current)] { _id, "slug": slug.current, title, description, translations }
@@ -247,11 +99,6 @@ export async function getAllArticles(): Promise<Article[]> {
 
 export async function getArticle(slug: string, lang: Lang = DEFAULT_LANG): Promise<Article | undefined> {
   return (await getArticles(lang)).find((a) => a.slug === slug);
-}
-
-export function summarize(article: Article): ArticleSummary {
-  const { slug, lang, title, dek, series, seriesSlug, part, date, minutes, referenceCount } = article;
-  return { slug, lang, title, dek, series, seriesSlug, part, date, minutes, referenceCount };
 }
 
 /** Les articles d'une série, dans l'ordre de lecture. Vide pour un article isolé. */

@@ -14,6 +14,26 @@ export type Verdict = { idea: string; prior: string; verdict: string; kind: Verd
 
 export type InlineMark = 'strong' | 'em' | 'cite';
 
+/** Les figures dessinées (components/journal/figures/) — la liste du champ « Figure » du Studio. */
+export const FIGURE_NAMES = ['loop', 'cascade', 'bridge'] as const;
+export type FigureName = (typeof FIGURE_NAMES)[number];
+
+/**
+ * Une image du Studio, déjà résolue en URL du CDN Sanity (`lib/journal/convert.ts`).
+ * `width` / `height` : les proportions de l'asset, lues dans son identifiant —
+ * posées sur l'<img>, elles réservent la place avant le chargement (CLS).
+ */
+export type JournalImage = {
+  /** URL à 1600 px de large, la plus grande servie par le journal. */
+  src: string;
+  srcSet: string;
+  width: number;
+  height: number;
+  alt: string;
+  /** Point d'intérêt (hotspot du Studio) en `object-position`, quand l'image est recadrée. */
+  position: string;
+};
+
 /** Le contenu d'une phrase : du texte marqué, un appel de référence, une note à trancher. */
 export type Inline =
   | { t: 'text'; text: string; marks: InlineMark[] }
@@ -24,7 +44,9 @@ export type ArticleBlock =
   | { type: 'p'; inline: Inline[] }
   | { type: 'h2'; text: string }
   | { type: 'quote'; text: string }
-  | { type: 'figure'; name: 'loop' }
+  | { type: 'figure'; name: FigureName }
+  /** Image posée dans le texte. `wide` : toute la colonne, sinon la mesure de lecture. */
+  | { type: 'image'; image: JournalImage; caption?: string; wide: boolean }
   | { type: 'table'; head: string[]; rows: string[][] }
   | { type: 'verdicts'; rows: Verdict[] }
   /** Paragraphe entier « à trancher » : une question laissée ouverte par l'auteur. */
@@ -46,6 +68,8 @@ export type ArticleSummary = {
   date: string;
   minutes: number;
   referenceCount: number;
+  /** Image de couverture — révélée au survol de la ligne, sur l'accueil du journal. */
+  cover: JournalImage | null;
 };
 
 export type Article = ArticleSummary & {

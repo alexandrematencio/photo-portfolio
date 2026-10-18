@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageShell } from '@/components/site/PageShell';
 import { JournalIndex } from '@/components/journal/JournalIndex';
-import { ArticleBody } from '@/components/journal/ArticleBody';
+import { ArticleView } from '@/components/journal/ArticleView';
 import { BackLink } from '@/components/journal/BackLink';
 import { LanguageSwitch } from '@/components/journal/LanguageSwitch';
 import { SeriesArticleList } from '@/components/journal/SeriesArticleList';
@@ -72,10 +72,7 @@ export async function homeMetadata(lang: Lang): Promise<Metadata> {
 }
 
 export async function JournalHome({ lang }: { lang: Lang }) {
-  const full = await getArticles(lang);
-  const articles = full.map(summarize);
-  // La vignette de la Fig. 1 mène à l'article qui la contient, dans cette langue.
-  const withFigure = full.find((a) => a.blocks.some((b) => b.type === 'figure'));
+  const articles = (await getArticles(lang)).map(summarize);
   const t = DICT[lang];
   return (
     <>
@@ -101,7 +98,6 @@ export async function JournalHome({ lang }: { lang: Lang }) {
         <JournalIndex
           articles={articles}
           lang={lang}
-          figureHref={withFigure ? articlePath(withFigure.slug, lang) : null}
           language={<LanguageSwitch lang={lang} alternates={await homeAlternates()} heading />}
         />
       </PageShell>
@@ -138,59 +134,11 @@ export async function JournalArticle({ lang, params }: SlugParams & { lang: Lang
   const article = await getArticle(slug, lang);
   if (!article) notFound();
   const [series, signature] = await Promise.all([getSeries(article.seriesSlug, lang), getSignature(lang)]);
-  const t = DICT[lang];
-
-  const published = new Intl.DateTimeFormat(t.dateLocale, { dateStyle: 'long', timeZone: 'UTC' }).format(
-    new Date(article.date),
-  );
-  const seriesLabel = series.length > 1 ? `${article.series} ${article.part} / ${series.length}` : article.series;
-  const meta = [
-    'Journal',
-    seriesLabel,
-    published,
-    t.minutes(article.minutes),
-    article.referenceCount > 0 ? t.references(article.referenceCount) : null,
-  ].filter((m): m is string => Boolean(m));
 
   return (
     <>
       <JsonLd data={[blogPostingJsonLd(article), journalBreadcrumbJsonLd(article)]} />
-      <PageShell
-        title={article.title}
-        back={<BackLink lang={lang} href={article.seriesSlug ? seriesPath(article.seriesSlug, lang) : homePath(lang)} />}
-        language={<LanguageSwitch lang={lang} alternates={article.alternates} />}
-        centered
-        titleSize="calc(var(--page-title-size) * var(--article-title-scale))"
-        subtitle={
-          <div className="flex flex-col gap-5" style={{ marginTop: 12 }}>
-            <p className={EDITORIAL_H3}>{article.dek}</p>
-            <p className={cn(MICRO_LABEL, 'flex flex-wrap gap-x-4 gap-y-1 text-[var(--color-fg-muted)]')}>
-              {meta.map((m) =>
-                // La date en <time> : la forme lisible pour le lecteur, la
-                // forme ISO pour les machines.
-                m === published ? (
-                  <time key={m} dateTime={article.date}>
-                    {m}
-                  </time>
-                ) : m === seriesLabel && article.seriesSlug ? (
-                  // La série mène à sa page : le sujet entier, pas seulement cet article.
-                  <Link
-                    key={m}
-                    href={seriesPath(article.seriesSlug, lang)}
-                    className="underline decoration-[var(--color-line)] underline-offset-4 hover:text-[var(--color-fg)] hover:decoration-current"
-                  >
-                    {m}
-                  </Link>
-                ) : (
-                  <span key={m}>{m}</span>
-                ),
-              )}
-            </p>
-          </div>
-        }
-      >
-        <ArticleBody article={article} series={series} signature={signature} />
-      </PageShell>
+      <ArticleView article={article} series={series} signature={signature} />
     </>
   );
 }
