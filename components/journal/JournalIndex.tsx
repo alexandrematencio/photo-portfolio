@@ -30,12 +30,16 @@ import type { ArticleSummary } from '@/lib/journal/types';
  * Filtrée sur une série, la ligne ne garde que la pile : le nom est déjà dans
  * le filtre.
  *
- * Sous les séries, les THÉMATIQUES (2026-10-19) : un second groupe, qui se
- * combine au premier (série ET thématique). Il n'apparaît qu'à la première
- * thématique posée sur un article. Les compteurs d'un groupe se lisent dans
- * le filtre de l'autre — « (3) » promet trois lignes. La thématique choisie
- * s'écrit dans l'adresse (`?theme=`) : c'est le lien que posent les pages
- * d'article.
+ * Les THÉMATIQUES (2026-10-19) : un second filtre, qui se combine au premier
+ * (série ET thématique). Les deux partagent la même place, en ONGLETS
+ * (« Séries | Thématiques », séries par défaut) ; l'onglet n'est qu'une vue,
+ * il ne remet aucun filtre à zéro — un voyant sur l'onglet fermé dit qu'il
+ * filtre encore. Les onglets n'apparaissent qu'à la première thématique posée
+ * sur un article. Les compteurs d'un filtre se lisent dans l'autre — « (3) »
+ * promet trois lignes. La thématique choisie s'écrit dans l'adresse
+ * (`?theme=`) : c'est le lien que posent les pages d'article, et elle ouvre
+ * l'onglet des thématiques. Chaque ligne de l'index nomme ses thématiques
+ * sous son titre.
  *
  * Sous les filtres, la COUVERTURE de l'article survolé (champ « Image de
  * couverture » du Studio, 2026-10-18 — elle remplace la vignette de la
@@ -57,6 +61,8 @@ const FILTER_COL = 220;
 
 type Filter = { key: string; label: string; count: number };
 
+type Tab = 'series' | 'themes';
+
 function stamp(date: string) {
   return date.replaceAll('-', '.');
 }
@@ -74,6 +80,7 @@ export function JournalIndex({
   const t = DICT[lang];
   const [series, setSeries] = useState(ALL);
   const [theme, setThemeState] = useState(ALL);
+  const [tab, setTab] = useState<Tab>('series');
   const mobileFilters = useRef<HTMLDivElement | null>(null);
   // La ligne survolée (ou focalisée) : sa couverture s'ouvre dans la colonne de gauche.
   const [active, setActive] = useState<string | null>(null);
@@ -116,7 +123,10 @@ export function JournalIndex({
   // connaît pas l'adresse), réécrit à chaque choix pour que l'adresse se partage.
   useEffect(() => {
     const slug = new URLSearchParams(window.location.search).get(THEME_PARAM);
-    if (slug && articles.some((a) => a.tags.some((tag) => tag.slug === slug))) setThemeState(slug);
+    if (slug && articles.some((a) => a.tags.some((tag) => tag.slug === slug))) {
+      setThemeState(slug);
+      setTab('themes');
+    }
   }, [articles]);
 
   const setTheme = (key: string) => {
@@ -131,6 +141,7 @@ export function JournalIndex({
   // au-dessus — on y remonte pour que le tri se voie.
   const pickTheme = (key: string) => {
     setTheme(key);
+    setTab('themes');
     const box = mobileFilters.current;
     if (box && box.offsetParent !== null && box.getBoundingClientRect().top < 0) {
       const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -164,48 +175,73 @@ export function JournalIndex({
   }, [articles]);
 
   const shown = articles.filter((a) => inSeries(a) && inTheme(a));
+  const tabsId = useId();
+  // Le voyant de chaque onglet : son filtre trie-t-il encore ?
+  const lit = { series: series !== ALL, themes: theme !== ALL };
 
   return (
     <div className="flex flex-col md:grid md:gap-x-12" style={{ gridTemplateColumns: `${FILTER_COL}px minmax(0, 1fr)` }}>
       {/* FILTRES — téléphone */}
       <div ref={mobileFilters} className="md:hidden" style={{ marginBottom: 32, scrollMarginTop: 16 }}>
         <div style={{ marginBottom: 20 }}>{language}</div>
-        {/* Deux modules collés en un bloc, comme la console d'`/archives`. */}
-        <ListSelector
-          hint={t.seriesHint}
-          ariaLabel={t.filterBySeries}
-          items={filters}
-          value={series}
-          onChange={setSeries}
-          mark="dot"
-          tone="plate"
-          corners={themes.length ? 'top' : 'all'}
-          lit={series !== ALL}
-        />
         {themes.length > 0 && (
-          <ListSelector
-            hint={t.themeHint}
-            ariaLabel={t.filterByTheme}
-            items={themes}
-            value={theme}
-            onChange={setTheme}
-            mark="dot"
-            tone="plate-low"
-            corners="bottom"
-            lit={theme !== ALL}
-          />
+          <div style={{ marginBottom: 12 }}>
+            <FilterTabs idBase={`${tabsId}-m`} tab={tab} onTab={setTab} lit={lit} lang={lang} />
+          </div>
         )}
-        {seriesLink && <div style={{ marginTop: 16 }}>{seriesLink}</div>}
+        <div
+          role={themes.length ? 'tabpanel' : undefined}
+          id={`${tabsId}-m-${tab}`}
+          aria-labelledby={themes.length ? `${tabsId}-m-${tab}-tab` : undefined}
+        >
+          {tab === 'series' || themes.length === 0 ? (
+            <ListSelector
+              hint={t.seriesHint}
+              ariaLabel={t.filterBySeries}
+              items={filters}
+              value={series}
+              onChange={setSeries}
+              mark="dot"
+              tone="plate"
+              lit={series !== ALL}
+            />
+          ) : (
+            <ListSelector
+              hint={t.themeHint}
+              ariaLabel={t.filterByTheme}
+              items={themes}
+              value={theme}
+              onChange={setTheme}
+              mark="dot"
+              tone="plate"
+              lit={theme !== ALL}
+            />
+          )}
+        </div>
+        {seriesLink && tab === 'series' && <div style={{ marginTop: 16 }}>{seriesLink}</div>}
       </div>
 
       {/* FILTRES — desktop, colonne collante */}
       <aside className="hidden md:flex flex-col gap-10 self-start sticky top-6" aria-label={t.filters}>
         {language}
-        <FilterGroup heading={t.seriesHeading} items={filters} value={series} onChange={setSeries}>
-          {seriesLink && <div style={{ paddingTop: 16 }}>{seriesLink}</div>}
-        </FilterGroup>
-        {themes.length > 0 && (
-          <FilterGroup heading={t.themesHeading} items={themes} value={theme} onChange={setTheme} />
+        {themes.length === 0 || tab === 'series' ? (
+          <FilterGroup
+            heading={themes.length ? <FilterTabs idBase={`${tabsId}-d`} tab={tab} onTab={setTab} lit={lit} lang={lang} /> : t.seriesHeading}
+            panelId={themes.length ? `${tabsId}-d-series` : undefined}
+            items={filters}
+            value={series}
+            onChange={setSeries}
+          >
+            {seriesLink && <div style={{ paddingTop: 16 }}>{seriesLink}</div>}
+          </FilterGroup>
+        ) : (
+          <FilterGroup
+            heading={<FilterTabs idBase={`${tabsId}-d`} tab={tab} onTab={setTab} lit={lit} lang={lang} />}
+            panelId={`${tabsId}-d-themes`}
+            items={themes}
+            value={theme}
+            onChange={setTheme}
+          />
         )}
 
         {covers.length > 0 && (
@@ -267,12 +303,16 @@ export function JournalIndex({
 /** Un groupe de la colonne de filtres (desktop) : titre filé, une ligne par choix, voyant d'état. */
 function FilterGroup({
   heading,
+  panelId,
   items,
   value,
   onChange,
   children,
 }: {
-  heading: string;
+  /** Un titre, ou la barre d'onglets quand les thématiques existent. */
+  heading: ReactNode;
+  /** Présent quand le groupe est le panneau d'un onglet. */
+  panelId?: string;
   items: Filter[];
   value: string;
   onChange: (key: string) => void;
@@ -281,13 +321,19 @@ function FilterGroup({
 }) {
   return (
     <div className="flex flex-col">
-      <span
+      <div
         className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}
         style={{ paddingBottom: 12, borderBottom: '1px solid var(--color-line)' }}
       >
         {heading}
-      </span>
-      <ul className="flex flex-col" style={{ paddingTop: 12 }}>
+      </div>
+      <ul
+        id={panelId}
+        role={panelId ? 'tabpanel' : undefined}
+        aria-labelledby={panelId ? `${panelId}-tab` : undefined}
+        className="flex flex-col"
+        style={{ paddingTop: 12 }}
+      >
         {items.map((f) => {
           const on = f.key === value;
           return (
@@ -312,6 +358,69 @@ function FilterGroup({
         })}
       </ul>
       {children}
+    </div>
+  );
+}
+
+/**
+ * « Séries | Thématiques » — deux onglets au corps de l'étiquette, l'ouvert à
+ * l'encre, l'autre en gris. ← / → passent de l'un à l'autre (motif ARIA des
+ * onglets). Le voyant ne s'allume que sur un onglet FERMÉ dont le filtre trie
+ * encore : sur l'onglet ouvert, la liste le montre déjà.
+ */
+function FilterTabs({
+  idBase,
+  tab,
+  onTab,
+  lit,
+  lang,
+}: {
+  idBase: string;
+  tab: Tab;
+  onTab: (tab: Tab) => void;
+  lit: Record<Tab, boolean>;
+  lang: Lang;
+}) {
+  const t = DICT[lang];
+  const tabs: [Tab, string][] = [
+    ['series', t.seriesHeading],
+    ['themes', t.themesHeading],
+  ];
+  const refs = useRef<Record<string, HTMLButtonElement | null>>({});
+  return (
+    <div role="tablist" aria-label={t.filters} className={cn(MICRO_LABEL, 'flex items-center gap-4')}>
+      {tabs.map(([key, label]) => {
+        const on = key === tab;
+        return (
+          <button
+            key={key}
+            ref={(el) => {
+              refs.current[key] = el;
+            }}
+            type="button"
+            role="tab"
+            id={`${idBase}-${key}-tab`}
+            aria-selected={on}
+            aria-controls={`${idBase}-${key}`}
+            tabIndex={on ? 0 : -1}
+            onClick={() => onTab(key)}
+            onKeyDown={(e) => {
+              if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+              e.preventDefault();
+              const next: Tab = key === 'series' ? 'themes' : 'series';
+              onTab(next);
+              refs.current[next]?.focus();
+            }}
+            className={cn(
+              'flex items-center gap-[6px] uppercase transition-colors duration-200 motion-reduce:transition-none',
+              on ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
+            )}
+          >
+            {label}
+            {!on && lit[key] && <StateDot on />}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -411,21 +520,38 @@ function Row({
             {/* Téléphone : la marque à droite de la date, au-dessus du titre. */}
             {mark && <span className="md:hidden">{mark}</span>}
           </span>
-          <Link
-            href={articlePath(article.slug, lang)}
-            className={cn(
-              'text-[21px] md:text-[28px] font-bold tracking-[-0.02em] leading-[1.15] text-[var(--color-fg)] md:truncate',
-              'transition-colors duration-200 motion-reduce:transition-none',
-              'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)] focus-visible:outline-none',
-              // Lien étiré : toute la ligne est cliquable, le « + » passe au-dessus.
-              'after:absolute after:inset-0',
+          <span className="flex flex-col gap-[6px] min-w-0">
+            <Link
+              href={articlePath(article.slug, lang)}
+              className={cn(
+                'text-[21px] md:text-[28px] font-bold tracking-[-0.02em] leading-[1.15] text-[var(--color-fg)] md:truncate',
+                'transition-colors duration-200 motion-reduce:transition-none',
+                'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)] focus-visible:outline-none',
+                // Lien étiré : toute la ligne est cliquable, le « + » passe au-dessus.
+                'after:absolute after:inset-0',
+              )}
+            >
+              {article.title}
+              {article.series && article.part > 0 && (
+                <span className="sr-only"> — {t.seriesMark(article.series, article.part, total)}</span>
+              )}
+            </Link>
+            {/* Les thématiques de l'article, sous le titre : une donnée, grise
+                comme la date, papier sur la ligne inversée. Pour les filtrer :
+                les boutons du dépli. */}
+            {article.tags.length > 0 && (
+              <span
+                className={cn(
+                  MICRO_LABEL,
+                  'text-[var(--color-fg-muted)] transition-colors duration-200 motion-reduce:transition-none',
+                  'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
+                )}
+              >
+                <span className="sr-only">{t.themesHeading}: </span>
+                {article.tags.map((tag) => tag.title).join(' · ')}
+              </span>
             )}
-          >
-            {article.title}
-            {article.series && article.part > 0 && (
-              <span className="sr-only"> — {t.seriesMark(article.series, article.part, total)}</span>
-            )}
-          </Link>
+          </span>
         </div>
         {/* Desktop : la marque en colonne à droite, juste avant le « + » — le
             titre se tronque avant elle. */}
