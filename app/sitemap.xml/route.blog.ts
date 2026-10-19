@@ -1,6 +1,6 @@
 import { getAllArticles, getAllSeries } from '@/lib/journal/articles';
 import { SITE_INFO, withSlash } from '@/lib/seo/metadata';
-import { LANGS, LOCALE, homePath } from '@/lib/journal/i18n';
+import { LANGS, LOCALE, aboutPath, homePath } from '@/lib/journal/i18n';
 import type { Alternates } from '@/lib/journal/types';
 
 /**
@@ -33,6 +33,12 @@ export async function GET() {
       loc: abs(path),
       lastmod: articles.filter((a) => a.lang === l).map((a) => a.updatedAt ?? a.date).sort().at(-1),
       alternates: homes,
+    })),
+    // « À propos de ce journal » : dans les trois langues, sans date fiable à donner.
+    ...LANGS.map((l) => ({
+      loc: abs(aboutPath(l)),
+      lastmod: undefined as string | undefined,
+      alternates: Object.fromEntries(LANGS.map((x) => [x, aboutPath(x)])) as Alternates,
     })),
     // Une série a changé quand l'un de ses articles a changé.
     ...series.map((s) => ({

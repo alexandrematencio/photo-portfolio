@@ -585,6 +585,10 @@ function journalGroupNode(S: StructureBuilder) {
             .title('Signature des articles')
             .id('journalSettings')
             .child(S.document().schemaType('journalSettings').documentId('journalSettings')),
+          S.listItem()
+            .title('À propos du journal')
+            .id('journalAboutPage')
+            .child(S.document().schemaType('journalAboutPage').documentId('journalAboutPage')),
         ]),
     );
 }

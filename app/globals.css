@@ -1258,6 +1258,27 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
   }
 }
 
+/* ── LIEN À PROPOS DU JOURNAL ───────────────────────────────────────────────
+   La flèche de « → À propos de ce journal » (AboutLink, 2026-10-19) : la
+   `arrow-right` de Lucide déformée comme chez Josh W. Comeau — hampe 14 → 17,
+   pointe resserrée (7/7 → 7/5). Allonger ET amincir, sinon c'est plat
+   (RESOURCES/animation-principles.md §1). 200 ms expo.out, la durée des
+   survols du journal ; seulement si le mouvement est permis, et au focus
+   clavier comme au pointeur. */
+@media (prefers-reduced-motion: no-preference) {
+  .journal-about-link path {
+    transition: d 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .journal-about-link:hover .journal-about-shaft,
+  .journal-about-link:focus-visible .journal-about-shaft {
+    d: path("M5 12h17");
+  }
+  .journal-about-link:hover .journal-about-head,
+  .journal-about-link:focus-visible .journal-about-head {
+    d: path("M15 7l7 5-7 5");
+  }
+}
+
 /* ── COUVERTURES DU JOURNAL ─────────────────────────────────────────────────
    Accueil du journal, colonne de gauche : la couverture de l'article survolé
    (JournalIndex, 2026-10-18). Toutes empilées dans un cadre 4:5, une seule

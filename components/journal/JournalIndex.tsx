@@ -24,6 +24,12 @@ import type { ArticleSummary } from '@/lib/journal/types';
  * Sous `md`, la colonne de filtres devient un module `ListSelector` (le
  * composant unique du site pour une rangée de choix sur téléphone).
  *
+ * Une ligne qui appartient à une série le dit à droite (2026-10-19) : le nom
+ * de la série et sa PILE — un trait par partie, celui de l'article plein, les
+ * autres en retrait. La pile de `/series` ramenée au corps d'une étiquette.
+ * Filtrée sur une série, la ligne ne garde que la pile : le nom est déjà dans
+ * le filtre.
+ *
  * Sous les filtres, la COUVERTURE de l'article survolé (champ « Image de
  * couverture » du Studio, 2026-10-18 — elle remplace la vignette de la
  * Fig. 1). Toutes les couvertures sont montées, empilées, et seule celle de
@@ -87,6 +93,17 @@ export function JournalIndex({
       </span>
     </Link>
   );
+
+  // Nombre de parties de chaque série : les articles publiés dans cette
+  // langue, ou la plus haute partie si une traduction manque au milieu.
+  const totals = useMemo(() => {
+    const out = new Map<string, number>();
+    for (const a of articles) {
+      if (a.series) out.set(a.series, Math.max(out.get(a.series) ?? 0, a.part));
+    }
+    for (const [name, n] of out) out.set(name, Math.max(n, articles.filter((a) => a.series === name).length));
+    return out;
+  }, [articles]);
 
   const shown = series === ALL ? articles : articles.filter((a) => (a.series ?? HORS_SERIE) === series);
 
@@ -185,7 +202,13 @@ export function JournalIndex({
         ) : (
           <ol className="flex flex-col">
             {shown.map((a) => (
-              <Row key={a.slug} article={a} lang={lang} onHot={(on) => setActive((cur) => (on ? a.slug : cur === a.slug ? null : cur))} />
+              <Row
+                key={a.slug}
+                article={a}
+                lang={lang}
+                total={a.series ? (totals.get(a.series) ?? 0) : 0}
+                showSeriesName={series === ALL}
+                onHot={(on) => setActive((cur) => (on ? a.slug : cur === a.slug ? null : cur))} />
             ))}
           </ol>
         )}
@@ -194,8 +217,57 @@ export function JournalIndex({
   );
 }
 
-function Row({ article, lang, onHot }: { article: ArticleSummary; lang: Lang; onHot: (on: boolean) => void }) {
+/**
+ * La marque de série d'une ligne : nom + pile. Purement visuelle (`aria-hidden`) —
+ * le lien du titre porte la même information en toutes lettres pour les
+ * lecteurs d'écran. Couleur héritée : grise au repos, papier sur la ligne
+ * inversée, comme la date.
+ *
+ * Les traits font la hauteur des capitales de l'étiquette (11 px de corps) et
+ * restent hors de l'orange : l'orange est un ÉTAT (StateDot), ici c'est une
+ * donnée (brand book §4.3).
+ */
+const PILE_BAR = { width: 3, height: 9, gap: 2 } as const;
+
+function SeriesMark({ name, part, total }: { name: string | null; part: number; total: number }) {
+  return (
+    <span aria-hidden className={cn(MICRO_LABEL, 'flex items-center gap-[10px] whitespace-nowrap')}>
+      {name}
+      <span className="flex items-center" style={{ gap: PILE_BAR.gap }}>
+        {Array.from({ length: total }, (_, i) => (
+          <span
+            key={i}
+            style={{
+              width: PILE_BAR.width,
+              height: PILE_BAR.height,
+              backgroundColor: 'currentColor',
+              opacity: i + 1 === part ? 1 : 0.3,
+            }}
+          />
+        ))}
+      </span>
+    </span>
+  );
+}
+
+function Row({
+  article,
+  lang,
+  total,
+  showSeriesName,
+  onHot,
+}: {
+  article: ArticleSummary;
+  lang: Lang;
+  /** Nombre de parties de la série de l'article, 0 hors série. */
+  total: number;
+  showSeriesName: boolean;
+  onHot: (on: boolean) => void;
+}) {
   const t = DICT[lang];
+  const mark = article.series && total > 0 && (
+    <SeriesMark name={showSeriesName ? article.series : null} part={article.part} total={total} />
+  );
   const [open, setOpen] = useState(false);
   const [hot, setHotState] = useState(false);
   const setHot = (on: boolean) => {
@@ -234,6 +306,8 @@ function Row({ article, lang, onHot }: { article: ArticleSummary; lang: Lang; on
               <StateDot on={hot} />
             </span>
             <time dateTime={article.date}>{stamp(article.date)}</time>
+            {/* Téléphone : la marque à droite de la date, au-dessus du titre. */}
+            {mark && <span className="md:hidden">{mark}</span>}
           </span>
           <Link
             href={articlePath(article.slug, lang)}
@@ -246,8 +320,23 @@ function Row({ article, lang, onHot }: { article: ArticleSummary; lang: Lang; on
             )}
           >
             {article.title}
+            {article.series && article.part > 0 && (
+              <span className="sr-only"> — {t.seriesMark(article.series, article.part, total)}</span>
+            )}
           </Link>
         </div>
+        {/* Desktop : la marque en colonne à droite, juste avant le « + » — le
+            titre se tronque avant elle. */}
+        {mark && (
+          <span
+            className={cn(
+              'hidden md:flex shrink-0 text-[var(--color-fg-muted)] transition-colors duration-200 motion-reduce:transition-none',
+              'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
+            )}
+          >
+            {mark}
+          </span>
+        )}
         <button
           type="button"
           aria-expanded={open}

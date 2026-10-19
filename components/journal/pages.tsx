@@ -7,21 +7,25 @@ import { ArticleView } from '@/components/journal/ArticleView';
 import { BackLink } from '@/components/journal/BackLink';
 import { LanguageSwitch } from '@/components/journal/LanguageSwitch';
 import { SeriesArticleList } from '@/components/journal/SeriesArticleList';
+import { AboutLink } from '@/components/journal/AboutLink';
+import { PortableBody } from '@/components/site/PortableBody';
 import {
   getAllSeries,
   getArticle,
   getArticles,
+  getJournalAbout,
   getSeries,
   getSeriesBySlug,
   getSignature,
   summarize,
 } from '@/lib/journal/articles';
 import { frenchSpaces } from '@/lib/journal/french';
-import { DICT, LANGS, articlePath, homePath, seriesPath, type Lang } from '@/lib/journal/i18n';
+import { DICT, LANGS, aboutPath, articlePath, homePath, seriesPath, type Lang } from '@/lib/journal/i18n';
 import type { JournalSeries } from '@/lib/journal/types';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { JsonLd } from '@/components/seo/JsonLd';
 import {
+  aboutBreadcrumbJsonLd,
   blogJsonLd,
   blogPostingJsonLd,
   journalBreadcrumbJsonLd,
@@ -29,7 +33,7 @@ import {
   seriesJsonLd,
 } from '@/lib/seo/journal-jsonld';
 import { AUTHOR_NAME } from '@/lib/site/author';
-import { EDITORIAL_H3, MICRO_LABEL } from '@/lib/site/typography';
+import { EDITORIAL_BODY, EDITORIAL_H3, MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 
 /**
@@ -94,12 +98,51 @@ export async function JournalHome({ lang }: { lang: Lang }) {
             <span className="sr-only"> — {t.articles(articles.length)}</span>
           </>
         }
+        subtitle={<AboutLink href={aboutPath(lang)} label={t.aboutLink} />}
       >
         <JournalIndex
           articles={articles}
           lang={lang}
           language={<LanguageSwitch lang={lang} alternates={await homeAlternates()} heading />}
         />
+      </PageShell>
+    </>
+  );
+}
+
+// ── À propos ──────────────────────────────────────────────────────────────
+
+/** La page existe dans les trois langues : son repli suffit à la remplir. */
+const ABOUT_ALTERNATES = Object.fromEntries(LANGS.map((l) => [l, aboutPath(l)]));
+
+export async function aboutMetadata(lang: Lang): Promise<Metadata> {
+  return buildMetadata({
+    title: DICT[lang].aboutLink,
+    description: DICT[lang].siteDescription,
+    path: aboutPath(lang),
+    lang,
+    alternates: ABOUT_ALTERNATES,
+  });
+}
+
+/**
+ * « À propos de ce journal » — liée sous le titre de l'accueil (2026-10-19).
+ * Texte : le document « À propos du journal » du Studio (CLAUDE.md §8.5) ;
+ * vide, la description du journal en tient lieu.
+ */
+export async function JournalAbout({ lang }: { lang: Lang }) {
+  const t = DICT[lang];
+  const body = await getJournalAbout(lang);
+  return (
+    <>
+      <JsonLd data={aboutBreadcrumbJsonLd(lang, t.aboutLink)} />
+      <PageShell
+        title={t.aboutTitle}
+        back={<BackLink lang={lang} href={homePath(lang)} />}
+        language={<LanguageSwitch lang={lang} alternates={ABOUT_ALTERNATES} />}
+        centered
+      >
+        <PortableBody value={body ?? undefined} variant="editorial" fallback={<p className={EDITORIAL_BODY}>{t.siteDescription}</p>} />
       </PageShell>
     </>
   );

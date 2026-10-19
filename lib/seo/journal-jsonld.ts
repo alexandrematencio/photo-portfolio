@@ -1,7 +1,7 @@
 import type { Article, ArticleSummary, Inline, JournalSeries } from '@/lib/journal/types';
 import { SITE_INFO, withSlash } from '@/lib/seo/metadata';
 import { authorRef, type JsonLdObject } from '@/lib/seo/jsonld';
-import { DICT, LOCALE, articlePath, homePath, seriesPath, type Lang } from '@/lib/journal/i18n';
+import { DICT, LOCALE, aboutPath, articlePath, homePath, seriesPath, type Lang } from '@/lib/journal/i18n';
 
 /**
  * Données structurées du journal (blog.amatencio.com). Ce que Google en tire :
@@ -113,6 +113,13 @@ export function journalBreadcrumbJsonLd(article: Article): JsonLdObject {
   if (article.series && article.seriesSlug) items.push({ name: article.series, item: url(seriesPath(article.seriesSlug, article.lang)) });
   items.push({ name: article.title, item: url(articlePath(article.slug, article.lang)) });
   return breadcrumb(items);
+}
+
+export function aboutBreadcrumbJsonLd(lang: Lang, title: string): JsonLdObject {
+  return breadcrumb([
+    { name: 'Journal', item: url(homePath(lang)) },
+    { name: title, item: url(aboutPath(lang)) },
+  ]);
 }
 
 function breadcrumb(items: { name: string; item: string }[]): JsonLdObject {

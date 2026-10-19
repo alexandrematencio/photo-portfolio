@@ -123,6 +123,21 @@ export async function getSignature(lang: Lang = DEFAULT_LANG): Promise<string> {
 }
 
 /**
+ * Le texte de la page « À propos de ce journal » (Portable Text, rendu par
+ * `PortableBody`). Traduction vide : le français, comme pour la signature.
+ * `null` quand rien n'est publié — la page prend alors son repli.
+ */
+export async function getJournalAbout(lang: Lang = DEFAULT_LANG): Promise<unknown[] | null> {
+  if (!sanityClient) return null;
+  const body = await sanityClient.fetch<unknown[] | null>(
+    /* groq */ `*[_id == "journalAboutPage"][0]{ "b": select($lang != "fr" && count(translations[$lang].body) > 0 => translations[$lang].body, body) }.b`,
+    { lang },
+    { next: { revalidate: 60 } },
+  );
+  return body?.length ? body : null;
+}
+
+/**
  * Les séries d'une langue qui ont au moins un article publié dans cette
  * langue — une page de série vide n'existe pas. Ordre : la série dont le
  * dernier article est le plus récent d'abord.
