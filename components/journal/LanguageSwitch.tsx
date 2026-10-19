@@ -1,6 +1,6 @@
 'use client';
 
-import { StateDot } from '@/components/site/StateDot';
+import { ChevronUp } from 'lucide-react';
 import { asset } from '@/lib/utils/asset';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
@@ -13,9 +13,10 @@ import type { Alternates } from '@/lib/journal/types';
  * sur l'accueil (colonne de filtres) et sur les articles et les séries (rail
  * du bouton Back). Le nom de la langue reste lisible des lecteurs d'écran.
  *
- * Grammaire des filtres de l'accueil : voyant orange devant la langue
- * courante, les autres drapeaux estompés qui s'allument au survol. Le voyant
- * est toujours rendu (opacité) : le choix ne change pas la largeur du contrôle.
+ * La langue courante est marquée d'un chevron sous son drapeau, pointé vers
+ * lui (demande Alexandre, 2026-10-19, à la place du voyant orange) ; les
+ * autres drapeaux sont estompés et s'allument au survol. Le chevron est
+ * toujours rendu (opacité) : le choix ne change pas la géométrie du contrôle.
  *
  * Un `<a>` ordinaire, pas un `Link` : chaque langue a son propre layout
  * racine (`<html lang>`), la navigation recharge donc la page de toute
@@ -42,7 +43,6 @@ export function LanguageSwitch({
         const href = alternates[l];
         const label = (
           <>
-            <StateDot on={here} />
             {/* Le SVG porte 2 px de marge de chaque côté (viewBox 28 × 17). */}
             <img
               src={asset(`/img/flags/${LOCALE[l].flag}.svg`)}
@@ -53,10 +53,17 @@ export function LanguageSwitch({
               height={17}
               className="h-[17px] w-auto transition-[opacity,filter] duration-200 motion-reduce:transition-none"
             />
+            <ChevronUp
+              size={14}
+              strokeWidth={2.75}
+              aria-hidden
+              className="text-[var(--color-fg)]"
+              style={{ opacity: here ? 1 : 0 }}
+            />
             <span className="sr-only">{LOCALE[l].native}</span>
           </>
         );
-        const base = 'flex items-center gap-[6px] leading-none';
+        const base = 'flex flex-col items-center gap-[4px] leading-none';
         return (
           <li key={l}>
             {here ? (

@@ -47,12 +47,13 @@ export function BackLink({ href, lang }: { href: string; lang: Lang }) {
       onClick={onClick}
       // Bouton encadré (maquette d'Alexandre, 2026-10-18). Padding en style
       // inline : le reset `* { padding: 0 }` avalerait une utility Tailwind.
-      // Au survol comme au focus clavier, le cadre se remplit — même geste
-      // que les rangées de la page de série.
+      // Au survol comme au focus clavier, texte et cadre s'éclaircissent
+      // (2026-10-19 : le cadre qui se remplissait d'encre faisait disparaître
+      // le texte) — le cadre suit `currentColor`.
       // Fond papier : dans le rail collant (PageShell), le bouton reste
       // lisible quoi qu'il survole.
-      style={{ padding: '6px 12px', border: '1px solid var(--color-fg)', gap: 10, backgroundColor: 'var(--color-bg)' }}
-      className="flex w-fit items-center text-[20px] leading-none uppercase font-bold text-[var(--color-fg)] transition-colors duration-200 hover:bg-[var(--color-fg)] hover:text-[var(--color-bg)] focus-visible:bg-[var(--color-fg)] focus-visible:text-[var(--color-bg)] motion-reduce:transition-none"
+      style={{ padding: '6px 12px', border: '1px solid currentColor', gap: 10, backgroundColor: 'var(--color-bg)' }}
+      className="flex w-fit items-center text-[20px] leading-none uppercase font-bold text-[var(--color-fg)] transition-colors duration-200 hover:text-[var(--color-fg-muted)] focus-visible:text-[var(--color-fg-muted)] motion-reduce:transition-none"
     >
       {/* Le demi-tour de « Back to All Series » (/series) : il dit « on
           revient d'où l'on vient », pas « à gauche ». */}
