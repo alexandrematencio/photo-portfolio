@@ -87,6 +87,7 @@ const FIELD_LABELS: Record<string, string> = {
     'retirée de cette série — la photo reste dans « Toutes » et dans ses autres séries',
   seriesOrder: 'retirée de l’ordre des séries de la page /series',
   photos: 'retirée de la funnel curation (tunnel design-folio)',
+  tags: 'retirée des thématiques de l’article',
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -94,6 +95,7 @@ const TYPE_LABELS: Record<string, string> = {
   siteSettings: 'Réglages du site',
   funnelCuration: 'Funnel curation',
   photo: 'Photo',
+  post: 'Article',
 };
 
 /** Au-delà, on résume au lieu de dérouler (une série peut avoir 40 photos). */

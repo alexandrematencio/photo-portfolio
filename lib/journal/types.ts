@@ -52,6 +52,9 @@ export type ArticleBlock =
   /** Paragraphe entier « à trancher » : une question laissée ouverte par l'auteur. */
   | { type: 'draft'; text: string };
 
+/** Une thématique, nommée dans la langue de l'article (`?theme=<slug>` filtre l'accueil). */
+export type JournalTag = { slug: string; title: string };
+
 /** Ce que la page d'accueil du journal sait d'un article — pas son corps. */
 export type ArticleSummary = {
   slug: string;
@@ -64,6 +67,8 @@ export type ArticleSummary = {
   /** Identifiant de la série (son adresse, `seriesPath`), `null` hors série. */
   seriesSlug: string | null;
   part: number;
+  /** Ses thématiques, dans l'ordre du Studio. */
+  tags: JournalTag[];
   /** AAAA-MM-JJ */
   date: string;
   minutes: number;
