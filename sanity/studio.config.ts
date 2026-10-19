@@ -11,6 +11,7 @@ import {
   createDatedPublishAction,
   DeletePhotoAction,
   DeleteSeriesAction,
+  DeleteTagAction,
   GenerateTranslationsAction,
   ToggleFunnelAction,
   ToggleVisibilityAction,
@@ -193,6 +194,12 @@ export const studioConfig = defineConfig({
           action.action === 'delete' ? DeleteSeriesAction : action
         );
       }
+      // Une thématique posée sur des articles : même détachement.
+      if (schemaType === 'journalTag') {
+        return prev.map((action) =>
+          action.action === 'delete' ? DeleteTagAction : action
+        );
+      }
       // Journal : sur un article FRANÇAIS, Publish et traduction sont DEUX
       // gestes (2026-10-18 au soir) — Alexandre relit le français en ligne,
       // puis lance « Generate EN & RU », qui ne retraduit que ce qui a changé.
@@ -232,6 +239,8 @@ export const studioConfig = defineConfig({
           return `${BLOG_URL}/a-propos/`;
         case 'journalSeries':
           return slug ? `${BLOG_URL}/serie/${slug}/` : `${BLOG_URL}/`;
+        case 'journalTag':
+          return slug ? `${BLOG_URL}/?theme=${slug}` : `${BLOG_URL}/`;
         default: {
           const page = PAGE_DOCS.find((p) => p.type === document._type);
           return page ? `${base}${page.path}` : prev;

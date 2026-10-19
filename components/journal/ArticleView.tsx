@@ -3,7 +3,7 @@ import { PageShell } from '@/components/site/PageShell';
 import { ArticleBody } from '@/components/journal/ArticleBody';
 import { BackLink } from '@/components/journal/BackLink';
 import { LanguageSwitch } from '@/components/journal/LanguageSwitch';
-import { DICT, homePath, seriesPath } from '@/lib/journal/i18n';
+import { DICT, homePath, seriesPath, themePath } from '@/lib/journal/i18n';
 import type { Article, ArticleSummary } from '@/lib/journal/types';
 import { EDITORIAL_H3, MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
@@ -71,6 +71,16 @@ export function ArticleView({
                 <span key={m}>{m}</span>
               ),
             )}
+            {/* Les thématiques mènent à l'accueil filtré sur elles. */}
+            {article.tags.map((tag) => (
+              <Link
+                key={tag.slug}
+                href={themePath(tag.slug, lang)}
+                className="underline decoration-[var(--color-line)] underline-offset-4 hover:text-[var(--color-fg)] hover:decoration-current"
+              >
+                {tag.title}
+              </Link>
+            ))}
           </p>
         </div>
       }

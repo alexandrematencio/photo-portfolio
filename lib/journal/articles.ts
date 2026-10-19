@@ -30,6 +30,8 @@ export const postsQuery = /* groq */ `
     "publishedAt": select(defined(translationOf) => coalesce(translationOf->publishedAt, translationOf->_createdAt), coalesce(publishedAt, _createdAt)),
     "seriesId": select(defined(translationOf) => translationOf->series._ref, series._ref),
     "part": select(defined(translationOf) => translationOf->part, part),
+    // Une traduction porte les thématiques de son original.
+    "tags": select(defined(translationOf) => translationOf->tags, tags)[]->{ "slug": slug.current, title, translations },
     referencesNote,
     seoTitle,
     seoDescription,

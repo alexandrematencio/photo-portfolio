@@ -58,6 +58,7 @@ export function blogPostingJsonLd(article: Article): JsonLdObject {
     timeRequired: `PT${article.minutes}M`,
     wordCount: article.words,
     ...(article.series ? { articleSection: article.series } : {}),
+    ...(article.tags.length ? { keywords: article.tags.map((tag) => tag.title) } : {}),
     ...(article.seriesSlug
       ? { isPartOf: [blogRef(article.lang), { '@type': 'CollectionPage', '@id': `${url(seriesPath(article.seriesSlug, article.lang))}#series`, name: article.series }] }
       : {}),

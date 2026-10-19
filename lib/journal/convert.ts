@@ -7,6 +7,7 @@ import type {
   InlineMark,
   FigureName,
   JournalImage,
+  JournalTag,
   Verdict,
 } from './types';
 import { FIGURE_NAMES } from './types';
@@ -89,6 +90,8 @@ export type RawPost = {
   seoDescription?: string | null;
   updatedAt?: string;
   cover?: RawImage;
+  /** `null` dans la liste : une thématique référencée mais pas encore publiée. */
+  tags?: (RawTag | null)[] | null;
   body: PTBlock[] | null;
   references: { _key: string; citation?: { children?: PTChild[] }[] }[] | null;
 };
@@ -178,6 +181,22 @@ export function seriesIn(doc: RawSeries, lang: Lang) {
   };
 }
 
+/** Une thématique telle que le Studio la stocke : le nom français, ses traductions. */
+export type RawTag = {
+  slug?: string | null;
+  title?: string | null;
+  translations?: Partial<Record<Lang, { title?: string }>>;
+};
+
+export function tagsIn(raws: RawPost['tags'], lang: Lang): JournalTag[] {
+  return (raws ?? [])
+    .filter((t): t is RawTag & { slug: string; title: string } => Boolean(t?.slug && t.title))
+    .map((t) => ({
+      slug: t.slug,
+      title: (lang === DEFAULT_LANG ? undefined : t.translations?.[lang]?.title?.trim()) || t.title,
+    }));
+}
+
 export function toArticle(raw: RawPost & { date: string; lang: Lang }, series: RawSeries | undefined): Article {
   const blocks = blocksOf(raw.body ?? []);
   const references = (raw.references ?? []).map((r) => ({
@@ -196,6 +215,7 @@ export function toArticle(raw: RawPost & { date: string; lang: Lang }, series: R
     series: named?.title ?? null,
     seriesSlug: named?.slug ?? null,
     part: raw.part ?? 0,
+    tags: tagsIn(raw.tags, raw.lang),
     referencesNote: raw.referencesNote ?? undefined,
     minutes: Math.max(1, Math.round(wordCount / WORDS_PER_MINUTE)),
     words: wordCount,
@@ -211,6 +231,6 @@ export function toArticle(raw: RawPost & { date: string; lang: Lang }, series: R
 
 
 export function summarize(article: Article): ArticleSummary {
-  const { slug, lang, title, dek, series, seriesSlug, part, date, minutes, referenceCount, cover } = article;
-  return { slug, lang, title, dek, series, seriesSlug, part, date, minutes, referenceCount, cover };
+  const { slug, lang, title, dek, series, seriesSlug, part, tags, date, minutes, referenceCount, cover } = article;
+  return { slug, lang, title, dek, series, seriesSlug, part, tags, date, minutes, referenceCount, cover };
 }

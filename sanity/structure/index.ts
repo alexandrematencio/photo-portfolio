@@ -581,6 +581,7 @@ function journalGroupNode(S: StructureBuilder) {
                 .initialValueTemplates([]),
             ),
           S.documentTypeListItem('journalSeries').title('Séries d’articles'),
+          S.documentTypeListItem('journalTag').title('Thématiques'),
           S.listItem()
             .title('Signature des articles')
             .id('journalSettings')

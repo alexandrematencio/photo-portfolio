@@ -50,6 +50,17 @@ export function seriesPath(slug: string, lang: Lang = DEFAULT_LANG): string {
   return `${langPrefix(lang)}/${SERIES_SEGMENT[lang]}/${slug}/`;
 }
 
+/**
+ * L'accueil filtré sur une thématique. Un paramètre et non une page : la
+ * thématique TRIE l'index, elle ne présente rien (une série, elle, a sa page).
+ * L'identifiant est celui du français dans toutes les langues.
+ */
+export const THEME_PARAM = 'theme';
+
+export function themePath(slug: string, lang: Lang = DEFAULT_LANG): string {
+  return `${homePath(lang)}?${THEME_PARAM}=${encodeURIComponent(slug)}`;
+}
+
 /** La page « À propos de ce journal », adresse traduite comme celle des séries. */
 const ABOUT_SEGMENT: Record<Lang, string> = { fr: 'a-propos', en: 'about', ru: 'o-zhurnale' };
 
@@ -95,7 +106,7 @@ if(langs.indexOf(want)<0){want='en';var l=navigator.languages||[navigator.langua
 for(var i=0;i<l.length;i++){var c=String(l[i]||'').slice(0,2).toLowerCase();if(langs.indexOf(c)>=0){want=c;break;}}}
 if(want===${JSON.stringify(current)})return;
 var a=document.querySelector('link[rel="alternate"][hreflang^="'+want+'"]');
-if(a&&a.href)location.replace(a.href+location.hash);
+if(a&&a.href)location.replace(a.href+location.search+location.hash);
 }catch(e){}})();`;
 }
 
@@ -143,6 +154,10 @@ type Dict = {
   seriesHint: string;
   all: string;
   noSeries: string;
+  /** Thématiques (`journalTag`) : titre du groupe de filtres, étiquette du module téléphone, liste d'un article. */
+  themesHeading: string;
+  themeHint: string;
+  filterByTheme: string;
   dateCol: string;
   titleCol: string;
   noArticles: string;
@@ -297,6 +312,9 @@ export const DICT: Record<Lang, Dict> = {
     seriesHint: 'SÉRIE',
     all: 'Tout',
     noSeries: 'Hors série',
+    themesHeading: 'Thématiques',
+    themeHint: 'THÈME',
+    filterByTheme: 'Filtrer par thématique',
     dateCol: 'Date',
     titleCol: 'Titre',
     noArticles: 'Aucun article publié pour l’instant.',
@@ -461,6 +479,9 @@ export const DICT: Record<Lang, Dict> = {
     seriesHint: 'SERIES',
     all: 'All',
     noSeries: 'Standalone',
+    themesHeading: 'Topics',
+    themeHint: 'TOPIC',
+    filterByTheme: 'Filter by topic',
     dateCol: 'Date',
     titleCol: 'Title',
     noArticles: 'Nothing published yet.',
@@ -626,6 +647,9 @@ export const DICT: Record<Lang, Dict> = {
     seriesHint: 'СЕРИЯ',
     all: 'Все',
     noSeries: 'Вне серий',
+    themesHeading: 'Темы',
+    themeHint: 'ТЕМА',
+    filterByTheme: 'Фильтр по теме',
     dateCol: 'Дата',
     titleCol: 'Заголовок',
     noArticles: 'Пока ничего не опубликовано.',

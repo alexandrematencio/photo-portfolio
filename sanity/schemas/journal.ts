@@ -383,6 +383,41 @@ export const journalSeries = defineType({
   ],
 });
 
+/**
+ * Une thématique du journal (2026-10-19) : un sujet transversal, qui croise
+ * les séries — un article a une série au plus, mais autant de thématiques
+ * que de sujets. Document à part plutôt qu'une liste de mots libres : une
+ * thématique a UN nom, et ses traductions, quel que soit l'article qui la
+ * pose. Elle se crée depuis l'article même (« Create new » du champ).
+ */
+export const journalTag = defineType({
+  name: 'journalTag',
+  title: 'Thématique',
+  type: 'document',
+  fields: [
+    defineField({
+      name: 'title',
+      title: 'Nom',
+      description: 'Un ou deux mots, au singulier de préférence (« Mémoire », « Ville »).',
+      type: 'string',
+      validation: (Rule) => Rule.required().max(40),
+    }),
+    defineField({
+      name: 'slug',
+      title: 'Identifiant',
+      description: 'L’adresse de l’accueil filtré sur cette thématique : blog.amatencio.com/?theme=<identifiant>. Ne plus la changer une fois partagée.',
+      type: 'slug',
+      options: { source: 'title' },
+      validation: (Rule) => Rule.required(),
+    }),
+    translationsField(() => [defineField({ name: 'title', title: 'Nom', type: 'string' })]),
+  ],
+  preview: {
+    select: { title: 'title', en: 'translations.en.title', ru: 'translations.ru.title' },
+    prepare: ({ title, en, ru }) => ({ title, subtitle: [en, ru].filter(Boolean).join(' · ') || 'Pas encore traduite' }),
+  },
+});
+
 export const post = defineType({
   name: 'post',
   title: 'Article',
@@ -473,6 +508,16 @@ export const post = defineType({
       type: 'number',
       hidden: ({ document }) => !document?.series || isTranslation(document),
       validation: (Rule) => Rule.integer().min(1),
+    }),
+    defineField({
+      name: 'tags',
+      title: 'Thématiques',
+      description:
+        'Les sujets de l’article : ils trient l’accueil du journal. Taper pour retrouver une thématique existante ; « Create new » en crée une sans quitter l’article — la publier aussi, sinon elle n’apparaît pas. Les traductions reprennent celles-ci.',
+      type: 'array',
+      of: [defineArrayMember({ type: 'reference', to: [{ type: 'journalTag' }] })],
+      hidden: ({ document }) => isTranslation(document),
+      validation: (Rule) => Rule.unique(),
     }),
     defineField({
       name: 'cover',
@@ -683,6 +728,7 @@ export const journalSchemas = [
   post,
   journalSettings,
   journalSeries,
+  journalTag,
   journalNoteRef,
   journalDraftNote,
   journalPullQuote,

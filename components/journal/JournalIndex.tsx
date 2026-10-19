@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { DICT, articlePath, seriesPath, type Lang } from '@/lib/journal/i18n';
-import { useId, useMemo, useState, type ReactNode } from 'react';
+import { DICT, THEME_PARAM, articlePath, seriesPath, type Lang } from '@/lib/journal/i18n';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StateDot } from '@/components/site/StateDot';
 import { ListSelector } from '@/components/site/ListSelector';
 import { EDITORIAL_SIDENOTE, MICRO_LABEL } from '@/lib/site/typography';
@@ -30,6 +30,13 @@ import type { ArticleSummary } from '@/lib/journal/types';
  * Filtrée sur une série, la ligne ne garde que la pile : le nom est déjà dans
  * le filtre.
  *
+ * Sous les séries, les THÉMATIQUES (2026-10-19) : un second groupe, qui se
+ * combine au premier (série ET thématique). Il n'apparaît qu'à la première
+ * thématique posée sur un article. Les compteurs d'un groupe se lisent dans
+ * le filtre de l'autre — « (3) » promet trois lignes. La thématique choisie
+ * s'écrit dans l'adresse (`?theme=`) : c'est le lien que posent les pages
+ * d'article.
+ *
  * Sous les filtres, la COUVERTURE de l'article survolé (champ « Image de
  * couverture » du Studio, 2026-10-18 — elle remplace la vignette de la
  * Fig. 1). Toutes les couvertures sont montées, empilées, et seule celle de
@@ -48,6 +55,8 @@ const DATE_COL = 128;
 /** Largeur de la colonne de filtres au-dessus de `md`. */
 const FILTER_COL = 220;
 
+type Filter = { key: string; label: string; count: number };
+
 function stamp(date: string) {
   return date.replaceAll('-', '.');
 }
@@ -64,21 +73,70 @@ export function JournalIndex({
 }) {
   const t = DICT[lang];
   const [series, setSeries] = useState(ALL);
+  const [theme, setThemeState] = useState(ALL);
+  const mobileFilters = useRef<HTMLDivElement | null>(null);
   // La ligne survolée (ou focalisée) : sa couverture s'ouvre dans la colonne de gauche.
   const [active, setActive] = useState<string | null>(null);
   const covers = articles.filter((a) => a.cover);
 
-  const filters = useMemo(() => {
+  const inSeries = (a: ArticleSummary) => series === ALL || (a.series ?? HORS_SERIE) === series;
+  const inTheme = (a: ArticleSummary) => theme === ALL || a.tags.some((tag) => tag.slug === theme);
+
+  // La liste des séries ne bouge pas ; ses compteurs suivent la thématique choisie.
+  const filters = useMemo<Filter[]>(() => {
+    const pool = articles.filter(inTheme);
     const counts = new Map<string, number>();
-    for (const a of articles) {
+    for (const a of articles) counts.set(a.series ?? HORS_SERIE, 0);
+    for (const a of pool) {
       const name = a.series ?? HORS_SERIE;
       counts.set(name, (counts.get(name) ?? 0) + 1);
     }
     return [
-      { key: ALL, label: t.all, count: articles.length },
+      { key: ALL, label: t.all, count: pool.length },
       ...[...counts].map(([name, count]) => ({ key: name, label: name === HORS_SERIE ? t.noSeries : name, count })),
     ];
-  }, [articles, t]);
+  }, [articles, t, theme]);
+
+  // Les thématiques, par ordre alphabétique : la liste grandit avec le
+  // journal, on y cherche un mot, pas un rang. Vide : pas de groupe.
+  const themes = useMemo<Filter[]>(() => {
+    const names = new Map<string, string>();
+    for (const a of articles) for (const tag of a.tags) names.set(tag.slug, tag.title);
+    if (names.size === 0) return [];
+    const pool = articles.filter(inSeries);
+    return [
+      { key: ALL, label: t.all, count: pool.length },
+      ...[...names]
+        .sort(([, x], [, y]) => x.localeCompare(y, lang))
+        .map(([slug, title]) => ({ key: slug, label: title, count: pool.filter((a) => a.tags.some((tag) => tag.slug === slug)).length })),
+    ];
+  }, [articles, t, lang, series]);
+
+  // `?theme=<slug>` : lu au montage (l'export est statique, le HTML servi ne
+  // connaît pas l'adresse), réécrit à chaque choix pour que l'adresse se partage.
+  useEffect(() => {
+    const slug = new URLSearchParams(window.location.search).get(THEME_PARAM);
+    if (slug && articles.some((a) => a.tags.some((tag) => tag.slug === slug))) setThemeState(slug);
+  }, [articles]);
+
+  const setTheme = (key: string) => {
+    setThemeState(key);
+    const url = new URL(window.location.href);
+    if (key === ALL) url.searchParams.delete(THEME_PARAM);
+    else url.searchParams.set(THEME_PARAM, key);
+    window.history.replaceState(window.history.state, '', url);
+  };
+
+  // Depuis le dépli d'une ligne : sur téléphone, les filtres sont loin
+  // au-dessus — on y remonte pour que le tri se voie.
+  const pickTheme = (key: string) => {
+    setTheme(key);
+    const box = mobileFilters.current;
+    if (box && box.offsetParent !== null && box.getBoundingClientRect().top < 0) {
+      const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      box.scrollIntoView({ block: 'start', behavior: instant ? 'auto' : 'smooth' });
+    }
+  };
 
   // La page de la série choisie dans les filtres : le filtre trie, la page présente.
   const seriesSlug = series === ALL ? null : (articles.find((a) => a.series === series)?.seriesSlug ?? null);
@@ -105,13 +163,14 @@ export function JournalIndex({
     return out;
   }, [articles]);
 
-  const shown = series === ALL ? articles : articles.filter((a) => (a.series ?? HORS_SERIE) === series);
+  const shown = articles.filter((a) => inSeries(a) && inTheme(a));
 
   return (
     <div className="flex flex-col md:grid md:gap-x-12" style={{ gridTemplateColumns: `${FILTER_COL}px minmax(0, 1fr)` }}>
       {/* FILTRES — téléphone */}
-      <div className="md:hidden" style={{ marginBottom: 32 }}>
+      <div ref={mobileFilters} className="md:hidden" style={{ marginBottom: 32, scrollMarginTop: 16 }}>
         <div style={{ marginBottom: 20 }}>{language}</div>
+        {/* Deux modules collés en un bloc, comme la console d'`/archives`. */}
         <ListSelector
           hint={t.seriesHint}
           ariaLabel={t.filterBySeries}
@@ -120,47 +179,34 @@ export function JournalIndex({
           onChange={setSeries}
           mark="dot"
           tone="plate"
+          corners={themes.length ? 'top' : 'all'}
           lit={series !== ALL}
         />
+        {themes.length > 0 && (
+          <ListSelector
+            hint={t.themeHint}
+            ariaLabel={t.filterByTheme}
+            items={themes}
+            value={theme}
+            onChange={setTheme}
+            mark="dot"
+            tone="plate-low"
+            corners="bottom"
+            lit={theme !== ALL}
+          />
+        )}
         {seriesLink && <div style={{ marginTop: 16 }}>{seriesLink}</div>}
       </div>
 
       {/* FILTRES — desktop, colonne collante */}
       <aside className="hidden md:flex flex-col gap-10 self-start sticky top-6" aria-label={t.filters}>
         {language}
-        <div className="flex flex-col">
-          <span
-            className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}
-            style={{ paddingBottom: 12, borderBottom: '1px solid var(--color-line)' }}
-          >
-            {t.seriesHeading}
-          </span>
-          <ul className="flex flex-col" style={{ paddingTop: 12 }}>
-            {filters.map((f) => {
-              const on = f.key === series;
-              return (
-                <li key={f.key}>
-                  <button
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => setSeries(f.key)}
-                    className={cn(
-                      'flex w-full items-center gap-[10px] text-left text-[15px] font-bold tracking-[-0.02em] leading-[1.3] transition-colors motion-reduce:transition-none',
-                      on ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
-                    )}
-                    style={{ paddingBlock: 6 }}
-                  >
-                    <StateDot on={on} />
-                    <span>
-                      {f.label} <span className="font-normal tabular-nums">({f.count})</span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+        <FilterGroup heading={t.seriesHeading} items={filters} value={series} onChange={setSeries}>
           {seriesLink && <div style={{ paddingTop: 16 }}>{seriesLink}</div>}
-        </div>
+        </FilterGroup>
+        {themes.length > 0 && (
+          <FilterGroup heading={t.themesHeading} items={themes} value={theme} onChange={setTheme} />
+        )}
 
         {covers.length > 0 && (
           <div className="journal-covers" aria-hidden>
@@ -208,11 +254,64 @@ export function JournalIndex({
                 lang={lang}
                 total={a.series ? (totals.get(a.series) ?? 0) : 0}
                 showSeriesName={series === ALL}
+                onTheme={pickTheme}
                 onHot={(on) => setActive((cur) => (on ? a.slug : cur === a.slug ? null : cur))} />
             ))}
           </ol>
         )}
       </section>
+    </div>
+  );
+}
+
+/** Un groupe de la colonne de filtres (desktop) : titre filé, une ligne par choix, voyant d'état. */
+function FilterGroup({
+  heading,
+  items,
+  value,
+  onChange,
+  children,
+}: {
+  heading: string;
+  items: Filter[];
+  value: string;
+  onChange: (key: string) => void;
+  /** Sous la liste (le lien vers la page de la série choisie). */
+  children?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col">
+      <span
+        className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}
+        style={{ paddingBottom: 12, borderBottom: '1px solid var(--color-line)' }}
+      >
+        {heading}
+      </span>
+      <ul className="flex flex-col" style={{ paddingTop: 12 }}>
+        {items.map((f) => {
+          const on = f.key === value;
+          return (
+            <li key={f.key}>
+              <button
+                type="button"
+                aria-pressed={on}
+                onClick={() => onChange(f.key)}
+                className={cn(
+                  'flex w-full items-center gap-[10px] text-left text-[15px] font-bold tracking-[-0.02em] leading-[1.3] transition-colors motion-reduce:transition-none',
+                  on ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
+                )}
+                style={{ paddingBlock: 6 }}
+              >
+                <StateDot on={on} />
+                <span>
+                  {f.label} <span className="font-normal tabular-nums">({f.count})</span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {children}
     </div>
   );
 }
@@ -255,6 +354,7 @@ function Row({
   lang,
   total,
   showSeriesName,
+  onTheme,
   onHot,
 }: {
   article: ArticleSummary;
@@ -262,6 +362,8 @@ function Row({
   /** Nombre de parties de la série de l'article, 0 hors série. */
   total: number;
   showSeriesName: boolean;
+  /** Filtre l'index sur une thématique de l'article (depuis son dépli). */
+  onTheme: (slug: string) => void;
   onHot: (on: boolean) => void;
 }) {
   const t = DICT[lang];
@@ -390,6 +492,16 @@ function Row({
                     ))}
                   <span>{t.minutes(article.minutes)}</span>
                   {article.referenceCount > 0 && <span>{t.references(article.referenceCount)}</span>}
+                  {article.tags.map((tag) => (
+                    <button
+                      key={tag.slug}
+                      type="button"
+                      onClick={() => onTheme(tag.slug)}
+                      className="underline decoration-[var(--color-line)] underline-offset-4 hover:text-[var(--color-fg)] hover:decoration-current"
+                    >
+                      {tag.title}
+                    </button>
+                  ))}
                 </p>
                 <Link
                   href={articlePath(article.slug, lang)}
