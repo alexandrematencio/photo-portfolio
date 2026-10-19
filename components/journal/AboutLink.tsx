@@ -2,9 +2,9 @@ import Link from 'next/link';
 
 /**
  * « → À propos de ce journal », sous le titre de l'accueil du journal
- * (demande Alexandre, 2026-10-19). Calé à gauche, au corps du bouton « Back »
- * des articles (`BackLink`) mais sans cadre : le cadre dit « retour », la
- * flèche dit « par ici ».
+ * (demande Alexandre, 2026-10-19). Calé à gauche, encadré comme le bouton
+ * « Back » des articles (`BackLink`) et au même corps. Survol : le texte, la
+ * flèche et le cadre s'éclaircissent ensemble (le cadre suit `currentColor`).
  *
  * La flèche est la `arrow-right` de Lucide, tracée à la main pour que ses deux
  * chemins se déforment au survol : la hampe s'allonge ET la pointe se
@@ -16,9 +16,10 @@ export function AboutLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="journal-about-link flex w-fit items-center text-[20px] leading-none uppercase font-bold text-[var(--color-fg)] underline-offset-4 hover:underline focus-visible:underline"
-      // 12 sous le `gap` du bloc de titre : le lien appartient au titre, pas à l'index.
-      style={{ gap: 10, marginTop: 4 }}
+      className="journal-about-link flex w-fit items-center text-[20px] leading-none uppercase font-bold text-[var(--color-fg)] transition-colors duration-200 hover:text-[var(--color-fg-muted)] focus-visible:text-[var(--color-fg-muted)] motion-reduce:transition-none"
+      // 12 sous le `gap` du bloc de titre : le lien appartient au titre, pas à
+      // l'index. Padding inline : le reset `* { padding: 0 }` avale les utilities.
+      style={{ gap: 10, marginTop: 4, padding: '12px 16px', border: '1px solid currentColor' }}
     >
       <svg
         aria-hidden
