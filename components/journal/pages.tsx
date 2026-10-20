@@ -77,6 +77,7 @@ export async function homeMetadata(lang: Lang): Promise<Metadata> {
 
 export async function JournalHome({ lang }: { lang: Lang }) {
   const articles = (await getArticles(lang)).map(summarize);
+  const alternates = await homeAlternates();
   const t = DICT[lang];
   return (
     <>
@@ -98,12 +99,22 @@ export async function JournalHome({ lang }: { lang: Lang }) {
             <span className="sr-only"> — {t.articles(articles.length)}</span>
           </>
         }
-        subtitle={<AboutLink href={aboutPath(lang)} label={t.aboutLink} />}
+        subtitle={
+          <>
+            <AboutLink href={aboutPath(lang)} label={t.aboutLink} />
+            {/* Téléphone (2026-10-20) : les drapeaux montent dans le bloc de
+                titre, sous « À propos » ; en desktop ils restent en tête de
+                la colonne de filtres. */}
+            <div className="md:hidden" style={{ marginTop: 8 }}>
+              <LanguageSwitch lang={lang} alternates={alternates} />
+            </div>
+          </>
+        }
       >
         <JournalIndex
           articles={articles}
           lang={lang}
-          language={<LanguageSwitch lang={lang} alternates={await homeAlternates()} heading />}
+          language={<LanguageSwitch lang={lang} alternates={alternates} heading />}
         />
       </PageShell>
     </>
