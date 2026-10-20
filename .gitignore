@@ -64,6 +64,8 @@ next-env.d.ts
 /yml-deploy-guide.md
 /screens
 /resources
+# brouillons du journal : lus par `npm run import-journal`, jamais publiés par le dépôt
+/content
 
 # éditeurs / IDE
 /.vscode
