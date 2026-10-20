@@ -79,6 +79,24 @@ export function extractUnits(post: SourcePost): Unit[] {
   return units;
 }
 
+/** Le champ de la version traduite d'une image (`journalImage`), par langue. */
+const IMAGE_FIELD = { en: 'imageEn', ru: 'imageRu' } as const;
+
+/**
+ * Le corps d'une traduction, images comprises (2026-10-20) : une image qui a
+ * sa version dans la langue (un schéma aux libellés traduits) la prend à la
+ * place de l'image française. Les versions des autres langues n'ont rien à
+ * faire dans la traduction : elles en sont retirées.
+ */
+export function localizeImages(body: Obj[], lang: keyof typeof IMAGE_FIELD): Obj[] {
+  return body.map((b) => {
+    if (b._type !== 'journalImage') return b;
+    const { imageEn: _en, imageRu: _ru, ...rest } = b;
+    const localized = b[IMAGE_FIELD[lang]];
+    return localized ? { ...rest, image: localized } : rest;
+  });
+}
+
 export type TranslatedFields = {
   title: string;
   dek: string;

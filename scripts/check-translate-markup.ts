@@ -18,7 +18,7 @@
 import { createClient } from '@sanity/client';
 import assert from 'node:assert/strict';
 import { parseMarkup, blockToMarkup, type PTBlock } from '../lib/journal/translate/markup';
-import { applyUnits, extractUnits, type SourcePost } from '../lib/journal/translate/units';
+import { applyUnits, extractUnits, localizeImages, type SourcePost } from '../lib/journal/translate/units';
 import { canonical, planUnits, readSnapshot, snapshotOf } from '../lib/journal/translate/incremental';
 
 let passed = 0;
@@ -114,6 +114,19 @@ function fabricated() {
   ok('unité manquante : refusée', () =>
     assert.throws(() => applyUnits({ _id: 'p', title: 'T', dek: 'D', body: [] }, [{ id: 'title', text: 'T' }]), /dek/),
   );
+  const img = (ref: string) => ({ _type: 'image', asset: { _type: 'reference', _ref: ref } });
+  const figure = { _key: 'i1', _type: 'journalImage', image: img('fr'), imageEn: img('en'), imageRu: img('ru'), alt: 'a' };
+  const plain = { _key: 'i2', _type: 'journalImage', image: img('photo'), alt: 'b' };
+  ok('image traduite : prise dans sa langue, les autres versions retirées', () => {
+    assert.deepEqual(localizeImages([figure, plain], 'ru'), [
+      { _key: 'i1', _type: 'journalImage', image: img('ru'), alt: 'a' },
+      plain,
+    ]);
+  });
+  ok('image sans version dans la langue : la française reste', () => {
+    const { imageEn: _en, ...ruOnly } = figure;
+    assert.deepEqual(localizeImages([ruOnly], 'en'), [{ _key: 'i1', _type: 'journalImage', image: img('fr'), alt: 'a' }]);
+  });
 }
 
 function incremental(posts: SourcePost[]) {
