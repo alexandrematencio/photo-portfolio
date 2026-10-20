@@ -203,6 +203,17 @@ export const journalImage = defineType({
   name: 'journalImage',
   title: 'Image',
   type: 'object',
+  // Une image qui porte du texte (schéma, graphique) a sa version traduite
+  // (2026-10-20) : la traduction de l'article la prend à la place de
+  // l'image française (`localizeImages`, lib/journal/translate/units.ts).
+  fieldsets: [
+    {
+      name: 'translated',
+      title: 'Versions traduites de l’image',
+      description: 'Seulement si l’image contient du texte. Prises par « Generate EN & RU » à la place de l’image française.',
+      options: { collapsible: true, collapsed: true },
+    },
+  ],
   fields: [
     defineField({
       name: 'image',
@@ -210,6 +221,20 @@ export const journalImage = defineType({
       type: 'image',
       options: { hotspot: true },
       validation: (Rule) => Rule.required().custom(assetWithinCap),
+    }),
+    defineField({
+      name: 'imageEn',
+      title: 'Image en anglais',
+      type: 'image',
+      fieldset: 'translated',
+      validation: (Rule) => Rule.custom(assetWithinCap),
+    }),
+    defineField({
+      name: 'imageRu',
+      title: 'Image en russe',
+      type: 'image',
+      fieldset: 'translated',
+      validation: (Rule) => Rule.custom(assetWithinCap),
     }),
     defineField({
       name: 'alt',

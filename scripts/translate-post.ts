@@ -39,7 +39,7 @@ import {
   type TranslationLang,
   type TranslationResult,
 } from '../lib/journal/translate/job';
-import { applyUnits, type SourcePost, type TranslatedFields } from '../lib/journal/translate/units';
+import { applyUnits, localizeImages, type SourcePost, type TranslatedFields } from '../lib/journal/translate/units';
 
 const MODEL = 'claude-opus-5-5';
 /** Une réponse invalide (unité manquante, appel de note perdu) est redemandée une fois. */
@@ -190,6 +190,7 @@ async function run(postId: string, onLang?: (lang: TranslationLang, result: Tran
           translationOf: { _type: 'reference', _ref: postId },
           slug: { _type: 'slug', current: slug },
           ...fields,
+          body: localizeImages(fields.body, lang),
           translationSource: source,
         };
         const counts = { translated: plan.pending.length, reused: plan.reused.size };
