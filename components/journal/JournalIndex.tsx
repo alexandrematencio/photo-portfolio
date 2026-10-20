@@ -5,7 +5,7 @@ import { DICT, THEME_PARAM, articlePath, seriesPath, type Lang } from '@/lib/jou
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StateDot } from '@/components/site/StateDot';
 import { ListSelector } from '@/components/site/ListSelector';
-import { EDITORIAL_SIDENOTE, MICRO_LABEL } from '@/lib/site/typography';
+import { EDITORIAL_SIDENOTE, MICRO_LABEL, PAGE_TITLE_GAP } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import type { ArticleSummary } from '@/lib/journal/types';
 
@@ -58,6 +58,9 @@ const DATE_COL = 128;
 
 /** Largeur de la colonne de filtres au-dessus de `md`. */
 const FILTER_COL = 220;
+
+/** Téléphone : écart drapeaux (bloc de titre) → onglets des filtres. */
+const MOBILE_FILTERS_GAP = 28;
 
 type Filter = { key: string; label: string; count: number };
 
@@ -181,9 +184,15 @@ export function JournalIndex({
 
   return (
     <div className="flex flex-col md:grid md:gap-x-12" style={{ gridTemplateColumns: `${FILTER_COL}px minmax(0, 1fr)` }}>
-      {/* FILTRES — téléphone */}
-      <div ref={mobileFilters} className="md:hidden" style={{ marginBottom: 32, scrollMarginTop: 16 }}>
-        <div style={{ marginBottom: 20 }}>{language}</div>
+      {/* FILTRES — téléphone. Les drapeaux vivent dans le bloc de titre
+          (`JournalHome`) : le bloc remonte vers eux, l'écart de page
+          (`PAGE_TITLE_GAP`) ramené à MOBILE_FILTERS_GAP — les onglets suivent
+          la langue au lieu d'attendre après un grand blanc (2026-10-20). */}
+      <div
+        ref={mobileFilters}
+        className="md:hidden"
+        style={{ marginTop: MOBILE_FILTERS_GAP - PAGE_TITLE_GAP, marginBottom: 32, scrollMarginTop: 16 }}
+      >
         {themes.length > 0 && (
           <div style={{ marginBottom: 12 }}>
             <FilterTabs idBase={`${tabsId}-m`} tab={tab} onTab={setTab} lit={lit} lang={lang} />
