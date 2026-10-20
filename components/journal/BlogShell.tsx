@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { interLatinCyrillic as inter } from '@/app/fonts/inter';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { SiteHeader } from '@/components/site/SiteHeader';
 import { SiteFooter } from '@/components/site/SiteFooter';
@@ -27,15 +27,9 @@ import type { MenuEntry } from '@/components/site/SitesMenu';
  * n'y sert qu'aux photos : ni hero, ni splash, ni garde des images.
  */
 
-// Cyrillique en plus du latin : le russe s'écrit en Inter comme le reste.
-// Les titres sont en Helvetica Neue / Arial système, qui ont le cyrillique.
-const inter = Inter({
-  subsets: ['latin', 'cyrillic'],
-  weight: ['400', '500', '700', '900'],
-  style: ['normal', 'italic'],
-  variable: '--font-inter',
-  display: 'swap',
-});
+// Cyrillique en plus du latin : le russe s'écrit en Inter comme le reste
+// (`interLatinCyrillic`). Les titres sont en Helvetica Neue / Arial système,
+// qui ont le cyrillique.
 
 export function blogLayoutMetadata(lang: Lang): Metadata {
   return {
