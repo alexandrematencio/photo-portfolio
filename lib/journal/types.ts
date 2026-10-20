@@ -32,6 +32,8 @@ export type JournalImage = {
   alt: string;
   /** Point d'intérêt (hotspot du Studio) en `object-position`, quand l'image est recadrée. */
   position: string;
+  /** Vignette de partage (`og:image`) : 1200 × 630, recadrée autour du hotspot. */
+  share: string;
 };
 
 /** Le contenu d'une phrase : du texte marqué, un appel de référence, une note à trancher. */
