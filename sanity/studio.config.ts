@@ -1,4 +1,4 @@
-import { defineConfig } from 'sanity';
+import { defineConfig, type DocumentActionsResolver } from 'sanity';
 import { BLOG_URL } from '@/lib/site/sites';
 import { structureTool } from 'sanity/structure';
 import { visionTool } from '@sanity/vision';
@@ -6,6 +6,8 @@ import { schemaTypes } from '@/sanity/schemas';
 import { buildStructure } from '@/sanity/structure';
 import { dashboardTool } from '@/sanity/tools';
 import { StudioLayout } from '@/sanity/components/StudioLayout';
+import { FormInputWithSummary } from '@/sanity/components/DocumentValidationSummary';
+import { studioMessagesFr } from '@/sanity/lib/studioMessagesFr';
 import {
   AssignToSeriesAction,
   createDatedPublishAction,
@@ -15,6 +17,7 @@ import {
   GenerateTranslationsAction,
   ToggleFunnelAction,
   ToggleVisibilityAction,
+  withExplainedPublish,
 } from '@/sanity/actions';
 // PhotoPreviewView / SiteSettingsPreviewView volontairement non importés (désactivés
 // — voir le commentaire `defaultDocumentNode` ci-dessous). Les fichiers restent dans
@@ -109,6 +112,67 @@ const PHOTO_AXIS_TEMPLATES = [
   },
 ];
 
+/** Les actions de chaque type, avant l'infobulle de Publish (`withExplainedPublish`). */
+const resolveActions: DocumentActionsResolver = (prev, { schemaType }) => {
+    // Strip duplicate/delete/unpublish actions on singleton docs.
+    if (SINGLETON_TYPES.has(schemaType)) {
+      return prev.filter(
+        ({ action }) => !action || !SINGLETON_FORBIDDEN_ACTIONS.has(action)
+      );
+    }
+    // « Ajouter à une série » : disponible sur toute photo ouverte, quel que
+    // soit l'onglet de Photos d'où l'on vient (une action document ne dépend
+    // pas du panneau). Complète le champ `series` du formulaire, qui reste
+    // utilisable directement.
+    //
+    // Delete natif REMPLACÉ par DeletePhotoAction : une photo référencée
+    // (photoOrder, coverPhoto, curation) était insupprimable — l'action
+    // custom détache les références en une transaction avant de supprimer.
+    //
+    // « Masquer du site » : un clic, écrit tout de suite, sans Publish
+    // (cf. ToggleVisibilityAction).
+    if (schemaType === 'photo') {
+      return [
+        ...prev.map((action) =>
+          action.action === 'delete' ? DeletePhotoAction : action
+        ),
+        ToggleVisibilityAction,
+        AssignToSeriesAction,
+        // Funnel curation (tunnel design-folio) : même doctrine qu'au
+        // masquage — un clic, écrit tout de suite. Cf. ToggleFunnelAction.
+        ToggleFunnelAction,
+      ];
+    }
+    // Idem côté série : une série référencée par ses photos (`photo.series[]`)
+    // ou par `siteSettings.seriesOrder` était insupprimable. L'action custom
+    // détache ces liens — sans jamais supprimer une seule photo.
+    if (schemaType === 'series') {
+      return prev.map((action) =>
+        action.action === 'delete' ? DeleteSeriesAction : action
+      );
+    }
+    // Une thématique posée sur des articles : même détachement.
+    if (schemaType === 'journalTag') {
+      return prev.map((action) =>
+        action.action === 'delete' ? DeleteTagAction : action
+      );
+    }
+    // Journal : sur un article FRANÇAIS, Publish et traduction sont DEUX
+    // gestes (2026-10-18 au soir) — Alexandre relit le français en ligne,
+    // puis lance « Generate EN & RU », qui ne retraduit que ce qui a changé.
+    // Les deux actions se rendent au natif / à rien sur une traduction ;
+    // voir GenerateTranslationsAction et lib/journal/translate/.
+    if (schemaType === 'post') {
+      const actions = prev.map((action) =>
+        action.action === 'publish' ? createDatedPublishAction(action) : action
+      );
+      const at = actions.findIndex((a) => a.action === 'publish');
+      actions.splice(at + 1, 0, GenerateTranslationsAction);
+      return actions;
+    }
+    return prev;
+};
+
 export const studioConfig = defineConfig({
   name: 'amatencio-photo',
   title: 'A. Matencio — Studio',
@@ -144,6 +208,12 @@ export const studioConfig = defineConfig({
   // Habillage des en-têtes de colonnes de Structure (bande, filet, chevron,
   // clavier) — une feuille de style posée une fois, sur le DOM natif.
   studio: { components: { layout: StudioLayout } },
+  // Ce qui bloque un document, dit en français et en clair (2026-10-20) :
+  // résumé des erreurs en tête de chaque formulaire, infobulle sur les
+  // onglets à pastille, messages natifs de validation et de Publish traduits.
+  // L'infobulle détaillée de Publish est posée dans `document.actions`.
+  form: { components: { input: FormInputWithSummary } },
+  i18n: { bundles: studioMessagesFr },
   schema: {
     types: schemaTypes,
     templates: (prev) => [
@@ -156,65 +226,12 @@ export const studioConfig = defineConfig({
     ],
   },
   document: {
-    actions: (prev, { schemaType }) => {
-      // Strip duplicate/delete/unpublish actions on singleton docs.
-      if (SINGLETON_TYPES.has(schemaType)) {
-        return prev.filter(
-          ({ action }) => !action || !SINGLETON_FORBIDDEN_ACTIONS.has(action)
-        );
-      }
-      // « Ajouter à une série » : disponible sur toute photo ouverte, quel que
-      // soit l'onglet de Photos d'où l'on vient (une action document ne dépend
-      // pas du panneau). Complète le champ `series` du formulaire, qui reste
-      // utilisable directement.
-      //
-      // Delete natif REMPLACÉ par DeletePhotoAction : une photo référencée
-      // (photoOrder, coverPhoto, curation) était insupprimable — l'action
-      // custom détache les références en une transaction avant de supprimer.
-      //
-      // « Masquer du site » : un clic, écrit tout de suite, sans Publish
-      // (cf. ToggleVisibilityAction).
-      if (schemaType === 'photo') {
-        return [
-          ...prev.map((action) =>
-            action.action === 'delete' ? DeletePhotoAction : action
-          ),
-          ToggleVisibilityAction,
-          AssignToSeriesAction,
-          // Funnel curation (tunnel design-folio) : même doctrine qu'au
-          // masquage — un clic, écrit tout de suite. Cf. ToggleFunnelAction.
-          ToggleFunnelAction,
-        ];
-      }
-      // Idem côté série : une série référencée par ses photos (`photo.series[]`)
-      // ou par `siteSettings.seriesOrder` était insupprimable. L'action custom
-      // détache ces liens — sans jamais supprimer une seule photo.
-      if (schemaType === 'series') {
-        return prev.map((action) =>
-          action.action === 'delete' ? DeleteSeriesAction : action
-        );
-      }
-      // Une thématique posée sur des articles : même détachement.
-      if (schemaType === 'journalTag') {
-        return prev.map((action) =>
-          action.action === 'delete' ? DeleteTagAction : action
-        );
-      }
-      // Journal : sur un article FRANÇAIS, Publish et traduction sont DEUX
-      // gestes (2026-10-18 au soir) — Alexandre relit le français en ligne,
-      // puis lance « Generate EN & RU », qui ne retraduit que ce qui a changé.
-      // Les deux actions se rendent au natif / à rien sur une traduction ;
-      // voir GenerateTranslationsAction et lib/journal/translate/.
-      if (schemaType === 'post') {
-        const actions = prev.map((action) =>
-          action.action === 'publish' ? createDatedPublishAction(action) : action
-        );
-        const at = actions.findIndex((a) => a.action === 'publish');
-        actions.splice(at + 1, 0, GenerateTranslationsAction);
-        return actions;
-      }
-      return prev;
-    },
+    // Toute action Publish passe par `withExplainedPublish` : grisée, son
+    // infobulle liste les erreurs qui la bloquent.
+    actions: (prev, context) =>
+      resolveActions(prev, context).map((action) =>
+        action.action === 'publish' ? withExplainedPublish(action) : action
+      ),
     // "Open preview" link in the document menu — same URL pattern as the
     // preview pane, hash-based for static-export compatibility.
     productionUrl: async (prev, { document }) => {
