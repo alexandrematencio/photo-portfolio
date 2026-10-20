@@ -226,7 +226,7 @@ export function JournalIndex({
         {language}
         {themes.length === 0 || tab === 'series' ? (
           <FilterGroup
-            heading={themes.length ? <FilterTabs idBase={`${tabsId}-d`} tab={tab} onTab={setTab} lit={lit} lang={lang} /> : t.seriesHeading}
+            heading={themes.length ? <FilterTabs idBase={`${tabsId}-d`} tab={tab} onTab={setTab} lit={lit} lang={lang} rule /> : t.seriesHeading}
             panelId={themes.length ? `${tabsId}-d-series` : undefined}
             items={filters}
             value={series}
@@ -236,7 +236,7 @@ export function JournalIndex({
           </FilterGroup>
         ) : (
           <FilterGroup
-            heading={<FilterTabs idBase={`${tabsId}-d`} tab={tab} onTab={setTab} lit={lit} lang={lang} />}
+            heading={<FilterTabs idBase={`${tabsId}-d`} tab={tab} onTab={setTab} lit={lit} lang={lang} rule />}
             panelId={`${tabsId}-d-themes`}
             items={themes}
             value={theme}
@@ -323,7 +323,7 @@ function FilterGroup({
     <div className="flex flex-col">
       <div
         className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}
-        style={{ paddingBottom: 12, borderBottom: '1px solid var(--color-line)' }}
+        style={{ paddingBottom: TAB_RULE_GAP, borderBottom: '1px solid var(--color-line)' }}
       >
         {heading}
       </div>
@@ -367,19 +367,31 @@ function FilterGroup({
  * l'encre, l'autre en gris. ← / → passent de l'un à l'autre (motif ARIA des
  * onglets). Le voyant ne s'allume que sur un onglet FERMÉ dont le filtre trie
  * encore : sur l'onglet ouvert, la liste le montre déjà.
+ *
+ * Sur la colonne desktop (`rule`, 2026-10-20 — « Thématiques » ne se voyait
+ * pas) : les deux onglets se partagent la largeur, le second fer à droite, et
+ * l'ouvert pose un trait d'encre de 2 px SUR le filet du groupe — l'onglet se
+ * lit comme un onglet, pas comme un gris un peu plus foncé.
  */
+
+/** Écart étiquette → filet sous les onglets ; doit rester égal au `paddingBottom` de `FilterGroup`. */
+const TAB_RULE_GAP = 12;
+
 function FilterTabs({
   idBase,
   tab,
   onTab,
   lit,
   lang,
+  rule = false,
 }: {
   idBase: string;
   tab: Tab;
   onTab: (tab: Tab) => void;
   lit: Record<Tab, boolean>;
   lang: Lang;
+  /** Posé au-dessus du filet de `FilterGroup` : onglets justifiés, trait sous l'ouvert. */
+  rule?: boolean;
 }) {
   const t = DICT[lang];
   const tabs: [Tab, string][] = [
@@ -388,7 +400,11 @@ function FilterTabs({
   ];
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
   return (
-    <div role="tablist" aria-label={t.filters} className={cn(MICRO_LABEL, 'flex items-center gap-4')}>
+    <div
+      role="tablist"
+      aria-label={t.filters}
+      className={cn(MICRO_LABEL, 'flex items-center gap-4 text-[13px] tracking-[0.02em]', rule && 'justify-between')}
+    >
       {tabs.map(([key, label]) => {
         const on = key === tab;
         return (
@@ -412,12 +428,23 @@ function FilterTabs({
               refs.current[next]?.focus();
             }}
             className={cn(
-              'flex items-center gap-[6px] uppercase transition-colors duration-200 motion-reduce:transition-none',
+              'relative flex items-center gap-[6px] uppercase transition-colors duration-200 motion-reduce:transition-none',
               on ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
             )}
           >
             {label}
             {!on && lit[key] && <StateDot on />}
+            {rule && (
+              <span
+                aria-hidden
+                className={cn(
+                  'absolute inset-x-0 bg-[var(--color-fg)] transition-opacity duration-200 ease-out motion-reduce:transition-none',
+                  on ? 'opacity-100' : 'opacity-0',
+                )}
+                // 2 px dont le bas couvre exactement le filet de 1 px.
+                style={{ bottom: -(TAB_RULE_GAP + 1), height: 2 }}
+              />
+            )}
           </button>
         );
       })}
