@@ -173,6 +173,8 @@ export async function articleMetadata(lang: Lang, { params }: SlugParams): Promi
     title: article.seoTitle ?? article.title,
     description: article.seoDescription ?? article.dek,
     path: articlePath(slug, lang),
+    // Sans couverture : la vignette du journal (buildMetadata).
+    image: article.cover?.share,
     lang,
     alternates: article.alternates,
     article: {

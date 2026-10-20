@@ -58,6 +58,9 @@ export function imageOf(raw: RawImage | undefined): JournalImage | null {
     height: Math.round(dims.height * (1 - top - bottom)),
     alt: raw.alt?.trim() ?? '',
     position: `${Math.round(x * 100)}% ${Math.round(y * 100)}%`,
+    // JPEG imposé : `auto('format')` négocie sur l'en-tête Accept, et les
+    // robots de partage n'en envoient pas toujours un qui serve du WebP.
+    share: base.width(1200).height(630).fit('crop').format('jpg').quality(82).url(),
   };
 }
 

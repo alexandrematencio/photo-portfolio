@@ -49,7 +49,9 @@ export function buildMetadata(opts: {
   // slash désignerait donc une URL qui REDIRIGE vers la vraie — l'inverse de ce
   // qu'une canonical est censée faire.
   const url = `${SITE_URL}${withSlash(opts.path ?? '/')}`;
-  const image = opts.image ?? `${SITE_URL}/og-default.jpg`;
+  // Repli du journal : le glyphe seul (scripts/make-og-journal.ts) — une photo
+  // du portfolio y passerait pour l'illustration de l'article.
+  const image = opts.image ?? `${SITE_URL}/${IS_BLOG ? 'og-journal.png' : 'og-default.jpg'}`;
 
   return {
     metadataBase: new URL(SITE_URL),
