@@ -3,6 +3,7 @@ import { PageShell } from '@/components/site/PageShell';
 import { ArticleBody } from '@/components/journal/ArticleBody';
 import { BackLink } from '@/components/journal/BackLink';
 import { LanguageSwitch } from '@/components/journal/LanguageSwitch';
+import { ReadingProgress } from '@/components/journal/ReadingProgress';
 import { TagSwatch } from '@/components/journal/TagSwatch';
 import { DICT, homePath, seriesPath, themePath } from '@/lib/journal/i18n';
 import type { Article, ArticleSummary } from '@/lib/journal/types';
@@ -46,6 +47,7 @@ export function ArticleView({
       title={article.title}
       back={<BackLink lang={lang} href={article.seriesSlug ? seriesPath(article.seriesSlug, lang) : homePath(lang)} />}
       language={<LanguageSwitch lang={lang} alternates={article.alternates} />}
+      progress={{ rail: <ReadingProgress variant="rail" />, top: <ReadingProgress variant="top" /> }}
       centered
       titleSize="calc(var(--page-title-size) * var(--article-title-scale))"
       subtitle={
@@ -60,11 +62,17 @@ export function ArticleView({
                   {m}
                 </time>
               ) : m === seriesLabel && article.seriesSlug ? (
-                // La série mène à sa page : le sujet entier, pas seulement cet article.
+                // La série mène à sa page : le sujet entier, pas seulement cet
+                // article. Bleu du logo, orange au survol — les couleurs de la
+                // marque de série de l'accueil (JournalIndex, 2026-10-22).
                 <Link
                   key={m}
                   href={seriesPath(article.seriesSlug, lang)}
-                  className="underline decoration-[var(--color-line)] underline-offset-4 hover:text-[var(--color-fg)] hover:decoration-current"
+                  className={cn(
+                    'text-[var(--color-accent)] underline decoration-transparent underline-offset-4',
+                    'transition-colors duration-200 motion-reduce:transition-none',
+                    'hover:text-[var(--color-active-bg)] hover:decoration-current focus-visible:text-[var(--color-active-bg)] focus-visible:decoration-current',
+                  )}
                 >
                   {m}
                 </Link>
