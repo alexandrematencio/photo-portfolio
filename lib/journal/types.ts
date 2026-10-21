@@ -14,6 +14,14 @@ export type Verdict = { idea: string; prior: string; verdict: string; kind: Verd
 
 export type InlineMark = 'strong' | 'em' | 'cite';
 
+/**
+ * Lien posé sur un passage. `article` : l'_id d'un article original, que
+ * `fetchCorpus` (articles.ts) remplace par l'adresse de sa version dans la
+ * langue de l'article qui le cite. Non résolu (aperçu du Studio), il se rend
+ * sans adresse.
+ */
+export type InlineLink = { href: string } | { article: string };
+
 /** Les figures dessinées (components/journal/figures/) — la liste du champ « Figure » du Studio. */
 export const FIGURE_NAMES = ['loop', 'cascade', 'bridge', 'bubble', 'drift', 'exposure', 'generations', 'layers', 'shock'] as const;
 export type FigureName = (typeof FIGURE_NAMES)[number];
@@ -38,7 +46,7 @@ export type JournalImage = {
 
 /** Le contenu d'une phrase : du texte marqué, un appel de référence, une note à trancher. */
 export type Inline =
-  | { t: 'text'; text: string; marks: InlineMark[] }
+  | { t: 'text'; text: string; marks: InlineMark[]; link?: InlineLink }
   | { t: 'ref'; key: string }
   | { t: 'draft'; text: string };
 

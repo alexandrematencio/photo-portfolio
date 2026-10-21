@@ -599,7 +599,36 @@ export const post = defineType({
               { title: 'Emphase', value: 'em' },
               { title: 'Titre d’œuvre', value: 'cite' },
             ],
-            annotations: [],
+            // Lien dans le texte (2026-10-21) : vers un article du journal —
+            // la traduction pointe alors la version de sa langue (articles.ts) —
+            // ou vers une adresse extérieure.
+            annotations: [
+              defineArrayMember({
+                name: 'journalLink',
+                title: 'Lien',
+                type: 'object',
+                fields: [
+                  defineField({
+                    name: 'article',
+                    title: 'Article du journal',
+                    description: 'La version anglaise ou russe de l’article renverra vers l’article dans sa langue, s’il est traduit.',
+                    type: 'reference',
+                    to: [{ type: 'post' }],
+                    options: { filter: '!defined(translationOf)' },
+                  }),
+                  defineField({
+                    name: 'href',
+                    title: 'Ou adresse extérieure',
+                    type: 'url',
+                    validation: (Rule) => Rule.uri({ scheme: ['http', 'https', 'mailto'] }),
+                  }),
+                ],
+                validation: (Rule) =>
+                  Rule.custom((value: { article?: unknown; href?: string } | undefined) =>
+                    value?.article || value?.href ? true : 'Choisir un article ou donner une adresse.',
+                  ),
+              }),
+            ],
           },
           of: [defineArrayMember({ type: 'journalNoteRef' }), defineArrayMember({ type: 'journalDraftNote' })],
         }),

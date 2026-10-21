@@ -9,11 +9,12 @@ import {
   EDITORIAL_LEAD,
   EDITORIAL_PULLQUOTE,
   EDITORIAL_SIDENOTE,
+  JOURNAL_LINK_DECORATION,
   MICRO_LABEL,
 } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import { AUTHOR_NAME } from '@/lib/site/author';
-import type { Article, ArticleSummary, Inline, InlineMark } from '@/lib/journal/types';
+import type { Article, ArticleSummary, Inline, InlineLink, InlineMark } from '@/lib/journal/types';
 import { StateDot } from '@/components/site/StateDot';
 import { DraftLabel, NoteCall, NoteRow, NotesProvider, type RowNote } from './Notes';
 import { JournalFigure } from './figures';
@@ -68,9 +69,24 @@ function renderMarked(text: string, marks: InlineMark[], key: number): ReactNode
   return <Fragment key={key}>{node}</Fragment>;
 }
 
+/** Un passage lié. Sans adresse (article cible non résolu, aperçu du Studio) : la couleur seule. */
+function renderLinked(node: ReactNode, link: InlineLink, key: number): ReactNode {
+  if (!('href' in link)) return <span key={key} className={JOURNAL_LINK_DECORATION}>{node}</span>;
+  if (link.href.startsWith('/'))
+    return <Link key={key} href={link.href} className={JOURNAL_LINK_DECORATION}>{node}</Link>;
+  return (
+    <a key={key} href={link.href} target="_blank" rel="noopener noreferrer" className={JOURNAL_LINK_DECORATION}>
+      {node}
+    </a>
+  );
+}
+
 function renderInline(nodes: Inline[], numbering?: Numbering): ReactNode[] {
   return nodes.map((node, i) => {
-    if (node.t === 'text') return renderMarked(node.text, node.marks, i);
+    if (node.t === 'text') {
+      const marked = renderMarked(node.text, node.marks, i);
+      return node.link ? renderLinked(marked, node.link, i) : marked;
+    }
     if (!numbering) return null;
     if (node.t === 'ref') {
       const id = numbering.refs.get(node.key);

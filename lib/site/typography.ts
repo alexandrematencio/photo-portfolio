@@ -177,6 +177,17 @@ export const EDITORIAL_LINK_DECORATION =
   'text-[var(--color-link)] hover:text-[var(--color-link-hover)] underline underline-offset-[6px] decoration-2 transition-colors motion-reduce:transition-none';
 
 /**
+ * Lien dans le texte d'un article du journal (blog.amatencio.com) : bleu du
+ * logo, orange au survol, soulignement noir. Arbitrage d'Alexandre du
+ * 2026-10-21, qui déroge pour le journal à la règle du brand book (cobalt
+ * réservé au glyph et aux états actifs) ; le site photo garde
+ * `EDITORIAL_LINK_DECORATION`. Le cobalt fait plus de 8:1 sur le papier,
+ * l'orange de survol 3,59:1 — acceptable sur un état passager.
+ */
+export const JOURNAL_LINK_DECORATION =
+  'text-[var(--color-accent)] hover:text-[var(--color-link)] underline underline-offset-[4px] decoration-1 decoration-[var(--color-fg)] transition-colors motion-reduce:transition-none';
+
+/**
  * Corps de texte + lien : même échelle, orange de marque, soulignement épais.
  *
  * ⚠️ `cn()` et PAS une concaténation : `EDITORIAL_BODY` porte

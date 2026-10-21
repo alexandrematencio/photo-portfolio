@@ -38,6 +38,7 @@ A unit may also carry "previousSource" (the French as it was) and "previousTrans
 
 Markup inside a unit
 - <b>…</b>, <i>…</i>, <cite>…</cite> mark bold, emphasis and titles of works. Put each tag around the equivalent words of your translation. Keep the tags balanced and never cross them.
+- <a id="…">…</a> is a link. Put it around the words of your translation that carry the same meaning as the linked French words. Keep each link, never change, add or drop an id.
 - <ref id="…"/> is a footnote call; <note id="…"/> is an editorial note. Keep each one exactly once, attached to the same word or claim as in the French (its position may move to follow ${LANGUAGE[lang]} word order). Never change, add or drop an id.
 - &amp; &lt; &gt; are escaped characters: keep them escaped.
 
