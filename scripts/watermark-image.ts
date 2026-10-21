@@ -19,12 +19,18 @@ import { exifRights, xmpRights } from './image-rights';
  *  « Alexandre Matencio » pour les données structurées). */
 export const WATERMARK_TEXT = '© Alexandre Xavier Matencio';
 
+/** Le papier du site (`--color-bg`), sur lequel une image transparente est vue. */
+const PAPER = '#fafaf8';
+
 function xmlEscape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** Nombre de signatures, réparties sur l'axe vertical central. */
-const COPIES = 3;
+/** Signatures au plus, réparties sur l'axe vertical central. */
+const MAX_COPIES = 3;
+/** Hauteur réservée à chaque signature, en corps de texte : un schéma bas
+ *  (une frise de 223 px) n'en porte qu'une, au lieu de trois serrées. */
+const COPY_SPACING = 10;
 
 /**
  * Le calque du filigrane, en SVG, aux dimensions de l'image : trois fois le
@@ -32,17 +38,18 @@ const COPIES = 3;
  * diagonal sur toute la surface rendait le schéma illisible (2026-10-21) —
  * Alexandre veut un filigrane qu'on voit quand on le cherche, pas avant.
  */
-export function watermarkSvg(width: number, height: number): string {
+export function watermarkSvg(width: number, height: number, ink: '#000' | '#fff' = '#000'): string {
   const text = xmlEscape(WATERMARK_TEXT);
   const font = Math.round(Math.max(14, width * 0.016));
-  const lines = Array.from({ length: COPIES }, (_, i) => {
-    const y = Math.round((height * (i + 1)) / (COPIES + 1));
+  const copies = Math.max(1, Math.min(MAX_COPIES, Math.floor(height / (font * COPY_SPACING))));
+  const lines = Array.from({ length: copies }, (_, i) => {
+    const y = Math.round((height * (i + 1)) / (copies + 1));
     return `<text x="${width / 2}" y="${y}">${text}</text>`;
   });
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
     `<g font-family="Helvetica, Arial, sans-serif" font-size="${font}"` +
-    ` text-anchor="middle" fill="#000" fill-opacity="0.09">${lines.join('')}</g>` +
+    ` text-anchor="middle" fill="${ink}" fill-opacity="${ink === '#000' ? 0.09 : 0.08}">${lines.join('')}</g>` +
     `</svg>`
   );
 }
@@ -51,8 +58,16 @@ export async function watermark(input: string, output: string): Promise<void> {
   const image = sharp(input);
   const { width, height } = await image.metadata();
   if (!width || !height) throw new Error(`Dimensions illisibles : ${input}`);
+  // Encre selon le fond : noir sur un schéma clair, blanc sur une maquette
+  // sombre — le noir y disparaîtrait tout à fait. Mesuré sur le papier du
+  // site : un PNG transparent sans alpha se lirait noir. `stats()` lit
+  // l'image d'ENTRÉE, pas le pipeline : on aplatit d'abord dans un buffer.
+  const flat = await sharp(input).flatten({ background: PAPER }).toBuffer();
+  const { channels } = await sharp(flat).stats();
+  const mean = channels.slice(0, 3).reduce((sum, c) => sum + c.mean, 0) / 3;
+  const ink = mean < 128 ? '#fff' : '#000';
   await image
-    .composite([{ input: Buffer.from(watermarkSvg(width, height)), top: 0, left: 0 }])
+    .composite([{ input: Buffer.from(watermarkSvg(width, height, ink)), top: 0, left: 0 }])
     .withExif(exifRights())
     .withXmp(xmpRights())
     .png({ compressionLevel: 9 })
