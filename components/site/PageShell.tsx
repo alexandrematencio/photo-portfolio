@@ -90,12 +90,19 @@ export function PageShell({
   centered = false,
   back,
   language,
+  progress,
 }: {
   title: ReactNode;
   /** Lien de retour (journal : `BackLink`) — dans le rail. Facultatif. */
   back?: ReactNode;
   /** Sélecteur de langue (journal : `LanguageSwitch`) — sous le retour, dans le rail. */
   language?: ReactNode;
+  /**
+   * Avancement de lecture (journal : `ReadingProgress`), sous ses deux formes :
+   * `rail` sous les drapeaux dès `xl`, `top` collée en tête du défilement en
+   * dessous. L'article prend alors `data-reading` — c'est lui qu'elles mesurent.
+   */
+  progress?: { rail: ReactNode; top: ReactNode };
   /**
    * Corps du titre quand ce n'est pas un MOT de page mais une PHRASE — un
    * titre d'article du journal fait douze mots, et au corps unique il
@@ -139,6 +146,7 @@ export function PageShell({
   const hasRail = Boolean(back || language);
   const page = (
     <article
+      data-reading={progress ? '' : undefined}
       // `gap` en style inline plutôt qu'en utility Tailwind : il échappe au
       // reset `* { padding: 0 }` (qui ne parle que de padding et de margin),
       // et une seule valeur suffit aux deux largeurs — rien à rendre
@@ -179,20 +187,41 @@ export function PageShell({
 
   if (!hasRail) return page;
   return (
-    <div
-      className="xl:grid"
-      style={{ gridTemplateColumns: `${RAIL_WIDTH}px minmax(0, ${maxWidth ?? EDITORIAL_WIDTH}px) ${RAIL_WIDTH}px`, justifyContent: 'center' }}
-    >
-      {/* La cellule court sur toute la hauteur de l'article : c'est elle qui
-          borne le collant. Le rail se cale sur son bord DROIT, contre la
-          gouttière de l'article. */}
-      <div className="hidden xl:block">
-        <div className="sticky flex flex-col items-end gap-5" style={{ top: RAIL_STICKY_TOP }}>
-          {back}
-          {language}
+    <div className="relative">
+      {/* Sous `xl`, l'avancement est une ligne pleine largeur collée en haut du
+          défilement. Elle remonte de l'air haut de <main> pour partir du bord
+          du conteneur, et le lui rend dessous : le flux ne bouge pas. */}
+      {progress && (
+        <div
+          className="sticky top-0 z-20 xl:hidden"
+          style={{ marginTop: 'calc(-1 * var(--page-air-top))', marginBottom: 'calc(var(--page-air-top) - 3px)' }}
+        >
+          {progress.top}
         </div>
+      )}
+      <div
+        className="xl:grid"
+        style={{ gridTemplateColumns: `${RAIL_WIDTH}px minmax(0, ${maxWidth ?? EDITORIAL_WIDTH}px) ${RAIL_WIDTH}px`, justifyContent: 'center' }}
+      >
+        {/* La cellule court sur toute la hauteur de l'article : c'est elle qui
+            borne le collant. Le rail se cale sur son bord DROIT, contre la
+            gouttière de l'article. La barre d'avancement prend la largeur des
+            drapeaux (`inline-flex` + `stretch`). */}
+        <div className="hidden xl:block">
+          <div className="sticky flex flex-col items-end gap-5" style={{ top: RAIL_STICKY_TOP }}>
+            {back}
+            {progress ? (
+              <div className="inline-flex flex-col gap-3">
+                {language}
+                {progress.rail}
+              </div>
+            ) : (
+              language
+            )}
+          </div>
+        </div>
+        {page}
       </div>
-      {page}
     </div>
   );
 }
