@@ -31,7 +31,7 @@ export const postsQuery = /* groq */ `
     "seriesId": select(defined(translationOf) => translationOf->series._ref, series._ref),
     "part": select(defined(translationOf) => translationOf->part, part),
     // Une traduction porte les thématiques de son original.
-    "tags": select(defined(translationOf) => translationOf->tags, tags)[]->{ "slug": slug.current, title, translations },
+    "tags": select(defined(translationOf) => translationOf->tags, tags)[]->{ "slug": slug.current, title, "color": color.hex, translations },
     referencesNote,
     seoTitle,
     seoDescription,

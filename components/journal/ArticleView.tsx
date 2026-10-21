@@ -3,6 +3,7 @@ import { PageShell } from '@/components/site/PageShell';
 import { ArticleBody } from '@/components/journal/ArticleBody';
 import { BackLink } from '@/components/journal/BackLink';
 import { LanguageSwitch } from '@/components/journal/LanguageSwitch';
+import { TagSwatch } from '@/components/journal/TagSwatch';
 import { DICT, homePath, seriesPath, themePath } from '@/lib/journal/i18n';
 import type { Article, ArticleSummary } from '@/lib/journal/types';
 import { EDITORIAL_H3, MICRO_LABEL } from '@/lib/site/typography';
@@ -76,8 +77,9 @@ export function ArticleView({
               <Link
                 key={tag.slug}
                 href={themePath(tag.slug, lang)}
-                className="underline decoration-[var(--color-line)] underline-offset-4 hover:text-[var(--color-fg)] hover:decoration-current"
+                className="inline-flex items-center gap-[6px] underline decoration-[var(--color-line)] underline-offset-4 hover:text-[var(--color-fg)] hover:decoration-current"
               >
+                <TagSwatch color={tag.color} />
                 {tag.title}
               </Link>
             ))}

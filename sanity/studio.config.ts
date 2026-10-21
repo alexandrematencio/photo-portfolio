@@ -2,6 +2,7 @@ import { defineConfig, type DocumentActionsResolver } from 'sanity';
 import { BLOG_URL } from '@/lib/site/sites';
 import { structureTool } from 'sanity/structure';
 import { visionTool } from '@sanity/vision';
+import { colorInput } from '@sanity/color-input';
 import { schemaTypes } from '@/sanity/schemas';
 import { buildStructure } from '@/sanity/structure';
 import { dashboardTool } from '@/sanity/tools';
@@ -202,6 +203,8 @@ export const studioConfig = defineConfig({
           : S.document().views([S.view.form()]),
     }),
     visionTool({ defaultApiVersion: apiVersion }),
+    // Le type `color` (sélecteur teinte/saturation + hex) : couleur des thématiques du journal.
+    colorInput(),
   ],
   // Dashboard registered first → becomes the default landing route in /studio.
   tools: (prev) => [dashboardTool, ...prev],

@@ -188,6 +188,7 @@ export function seriesIn(doc: RawSeries, lang: Lang) {
 export type RawTag = {
   slug?: string | null;
   title?: string | null;
+  color?: string | null;
   translations?: Partial<Record<Lang, { title?: string }>>;
 };
 
@@ -197,6 +198,7 @@ export function tagsIn(raws: RawPost['tags'], lang: Lang): JournalTag[] {
     .map((t) => ({
       slug: t.slug,
       title: (lang === DEFAULT_LANG ? undefined : t.translations?.[lang]?.title?.trim()) || t.title,
+      color: t.color ?? null,
     }));
 }
 
