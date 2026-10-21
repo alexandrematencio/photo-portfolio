@@ -548,7 +548,7 @@ export const post = defineType({
       name: 'cover',
       title: 'Image de couverture',
       description:
-        'Révélée au survol de l’article, sur la page d’accueil du journal. Recadrée en portrait (4:5) : placer le point d’intérêt avec le bouton de recadrage. Les traductions reprennent celle-ci.',
+        'Révélée au survol de l’article, sur la page d’accueil du journal, dans un cadre portrait 4:5 qui ne change jamais. Une image plus large est rognée sur les côtés, une plus haute en haut et en bas : un carré y perd 10 % à gauche et à droite. Fournir du 4:5 (1600 × 2000 px) pour la voir entière. Dans l’outil de recadrage, le rectangle (crop) est respecté ; du point d’intérêt (hotspot), seul le CENTRE compte, sa taille est ignorée, et les aperçus qu’affiche le Studio ne sont pas ceux du site. Les traductions reprennent celle-ci.',
       type: 'image',
       options: { hotspot: true },
       hidden: ({ document }) => isTranslation(document),
