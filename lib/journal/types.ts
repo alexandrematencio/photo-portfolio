@@ -55,7 +55,8 @@ export type ArticleBlock =
   | { type: 'draft'; text: string };
 
 /** Une thématique, nommée dans la langue de l'article (`?theme=<slug>` filtre l'accueil). */
-export type JournalTag = { slug: string; title: string };
+/** `color` : hex choisi dans le Studio, `null` sans couleur. */
+export type JournalTag = { slug: string; title: string; color: string | null };
 
 /** Ce que la page d'accueil du journal sait d'un article — pas son corps. */
 export type ArticleSummary = {

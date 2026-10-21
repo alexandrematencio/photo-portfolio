@@ -1,3 +1,4 @@
+import { createElement } from 'react';
 import { defineArrayMember, defineField, defineType } from 'sanity';
 import { NoteRefInput } from '../inputs/NoteRefInput';
 import { assetWithinCap } from '../validation/assetWithinCap';
@@ -435,11 +436,22 @@ export const journalTag = defineType({
       options: { source: 'title' },
       validation: (Rule) => Rule.required(),
     }),
+    defineField({
+      name: 'color',
+      title: 'Couleur',
+      description: 'Le petit carré posé devant le nom, dans l’index et sur les articles. Le nom, lui, reste gris : la couleur repère, elle n’écrit pas. Vide : pas de carré.',
+      type: 'color',
+      options: { disableAlpha: true },
+    }),
     translationsField(() => [defineField({ name: 'title', title: 'Nom', type: 'string' })]),
   ],
   preview: {
-    select: { title: 'title', en: 'translations.en.title', ru: 'translations.ru.title' },
-    prepare: ({ title, en, ru }) => ({ title, subtitle: [en, ru].filter(Boolean).join(' · ') || 'Pas encore traduite' }),
+    select: { title: 'title', en: 'translations.en.title', ru: 'translations.ru.title', color: 'color.hex' },
+    prepare: ({ title, en, ru, color }) => ({
+      title,
+      subtitle: [en, ru].filter(Boolean).join(' · ') || 'Pas encore traduite',
+      media: color ? createElement('span', { style: { display: 'block', width: '100%', height: '100%', backgroundColor: color } }) : undefined,
+    }),
   },
 });
 

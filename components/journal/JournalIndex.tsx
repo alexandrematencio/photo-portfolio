@@ -7,6 +7,7 @@ import { StateDot } from '@/components/site/StateDot';
 import { ListSelector } from '@/components/site/ListSelector';
 import { EDITORIAL_SIDENOTE, MICRO_LABEL, PAGE_TITLE_GAP } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
+import { TagSwatch } from '@/components/journal/TagSwatch';
 import type { ArticleSummary } from '@/lib/journal/types';
 
 /**
@@ -24,11 +25,14 @@ import type { ArticleSummary } from '@/lib/journal/types';
  * Sous `md`, la colonne de filtres devient un module `ListSelector` (le
  * composant unique du site pour une rangée de choix sur téléphone).
  *
- * Une ligne qui appartient à une série le dit à droite (2026-10-19) : le nom
- * de la série et sa PILE — un trait par partie, celui de l'article plein, les
- * autres en retrait. La pile de `/series` ramenée au corps d'une étiquette.
- * Filtrée sur une série, la ligne ne garde que la pile : le nom est déjà dans
- * le filtre.
+ * Une ligne qui appartient à une série le dit sous son titre (2026-10-19,
+ * descendue de la colonne de droite le 2026-10-21) : le nom de la série et sa
+ * PILE — un trait par partie, celui de l'article plein, les autres en
+ * retrait. La pile de `/series` ramenée au corps d'une étiquette. C'est un
+ * LIEN vers la page de la série, à l'encre (les thématiques restent grises) :
+ * l'ensemble se rejoint depuis l'index sans passer par les filtres. Sous le
+ * titre, un nom de série long ne prend plus la largeur du titre. Filtrée sur
+ * une série, la ligne ne garde que la pile : le nom est déjà dans le filtre.
  *
  * Les THÉMATIQUES (2026-10-19) : un second filtre, qui se combine au premier
  * (série ET thématique). Les deux partagent la même place, en ONGLETS
@@ -40,6 +44,10 @@ import type { ArticleSummary } from '@/lib/journal/types';
  * (`?theme=`) : c'est le lien que posent les pages d'article, et elle ouvre
  * l'onglet des thématiques. Chaque ligne de l'index nomme ses thématiques
  * sous son titre.
+ *
+ * Une thématique peut porter une COULEUR (Studio, 2026-10-21) : un carré
+ * devant son nom, dans la ligne, la colonne de filtres et l'article
+ * (`TagSwatch`).
  *
  * Sous les filtres, la COUVERTURE de l'article survolé (champ « Image de
  * couverture » du Studio, 2026-10-18 — elle remplace la vignette de la
@@ -62,7 +70,7 @@ const FILTER_COL = 220;
 /** Téléphone : écart drapeaux (bloc de titre) → onglets des filtres. */
 const MOBILE_FILTERS_GAP = 28;
 
-type Filter = { key: string; label: string; count: number };
+type Filter = { key: string; label: string; count: number; color?: string | null };
 
 type Tab = 'series' | 'themes';
 
@@ -111,14 +119,25 @@ export function JournalIndex({
   // journal, on y cherche un mot, pas un rang. Vide : pas de groupe.
   const themes = useMemo<Filter[]>(() => {
     const names = new Map<string, string>();
-    for (const a of articles) for (const tag of a.tags) names.set(tag.slug, tag.title);
+    const colors = new Map<string, string | null>();
+    for (const a of articles) {
+      for (const tag of a.tags) {
+        names.set(tag.slug, tag.title);
+        colors.set(tag.slug, tag.color);
+      }
+    }
     if (names.size === 0) return [];
     const pool = articles.filter(inSeries);
     return [
       { key: ALL, label: t.all, count: pool.length },
       ...[...names]
         .sort(([, x], [, y]) => x.localeCompare(y, lang))
-        .map(([slug, title]) => ({ key: slug, label: title, count: pool.filter((a) => a.tags.some((tag) => tag.slug === slug)).length })),
+        .map(([slug, title]) => ({
+          key: slug,
+          label: title,
+          color: colors.get(slug),
+          count: pool.filter((a) => a.tags.some((tag) => tag.slug === slug)).length,
+        })),
     ];
   }, [articles, t, lang, series]);
 
@@ -358,8 +377,11 @@ function FilterGroup({
                 style={{ paddingBlock: 6 }}
               >
                 <StateDot on={on} />
-                <span>
-                  {f.label} <span className="font-normal tabular-nums">({f.count})</span>
+                <span className="flex items-center gap-[8px]">
+                  <TagSwatch color={f.color ?? null} />
+                  <span>
+                    {f.label} <span className="font-normal tabular-nums">({f.count})</span>
+                  </span>
                 </span>
               </button>
             </li>
@@ -462,10 +484,9 @@ function FilterTabs({
 }
 
 /**
- * La marque de série d'une ligne : nom + pile. Purement visuelle (`aria-hidden`) —
- * le lien du titre porte la même information en toutes lettres pour les
- * lecteurs d'écran. Couleur héritée : grise au repos, papier sur la ligne
- * inversée, comme la date.
+ * La marque de série d'une ligne : nom + pile. Son contenu est visuel
+ * (`aria-hidden`) — le lien qui l'enveloppe dans `Row` porte son nom en toutes
+ * lettres. Couleur héritée : encre au repos, papier sur la ligne inversée.
  *
  * Les traits font la hauteur des capitales de l'étiquette (11 px de corps) et
  * restent hors de l'orange : l'orange est un ÉTAT (StateDot), ici c'est une
@@ -475,9 +496,9 @@ const PILE_BAR = { width: 3, height: 9, gap: 2 } as const;
 
 function SeriesMark({ name, part, total }: { name: string | null; part: number; total: number }) {
   return (
-    <span aria-hidden className={cn(MICRO_LABEL, 'flex items-center gap-[10px] whitespace-nowrap')}>
+    <span aria-hidden className={cn(MICRO_LABEL, 'flex items-center gap-[10px]')}>
       {name}
-      <span className="flex items-center" style={{ gap: PILE_BAR.gap }}>
+      <span className="flex shrink-0 items-center" style={{ gap: PILE_BAR.gap }}>
         {Array.from({ length: total }, (_, i) => (
           <span
             key={i}
@@ -553,8 +574,6 @@ function Row({
               <StateDot on={hot} />
             </span>
             <time dateTime={article.date}>{stamp(article.date)}</time>
-            {/* Téléphone : la marque à droite de la date, au-dessus du titre. */}
-            {mark && <span className="md:hidden">{mark}</span>}
           </span>
           <span className="flex flex-col gap-[6px] min-w-0">
             <Link
@@ -572,35 +591,53 @@ function Row({
                 <span className="sr-only"> — {t.seriesMark(article.series, article.part, total)}</span>
               )}
             </Link>
-            {/* Les thématiques de l'article, sous le titre : une donnée, grise
-                comme la date, papier sur la ligne inversée. Pour les filtrer :
+            {/* Sous le titre : la série (lien, à l'encre) puis les
+                thématiques (une donnée, grises comme la date). Tout passe au
+                papier sur la ligne inversée. Pour filtrer sur une thématique :
                 les boutons du dépli. */}
-            {article.tags.length > 0 && (
+            {(mark || article.tags.length > 0) && (
               <span
                 className={cn(
                   MICRO_LABEL,
-                  'text-[var(--color-fg-muted)] transition-colors duration-200 motion-reduce:transition-none',
+                  'flex flex-wrap items-center gap-x-4 gap-y-1 text-[var(--color-fg-muted)] transition-colors duration-200 motion-reduce:transition-none',
                   'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
                 )}
               >
-                <span className="sr-only">{t.themesHeading}: </span>
-                {article.tags.map((tag) => tag.title).join(' · ')}
+                {mark &&
+                  (article.seriesSlug ? (
+                    <Link
+                      href={seriesPath(article.seriesSlug, lang)}
+                      aria-label={`${t.seriesPage} — ${t.seriesMark(article.series!, article.part, total)}`}
+                      // Au-dessus du lien étiré du titre, comme le « + ».
+                      className={cn(
+                        'relative z-10 text-[var(--color-fg)] underline decoration-transparent underline-offset-4',
+                        'transition-[color,text-decoration-color] duration-200 motion-reduce:transition-none',
+                        'hover:decoration-current focus-visible:decoration-current focus-visible:outline-none',
+                        'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
+                      )}
+                    >
+                      {mark}
+                    </Link>
+                  ) : (
+                    <span className="text-[var(--color-fg)] group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]">
+                      {mark}
+                    </span>
+                  ))}
+                {article.tags.length > 0 && (
+                  <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="sr-only">{t.themesHeading}: </span>
+                    {article.tags.map((tag) => (
+                      <span key={tag.slug} className="flex items-center gap-[6px]">
+                        <TagSwatch color={tag.color} />
+                        {tag.title}
+                      </span>
+                    ))}
+                  </span>
+                )}
               </span>
             )}
           </span>
         </div>
-        {/* Desktop : la marque en colonne à droite, juste avant le « + » — le
-            titre se tronque avant elle. */}
-        {mark && (
-          <span
-            className={cn(
-              'hidden md:flex shrink-0 text-[var(--color-fg-muted)] transition-colors duration-200 motion-reduce:transition-none',
-              'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
-            )}
-          >
-            {mark}
-          </span>
-        )}
         <button
           type="button"
           aria-expanded={open}
