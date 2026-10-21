@@ -4,6 +4,7 @@ import type {
   ArticleBlock,
   ArticleSummary,
   Inline,
+  InlineLink,
   InlineMark,
   FigureName,
   JournalImage,
@@ -69,8 +70,11 @@ export type PTChild =
   | { _type: 'journalNoteRef'; refKey?: string }
   | { _type: 'journalDraftNote'; text?: string };
 
+/** Annotation du Studio : `journalLink` (sanity/schemas/journal.ts). */
+export type PTMarkDef = { _key: string; _type: string; article?: { _ref?: string }; href?: string };
+
 export type PTBlock =
-  | { _type: 'block'; style?: string; children?: PTChild[] }
+  | { _type: 'block'; style?: string; children?: PTChild[]; markDefs?: PTMarkDef[] }
   | { _type: 'journalPullQuote'; text?: string }
   | { _type: 'journalFigure'; figure?: string }
   | { _type: 'journalImage'; image?: RawImage; caption?: string; wide?: boolean }
@@ -99,11 +103,22 @@ export type RawPost = {
   references: { _key: string; citation?: { children?: PTChild[] }[] }[] | null;
 };
 
-function inlineOf(children: PTChild[] = []): Inline[] {
+function linkOf(def: PTMarkDef | undefined): InlineLink | undefined {
+  if (def?._type !== 'journalLink') return undefined;
+  if (def.article?._ref) return { article: def.article._ref };
+  if (def.href) return { href: def.href };
+  return undefined;
+}
+
+function inlineOf(children: PTChild[] = [], markDefs: PTMarkDef[] = []): Inline[] {
   const out: Inline[] = [];
+  const defs = new Map(markDefs.map((d) => [d._key, d]));
   for (const c of children) {
     if (c._type === 'span') {
-      if (c.text) out.push({ t: 'text', text: c.text, marks: (c.marks ?? []).filter((m): m is InlineMark => MARKS.includes(m as InlineMark)) });
+      if (!c.text) continue;
+      const marks = (c.marks ?? []).filter((m): m is InlineMark => MARKS.includes(m as InlineMark));
+      const link = (c.marks ?? []).map((m) => linkOf(defs.get(m))).find(Boolean);
+      out.push(link ? { t: 'text', text: c.text, marks, link } : { t: 'text', text: c.text, marks });
     } else if (c._type === 'journalNoteRef') {
       if (c.refKey) out.push({ t: 'ref', key: c.refKey });
     } else if (c._type === 'journalDraftNote') {
@@ -126,7 +141,7 @@ function blocksOf(body: PTBlock[]): ArticleBlock[] {
           const text = plainOf(b.children).trim();
           if (text) blocks.push({ type: 'h2', text });
         } else {
-          const inline = inlineOf(b.children);
+          const inline = inlineOf(b.children, b.markDefs);
           if (inline.length) blocks.push({ type: 'p', inline });
         }
         break;

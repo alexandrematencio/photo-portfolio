@@ -111,6 +111,27 @@ function fabricated() {
   ok('balise non fermée : refusée', () => assert.throws(() => parseMarkup('<i>x<ref id="n1"/><note id="d1"/>', block), /jamais fermée/));
   ok('balise croisée : refusée', () => assert.throws(() => parseMarkup('<b><i>x</b></i><ref id="n1"/><note id="d1"/>', block), /mal fermée/));
   ok('balise inconnue : refusée', () => assert.throws(() => parseMarkup('<u>x</u><ref id="n1"/><note id="d1"/>', block), /inconnue/));
+  const linkBlock: PTBlock = {
+    _type: 'block',
+    _key: 'b2',
+    style: 'normal',
+    markDefs: [{ _type: 'journalLink', _key: 'l1', article: { _type: 'reference', _ref: 'post-x' } }],
+    children: [
+      { _type: 'span', _key: 's1', text: 'Voir ', marks: [] },
+      { _type: 'span', _key: 's2', text: 'le ', marks: ['l1'] },
+      { _type: 'span', _key: 's3', text: 'DEVP', marks: ['l1', 'strong'] },
+      { _type: 'span', _key: 's4', text: '.', marks: [] },
+    ],
+  };
+  const linkMarkup = blockToMarkup(linkBlock);
+  ok('lien : aller, décorateur imbriqué dans le lien', () => assert.equal(linkMarkup, 'Voir <a id="l1">le <b>DEVP</b></a>.'));
+  ok('lien : retour avec la clé de la définition', () => {
+    const c = parseMarkup('See <a id="l1">the <b>DEVP</b></a>.', linkBlock);
+    assert.deepEqual(c.map((x) => (x as { marks?: string[] }).marks), [[], ['l1'], ['l1', 'strong'], []]);
+  });
+  ok('lien perdu : refusé', () => assert.throws(() => parseMarkup('See the DEVP.', linkBlock), /Lien\(s\) perdu/));
+  ok('lien inventé : refusé', () => assert.throws(() => parseMarkup('See <a id="l9">the DEVP</a>.', linkBlock), /inventé/));
+  ok('lien non fermé : refusé', () => assert.throws(() => parseMarkup('See <a id="l1">the DEVP.', linkBlock), /jamais fermée/));
   ok('unité manquante : refusée', () =>
     assert.throws(() => applyUnits({ _id: 'p', title: 'T', dek: 'D', body: [] }, [{ id: 'title', text: 'T' }]), /dek/),
   );

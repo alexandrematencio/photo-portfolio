@@ -75,6 +75,20 @@ async function fetchCorpus(): Promise<Corpus> {
     const alternates = Object.fromEntries(versions.map((v) => [v.lang, articlePath(v.slug, v.lang)]));
     for (const v of versions) v.alternates = alternates;
   }
+  // Un lien vers un article pointe sa version dans la langue de l'article qui
+  // le cite, à défaut l'original. Un article non publié : lien retiré.
+  for (const { article } of articles) {
+    for (const block of article.blocks) {
+      if (block.type !== 'p') continue;
+      for (const node of block.inline) {
+        if (node.t !== 'text' || !node.link || !('article' in node.link)) continue;
+        const versions = groups.get(node.link.article) ?? [];
+        const target = versions.find((v) => v.lang === article.lang) ?? versions.find((v) => v.lang === DEFAULT_LANG);
+        if (target) node.link = { href: articlePath(target.slug, target.lang) };
+        else delete node.link;
+      }
+    }
+  }
   return {
     articles: articles
       .map((a) => a.article),
