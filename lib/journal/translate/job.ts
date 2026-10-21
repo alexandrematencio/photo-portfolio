@@ -3,7 +3,7 @@
  * (2026-10-18).
  *
  * Le Studio est un bundle statique dans un dépôt public : la clé Anthropic ne
- * peut pas y vivre. Le bouton « Generate EN & RU » écrit donc un
+ * peut pas y vivre. Les boutons « Generate EN / RU / EN & RU » écrivent donc un
  * document `translationJob` (statut `requested`) ; un webhook Sanity signé le
  * porte au VPS, qui lance `scripts/translate-post.ts --job <id>` ; le script
  * écrit l'avancement dans le même document, que le Studio écoute.
@@ -30,6 +30,8 @@ export type TranslationJob = {
   _rev?: string;
   /** Id PUBLIÉ de l'article français. */
   post: string;
+  /** Langues demandées (2026-10-21 : « EN seulement » est un geste à part). Absent = toutes. */
+  langs?: TranslationLang[];
   status: TranslationJobStatus;
   requestedAt: string;
   startedAt?: string;
@@ -49,6 +51,10 @@ export type TranslationResult = {
   /** Rien n'avait changé depuis la dernière traduction : aucun appel, aucun brouillon écrit. */
   unchanged?: boolean;
 };
+
+/** Les langues d'une demande ; une demande d'avant le champ `langs` les voulait toutes. */
+export const jobLangs = (job: Pick<TranslationJob, 'langs'>): TranslationLang[] =>
+  job.langs?.length ? TRANSLATION_LANGS.filter((l) => job.langs!.includes(l)) : [...TRANSLATION_LANGS];
 
 export const translationJobId = (postId: string) => `translationJob.${postId.replace(/^drafts\./, '')}`;
 

@@ -11,7 +11,8 @@
  *   npm run translate-post -- --job translationJob.<id>   → ce que lance le VPS
  *
  * Le mode `--job` est celui du bouton du Studio (`lib/journal/translate/job.ts`) :
- * il ne prend la demande que si elle est encore `requested` (une livraison
+ * il ne traduit que les langues de la demande (`langs`), et ne la prend
+ * que si elle est encore `requested` (une livraison
  * doublée du webhook ne traduit pas deux fois) et y écrit l'avancement.
  *
  * INCRÉMENTAL (`lib/journal/translate/incremental.ts`) : seules les unités
@@ -34,6 +35,7 @@ import { outputSchema, systemPrompt } from '../lib/journal/translate/prompt';
 import { canonical, planUnits, readSnapshot, snapshotOf, type UnitPlan } from '../lib/journal/translate/incremental';
 import {
   isFrenchPost,
+  jobLangs,
   TRANSLATION_LANGS,
   type TranslationJob,
   type TranslationLang,
@@ -167,13 +169,13 @@ async function sourcePost(postId: string) {
   return post;
 }
 
-async function run(postId: string, onLang?: (lang: TranslationLang, result: TranslationResult) => Promise<void>) {
+async function run(postId: string, langs: TranslationLang[], onLang?: (lang: TranslationLang, result: TranslationResult) => Promise<void>) {
   const post = await sourcePost(postId);
-  console.log(`▸ ${post.title} (${postId}) → ${LANGS.join(', ')}${FULL ? ' — tout retraduire' : ''}`);
+  console.log(`▸ ${post.title} (${postId}) → ${langs.join(', ')}${FULL ? ' — tout retraduire' : ''}`);
   const source = JSON.stringify(snapshotOf(post));
 
   const outcomes = await Promise.allSettled(
-    LANGS.map(async (lang) => {
+    langs.map(async (lang) => {
       try {
         const { publishedId, doc: existing } = await existingTranslation(postId, lang);
         const plan = planUnits(post, existing, readSnapshot(existing?.translationSource), FULL);
@@ -259,7 +261,8 @@ async function runJob(jobId: string) {
     .unset(['error', 'finishedAt'])
     .commit();
   try {
-    await run(job.post, (lang, result) => sanity.patch(jobId).set({ [`results.${lang}`]: result }).commit().then(() => undefined));
+    // Seulement les langues demandées : une demande « EN » ne touche pas au brouillon russe.
+    await run(job.post, jobLangs(job), (lang, result) => sanity.patch(jobId).set({ [`results.${lang}`]: result }).commit().then(() => undefined));
     await sanity.patch(jobId).set({ status: 'done', finishedAt: new Date().toISOString() }).commit();
   } catch (e) {
     await sanity.patch(jobId).set({ status: 'error', error: (e as Error).message, finishedAt: new Date().toISOString() }).commit();
@@ -268,7 +271,7 @@ async function runJob(jobId: string) {
 }
 
 const POST_ID = POST_ARG?.replace(/^drafts\./, '');
-(JOB_ID ? runJob(JOB_ID) : ADOPT ? adopt(POST_ID!) : run(POST_ID!)).catch((e) => {
+(JOB_ID ? runJob(JOB_ID) : ADOPT ? adopt(POST_ID!) : run(POST_ID!, LANGS)).catch((e) => {
   console.error(`✗ ${(e as Error).message}`);
   process.exit(1);
 });
