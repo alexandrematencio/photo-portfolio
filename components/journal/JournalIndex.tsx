@@ -26,13 +26,12 @@ import type { ArticleSummary } from '@/lib/journal/types';
  * composant unique du site pour une rangée de choix sur téléphone).
  *
  * Une ligne qui appartient à une série le dit sous son titre (2026-10-19,
- * descendue de la colonne de droite le 2026-10-21) : le nom de la série et sa
- * PILE — un trait par partie, celui de l'article plein, les autres en
- * retrait. La pile de `/series` ramenée au corps d'une étiquette. C'est un
- * LIEN vers la page de la série, à l'encre (les thématiques restent grises) :
- * l'ensemble se rejoint depuis l'index sans passer par les filtres. Sous le
- * titre, un nom de série long ne prend plus la largeur du titre. Filtrée sur
- * une série, la ligne ne garde que la pile : le nom est déjà dans le filtre.
+ * descendue de la colonne de droite le 2026-10-21) : une flèche, le nom de la
+ * série et sa partie « 2/3 » encadrée. C'est un LIEN vers la page de la
+ * série, au bleu du logo (les thématiques restent grises) : l'ensemble se
+ * rejoint depuis l'index sans passer par les filtres. Sous le titre, un nom de
+ * série long ne prend plus la largeur du titre. Filtrée sur une série, la
+ * ligne ne garde que la partie : le nom est déjà dans le filtre.
  *
  * Les THÉMATIQUES (2026-10-19) : un second filtre, qui se combine au premier
  * (série ET thématique). Les deux partagent la même place, en ONGLETS
@@ -484,32 +483,47 @@ function FilterTabs({
 }
 
 /**
- * La marque de série d'une ligne : nom + pile. Son contenu est visuel
- * (`aria-hidden`) — le lien qui l'enveloppe dans `Row` porte son nom en toutes
- * lettres. Couleur héritée : encre au repos, papier sur la ligne inversée.
+ * La marque de série d'une ligne : une courte flèche, le nom, puis la partie
+ * « 2/3 » dans un cadre de 1 px (demande Alexandre, 2026-10-21 — remplace la
+ * pile de traits). Son contenu est visuel (`aria-hidden`) — le lien qui
+ * l'enveloppe dans `Row` porte son nom en toutes lettres. Tout suit
+ * `currentColor`, cadre compris : la couleur se décide sur le lien.
  *
- * Les traits font la hauteur des capitales de l'étiquette (11 px de corps) et
- * restent hors de l'orange : l'orange est un ÉTAT (StateDot), ici c'est une
- * donnée (brand book §4.3).
+ * Le soulignement de survol ne tient que sous le NOM (`group/series`) : ni la
+ * flèche ni le cadre ne se soulignent.
  */
-const PILE_BAR = { width: 3, height: 9, gap: 2 } as const;
-
 function SeriesMark({ name, part, total }: { name: string | null; part: number; total: number }) {
   return (
-    <span aria-hidden className={cn(MICRO_LABEL, 'flex items-center gap-[10px]')}>
-      {name}
-      <span className="flex shrink-0 items-center" style={{ gap: PILE_BAR.gap }}>
-        {Array.from({ length: total }, (_, i) => (
+    <span aria-hidden className={cn(MICRO_LABEL, 'flex items-center gap-[8px]')}>
+      {name && (
+        <>
+          <svg
+            width={10}
+            height={10}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="flex-none"
+          >
+            <path d="M4 12h15" />
+            <path d="M13 6l6 6-6 6" />
+          </svg>
           <span
-            key={i}
-            style={{
-              width: PILE_BAR.width,
-              height: PILE_BAR.height,
-              backgroundColor: 'currentColor',
-              opacity: i + 1 === part ? 1 : 0.3,
-            }}
-          />
-        ))}
+            className={cn(
+              'underline decoration-transparent underline-offset-4 transition-[text-decoration-color] duration-200 motion-reduce:transition-none',
+              'group-hover/series:decoration-[var(--color-bg)] group-focus-visible/series:decoration-[var(--color-bg)]',
+            )}
+          >
+            {name}
+          </span>
+        </>
+      )}
+      {/* Padding inline : le reset `* { padding: 0 }` avale les utilities. */}
+      <span className="shrink-0 leading-none" style={{ padding: '3px 5px', border: '1px solid currentColor' }}>
+        {part}/{total}
       </span>
     </span>
   );
@@ -609,17 +623,21 @@ function Row({
                       href={seriesPath(article.seriesSlug, lang)}
                       aria-label={`${t.seriesPage} — ${t.seriesMark(article.series!, article.part, total)}`}
                       // Au-dessus du lien étiré du titre, comme le « + ».
+                      // Bleu du logo au repos ; papier sur la ligne inversée
+                      // (le bleu y tomberait à ~2:1) ; orange du surlignage de
+                      // la nav sous le pointeur, souligné de papier — `!` :
+                      // le survol du lien l'emporte sur celui de la ligne.
                       className={cn(
-                        'relative z-10 text-[var(--color-fg)] underline decoration-transparent underline-offset-4',
-                        'transition-[color,text-decoration-color] duration-200 motion-reduce:transition-none',
-                        'hover:decoration-current focus-visible:decoration-current focus-visible:outline-none',
+                        'group/series relative z-10 text-[var(--color-accent)]',
+                        'transition-colors duration-200 motion-reduce:transition-none focus-visible:outline-none',
                         'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
+                        'hover:text-[var(--color-active-bg)]! focus-visible:text-[var(--color-active-bg)]!',
                       )}
                     >
                       {mark}
                     </Link>
                   ) : (
-                    <span className="text-[var(--color-fg)] group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]">
+                    <span className="text-[var(--color-accent)] group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]">
                       {mark}
                     </span>
                   ))}
