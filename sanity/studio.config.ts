@@ -14,7 +14,7 @@ import {
   DeletePhotoAction,
   DeleteSeriesAction,
   DeleteTagAction,
-  GenerateTranslationsAction,
+  GENERATE_TRANSLATIONS_ACTIONS,
   ToggleFunnelAction,
   ToggleVisibilityAction,
   withExplainedPublish,
@@ -159,15 +159,15 @@ const resolveActions: DocumentActionsResolver = (prev, { schemaType }) => {
     }
     // Journal : sur un article FRANÇAIS, Publish et traduction sont DEUX
     // gestes (2026-10-18 au soir) — Alexandre relit le français en ligne,
-    // puis lance « Generate EN & RU », qui ne retraduit que ce qui a changé.
-    // Les deux actions se rendent au natif / à rien sur une traduction ;
-    // voir GenerateTranslationsAction et lib/journal/translate/.
+    // puis lance « Generate EN & RU » (ou EN seul, ou RU seul — 2026-10-21),
+    // qui ne retraduit que ce qui a changé. Ces actions se rendent au natif / à rien sur une traduction ;
+    // voir createGenerateTranslationsAction et lib/journal/translate/.
     if (schemaType === 'post') {
       const actions = prev.map((action) =>
         action.action === 'publish' ? createDatedPublishAction(action) : action
       );
       const at = actions.findIndex((a) => a.action === 'publish');
-      actions.splice(at + 1, 0, GenerateTranslationsAction);
+      actions.splice(at + 1, 0, ...GENERATE_TRANSLATIONS_ACTIONS);
       return actions;
     }
     return prev;
