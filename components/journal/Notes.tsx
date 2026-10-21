@@ -3,7 +3,9 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -72,7 +74,92 @@ export function NotesProvider({ children, lang }: { children: ReactNode; lang: L
     }),
     [hover, pinned, lang],
   );
-  return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>;
+  const flowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => flowSidenotes(flowRef.current), []);
+  return (
+    <NotesContext.Provider value={value}>
+      <div ref={flowRef} className="contents">
+        {children}
+      </div>
+    </NotesContext.Provider>
+  );
+}
+
+/** Écart entre deux notes de marge — celui d'une même rangée (`gap-3`). */
+const SIDENOTE_GAP = 12;
+/** Air minimal entre la dernière note et l'objet large qui suit. */
+const SIDENOTE_OBSTACLE_GAP = 24;
+
+/**
+ * Écoulement des notes de marge. Elles sont HORS FLUX (absolues dans leur
+ * cellule) : une rangée a la hauteur de son paragraphe, jamais celle de ses
+ * notes. Avant (2026-10-22), un paragraphe court à cinq références laissait
+ * un trou de 250 px avant le suivant.
+ *
+ * En échange, ce passage empile les notes comme une colonne : chacune part
+ * à hauteur de son paragraphe, et glisse vers le bas seulement si elle
+ * mordrait sur la précédente. Un bloc qui déborde dans la marge (exergue,
+ * figure, tableau, H2) est un mur : si les notes l'atteignent, c'est la
+ * dernière rangée qui s'allonge, du strict nécessaire.
+ *
+ * Lit les enfants directs de la colonne de l'article, dans l'ordre. Rejoué
+ * à chaque changement de taille (fontes, redimensionnement, images).
+ */
+function flowSidenotes(root: HTMLElement | null) {
+  const column = root?.firstElementChild as HTMLElement | null | undefined;
+  if (!column) return;
+
+  let frame = 0;
+  const run = () => {
+    const children = Array.from(column.children) as HTMLElement[];
+    const rows = children.filter((el) => el.hasAttribute('data-note-row'));
+    const asides = rows
+      .map((row) => row.querySelector<HTMLElement>('[data-sidenotes]'))
+      .filter((a): a is HTMLElement => a !== null);
+    for (const row of rows) row.style.paddingBottom = '';
+    for (const aside of asides) aside.style.transform = '';
+    // Sous 1100 px, la marge est cachée : rien à empiler.
+    const marginLeft = asides.find((a) => a.offsetParent !== null)?.getBoundingClientRect().left;
+    if (marginLeft === undefined) return;
+
+    let floor = -Infinity;
+    let lastRow: HTMLElement | null = null;
+    for (const el of children) {
+      if (el.hasAttribute('data-note-row')) {
+        lastRow = el;
+        const aside = el.querySelector<HTMLElement>('[data-sidenotes]');
+        if (!aside) continue;
+        const top = aside.getBoundingClientRect().top;
+        const shift = Math.max(0, floor + SIDENOTE_GAP - top);
+        if (shift > 0) aside.style.transform = `translateY(${shift}px)`;
+        floor = top + shift + aside.offsetHeight;
+        continue;
+      }
+      const rect = el.getBoundingClientRect();
+      if (rect.right <= marginLeft) continue; // tient dans la mesure : pas un mur
+      const overlap = floor + SIDENOTE_OBSTACLE_GAP - rect.top;
+      if (overlap > 0 && lastRow) {
+        lastRow.style.paddingBottom = `${overlap}px`;
+        // Le mur et tout ce qui suit viennent de descendre : les notes déjà
+        // posées sont au-dessus, la suite se mesure à nouveau.
+      }
+      floor = -Infinity;
+      lastRow = null;
+    }
+  };
+
+  const schedule = () => {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(run);
+  };
+  schedule();
+  document.fonts?.ready.then(schedule);
+  const ro = new ResizeObserver(schedule);
+  ro.observe(column);
+  return () => {
+    cancelAnimationFrame(frame);
+    ro.disconnect();
+  };
 }
 
 function noteName(id: string, kind: NoteKind, lang: Lang) {
@@ -143,6 +230,7 @@ export function NoteRow({
 
   return (
     <div
+      data-note-row
       className="min-[1100px]:grid min-[1100px]:gap-x-12"
       style={{
         gridTemplateColumns: 'minmax(0, var(--editorial-measure)) minmax(0, 1fr)',
@@ -152,38 +240,47 @@ export function NoteRow({
       {children}
 
       {notes.length > 0 && (
-        <aside aria-label={t.notes} className="hidden min-[1100px]:flex flex-col gap-3" style={{ paddingTop: 5 }}>
-          {notes.map(({ id, kind, body }) => (
-            <p
-              key={id}
-              id={`sn-${id}`}
-              className={cn(
-                EDITORIAL_SIDENOTE,
-                'flex transition-colors motion-reduce:transition-none',
-                lit === id && 'text-[var(--color-fg)]',
-              )}
-              onMouseEnter={() => setHover(id)}
-              onMouseLeave={() => setHover(null)}
-            >
-              {/* Colonne de chiffres calée sur la PREMIÈRE ligne de la note
-                  (hauteur = un interligne) : centrée sur toute la note, le
-                  voyant tombait au milieu d'une note de deux lignes. */}
-              <span
-                className="flex items-center gap-[6px] shrink-0 self-start"
-                style={{ width: SIDENOTE_NUM_WIDTH, height: '1.45em' }}
+        // Cellule vide qui porte les notes HORS FLUX : la rangée prend la
+        // hauteur du paragraphe. L'empilement est fait par `flowSidenotes`.
+        <div className="hidden min-[1100px]:block relative">
+          <aside
+            data-sidenotes
+            aria-label={t.notes}
+            className="absolute inset-x-0 top-0 flex flex-col gap-3"
+            style={{ paddingTop: 5 }}
+          >
+            {notes.map(({ id, kind, body }) => (
+              <p
+                key={id}
+                id={`sn-${id}`}
+                className={cn(
+                  EDITORIAL_SIDENOTE,
+                  'flex transition-colors motion-reduce:transition-none',
+                  lit === id && 'text-[var(--color-fg)]',
+                )}
+                onMouseEnter={() => setHover(id)}
+                onMouseLeave={() => setHover(null)}
               >
-                <span className="flex">
-                  <StateDot on={lit === id} />
+                {/* Colonne de chiffres calée sur la PREMIÈRE ligne de la note
+                    (hauteur = un interligne) : centrée sur toute la note, le
+                    voyant tombait au milieu d'une note de deux lignes. */}
+                <span
+                  className="flex items-center gap-[6px] shrink-0 self-start"
+                  style={{ width: SIDENOTE_NUM_WIDTH, height: '1.45em' }}
+                >
+                  <span className="flex">
+                    <StateDot on={lit === id} />
+                  </span>
+                  <span className="font-bold tabular-nums text-[var(--color-fg)]">{id}</span>
                 </span>
-                <span className="font-bold tabular-nums text-[var(--color-fg)]">{id}</span>
-              </span>
-              <span className="flex flex-col gap-1">
-                {kind === 'draft' && <DraftLabel lang={lang} />}
-                <span>{body}</span>
-              </span>
-            </p>
-          ))}
-        </aside>
+                <span className="flex flex-col gap-1">
+                  {kind === 'draft' && <DraftLabel lang={lang} />}
+                  <span>{body}</span>
+                </span>
+              </p>
+            ))}
+          </aside>
+        </div>
       )}
 
       {open && (
