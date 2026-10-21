@@ -1,13 +1,8 @@
 /**
- * Filigrane visible sur une image du journal (schéma, graphique) : la
- * signature « © Alexandre Xavier Matencio » répétée en diagonale sur TOUTE
- * l'image, plus une signature nette dans le coin bas gauche.
- *
- * Pourquoi en diagonale sur toute la surface (2026-10-21, demande
- * d'Alexandre) : une signature dans un coin se recadre en une seconde. Le
- * motif répété traverse les cases, les flèches et le texte du schéma — on ne
- * peut pas l'enlever sans redessiner le schéma. Il reste assez léger pour que
- * le schéma se lise.
+ * Filigrane discret sur une image du journal (schéma, graphique) : la
+ * signature « © Alexandre Xavier Matencio » trois fois sur l'axe vertical
+ * central, très espacée. Au centre plutôt qu'en coin : un coin se recadre en
+ * une seconde, le centre d'un schéma non.
  *
  * Les métadonnées de droits (scripts/image-rights.ts) sont écrites aussi,
  * mais le CDN de Sanity les efface à la livraison : le filigrane est la seule
@@ -28,29 +23,26 @@ function xmlEscape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** Le calque du filigrane, en SVG, aux dimensions de l'image. */
+/** Nombre de signatures, réparties sur l'axe vertical central. */
+const COPIES = 3;
+
+/**
+ * Le calque du filigrane, en SVG, aux dimensions de l'image : trois fois le
+ * nom, centré, très espacé, presque transparent. Un premier essai en motif
+ * diagonal sur toute la surface rendait le schéma illisible (2026-10-21) —
+ * Alexandre veut un filigrane qu'on voit quand on le cherche, pas avant.
+ */
 export function watermarkSvg(width: number, height: number): string {
   const text = xmlEscape(WATERMARK_TEXT);
-  const font = Math.round(Math.max(18, width * 0.022));
-  // Pas du motif : une ligne de texte et un blanc, en quinconce.
-  const stepX = Math.round(font * 17);
-  const stepY = Math.round(font * 5.5);
-  const diag = Math.ceil(Math.hypot(width, height));
-  const rows: string[] = [];
-  for (let y = -diag, row = 0; y < diag; y += stepY, row++) {
-    const offset = row % 2 ? stepX / 2 : 0;
-    for (let x = -diag + offset; x < diag; x += stepX) {
-      rows.push(`<text x="${x}" y="${y}">${text}</text>`);
-    }
-  }
-  const corner = Math.round(font * 1.05);
+  const font = Math.round(Math.max(14, width * 0.016));
+  const lines = Array.from({ length: COPIES }, (_, i) => {
+    const y = Math.round((height * (i + 1)) / (COPIES + 1));
+    return `<text x="${width / 2}" y="${y}">${text}</text>`;
+  });
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
-    `<g transform="translate(${width / 2} ${height / 2}) rotate(-30)"` +
-    ` font-family="Helvetica, Arial, sans-serif" font-size="${font}" font-weight="600"` +
-    ` fill="#5a2a82" fill-opacity="0.13">${rows.join('')}</g>` +
-    `<text x="${corner}" y="${height - corner}" font-family="Helvetica, Arial, sans-serif"` +
-    ` font-size="${corner}" font-weight="600" fill="#000" fill-opacity="0.6">${text}</text>` +
+    `<g font-family="Helvetica, Arial, sans-serif" font-size="${font}"` +
+    ` text-anchor="middle" fill="#000" fill-opacity="0.09">${lines.join('')}</g>` +
     `</svg>`
   );
 }
