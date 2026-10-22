@@ -64,14 +64,14 @@ export function ArticleView({
               ) : m === seriesLabel && article.seriesSlug ? (
                 // La série mène à sa page : le sujet entier, pas seulement cet
                 // article. Bleu du logo, orange au survol — les couleurs de la
-                // marque de série de l'accueil (JournalIndex, 2026-10-22).
+                // contrasté sur fond clair que celui de l'accueil, 2026-10-22).
                 <Link
                   key={m}
                   href={seriesPath(article.seriesSlug, lang)}
                   className={cn(
                     'text-[var(--color-accent)] underline decoration-transparent underline-offset-4',
                     'transition-colors duration-200 motion-reduce:transition-none',
-                    'hover:text-[var(--color-active-bg)] hover:decoration-current focus-visible:text-[var(--color-active-bg)] focus-visible:decoration-current',
+                    'hover:text-[var(--color-link)] hover:decoration-current focus-visible:text-[var(--color-link)] focus-visible:decoration-current',
                   )}
                 >
                   {m}
