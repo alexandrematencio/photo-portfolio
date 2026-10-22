@@ -7,7 +7,7 @@ Décisions d'Alexandre du 2026-10-17. Ce document fixe la cible et l'ordre des
 
 | Adresse | Contenu | Code |
 |---|---|---|
-| `amatencio.com` | Page d'accueil qui oriente vers les sous-domaines. C'est le projet **DESIGN-FOLIO** (nom trompeur), en cours. D'ici là : redirection vers `photo.amatencio.com`. | DESIGN-FOLIO, dépôt à part (Vite / three.js) |
+| `amatencio.com` | Page d'accueil qui oriente vers les sous-domaines. C'est le projet **am-home** (nom trompeur), en cours. D'ici là : redirection vers `photo.amatencio.com`. | am-home, dépôt à part (Vite / three.js) |
 | `photo.amatencio.com` | Le portfolio actuel | monorepo, `apps/photo` |
 | `blog.amatencio.com` | Le journal | monorepo, `apps/blog` |
 | `studio.amatencio.com` | Le Studio Sanity, un espace « Photo » et un espace « Journal » | monorepo, `apps/studio` |

@@ -22,16 +22,28 @@ export const IS_BLOG = SITE_ID === 'blog';
 const strip = (url: string) => url.replace(/\/+$/, '');
 
 /** Origines publiques des deux sites (`.env.development` / `.env.production`). */
-export const PHOTO_URL = strip(process.env.NEXT_PUBLIC_PHOTO_URL ?? 'https://amatencio.com');
+export const PHOTO_URL = strip(process.env.NEXT_PUBLIC_PHOTO_URL ?? 'https://photo.amatencio.com');
 export const BLOG_URL = strip(process.env.NEXT_PUBLIC_BLOG_URL ?? 'https://blog.amatencio.com');
 
 /**
  * Le HUB : `amatencio.com`, l'entrée principale de tous les sites — la cible
- * du clic sur « All sites » (demande Alexandre, 2026-10-22). Aujourd'hui il
- * sert encore le portfolio ; le jour où le portfolio passe sur `photo.`, le
- * hub reste à cette adresse, d'où une constante à part de `PHOTO_URL`.
+ * du clic sur « All sites » (demande Alexandre, 2026-10-22). La page
+ * d'accueil est le projet am-home ; le portfolio vit sur `photo.`.
+ *
+ * Le hub porte aussi LA page About, la seule (hors celle du journal) :
+ * construite par ce dépôt, servie par Caddy sous `amatencio.com/about/`
+ * (bascule du 2026-10-22). Toute adresse vers elle passe par `hubHref`.
  */
-export const HUB_URL = 'https://amatencio.com/';
+const HUB_ORIGIN = strip(process.env.NEXT_PUBLIC_HUB_URL ?? 'https://amatencio.com');
+export const HUB_URL = `${HUB_ORIGIN}/`;
+
+/** Adresse d'une page du hub, valable depuis n'importe quel site. */
+export function hubHref(path: string): string {
+  return `${HUB_ORIGIN}${path}`;
+}
+
+/** La page About, sur le hub. */
+export const ABOUT_URL = hubHref('/about/');
 
 /** Adresse d'une page du portfolio, valable depuis n'importe quel site. */
 export function photoHref(path: string): string {

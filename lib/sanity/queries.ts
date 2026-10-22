@@ -123,6 +123,8 @@ export function socialLinks(settings: SiteSettings | null | undefined): SocialLi
   return links;
 }
 
+export type SeoFields = { title?: string; description?: string };
+
 export type SiteSettings = {
   hero?: {
     defaultImage?: HeroImage;
@@ -136,6 +138,9 @@ export type SiteSettings = {
   privacyBody?: unknown[];
   /** Phrase d'auteur affichée au-dessus de « Selected Works » (vide = rien). */
   homeIntro?: string;
+  /** Champs « Référencement (Google) » du Studio — vides = lib/seo/defaults.ts. */
+  homeSeo?: SeoFields;
+  aboutSeo?: SeoFields;
   motion?: MotionSettings;
 };
 
@@ -195,7 +200,9 @@ const siteSettingsQuery = groq`
       revealImage { ..., "dimensions": asset->metadata.dimensions }
     },
     "homeIntro": *[_id == "homePage"][0].intro,
+    "homeSeo": *[_id == "homePage"][0].seo,
     "aboutBody": *[_id == "aboutPage"][0].body,
+    "aboutSeo": *[_id == "aboutPage"][0].seo,
     "contactBody": *[_id == "contactPage"][0].body,
     "digitalAgencyBody": *[_id == "digitalAgencyPage"][0].body,
     "socialsBody": *[_id == "socialsPage"][0].body,

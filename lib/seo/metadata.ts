@@ -23,6 +23,13 @@ export function buildMetadata(opts: {
   title?: string;
   /** Titre complet, sans le suffixe de marque (la home : le nom EST le titre). */
   absoluteTitle?: string;
+  /**
+   * Origine de la canonical quand la page est servie sur un AUTRE hôte que
+   * le site construit : /about vit sur le hub (`ABOUT_URL`, lib/site/sites.ts).
+   */
+  origin?: string;
+  /** Nom du site pour Open Graph, quand la page appartient au hub. */
+  siteName?: string;
   description?: string;
   path?: string;
   image?: string;
@@ -38,7 +45,7 @@ export function buildMetadata(opts: {
   alternates?: Alternates;
 }): Metadata {
   const dict = IS_BLOG && opts.lang ? DICT[opts.lang] : null;
-  const siteName = dict?.siteName ?? SITE_NAME;
+  const siteName = opts.siteName ?? dict?.siteName ?? SITE_NAME;
   const locale = IS_BLOG && opts.lang ? JOURNAL_LOCALE[opts.lang].og : LOCALE;
   const title =
     opts.absoluteTitle ??
@@ -48,13 +55,13 @@ export function buildMetadata(opts: {
   // GH Pages ne réécrit pas /series → /series/index.html). Une canonical sans
   // slash désignerait donc une URL qui REDIRIGE vers la vraie — l'inverse de ce
   // qu'une canonical est censée faire.
-  const url = `${SITE_URL}${withSlash(opts.path ?? '/')}`;
+  const url = `${opts.origin ?? SITE_URL}${withSlash(opts.path ?? '/')}`;
   // Repli du journal : le glyphe seul (scripts/make-og-journal.ts) — une photo
   // du portfolio y passerait pour l'illustration de l'article.
   const image = opts.image ?? `${SITE_URL}/${IS_BLOG ? 'og-journal.png' : 'og-default.jpg'}`;
 
   return {
-    metadataBase: new URL(SITE_URL),
+    metadataBase: new URL(opts.origin ?? SITE_URL),
     title,
     description,
     alternates: { canonical: url, ...(opts.alternates ? { languages: hreflang(opts.alternates) } : {}) },

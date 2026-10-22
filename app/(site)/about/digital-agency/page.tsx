@@ -1,38 +1,17 @@
-import { buildMetadata } from '@/lib/seo/metadata';
-import { getSiteSettings } from '@/lib/sanity/queries';
-import { PortableBody } from '@/components/site/PortableBody';
-import { EDITORIAL_BODY } from '@/lib/site/typography';
-import { PageShell } from '@/components/site/PageShell';
+import type { Metadata } from 'next';
+import { LegacyRedirect } from '@/components/site/LegacyRedirect';
+import { hubHref } from '@/lib/site/sites';
 
-export const metadata = buildMetadata({
+/**
+ * La page Digital Agency a été fondue dans LA page About, sur le hub
+ * (2026-10-22) : son texte s'y affiche à la suite, sous `#digital-agency`.
+ * En ligne, Caddy répond par une 301 ; ce stub ne sert qu'en local.
+ */
+export const metadata: Metadata = {
   title: 'Digital Agency',
-  description:
-    'Digital agency services — strategy, design, photography, production.',
-  path: '/about/digital-agency',
-});
+  robots: { index: false, follow: true },
+};
 
-export const revalidate = 300;
-
-// Fallback only — used when `siteSettings.digitalAgencyBody` is empty. The page
-// is edited from Studio (Réglages du site → Page « Digital Agency »). Don't
-// grow this fallback to mirror published content — CLAUDE.md §8.5.
-const FALLBACK = `Edit this copy from Studio (Réglages du site → Page « Digital Agency ») to take over.`;
-
-export default async function DigitalAgencyPage() {
-  const settings = await getSiteSettings();
-  const body = settings?.digitalAgencyBody;
-
-  return (
-    <PageShell title="DIGITAL AGENCY">
-      <PortableBody
-        value={body}
-        variant="editorial"
-        fallback={
-          <p className={`${EDITORIAL_BODY} whitespace-pre-line`}>
-            {FALLBACK}
-          </p>
-        }
-      />
-    </PageShell>
-  );
+export default function LegacyAgencyPage() {
+  return <LegacyRedirect to={hubHref('/about/#digital-agency')} />;
 }

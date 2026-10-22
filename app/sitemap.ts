@@ -14,8 +14,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const seriesRoutes = prepareSeries(items, seriesOrderRefs).map((s) => `/series/${s.slug}`);
   const routes = [
     '/',
-    '/about',
-    '/about/digital-agency',
+    // /about vit sur le hub (amatencio.com/about/) : c'est le sitemap de
+    // am-home qui l'annonce, pas celui du portfolio (2026-10-22).
     '/series',
     ...seriesRoutes,
     '/archives',

@@ -591,8 +591,11 @@ const EDITORIAL_COMPONENTS: Partial<PortableTextReactComponents> = {
         {children}
       </p>
     ),
-    h2: ({ children, index }) => (
+    // `anchor` : un intertitre posé par le code, pas par le Studio (la partie
+    // Digital Agency de /about) — il devient l'id de la cible.
+    h2: ({ children, index, value }) => (
       <h2
+        id={(value as { anchor?: string }).anchor}
         className={EDITORIAL_H2}
         style={{
           marginTop: index === 0 ? 0 : RHYTHM.h2Top,

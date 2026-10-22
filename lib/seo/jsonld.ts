@@ -1,8 +1,8 @@
 import { indexableImageUrl, urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
 import { SITE_INFO, withSlash } from '@/lib/seo/metadata';
-import { AUTHOR_NAME, AUTHOR_SAME_AS, AUTHOR_SHORT, copyrightNotice } from '@/lib/site/author';
-import { PHOTO_URL } from '@/lib/site/sites';
+import { AUTHOR_FULL_NAME, AUTHOR_NAME, AUTHOR_SAME_AS, AUTHOR_SHORT, copyrightNotice } from '@/lib/site/author';
+import { ABOUT_URL, BLOG_URL, HUB_URL, PHOTO_URL } from '@/lib/site/sites';
 
 /**
  * Constructeurs Schema.org — fonctions PURES, sans React.
@@ -28,7 +28,8 @@ function photoPageUrl(path: string): string {
   return `${PHOTO_URL}${withSlash(path)}`;
 }
 
-export const AUTHOR_ID = `${photoPageUrl('/about')}#person`;
+/** La personne a son @id sur la page About du hub, la seule (2026-10-22). */
+export const AUTHOR_ID = `${ABOUT_URL}#person`;
 /** Page qui porte la clause de réutilisation (spec R4). */
 export const LICENSE_URL = photoPageUrl('/legal');
 /** Page par laquelle on demande une licence — Google l'affiche en bouton. */
@@ -49,12 +50,14 @@ export function personJsonLd(): JsonLdObject {
     '@type': 'Person',
     '@id': AUTHOR_ID,
     name: AUTHOR_NAME,
-    alternateName: AUTHOR_SHORT,
-    jobTitle: 'Photographer',
+    alternateName: [AUTHOR_FULL_NAME, 'Alex Matencio', AUTHOR_SHORT],
+    jobTitle: 'Art director, designer and photographer',
     description:
-      'Photographer and art director based in Villejuif, near Paris. Author photography — street, landscape and portrait.',
-    url: photoPageUrl('/about'),
-    sameAs: AUTHOR_SAME_AS,
+      'Art director, designer and photographer based in Villejuif, near Paris. Author photography — street, landscape and portrait.',
+    // L'adresse de la personne, c'est le hub ; ses sites sont ses œuvres.
+    url: HUB_URL,
+    mainEntityOfPage: ABOUT_URL,
+    sameAs: [...AUTHOR_SAME_AS, `${PHOTO_URL}/`, `${BLOG_URL}/`],
     address: { '@type': 'PostalAddress', addressLocality: 'Villejuif', addressCountry: 'FR' },
     knowsAbout: ['Street photography', 'Landscape photography', 'Portrait photography'],
     image: `${PHOTO_URL}/img/photo-profile.jpg`,
@@ -138,7 +141,9 @@ export function imageGalleryJsonLd(opts: {
   };
 }
 
-export function breadcrumbJsonLd(items: { name: string; path: string }[]): JsonLdObject {
+export function breadcrumbJsonLd(
+  items: { name: string; path?: string; url?: string }[]
+): JsonLdObject {
   return {
     '@context': CONTEXT,
     '@type': 'BreadcrumbList',
@@ -146,7 +151,8 @@ export function breadcrumbJsonLd(items: { name: string; path: string }[]): JsonL
       '@type': 'ListItem',
       position: i + 1,
       name: item.name,
-      item: pageUrl(item.path),
+      // `url` : une étape sur un autre hôte (le hub, pour /about).
+      item: item.url ?? pageUrl(item.path ?? '/'),
     })),
   };
 }

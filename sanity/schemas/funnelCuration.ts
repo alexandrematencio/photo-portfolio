@@ -1,7 +1,7 @@
 import { defineArrayMember, defineField, defineType } from 'sanity';
 
 /**
- * La « funnel curation » — la sélection de photos du tunnel de DESIGN-FOLIO
+ * La « funnel curation » — la sélection de photos du tunnel de am-home
  * (`tools/curation.mjs` là-bas), hébergée ici parce que c'est ici que vivent
  * les photos.
  *
