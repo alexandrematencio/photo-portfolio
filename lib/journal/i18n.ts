@@ -136,7 +136,6 @@ type Dict = {
   minutes: (n: number) => string;
   references: (n: number) => string;
   articles: (n: number) => string;
-  part: (n: number) => string;
   series: string;
   seriesHeading: string;
   seriesKicker: string;
@@ -161,7 +160,8 @@ type Dict = {
   dateCol: string;
   titleCol: string;
   noArticles: string;
-  readArticle: string;
+  /** Étiquette des articles d'au moins `LONG_READ_MINUTES` sur l'index. */
+  longRead: string;
   expand: (title: string) => string;
   collapse: (title: string) => string;
   referencesTitle: string;
@@ -296,7 +296,6 @@ export const DICT: Record<Lang, Dict> = {
     minutes: (n) => `${n} min de lecture`,
     references: (n) => `${n} ${plural(n, 'référence', 'références')}`,
     articles: (n) => `${n} ${plural(n, 'article', 'articles')}`,
-    part: (n) => `Partie ${n}`,
     series: 'Série',
     seriesHeading: 'Séries',
     seriesKicker: 'Journal · Série',
@@ -318,7 +317,7 @@ export const DICT: Record<Lang, Dict> = {
     dateCol: 'Date',
     titleCol: 'Titre',
     noArticles: 'Aucun article publié pour l’instant.',
-    readArticle: 'Lire l’article →',
+    longRead: 'Long read',
     expand: (t) => `Déplier « ${t} »`,
     collapse: (t) => `Replier « ${t} »`,
     referencesTitle: 'Références',
@@ -463,7 +462,6 @@ export const DICT: Record<Lang, Dict> = {
     minutes: (n) => `${n} min read`,
     references: (n) => `${n} ${plural(n, 'reference', 'references')}`,
     articles: (n) => `${n} ${plural(n, 'article', 'articles')}`,
-    part: (n) => `Part ${n}`,
     series: 'Series',
     seriesHeading: 'Series',
     seriesKicker: 'Journal · Series',
@@ -485,7 +483,7 @@ export const DICT: Record<Lang, Dict> = {
     dateCol: 'Date',
     titleCol: 'Title',
     noArticles: 'Nothing published yet.',
-    readArticle: 'Read the article →',
+    longRead: 'Long read',
     expand: (t) => `Expand “${t}”`,
     collapse: (t) => `Collapse “${t}”`,
     referencesTitle: 'References',
@@ -630,7 +628,6 @@ export const DICT: Record<Lang, Dict> = {
     minutes: (n) => `${n} мин чтения`,
     references: (n) => `${n} ${ru(n, 'источник', 'источника', 'источников')}`,
     articles: (n) => `${n} ${ru(n, 'статья', 'статьи', 'статей')}`,
-    part: (n) => `Часть ${n}`,
     series: 'Серия',
     seriesHeading: 'Серии',
     seriesKicker: 'Журнал · Серия',
@@ -653,7 +650,7 @@ export const DICT: Record<Lang, Dict> = {
     dateCol: 'Дата',
     titleCol: 'Заголовок',
     noArticles: 'Пока ничего не опубликовано.',
-    readArticle: 'Читать статью →',
+    longRead: 'Лонгрид',
     expand: (t) => `Развернуть «${t}»`,
     collapse: (t) => `Свернуть «${t}»`,
     referencesTitle: 'Источники',
@@ -788,6 +785,23 @@ export const DICT: Record<Lang, Dict> = {
     dateLocale: 'ru-RU',
   },
 };
+
+/**
+ * La date d'un article, au format européen « jj/mm/aa » dans les TROIS
+ * langues (demande Alexandre, 2026-10-22). Le `<time dateTime>` qui
+ * l'enveloppe garde la forme ISO pour les machines.
+ */
+export function articleDate(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return `${d}/${m}/${y.slice(2)}`;
+}
+
+/**
+ * À partir de là, l'index marque l'article « Long read ». 15 et non 8 ou 10 : le
+ * journal tourne autour de 9 à 18 minutes (2026-10-22) — à 10, six articles
+ * sur huit portaient l'étiquette, elle ne distinguait plus rien.
+ */
+export const LONG_READ_MINUTES = 15;
 
 /** Guillemets d'une citation en exergue, selon la langue. */
 export function quoteMarks(lang: Lang): [string, string] {

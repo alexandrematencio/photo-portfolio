@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { DICT, THEME_PARAM, articlePath, seriesPath, type Lang } from '@/lib/journal/i18n';
+import { DICT, LONG_READ_MINUTES, THEME_PARAM, articleDate, articlePath, seriesPath, type Lang } from '@/lib/journal/i18n';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StateDot } from '@/components/site/StateDot';
 import { ListSelector } from '@/components/site/ListSelector';
@@ -16,7 +16,8 @@ import type { ArticleSummary } from '@/lib/journal/types';
  *
  * - une colonne de filtres à gauche (« Séries »), collante ;
  * - un index en lignes : « Date », « Titre », un « + » qui déplie le
- *   chapeau de l'article sans quitter la page ;
+ *   sous-titre DANS la ligne (2026-10-22) — elle grandit et pousse les
+ *   suivantes ;
  * - au survol, la ligne s'inverse — encre sur papier devient papier sur
  *   encre. Stripe la passe en vert ; ici l'orange n'a pas le droit d'être une
  *   surface (§4.3), il reste ce qu'il est partout : le voyant de la ligne
@@ -60,7 +61,7 @@ const ALL = '__all';
 /** Filtre des articles qui n'appartiennent à aucune série (clé interne ; le libellé vient du dictionnaire). */
 const HORS_SERIE = '__none';
 
-/** Colonne des dates — « 2026.10.17 » en chiffres tabulaires, comme Stripe. */
+/** Colonne des dates — « 17/10/26 » en chiffres tabulaires. */
 const DATE_COL = 128;
 
 /** Largeur de la colonne de filtres au-dessus de `md`. */
@@ -72,10 +73,6 @@ const MOBILE_FILTERS_GAP = 28;
 type Filter = { key: string; label: string; count: number; color?: string | null };
 
 type Tab = 'series' | 'themes';
-
-function stamp(date: string) {
-  return date.replaceAll('-', '.');
-}
 
 export function JournalIndex({
   articles,
@@ -521,8 +518,9 @@ function SeriesMark({ name, part, total }: { name: string | null; part: number; 
           </span>
         </>
       )}
-      {/* Padding inline : le reset `* { padding: 0 }` avale les utilities. */}
-      <span className="shrink-0 leading-none" style={{ padding: '3px 5px', border: '1px solid currentColor' }}>
+      {/* Padding inline : le reset `* { padding: 0 }` avale les utilities.
+          Graisse 500 : le chiffre se lit sans peser autant que le nom. */}
+      <span className="shrink-0 leading-none font-medium" style={{ padding: '3px 5px', border: '1px solid currentColor' }}>
         {part}/{total}
       </span>
     </span>
@@ -562,7 +560,7 @@ function Row({
     <li style={{ borderBottom: '1px solid var(--color-line)' }}>
       <div
         className={cn(
-          'group relative flex items-center gap-3 transition-colors duration-200 ease-out motion-reduce:transition-none',
+          'group relative flex flex-col transition-colors duration-200 ease-out motion-reduce:transition-none',
           'hover:bg-[var(--color-fg)] focus-within:bg-[var(--color-fg)]',
         )}
         style={{ paddingBlock: 14, paddingInline: 8 }}
@@ -571,162 +569,162 @@ function Row({
         onFocus={() => setHot(true)}
         onBlur={() => setHot(false)}
       >
-        <div
-          className="flex-1 min-w-0 flex flex-col gap-1 md:grid md:items-center"
-          style={{ gridTemplateColumns: `${DATE_COL - 8}px minmax(0, 1fr)` }}
-        >
-          <span
-            className={cn(
-              MICRO_LABEL,
-              'flex items-center gap-[10px] text-[var(--color-fg-muted)] transition-colors duration-200 motion-reduce:transition-none',
-              'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
-            )}
+        <div className="flex items-center gap-3">
+          <div
+            className="flex-1 min-w-0 flex flex-col gap-1 md:grid md:items-center"
+            style={{ gridTemplateColumns: `${DATE_COL - 8}px minmax(0, 1fr)` }}
           >
-            {/* Le voyant de survol n'existe qu'au pointeur : sur téléphone il
-                décalait la date sous le titre pour un état qui ne s'allume pas. */}
-            <span className="hidden md:flex">
-              <StateDot on={hot} />
-            </span>
-            <time dateTime={article.date}>{stamp(article.date)}</time>
-          </span>
-          <span className="flex flex-col gap-[6px] min-w-0">
-            <Link
-              href={articlePath(article.slug, lang)}
+            <span
               className={cn(
-                'text-[21px] md:text-[28px] font-bold tracking-[-0.02em] leading-[1.15] text-[var(--color-fg)] md:truncate',
-                'transition-colors duration-200 motion-reduce:transition-none',
-                'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)] focus-visible:outline-none',
-                // Lien étiré : toute la ligne est cliquable, le « + » passe au-dessus.
-                'after:absolute after:inset-0',
+                MICRO_LABEL,
+                'flex items-center gap-[10px] text-[var(--color-fg-muted)] transition-colors duration-200 motion-reduce:transition-none',
+                'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
               )}
             >
-              {article.title}
-              {article.series && article.part > 0 && (
-                <span className="sr-only"> — {t.seriesMark(article.series, article.part, total)}</span>
-              )}
-            </Link>
-            {/* Sous le titre : la série (lien, à l'encre) puis les
-                thématiques (une donnée, grises comme la date). Tout passe au
-                papier sur la ligne inversée. Pour filtrer sur une thématique :
-                les boutons du dépli. */}
-            {(mark || article.tags.length > 0) && (
-              <span
-                className={cn(
-                  MICRO_LABEL,
-                  'flex flex-wrap items-center gap-x-4 gap-y-1 text-[var(--color-fg-muted)] transition-colors duration-200 motion-reduce:transition-none',
-                  'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
-                )}
-              >
-                {mark &&
-                  (article.seriesSlug ? (
-                    <Link
-                      href={seriesPath(article.seriesSlug, lang)}
-                      aria-label={`${t.seriesPage} — ${t.seriesMark(article.series!, article.part, total)}`}
-                      // Au-dessus du lien étiré du titre, comme le « + ».
-                      // Bleu du logo au repos ; papier sur la ligne inversée
-                      // (le bleu y tomberait à ~2:1) ; orange du surlignage de
-                      // la nav sous le pointeur, souligné de papier — `!` :
-                      // le survol du lien l'emporte sur celui de la ligne.
-                      className={cn(
-                        'group/series relative z-10 text-[var(--color-accent)]',
-                        'transition-colors duration-200 motion-reduce:transition-none focus-visible:outline-none',
-                        'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
-                        'hover:text-[var(--color-active-bg)]! focus-visible:text-[var(--color-active-bg)]!',
-                      )}
-                    >
-                      {mark}
-                    </Link>
-                  ) : (
-                    <span className="text-[var(--color-accent)] group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]">
-                      {mark}
-                    </span>
-                  ))}
-                {article.tags.length > 0 && (
-                  <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <span className="sr-only">{t.themesHeading}: </span>
-                    {article.tags.map((tag) => (
-                      <span key={tag.slug} className="flex items-center gap-[6px]">
-                        <TagSwatch color={tag.color} />
-                        {tag.title}
-                      </span>
-                    ))}
+              {/* Le voyant de survol n'existe qu'au pointeur : sur téléphone il
+                  décalait la date sous le titre pour un état qui ne s'allume pas. */}
+              <span className="hidden md:flex">
+                <StateDot on={hot} />
+              </span>
+              <time dateTime={article.date}>{articleDate(article.date)}</time>
+            </span>
+            <span className="flex flex-col gap-[6px] min-w-0">
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0 md:flex-nowrap">
+                <Link
+                  href={articlePath(article.slug, lang)}
+                  className={cn(
+                    'min-w-0 text-[21px] md:text-[28px] font-bold tracking-[-0.02em] leading-[1.15] text-[var(--color-fg)] md:truncate',
+                    'transition-colors duration-200 motion-reduce:transition-none',
+                    'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)] focus-visible:outline-none',
+                    // Lien étiré : toute la ligne est cliquable, le « + » passe au-dessus.
+                    'after:absolute after:inset-0',
+                  )}
+                >
+                  {article.title}
+                  {article.series && article.part > 0 && (
+                    <span className="sr-only"> — {t.seriesMark(article.series, article.part, total)}</span>
+                  )}
+                </Link>
+                {/* « Long read » (2026-10-22, maquette d'Alexandre) : l'orange
+                    des liens, cadre compris — c'est un signal, pas une surface.
+                    Padding inline : le reset `* { padding: 0 }`. */}
+                {article.minutes >= LONG_READ_MINUTES && (
+                  <span
+                    className="shrink-0 rounded-full text-[8px] font-medium uppercase leading-none text-[var(--color-link)]"
+                    style={{ padding: '4px 8px', border: '1px solid var(--color-link)' }}
+                  >
+                    {t.longRead}
                   </span>
                 )}
               </span>
-            )}
-          </span>
-        </div>
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls={panelId}
-          aria-label={open ? t.collapse(article.title) : t.expand(article.title)}
-          onClick={() => setOpen((v) => !v)}
-          className={cn(
-            'relative z-10 flex h-8 w-8 shrink-0 items-center justify-center text-[22px] font-normal leading-none text-[var(--color-fg)]',
-            'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
-            // Tailwind v4 : `rotate-45` écrit la propriété `rotate` — d'où
-            // `transition-[rotate]` et pas `transition-transform` (CLAUDE.md §7).
-            'transition-[rotate,color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
-            open && 'rotate-45',
-          )}
-        >
-          <span aria-hidden>+</span>
-        </button>
-      </div>
-
-      {/* Dépli : grille 0fr → 1fr pour animer une hauteur inconnue ; le texte
-          arrive 60 ms après la boîte (chevauchement, principe 5). */}
-      <div
-        id={panelId}
-        className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
-        style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
-      >
-        <div className="overflow-hidden" inert={!open}>
-          <div
-            className={cn(
-              'flex flex-col gap-3 transition-opacity duration-300 ease-out motion-reduce:transition-none',
-              open ? 'opacity-100 delay-[60ms]' : 'opacity-0',
-            )}
-            style={{ padding: '4px 8px 24px' }}
-          >
-            <div className="md:grid" style={{ gridTemplateColumns: `${DATE_COL - 8}px minmax(0, 1fr)` }}>
-              <span className={cn(MICRO_LABEL, 'hidden md:block text-[var(--color-fg-muted)]')} style={{ paddingLeft: 17 }}>
-                {article.part > 0 ? t.part(article.part) : ''}
-              </span>
-              <div className="flex flex-col gap-3">
-                <p className="text-[19px] md:text-[24px] font-bold tracking-[-0.02em] leading-[1.25] text-[var(--color-fg)]">
-                  {article.dek}
-                </p>
-                <p className={cn(EDITORIAL_SIDENOTE, 'flex flex-wrap gap-x-4')}>
-                  {article.series &&
+              {/* Sous le titre : la série (lien, à l'encre) puis les
+                  thématiques (grises comme la date ; un clic filtre l'index
+                  sur elles). Tout passe au papier sur la ligne inversée. */}
+              {(mark || article.tags.length > 0) && (
+                <span
+                  className={cn(
+                    MICRO_LABEL,
+                    'flex flex-wrap items-center gap-x-4 gap-y-1 text-[var(--color-fg-muted)] transition-colors duration-200 motion-reduce:transition-none',
+                    'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
+                  )}
+                >
+                  {mark &&
                     (article.seriesSlug ? (
-                      <Link href={seriesPath(article.seriesSlug, lang)} className="underline underline-offset-4 hover:text-[var(--color-fg)]">
-                        {article.series}
+                      <Link
+                        href={seriesPath(article.seriesSlug, lang)}
+                        aria-label={`${t.seriesPage} — ${t.seriesMark(article.series!, article.part, total)}`}
+                        // Au-dessus du lien étiré du titre, comme le « + ».
+                        // Bleu du logo au repos ; papier sur la ligne inversée
+                        // (le bleu y tomberait à ~2:1) ; orange du surlignage de
+                        // la nav sous le pointeur, souligné de papier — `!` :
+                        // le survol du lien l'emporte sur celui de la ligne.
+                        className={cn(
+                          'group/series relative z-10 text-[var(--color-accent)]',
+                          'transition-colors duration-200 motion-reduce:transition-none focus-visible:outline-none',
+                          'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
+                          'hover:text-[var(--color-active-bg)]! focus-visible:text-[var(--color-active-bg)]!',
+                        )}
+                      >
+                        {mark}
                       </Link>
                     ) : (
-                      <span>{article.series}</span>
+                      <span className="text-[var(--color-accent)] group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]">
+                        {mark}
+                      </span>
                     ))}
-                  <span>{t.minutes(article.minutes)}</span>
-                  {article.referenceCount > 0 && <span>{t.references(article.referenceCount)}</span>}
-                  {article.tags.map((tag) => (
-                    <button
-                      key={tag.slug}
-                      type="button"
-                      onClick={() => onTheme(tag.slug)}
-                      className="underline decoration-[var(--color-line)] underline-offset-4 hover:text-[var(--color-fg)] hover:decoration-current"
-                    >
-                      {tag.title}
-                    </button>
-                  ))}
-                </p>
-                <Link
-                  href={articlePath(article.slug, lang)}
-                  className={cn(MICRO_LABEL, 'w-fit text-[var(--color-fg)] underline underline-offset-4')}
-                >
-                  {t.readArticle}
-                </Link>
-              </div>
+                  {article.tags.length > 0 && (
+                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="sr-only">{t.themesHeading}: </span>
+                      {article.tags.map((tag) => (
+                        <button
+                          key={tag.slug}
+                          type="button"
+                          onClick={() => onTheme(tag.slug)}
+                          // Au-dessus du lien étiré, comme la série.
+                          className="relative z-10 flex items-center gap-[6px] uppercase underline decoration-transparent underline-offset-4 transition-[text-decoration-color] duration-200 hover:decoration-current focus-visible:decoration-current focus-visible:outline-none motion-reduce:transition-none"
+                        >
+                          <TagSwatch color={tag.color} />
+                          {tag.title}
+                        </button>
+                      ))}
+                    </span>
+                  )}
+                </span>
+              )}
+            </span>
+          </div>
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={panelId}
+            aria-label={open ? t.collapse(article.title) : t.expand(article.title)}
+            onClick={() => setOpen((v) => !v)}
+            className={cn(
+              'relative z-10 flex h-8 w-8 shrink-0 items-center justify-center text-[22px] font-normal leading-none text-[var(--color-fg)]',
+              'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
+              // Tailwind v4 : `rotate-45` écrit la propriété `rotate` — d'où
+              // `transition-[rotate]` et pas `transition-transform` (CLAUDE.md §7).
+              'transition-[rotate,color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+              open && 'rotate-45',
+            )}
+          >
+            <span aria-hidden>+</span>
+          </button>
+        </div>
+
+        {/* Dépli DANS la ligne (2026-10-22) : le sous-titre, sous le titre,
+            dans la même surface — la ligne grandit, les suivantes descendent.
+            Grille 0fr → 1fr pour animer une hauteur inconnue ; ouverture
+            300 ms qui freine, fermeture 200 ms qui accélère ; le texte arrive
+            60 ms après la boîte (chevauchement). Le lien étiré du titre le
+            couvre aussi : un clic sur le sous-titre ouvre l'article. */}
+        <div
+          id={panelId}
+          className={cn(
+            'grid transition-[grid-template-rows] motion-reduce:transition-none',
+            open ? 'duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]' : 'duration-200 ease-in',
+          )}
+          style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
+        >
+          <div className="overflow-hidden" inert={!open}>
+            {/* À droite, la place du « + » (32) et de son écart (12). */}
+            <div
+              className={cn(
+                'md:grid transition-opacity motion-reduce:transition-none',
+                open ? 'opacity-100 duration-300 ease-out delay-[60ms]' : 'opacity-0 duration-150 ease-in',
+              )}
+              style={{ gridTemplateColumns: `${DATE_COL - 8}px minmax(0, 1fr)`, paddingTop: 10, paddingRight: 44 }}
+            >
+              <span aria-hidden className="hidden md:block" />
+              <p
+                className={cn(
+                  'max-w-[var(--editorial-measure)] text-[17px] md:text-[20px] font-bold tracking-[-0.02em] leading-[1.3] text-[var(--color-fg-muted)]',
+                  'transition-colors duration-200 motion-reduce:transition-none',
+                  'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
+                )}
+              >
+                {article.dek}
+              </p>
             </div>
           </div>
         </div>

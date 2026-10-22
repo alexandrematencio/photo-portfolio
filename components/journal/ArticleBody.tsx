@@ -259,8 +259,8 @@ export function ArticleBody({
                   style={{
                     marginTop: RHYTHM.object,
                     maxWidth: PULLQUOTE_MAX,
-                    borderTop: '2px solid var(--color-fg)',
-                    borderBottom: '2px solid var(--color-fg)',
+                    borderTop: '1px solid var(--color-fg)',
+                    borderBottom: '1px solid var(--color-fg)',
                     paddingTop: 20,
                     paddingBottom: 24,
                   }}

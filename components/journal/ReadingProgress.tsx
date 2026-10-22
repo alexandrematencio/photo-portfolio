@@ -19,6 +19,11 @@ import { cn } from '@/lib/utils/cn';
  * bouge sans geste du lecteur, donc rien à couper sous reduced-motion. Le
  * rendu serveur pose déjà les 10 % : sans JS, la barre est là, figée.
  *
+ * Dans le rail, la barre porte son pourcentage à droite (2026-10-22) — celui
+ * de la barre, plancher compris, pour que le chiffre et le trait disent la
+ * même chose. Largeur réservée à « 100% » : la barre ne bouge pas quand le
+ * chiffre gagne un caractère.
+ *
  * L'article à mesurer porte `data-reading` (posé par `PageShell`). Le
  * scroller est `[data-scroll-container]` (FramedScroll), `window` à défaut
  * — l'aperçu du Studio, où la barre reste alors à son plancher.
@@ -27,6 +32,7 @@ const FLOOR = 0.1;
 
 export function ReadingProgress({ variant }: { variant: 'rail' | 'top' }) {
   const fillRef = useRef<HTMLDivElement>(null);
+  const pctRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     const fill = fillRef.current;
@@ -45,7 +51,9 @@ export function ReadingProgress({ variant }: { variant: 'rail' | 'top' }) {
       // faire défiler pour amener le bas de l'article au bas de l'écran.
       const span = rect.height - height;
       const read = span > 0 ? Math.min(1, Math.max(0, (top - rect.top) / span)) : 1;
-      fill.style.transform = `scaleX(${FLOOR + (1 - FLOOR) * read})`;
+      const shown = FLOOR + (1 - FLOOR) * read;
+      fill.style.transform = `scaleX(${shown})`;
+      if (pctRef.current) pctRef.current.textContent = `${Math.round(shown * 100)}%`;
     };
     const schedule = () => {
       if (!frame) frame = requestAnimationFrame(update);
@@ -65,7 +73,7 @@ export function ReadingProgress({ variant }: { variant: 'rail' | 'top' }) {
     };
   }, []);
 
-  return (
+  const bar = (
     <div
       aria-hidden
       className={cn('overflow-hidden', variant === 'rail' ? 'h-[3px] w-full bg-[var(--color-line)]' : 'h-[3px] w-full')}
@@ -75,6 +83,18 @@ export function ReadingProgress({ variant }: { variant: 'rail' | 'top' }) {
         className="h-full w-full origin-left bg-[var(--color-accent)]"
         style={{ transform: `scaleX(${FLOOR})` }}
       />
+    </div>
+  );
+  if (variant === 'top') return bar;
+  return (
+    <div aria-hidden className="flex items-center gap-2">
+      <div className="min-w-0 flex-1">{bar}</div>
+      <span
+        ref={pctRef}
+        className="w-[4ch] text-right text-[10px] font-medium leading-none tabular-nums text-[var(--color-fg-muted)]"
+      >
+        {Math.round(FLOOR * 100)}%
+      </span>
     </div>
   );
 }

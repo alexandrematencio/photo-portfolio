@@ -427,7 +427,7 @@ export function pageTitleFit(title: string): number {
  * jamais d'orange (§4.3) — l'exergue tient par le corps seul.
  */
 export const EDITORIAL_PULLQUOTE =
-  'text-[28px] md:text-[44px] font-bold tracking-[-0.02em] leading-[1.08] text-[var(--color-fg)] [text-wrap:balance]';
+  'text-[26px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.12] text-[var(--color-fg)] [text-wrap:balance]';
 
 /**
  * NOTE EN MARGE — la référence posée à côté du paragraphe qui l'appelle.
