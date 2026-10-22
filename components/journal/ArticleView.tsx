@@ -5,7 +5,7 @@ import { BackLink } from '@/components/journal/BackLink';
 import { LanguageSwitch } from '@/components/journal/LanguageSwitch';
 import { ReadingProgress } from '@/components/journal/ReadingProgress';
 import { TagSwatch } from '@/components/journal/TagSwatch';
-import { DICT, homePath, seriesPath, themePath } from '@/lib/journal/i18n';
+import { DICT, articleDate, homePath, seriesPath, themePath } from '@/lib/journal/i18n';
 import type { Article, ArticleSummary } from '@/lib/journal/types';
 import { EDITORIAL_H3, MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
@@ -30,10 +30,9 @@ export function ArticleView({
   const lang = article.lang;
   const t = DICT[lang];
 
-  const published = new Intl.DateTimeFormat(t.dateLocale, { dateStyle: 'long', timeZone: 'UTC' }).format(
-    new Date(article.date),
-  );
-  const seriesLabel = series.length > 1 ? `${article.series} ${article.part} / ${series.length}` : article.series;
+  const published = articleDate(article.date);
+  // La partie entre crochets, sans espaces : « Le prix du bien [2/2] ».
+  const seriesLabel = series.length > 1 ? `${article.series} [${article.part}/${series.length}]` : article.series;
   const meta = [
     'Journal',
     seriesLabel,
@@ -63,13 +62,13 @@ export function ArticleView({
                 </time>
               ) : m === seriesLabel && article.seriesSlug ? (
                 // La série mène à sa page : le sujet entier, pas seulement cet
-                // article. Bleu du logo, orange au survol — les couleurs de la
-                // contrasté sur fond clair que celui de l'accueil, 2026-10-22).
+                // article. Bleu du logo, souligné d'un filet fin du même bleu
+                // (2026-10-22) ; orange au survol, filet compris.
                 <Link
                   key={m}
                   href={seriesPath(article.seriesSlug, lang)}
                   className={cn(
-                    'text-[var(--color-accent)] underline decoration-transparent underline-offset-4',
+                    'text-[var(--color-accent)] underline decoration-current decoration-1 underline-offset-4',
                     'transition-colors duration-200 motion-reduce:transition-none',
                     'hover:text-[var(--color-link)] hover:decoration-current focus-visible:text-[var(--color-link)] focus-visible:decoration-current',
                   )}

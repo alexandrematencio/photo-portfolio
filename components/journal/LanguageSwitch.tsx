@@ -36,8 +36,11 @@ export function LanguageSwitch({
   heading?: boolean;
 }) {
   const t = DICT[lang];
+  // Hors en-tête, la rangée se justifie sur la largeur qu'on lui donne : dans
+  // le rail d'un article, celle du bouton Back (PageShell). Laissée à sa
+  // largeur propre (rangée mobile), `justify-between` ne change rien.
   const row = (
-    <ul className="flex items-center gap-x-4">
+    <ul className={cn('flex items-center gap-x-4', !heading && 'justify-between')}>
       {LANGS.map((l) => {
         const here = l === lang;
         const href = alternates[l];

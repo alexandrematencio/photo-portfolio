@@ -205,19 +205,22 @@ export function PageShell({
       >
         {/* La cellule court sur toute la hauteur de l'article : c'est elle qui
             borne le collant. Le rail se cale sur son bord DROIT, contre la
-            gouttière de l'article. La barre d'avancement prend la largeur des
-            drapeaux (`inline-flex` + `stretch`). */}
+            gouttière de l'article. Le bloc prend la largeur de son élément le
+            plus large — le bouton Back — et tout le reste s'y justifie, bord à
+            bord (2026-10-22) : drapeaux répartis, barre d'avancement étirée. */}
         <div className="hidden xl:block">
-          <div className="sticky flex flex-col items-end gap-5" style={{ top: RAIL_STICKY_TOP }}>
-            {back}
-            {progress ? (
-              <div className="inline-flex flex-col gap-3">
-                {language}
-                {progress.rail}
-              </div>
-            ) : (
-              language
-            )}
+          <div className="sticky flex flex-col items-end" style={{ top: RAIL_STICKY_TOP }}>
+            <div className="flex flex-col gap-5">
+              {back}
+              {progress ? (
+                <div className="flex flex-col gap-3">
+                  {language}
+                  {progress.rail}
+                </div>
+              ) : (
+                language
+              )}
+            </div>
           </div>
         </div>
         {page}

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { DICT, articlePath, type Lang } from '@/lib/journal/i18n';
+import { DICT, articleDate, articlePath, type Lang } from '@/lib/journal/i18n';
 import { frenchSpaces } from '@/lib/journal/french';
 import { EDITORIAL_SIDENOTE, MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
@@ -38,7 +38,7 @@ export function SeriesArticleList({ articles, lang }: { articles: ArticleSummary
                 {frenchSpaces(a.dek)}
               </span>
               <span className={cn(EDITORIAL_SIDENOTE, 'flex flex-wrap gap-x-4 text-current opacity-70')}>
-                <time dateTime={a.date}>{a.date.replaceAll('-', '.')}</time>
+                <time dateTime={a.date}>{articleDate(a.date)}</time>
                 <span>{t.minutes(a.minutes)}</span>
                 {a.referenceCount > 0 && <span>{t.references(a.referenceCount)}</span>}
               </span>
