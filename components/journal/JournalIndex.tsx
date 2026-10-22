@@ -430,10 +430,16 @@ function ThemeBar({
               onClick={onClear}
               className={cn(
                 MICRO_LABEL,
-                'group/clear shrink-0 flex items-center gap-[6px] text-[var(--color-fg)]',
+                'group/clear shrink-0 flex items-baseline gap-[6px] text-[var(--color-fg)]',
               )}
             >
-              <span aria-hidden className="text-[14px] font-normal leading-none">×</span>
+              {/* Une croix DESSINÉE à la hauteur des capitales (7 px ; mesurée,
+                  la capitale de l'étiquette à 11 px fait 7,2). En ligne de base,
+                  une boîte sans texte s'aligne par son bas : elle se pose sur la
+                  ligne du libellé, là où le glyphe « × » flottait à mi-hauteur. */}
+              <svg aria-hidden width={7} height={7} viewBox="0 0 7 7" className="flex-none" stroke="currentColor" strokeWidth={1.5}>
+                <path d="M0.75 0.75l5.5 5.5M6.25 0.75l-5.5 5.5" />
+              </svg>
               <span className="underline decoration-transparent underline-offset-4 transition-[text-decoration-color] duration-200 group-hover/clear:decoration-current group-focus-visible/clear:decoration-current motion-reduce:transition-none">
                 {t.clearFilter}
               </span>
