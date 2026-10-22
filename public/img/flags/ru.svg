@@ -1,9 +1,9 @@
 <svg width="28" height="17" viewBox="0 0 28 17" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M2 0H26V5.73333H2V0Z" fill="white"/>
+<path d="M2 0H26V5.8H2V0Z" fill="white"/>
 <mask id="stroke0_14439_1618" fill="white">
-<path d="M2 0H26V5.73333H2V0Z"/>
+<path d="M2 0H26V5.8H2V0Z"/>
 </mask>
-<path d="M2 0V-0.1H1.9V0H2ZM26 0H26.1V-0.1H26V0ZM2 0V0.1H26V0V-0.1H2V0ZM26 0H25.9V5.73333H26H26.1V0H26ZM2 5.73333H2.1V0H2H1.9V5.73333H2Z" fill="black" mask="url(#stroke0_14439_1618)"/>
-<rect x="2" y="5.7334" width="24" height="5.63333" fill="#0139A6"/>
-<rect x="2" y="11.3667" width="24" height="5.63333" fill="#D52B1E"/>
+<path d="M2 0V-0.2H1.8V0H2ZM26 0H26.2V-0.2H26V0ZM2 0V0.2H26V0V-0.2H2V0ZM26 0H25.8V5.8H26H26.2V0H26ZM2 5.8H2.2V0H2H1.8V5.8H2Z" fill="black" mask="url(#stroke0_14439_1618)"/>
+<rect x="2" y="5.7998" width="24" height="5.6" fill="#0139A6"/>
+<rect x="2" y="11.3999" width="24" height="5.6" fill="#D52B1E"/>
 </svg>
