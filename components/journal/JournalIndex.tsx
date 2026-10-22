@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { DICT, LONG_READ_MINUTES, THEME_PARAM, articleDate, articlePath, seriesPath, type Lang } from '@/lib/journal/i18n';
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode, type Ref } from 'react';
 import { StateDot } from '@/components/site/StateDot';
 import { ListSelector } from '@/components/site/ListSelector';
 import { EDITORIAL_SIDENOTE, MICRO_LABEL, PAGE_TITLE_GAP } from '@/lib/site/typography';
@@ -45,6 +45,14 @@ import type { ArticleSummary } from '@/lib/journal/types';
  * l'onglet des thématiques. Chaque ligne de l'index nomme ses thématiques
  * sous son titre.
  *
+ * Plusieurs thématiques peuvent filtrer à la fois (2026-10-22, demande
+ * Alexandre) : un article passe s'il en porte UNE (ou, pas et — chaque thème
+ * ajouté élargit). Dès qu'une thématique filtre, un bandeau « Filtrage » coiffe
+ * l'index (`ThemeBar`) : ce qui filtre, un « Tout afficher » pour en sortir sans
+ * chercher la colonne, et toutes les thématiques en bascules. Un clic sur la
+ * thématique d'une ligne, lui, REMPLACE le filtre — on change de piste ; on
+ * cumule depuis le bandeau. La colonne de gauche garde le choix unique.
+ *
  * Une thématique peut porter une COULEUR (Studio, 2026-10-21) : un carré
  * devant son nom, dans la ligne, la colonne de filtres et l'article
  * (`TagSwatch`).
@@ -57,6 +65,9 @@ import type { ArticleSummary } from '@/lib/journal/types';
  */
 
 const ALL = '__all';
+
+/** Champ téléphone quand plusieurs thématiques filtrent : une valeur qui ne se choisit pas. */
+const MIXED = '__mixed';
 
 /** Filtre des articles qui n'appartiennent à aucune série (clé interne ; le libellé vient du dictionnaire). */
 const HORS_SERIE = '__none';
@@ -86,15 +97,16 @@ export function JournalIndex({
 }) {
   const t = DICT[lang];
   const [series, setSeries] = useState(ALL);
-  const [theme, setThemeState] = useState(ALL);
+  // Les thématiques qui filtrent ; vide = toutes.
+  const [picked, setPickedState] = useState<string[]>([]);
   const [tab, setTab] = useState<Tab>('series');
-  const mobileFilters = useRef<HTMLDivElement | null>(null);
+  const bar = useRef<HTMLDivElement | null>(null);
   // La ligne survolée (ou focalisée) : sa couverture s'ouvre dans la colonne de gauche.
   const [active, setActive] = useState<string | null>(null);
   const covers = articles.filter((a) => a.cover);
 
   const inSeries = (a: ArticleSummary) => series === ALL || (a.series ?? HORS_SERIE) === series;
-  const inTheme = (a: ArticleSummary) => theme === ALL || a.tags.some((tag) => tag.slug === theme);
+  const inTheme = (a: ArticleSummary) => picked.length === 0 || a.tags.some((tag) => picked.includes(tag.slug));
 
   // La liste des séries ne bouge pas ; ses compteurs suivent la thématique choisie.
   const filters = useMemo<Filter[]>(() => {
@@ -109,7 +121,7 @@ export function JournalIndex({
       { key: ALL, label: t.all, count: pool.length },
       ...[...counts].map(([name, count]) => ({ key: name, label: name === HORS_SERIE ? t.noSeries : name, count })),
     ];
-  }, [articles, t, theme]);
+  }, [articles, t, picked]);
 
   // Les thématiques, par ordre alphabétique : la liste grandit avec le
   // journal, on y cherche un mot, pas un rang. Vide : pas de groupe.
@@ -137,31 +149,47 @@ export function JournalIndex({
     ];
   }, [articles, t, lang, series]);
 
-  // `?theme=<slug>` : lu au montage (l'export est statique, le HTML servi ne
-  // connaît pas l'adresse), réécrit à chaque choix pour que l'adresse se partage.
+  // `?theme=<slug>,<slug>` : lu au montage (l'export est statique, le HTML
+  // servi ne connaît pas l'adresse), réécrit à chaque choix pour que l'adresse
+  // se partage. Un slug inconnu (thématique retirée depuis) est ignoré.
   useEffect(() => {
-    const slug = new URLSearchParams(window.location.search).get(THEME_PARAM);
-    if (slug && articles.some((a) => a.tags.some((tag) => tag.slug === slug))) {
-      setThemeState(slug);
+    const slugs = (new URLSearchParams(window.location.search).get(THEME_PARAM) ?? '')
+      .split(',')
+      .filter((slug) => articles.some((a) => a.tags.some((tag) => tag.slug === slug)));
+    if (slugs.length) {
+      setPickedState(slugs);
       setTab('themes');
     }
   }, [articles]);
 
-  const setTheme = (key: string) => {
-    setThemeState(key);
+  const setPicked = (slugs: string[]) => {
+    setPickedState(slugs);
     const url = new URL(window.location.href);
-    if (key === ALL) url.searchParams.delete(THEME_PARAM);
-    else url.searchParams.set(THEME_PARAM, key);
+    if (slugs.length === 0) url.searchParams.delete(THEME_PARAM);
+    else url.searchParams.set(THEME_PARAM, slugs.join(','));
     window.history.replaceState(window.history.state, '', url);
   };
 
-  // Depuis le dépli d'une ligne : sur téléphone, les filtres sont loin
-  // au-dessus — on y remonte pour que le tri se voie.
+  // Colonne de gauche et champ téléphone : un seul choix, « Tout » vide le filtre.
+  const setTheme = (key: string) => {
+    if (key !== MIXED) setPicked(key === ALL ? [] : [key]);
+  };
+
+  // Bascule depuis le bandeau : ajoute ou retire, dans l'ordre de la liste.
+  const toggleTheme = (key: string) => {
+    const next = picked.includes(key) ? picked.filter((k) => k !== key) : [...picked, key];
+    setPicked(themes.map((f) => f.key).filter((k) => next.includes(k)));
+  };
+
+  // Depuis une ligne : le filtre passe à CETTE thématique. Si le bandeau est
+  // au-dessus de l'écran (ligne lointaine, ou téléphone), on y remonte pour que
+  // le tri se voie. Il ne grandit que vers le bas : son haut ne bouge pas
+  // pendant qu'il s'ouvre, la cible tient.
   const pickTheme = (key: string) => {
-    setTheme(key);
+    setPicked([key]);
     setTab('themes');
-    const box = mobileFilters.current;
-    if (box && box.offsetParent !== null && box.getBoundingClientRect().top < 0) {
+    const box = bar.current;
+    if (box && box.getBoundingClientRect().top < 0) {
       const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       box.scrollIntoView({ block: 'start', behavior: instant ? 'auto' : 'smooth' });
     }
@@ -195,7 +223,9 @@ export function JournalIndex({
   const shown = articles.filter((a) => inSeries(a) && inTheme(a));
   const tabsId = useId();
   // Le voyant de chaque onglet : son filtre trie-t-il encore ?
-  const lit = { series: series !== ALL, themes: theme !== ALL };
+  const lit = { series: series !== ALL, themes: picked.length > 0 };
+  // Valeur unique pour les contrôles à choix unique ; plusieurs → `MIXED`.
+  const theme = picked.length === 0 ? ALL : picked.length === 1 ? picked[0] : MIXED;
 
   return (
     <div className="flex flex-col md:grid md:gap-x-12" style={{ gridTemplateColumns: `${FILTER_COL}px minmax(0, 1fr)` }}>
@@ -204,7 +234,6 @@ export function JournalIndex({
           (`PAGE_TITLE_GAP`) ramené à MOBILE_FILTERS_GAP — les onglets suivent
           la langue au lieu d'attendre après un grand blanc (2026-10-20). */}
       <div
-        ref={mobileFilters}
         className="md:hidden"
         style={{ marginTop: MOBILE_FILTERS_GAP - PAGE_TITLE_GAP, marginBottom: 32, scrollMarginTop: 16 }}
       >
@@ -233,12 +262,16 @@ export function JournalIndex({
             <ListSelector
               hint={t.themeHint}
               ariaLabel={t.filterByTheme}
-              items={themes}
+              items={
+                theme === MIXED
+                  ? [{ key: MIXED, label: t.themesPicked(picked.length), count: shown.length }, ...themes]
+                  : themes
+              }
               value={theme}
               onChange={setTheme}
               mark="dot"
               tone="plate"
-              lit={theme !== ALL}
+              lit={picked.length > 0}
             />
           )}
         </div>
@@ -253,7 +286,7 @@ export function JournalIndex({
             heading={themes.length ? <FilterTabs idBase={`${tabsId}-d`} tab={tab} onTab={setTab} lit={lit} lang={lang} rule /> : t.seriesHeading}
             panelId={themes.length ? `${tabsId}-d-series` : undefined}
             items={filters}
-            value={series}
+            isOn={(key) => key === series}
             onChange={setSeries}
           >
             {seriesLink && <div style={{ paddingTop: 16 }}>{seriesLink}</div>}
@@ -263,7 +296,7 @@ export function JournalIndex({
             heading={<FilterTabs idBase={`${tabsId}-d`} tab={tab} onTab={setTab} lit={lit} lang={lang} rule />}
             panelId={`${tabsId}-d-themes`}
             items={themes}
-            value={theme}
+            isOn={(key) => (key === ALL ? picked.length === 0 : picked.includes(key))}
             onChange={setTheme}
           />
         )}
@@ -289,6 +322,14 @@ export function JournalIndex({
 
       {/* INDEX */}
       <section aria-label="Articles" className="flex flex-col min-w-0">
+        <ThemeBar
+          ref={bar}
+          lang={lang}
+          themes={themes.filter((f) => f.key !== ALL)}
+          picked={picked}
+          onToggle={toggleTheme}
+          onClear={() => setPicked([])}
+        />
         <div
           className={cn(MICRO_LABEL, 'hidden md:grid text-[var(--color-fg-muted)]')}
           style={{
@@ -324,12 +365,114 @@ export function JournalIndex({
   );
 }
 
+/**
+ * Le bandeau « Filtrage » (2026-10-22) : il coiffe l'index tant qu'une
+ * thématique filtre. Première ligne, ce qui filtre — à l'encre — et la sortie,
+ * « × Tout afficher », au fer droit. Dessous, toutes les thématiques en
+ * bascules, voyant compris : la grammaire de la colonne de filtres, au corps
+ * des thématiques de ligne. Le voyant est toujours rendu, c'est son opacité
+ * qui bascule : un clic ne décale jamais la rangée.
+ *
+ * Il s'ouvre comme le dépli d'une ligne (grille 0fr → 1fr, 300 ms qui freine,
+ * le texte 60 ms après la boîte ; fermeture 200 ms qui accélère). À la
+ * fermeture il garde la dernière sélection affichée : sans elle, il se
+ * viderait avant de se replier.
+ */
+function ThemeBar({
+  ref,
+  lang,
+  themes,
+  picked,
+  onToggle,
+  onClear,
+}: {
+  ref: Ref<HTMLDivElement>;
+  lang: Lang;
+  /** Toutes les thématiques, « Tout » exclu. */
+  themes: Filter[];
+  picked: string[];
+  onToggle: (key: string) => void;
+  onClear: () => void;
+}) {
+  const t = DICT[lang];
+  const open = picked.length > 0;
+  const last = useRef<string[]>([]);
+  if (open) last.current = picked;
+  const names = themes.filter((f) => last.current.includes(f.key)).map((f) => f.label);
+
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        'grid transition-[grid-template-rows] motion-reduce:transition-none',
+        open ? 'duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]' : 'duration-200 ease-in',
+      )}
+      style={{ gridTemplateRows: open ? '1fr' : '0fr', scrollMarginTop: 16 }}
+    >
+      <div className="overflow-hidden" inert={!open}>
+        <div
+          className={cn(
+            'transition-opacity motion-reduce:transition-none',
+            open ? 'opacity-100 duration-300 ease-out delay-[60ms]' : 'opacity-0 duration-150 ease-in',
+          )}
+          // Retrait des lignes (8) : le voyant des bascules tombe dans la
+          // colonne des voyants de l'index, « × Tout afficher » au fer du « + ».
+          style={{ paddingBottom: 28, paddingInline: 8 }}
+        >
+          <div className="flex items-baseline justify-between gap-4">
+            <p aria-live="polite" className={cn(MICRO_LABEL, 'min-w-0 text-[var(--color-fg-muted)]')}>
+              {t.filtering}
+              {lang === 'fr' ? '\u00a0: ' : ': '}
+              <span className="text-[var(--color-fg)]">{names.join(', ')}</span>
+            </p>
+            <button
+              type="button"
+              onClick={onClear}
+              className={cn(
+                MICRO_LABEL,
+                'group/clear shrink-0 flex items-center gap-[6px] text-[var(--color-fg)]',
+              )}
+            >
+              <span aria-hidden className="text-[14px] font-normal leading-none">×</span>
+              <span className="underline decoration-transparent underline-offset-4 transition-[text-decoration-color] duration-200 group-hover/clear:decoration-current group-focus-visible/clear:decoration-current motion-reduce:transition-none">
+                {t.clearFilter}
+              </span>
+            </button>
+          </div>
+          <div role="group" aria-label={t.filterByTheme} className="flex flex-wrap gap-x-5 gap-y-2" style={{ paddingTop: 14 }}>
+            {themes.map((f) => {
+              const on = picked.includes(f.key);
+              return (
+                <button
+                  key={f.key}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => onToggle(f.key)}
+                  className={cn(
+                    MICRO_LABEL,
+                    'flex items-center gap-[8px] transition-colors duration-200 motion-reduce:transition-none',
+                    on ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
+                  )}
+                >
+                  <StateDot on={on} />
+                  <TagSwatch color={f.color ?? null} />
+                  {f.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Un groupe de la colonne de filtres (desktop) : titre filé, une ligne par choix, voyant d'état. */
 function FilterGroup({
   heading,
   panelId,
   items,
-  value,
+  isOn,
   onChange,
   children,
 }: {
@@ -338,7 +481,8 @@ function FilterGroup({
   /** Présent quand le groupe est le panneau d'un onglet. */
   panelId?: string;
   items: Filter[];
-  value: string;
+  /** Plusieurs entrées peuvent être allumées : plusieurs thématiques filtrent. */
+  isOn: (key: string) => boolean;
   onChange: (key: string) => void;
   /** Sous la liste (le lien vers la page de la série choisie). */
   children?: ReactNode;
@@ -359,7 +503,7 @@ function FilterGroup({
         style={{ paddingTop: 12 }}
       >
         {items.map((f) => {
-          const on = f.key === value;
+          const on = isOn(f.key);
           return (
             <li key={f.key}>
               <button
