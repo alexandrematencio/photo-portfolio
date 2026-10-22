@@ -420,14 +420,13 @@ export function pageTitleFit(title: string): number {
 
 /**
  * CITATION EXTRAITE — une phrase de l'article remontée en exergue, comme en
- * presse. Helvetica (pas de `font-sans`) : c'est un objet de MISE EN PAGE,
- * pas du texte à lire une seconde fois, il parle donc la voix des titres.
- * Casse de phrase et graisse 700, entre le H2 (capitales) et le chapô
- * (Inter) : elle ne se confond avec aucun des deux. Jamais d'italique (§5.2),
- * jamais d'orange (§4.3) — l'exergue tient par le corps seul.
+ * presse. En Newsreader depuis le 2026-10-22 (choix d'Alexandre ; Helvetica
+ * avant) : un serif face à Inter, l'exergue ne se confond plus avec aucun
+ * titre ni avec le texte. Graisse 500, romain — jamais d'italique (§5.2),
+ * jamais d'orange (§4.3) — l'exergue tient par le corps et la voix.
  */
 export const EDITORIAL_PULLQUOTE =
-  'text-[26px] md:text-[32px] font-bold tracking-[-0.02em] leading-[1.12] text-[var(--color-fg)] [text-wrap:balance]';
+  'font-[family-name:var(--font-quote)] text-[26px] md:text-[32px] font-medium tracking-[-0.01em] leading-[1.15] text-[var(--color-fg)] [text-wrap:balance]';
 
 /**
  * NOTE EN MARGE — la référence posée à côté du paragraphe qui l'appelle.

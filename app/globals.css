@@ -78,6 +78,9 @@
      Toujours aucune serif, aucune cursive. */
   --font-sans: var(--font-inter), -apple-system, system-ui, sans-serif;
   --font-display: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
+  /* Citations en exergue du journal (Newsreader, blog seul — BlogShell). Le
+     cyrillique, que Newsreader ne dessine pas, passe à son repli serif. */
+  --font-quote: var(--font-newsreader), Georgia, "Times New Roman", serif;
 
   --shadow-soft: 0 8px 40px rgba(10, 10, 10, 0.08);
 
