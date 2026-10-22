@@ -25,6 +25,14 @@ const strip = (url: string) => url.replace(/\/+$/, '');
 export const PHOTO_URL = strip(process.env.NEXT_PUBLIC_PHOTO_URL ?? 'https://amatencio.com');
 export const BLOG_URL = strip(process.env.NEXT_PUBLIC_BLOG_URL ?? 'https://blog.amatencio.com');
 
+/**
+ * Le HUB : `amatencio.com`, l'entrée principale de tous les sites — la cible
+ * du clic sur « All sites » (demande Alexandre, 2026-10-22). Aujourd'hui il
+ * sert encore le portfolio ; le jour où le portfolio passe sur `photo.`, le
+ * hub reste à cette adresse, d'où une constante à part de `PHOTO_URL`.
+ */
+export const HUB_URL = 'https://amatencio.com/';
+
 /** Adresse d'une page du portfolio, valable depuis n'importe quel site. */
 export function photoHref(path: string): string {
   return IS_BLOG ? `${PHOTO_URL}${path}` : path;

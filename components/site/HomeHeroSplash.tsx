@@ -585,6 +585,7 @@ export function HomeHeroSplash({ hero }: HomeHeroSplashProps) {
               <SitesMenu
                 key={link.label}
                 label={link.label}
+                href={link.href}
                 ref={(el) => {
                   navItemsRef.current[i] = el;
                 }}

@@ -13,6 +13,8 @@ import {
   type ComponentPropsWithoutRef,
   type CSSProperties,
   type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils/cn';
@@ -60,6 +62,8 @@ const PANEL_OFFSET = 14;
 /** Écart coin à coin quand le panneau s'ouvre au-dessus (nav de la home). */
 const CORNER_OFFSET = 4;
 const PANEL_WIDTH = 300;
+/** Marge de la découpe autour du panneau : son ombre déborde d'autant. */
+const SHADOW_ROOM = 24;
 
 function Row({ site, here, onNavigate }: { site: MenuEntry; here: boolean; onNavigate?: () => void }) {
   const rowStyle: CSSProperties = { padding: '14px 16px', borderRadius: CONTROL_RADIUS };
@@ -167,11 +171,16 @@ export function SitesList({
   );
 }
 
-type TriggerProps = Omit<ComponentPropsWithoutRef<'button'>, 'children' | 'onClick'> & {
+type TriggerProps = Omit<ComponentPropsWithoutRef<'a'>, 'children' | 'href'> & {
   label: string;
+  /** Où mène le clic sur le déclencheur : le hub pour « All sites », l'accueil du journal pour « Journal ». */
+  href: string;
   /** Les rangées du panneau ; à défaut, les sites d'amatencio.com. */
   entries?: MenuEntry[];
 };
+
+/** Grâce avant fermeture quand le pointeur quitte le déclencheur ou le panneau : le temps de franchir l'écart entre les deux. */
+const CLOSE_DELAY = 150;
 
 /**
  * Déclencheur de la nav-bar + panneau. Le déclencheur est une ENTRÉE de la
@@ -179,40 +188,82 @@ type TriggerProps = Omit<ComponentPropsWithoutRef<'button'>, 'children' | 'onCli
  * (`data-nav-link`, `data-cursor-invert`…) et le hero de la home le mesure et
  * le déplace comme un lien (CLAUDE.md §3.6). D'où le `ref` transmis.
  *
+ * Depuis le 2026-10-22 (demande Alexandre, sur le modèle du menu « Services »
+ * d'AAXLO), c'est un LIEN : le menu s'ouvre au SURVOL, le clic mène à la page
+ * de l'entrée (« Journal » → l'accueil du blog, « All sites » → le hub
+ * `amatencio.com`) sans viser plus bas dans le panneau. Quitter le
+ * déclencheur ou le panneau referme après `CLOSE_DELAY`, que le passage de
+ * l'un à l'autre annule. Sans survol :
+ * - au doigt (tablette), le premier toucher ouvre, le second suit le lien ;
+ * - au clavier, Entrée suit le lien, ↓ ou Espace ouvrent et posent le focus
+ *   sur la première rangée ; ↑ / ↓ parcourent, Échap et la sortie par Tab
+ *   referment et rendent le focus au déclencheur.
+ *
  * Le panneau est rendu dans `document.body`, en `position: fixed` calée sur
  * le déclencheur : sur la home, les entrées de la nav portent les transforms
  * du morph, et un `fixed` posé DANS un élément transformé se positionne par
- * rapport à lui. Conséquence côté clavier, traitée à la main : le panneau
- * reçoit le focus à l'ouverture, Échap et la sortie par Tab le referment et
- * rendent le focus au déclencheur.
+ * rapport à lui.
  *
- * Placement : sous le déclencheur, calé à droite (à gauche faute de place), quand il est dans la moitié
- * haute de l'écran (nav-bar). Dans la moitié basse — la nav de la home, posée
- * sous la photo — le panneau s'ouvrirait sous l'horizon : il se pose alors
- * AU-DESSUS, son coin bas gauche contre le coin haut droit du déclencheur.
+ * Placement : TOUJOURS calé sur le bord gauche du déclencheur, partout sur le
+ * site — sauf s'il sortirait de l'écran (« All sites », dernière entrée du
+ * portfolio) : il se cale alors sur le bord droit du déclencheur. Sous le déclencheur dans la moitié
+ * haute de l'écran (nav-bar) ; dans la moitié basse — la nav de la home, posée
+ * sous la photo — il s'ouvrirait sous l'horizon : il se pose alors AU-DESSUS.
+ *
+ * Il se dévoile par le bord qui touche le déclencheur (`clip-path`, 250 ms
+ * qui freine) et se retire plus vite (160 ms qui accélère), comme le menu
+ * d'AAXLO. Coupé sous `prefers-reduced-motion`.
  */
-export const SitesMenu = forwardRef<HTMLButtonElement, TriggerProps>(function SitesMenu(
-  { label, entries, className, style, ...rest },
+export const SitesMenu = forwardRef<HTMLAnchorElement, TriggerProps>(function SitesMenu(
+  { label, href, entries, className, style, ...rest },
   ref,
 ) {
   const [open, setOpen] = useState(false);
   const [box, setBox] = useState<
     { above: false; top: number; left: number } | { above: true; bottom: number; left: number } | null
   >(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLAnchorElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const timer = useRef<number | undefined>(undefined);
+  // Le dernier geste sur le déclencheur venait-il d'un doigt ou d'un stylet ?
+  const touch = useRef(false);
+  // Ouvert au clavier : le focus part sur la première rangée une fois le panneau rendu (plus `inert`).
+  const focusFirst = useRef(false);
   const pathname = usePathname();
   const id = useId();
   useImperativeHandle(ref, () => triggerRef.current!);
 
   const close = useCallback((refocus: boolean) => {
+    window.clearTimeout(timer.current);
     setOpen(false);
     if (refocus) triggerRef.current?.focus();
   }, []);
 
+  const show = () => {
+    window.clearTimeout(timer.current);
+    const r = triggerRef.current!.getBoundingClientRect();
+    // Bord gauche du déclencheur ; s'il n'y a pas la place (« All sites »,
+    // dernière entrée du portfolio, contre le bord droit), bord DROIT du
+    // déclencheur — le panneau reste accroché à son entrée.
+    const left = Math.max(16, r.left + PANEL_WIDTH <= window.innerWidth - 16 ? r.left : r.right - PANEL_WIDTH);
+    setBox(
+      r.top > window.innerHeight / 2
+        ? { above: true, bottom: window.innerHeight - r.top + CORNER_OFFSET, left }
+        : { above: false, top: r.bottom + PANEL_OFFSET, left },
+    );
+    setOpen(true);
+  };
+
+  const hide = () => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setOpen(false), CLOSE_DELAY);
+  };
+
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
   useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+    close(false);
+  }, [pathname, close]);
 
   useEffect(() => {
     if (!open) return;
@@ -238,85 +289,129 @@ export const SitesMenu = forwardRef<HTMLButtonElement, TriggerProps>(function Si
     };
   }, [open, close]);
 
-  const toggle = (viaKeyboard: boolean) => {
-    if (open) return close(false);
-    const r = triggerRef.current!.getBoundingClientRect();
-    const vw = window.innerWidth;
-    setBox(
-      r.top > window.innerHeight / 2
-        ? {
-            above: true,
-            bottom: window.innerHeight - r.top + CORNER_OFFSET,
-            left: Math.min(r.right + CORNER_OFFSET, vw - PANEL_WIDTH - 16),
-          }
-        : {
-            above: false,
-            top: r.bottom + PANEL_OFFSET,
-            // Calé à droite du déclencheur ; à gauche s'il n'y a pas la place
-            // (« All sites » est la première entrée de la nav du journal).
-            left: Math.min(r.right - PANEL_WIDTH < 16 ? r.left : r.right - PANEL_WIDTH, vw - PANEL_WIDTH - 16),
-          },
-    );
-    setOpen(true);
-    if (viaKeyboard) {
-      requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>('a')?.focus());
-    }
+  const links = () => Array.from(panelRef.current?.querySelectorAll<HTMLElement>('a') ?? []);
+
+  const onTriggerKey = (e: KeyboardEvent<HTMLAnchorElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== ' ') return;
+    e.preventDefault();
+    // Déjà ouvert (le pointeur est dessus) : le panneau est rendu, on y entre.
+    if (open) return links()[0]?.focus();
+    focusFirst.current = true;
+    show();
   };
 
-  // Tab hors du panneau : il se referme et le focus revient au déclencheur,
-  // d'où le Tab suivant reprend dans l'ordre de la page.
+  useEffect(() => {
+    if (!open || !focusFirst.current) return;
+    focusFirst.current = false;
+    links()[0]?.focus();
+  }, [open]);
+
+  // ↑ / ↓ entre les rangées ; Tab hors du panneau le referme et rend le focus
+  // au déclencheur, d'où le Tab suivant reprend dans l'ordre de la page.
   const onPanelKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const all = links();
+    const at = all.indexOf(document.activeElement as HTMLElement);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (e.key === 'ArrowUp' && at <= 0) return close(true);
+      all[Math.min(all.length - 1, at + (e.key === 'ArrowDown' ? 1 : -1))]?.focus();
+      return;
+    }
     if (e.key !== 'Tab') return;
-    const links = Array.from(panelRef.current?.querySelectorAll<HTMLElement>('a') ?? []);
-    const first = links[0];
-    const last = links[links.length - 1];
-    if ((!e.shiftKey && document.activeElement === last) || (e.shiftKey && document.activeElement === first)) {
+    if ((!e.shiftKey && at === all.length - 1) || (e.shiftKey && at === 0)) {
       e.preventDefault();
       close(true);
     }
   };
 
+  const triggerProps = {
+    ...rest,
+    ref: triggerRef,
+    'aria-haspopup': true,
+    'aria-expanded': open,
+    'aria-controls': id,
+    onPointerEnter: (e: ReactPointerEvent<HTMLAnchorElement>) => e.pointerType === 'mouse' && show(),
+    onPointerLeave: (e: ReactPointerEvent<HTMLAnchorElement>) => e.pointerType === 'mouse' && hide(),
+    onPointerDown: (e: ReactPointerEvent<HTMLAnchorElement>) => {
+      touch.current = e.pointerType !== 'mouse';
+    },
+    onClick: (e: MouseEvent<HTMLAnchorElement>) => {
+      // Au doigt, pas de survol : le premier toucher ouvre le menu.
+      if (touch.current && !open) {
+        e.preventDefault();
+        show();
+        return;
+      }
+      close(false);
+    },
+    onKeyDown: onTriggerKey,
+    className: cn(className, 'md:inline-flex items-center'),
+    style: { ...style, gap: '0.2em' },
+  };
+
+  const content = (
+    <>
+      {label}
+      {/* Chevron en `em` : il suit le corps du libellé, que le hero de la
+          home met à l'échelle pendant le morph. `rotate` et pas `transform`
+          (Tailwind v4, CLAUDE.md §7.5–7.8). */}
+      <svg
+        aria-hidden
+        viewBox="0 0 12 12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2.2}
+        className={cn(
+          'transition-[rotate] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+          open && 'rotate-180',
+        )}
+        style={{ width: '0.5em', height: '0.5em', marginTop: '0.06em' }}
+      >
+        <path d="M1.5 4 6 8.5 10.5 4" />
+      </svg>
+    </>
+  );
+
+  // Découpe du panneau : marges négatives pour laisser passer l'ombre ; fermé,
+  // le bord opposé au déclencheur remonte jusqu'à lui.
+  const clip = open
+    ? `inset(-${SHADOW_ROOM}px -${SHADOW_ROOM}px -${SHADOW_ROOM * 2}px -${SHADOW_ROOM}px)`
+    : box?.above
+      ? `inset(100% -${SHADOW_ROOM}px -${SHADOW_ROOM * 2}px -${SHADOW_ROOM}px)`
+      : `inset(-${SHADOW_ROOM}px -${SHADOW_ROOM}px 100% -${SHADOW_ROOM}px)`;
+
   return (
     <>
-      <button
-        {...rest}
-        ref={triggerRef}
-        type="button"
-        aria-expanded={open}
-        aria-controls={open ? id : undefined}
-        onClick={(e) => toggle(e.detail === 0)}
-        className={cn(className, 'md:inline-flex items-center')}
-        style={{ ...style, gap: '0.2em' }}
-      >
-        {label}
-        {/* Chevron en `em` : il suit le corps du libellé, que le hero de la
-            home met à l'échelle pendant le morph. `rotate` et pas `transform`
-            (Tailwind v4, CLAUDE.md §7.5–7.8). */}
-        <svg
-          aria-hidden
-          viewBox="0 0 12 12"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2.2}
-          className={cn(
-            'transition-[rotate] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
-            open && 'rotate-180',
-          )}
-          style={{ width: '0.5em', height: '0.5em', marginTop: '0.06em' }}
-        >
-          <path d="M1.5 4 6 8.5 10.5 4" />
-        </svg>
-      </button>
+      {isExternal(href) ? (
+        <a href={href} {...triggerProps}>
+          {content}
+        </a>
+      ) : (
+        <Link href={href} {...triggerProps}>
+          {content}
+        </Link>
+      )}
 
-      {open &&
-        box &&
+      {box &&
         createPortal(
           <div
             ref={panelRef}
             id={id}
+            inert={!open}
             onKeyDown={onPanelKey}
+            onPointerEnter={(e) => e.pointerType === 'mouse' && show()}
+            onPointerLeave={(e) => e.pointerType === 'mouse' && hide()}
             data-sites-panel={box.above ? 'above' : 'below'}
-            className="fixed z-[70]"
+            className={cn(
+              'fixed z-[70] motion-reduce:transition-none',
+              // `visibility` ne se transitionne qu'à la FERMETURE (il tient le
+              // panneau visible jusqu'au bout du retrait) ; à l'ouverture il
+              // bascule d'un coup — sinon le panneau est encore « hidden » à la
+              // première image et le focus clavier n'y entre pas.
+              open
+                ? 'transition-[clip-path,opacity] duration-[250ms] ease-[cubic-bezier(0.22,1,0.36,1)]'
+                : 'transition-[clip-path,opacity,visibility] duration-[160ms] ease-in',
+            )}
             style={{
               ...(box.above ? { bottom: box.bottom, left: box.left } : { top: box.top, left: box.left }),
               width: PANEL_WIDTH,
@@ -324,10 +419,13 @@ export const SitesMenu = forwardRef<HTMLButtonElement, TriggerProps>(function Si
               borderRadius: CONTROL_RADIUS,
               backgroundColor: 'var(--color-bg-raised)',
               boxShadow: '0 0 0 1px var(--color-line), 0 18px 40px -24px rgb(10 10 10 / 0.35)',
+              clipPath: clip,
+              opacity: open ? 1 : 0,
+              visibility: open ? 'visible' : 'hidden',
             }}
           >
             <nav aria-label={label}>
-              <SitesList entries={entries} onNavigate={() => setOpen(false)} />
+              <SitesList entries={entries} onNavigate={() => close(false)} />
             </nav>
           </div>,
           document.body,
