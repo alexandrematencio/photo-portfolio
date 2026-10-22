@@ -4,8 +4,10 @@ import { ArticleBody } from '@/components/journal/ArticleBody';
 import { BackLink } from '@/components/journal/BackLink';
 import { LanguageSwitch } from '@/components/journal/LanguageSwitch';
 import { ReadingProgress } from '@/components/journal/ReadingProgress';
+import { TableOfContents } from '@/components/journal/TableOfContents';
 import { TagSwatch } from '@/components/journal/TagSwatch';
 import { DICT, articleDate, homePath, seriesPath, themePath } from '@/lib/journal/i18n';
+import { articleSections } from '@/lib/journal/sections';
 import type { Article, ArticleSummary } from '@/lib/journal/types';
 import { EDITORIAL_H3, MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
@@ -30,6 +32,7 @@ export function ArticleView({
   const lang = article.lang;
   const t = DICT[lang];
 
+  const { sections } = articleSections(article);
   const published = articleDate(article.date);
   // La partie entre crochets, sans espaces : « Le prix du bien [2/2] ».
   const seriesLabel = series.length > 1 ? `${article.series} [${article.part}/${series.length}]` : article.series;
@@ -47,6 +50,8 @@ export function ArticleView({
       back={<BackLink lang={lang} href={article.seriesSlug ? seriesPath(article.seriesSlug, lang) : homePath(lang)} />}
       language={<LanguageSwitch lang={lang} alternates={article.alternates} />}
       progress={{ rail: <ReadingProgress variant="rail" />, top: <ReadingProgress variant="top" /> }}
+      // Un sommaire d'une entrée n'aide personne à s'orienter.
+      contents={sections.length > 1 ? <TableOfContents sections={sections} lang={lang} /> : undefined}
       centered
       titleSize="calc(var(--page-title-size) * var(--article-title-scale))"
       subtitle={

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { DICT, articlePath, headingSeparator, quoteMarks, seriesPath, type Lang } from '@/lib/journal/i18n';
+import { REFERENCES_ID, articleSections, headingSubject } from '@/lib/journal/sections';
 import { frenchSpaces } from '@/lib/journal/french';
 import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import {
@@ -118,13 +119,14 @@ function notesOf(nodes: Inline[], article: Article, numbering: Numbering): RowNo
  * sujet fait la dalle en capitales ; le verdict descend en étiquette sous
  * elle — même balise, la phrase reste entière pour un lecteur d'écran.
  */
-function ArticleH2({ text, style, lang }: { text: string; style: CSSProperties; lang: Lang }) {
+function ArticleH2({ id, text, style, lang }: { id: string; text: string; style: CSSProperties; lang: Lang }) {
   const sep = headingSeparator(lang);
-  const cut = text.indexOf(sep);
-  const subject = cut === -1 ? text : text.slice(0, cut);
-  const verdict = cut === -1 ? null : text.slice(cut + sep.length);
+  const subject = headingSubject(text, lang);
+  const verdict = subject === text ? null : text.slice(subject.length + sep.length);
   return (
-    <h2 className={EDITORIAL_H2} style={style}>
+    // `scrollMarginTop` : atteint par le sommaire, l'intertitre ne colle pas
+    // au bord du conteneur de défilement.
+    <h2 id={id} className={EDITORIAL_H2} style={{ scrollMarginTop: 32, ...style }}>
       {frenchSpaces(subject)}
       {verdict && (
         <>
@@ -209,6 +211,7 @@ export function ArticleBody({
   const t = DICT[lang];
   const [open, close] = quoteMarks(lang);
   const numbering = numberNotes(article);
+  const { idByBlock } = articleSections(article);
   const callsOf = new Map<string, string[]>();
   for (const [key, id] of numbering.refs) callsOf.set(key, [...(callsOf.get(key) ?? []), id]);
   const blocks = article.blocks;
@@ -247,7 +250,7 @@ export function ArticleBody({
               );
             }
             case 'h2':
-              return <ArticleH2 key={i} text={block.text} lang={lang} style={{ marginTop: top(RHYTHM.h2Top) }} />;
+              return <ArticleH2 key={i} id={idByBlock.get(i)!} text={block.text} lang={lang} style={{ marginTop: top(RHYTHM.h2Top) }} />;
             case 'quote':
               return (
                 // Doublon visuel d'une phrase déjà dans le texte : masqué aux
@@ -325,7 +328,7 @@ export function ArticleBody({
 
         {article.referenceCount > 0 && (
           <>
-            <ArticleH2 text={t.referencesTitle} lang={lang} style={{ marginTop: RHYTHM.h2Top + 32 }} />
+            <ArticleH2 id={REFERENCES_ID} text={t.referencesTitle} lang={lang} style={{ marginTop: RHYTHM.h2Top + 32 }} />
             {article.referencesNote && (
               <p className={cn(EDITORIAL_SIDENOTE, 'max-w-[var(--editorial-measure)]')} style={{ marginTop: RHYTHM.h2Bottom }}>
                 {article.referencesNote}
