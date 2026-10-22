@@ -3,7 +3,9 @@ import {
   editorialBlockType,
   editorialBodyDescription,
   heroImageField,
+  seoField,
 } from './pageFields';
+import { SEO_DEFAULTS } from '../../lib/seo/defaults';
 
 /**
  * Un document PAR PAGE du site (2026-10-05), rangés dans la rubrique « Pages »
@@ -30,6 +32,19 @@ export type PageDoc = {
 
 export const HOME_PAGE: PageDoc = { type: 'homePage', title: 'Accueil', path: '/' };
 
+/**
+ * La page d'accueil de `amatencio.com` (projet am-home, la porte vers
+ * les sous-domaines). Elle n'a pas de texte à éditer : seulement ce que
+ * Google en montre. am-home lit ce document à chaque build
+ * (`tools/hub-seo.mjs` là-bas). `path` est relatif au HUB, pas au portfolio
+ * (cf. productionUrl, studio.config.ts).
+ */
+export const HUB_PAGE: PageDoc = {
+  type: 'hubPage',
+  title: 'amatencio.com — page d’accueil',
+  path: '/',
+};
+
 /** Pages éditoriales : un seul champ `body`, tout le texte de la page. */
 const BODY_PAGES: (PageDoc & { intro: string })[] = [
   {
@@ -37,13 +52,14 @@ const BODY_PAGES: (PageDoc & { intro: string })[] = [
     title: 'About',
     path: '/about/',
     intro:
-      'Le texte complet de la page /about — c’est cette liste qui EST la page, il n’y a pas de texte en dur ailleurs.',
+      'Le texte complet de la page amatencio.com/about — c’est cette liste qui EST la page, il n’y a pas de texte en dur ailleurs. C’est la seule page About des sites (hors celle du journal) : le portfolio et le journal y renvoient. Le texte de « Digital Agency » s’affiche à la suite, sous l’intertitre DIGITAL AGENCY.',
   },
   {
     type: 'digitalAgencyPage',
     title: 'Digital Agency',
-    path: '/about/digital-agency/',
-    intro: 'Le texte complet de la page /about/digital-agency.',
+    path: '/about/#digital-agency',
+    intro:
+      'La partie « DIGITAL AGENCY » de la page amatencio.com/about, affichée après le texte de About, sous son intertitre (ne le répète pas ici). L’ancienne page /about/digital-agency renvoie à cet endroit.',
   },
   {
     type: 'contactPage',
@@ -78,7 +94,18 @@ const BODY_PAGES: (PageDoc & { intro: string })[] = [
 ];
 
 /** Toutes les pages, dans l'ordre de la rubrique « Pages ». */
-export const PAGE_DOCS: PageDoc[] = [HOME_PAGE, ...BODY_PAGES];
+export const PAGE_DOCS: PageDoc[] = [HUB_PAGE, HOME_PAGE, ...BODY_PAGES];
+
+/** Les pages servies sur le HUB plutôt que sur le portfolio (productionUrl). */
+export const HUB_PAGE_TYPES = new Set([HUB_PAGE.type, 'aboutPage', 'digitalAgencyPage']);
+
+const hubPageSchema = defineType({
+  name: HUB_PAGE.type,
+  title: HUB_PAGE.title,
+  type: 'document',
+  fields: [seoField(SEO_DEFAULTS.hub, 'amatencio.com, la page d’accueil de tous tes sites')],
+  preview: { prepare: () => ({ title: HUB_PAGE.title }) },
+});
 
 const PUBLISH_HINT =
   'ℹ️ Après « Publish », le site en ligne se met à jour tout seul en 3 à 4 minutes.';
@@ -126,6 +153,7 @@ const homePageSchema = defineType({
         PUBLISH_HINT,
       validation: (Rule) => Rule.max(300),
     }),
+    seoField(SEO_DEFAULTS.photoHome, 'l’accueil du portfolio, photo.amatencio.com'),
   ],
   preview: { prepare: () => ({ title: HOME_PAGE.title }) },
 });
@@ -143,9 +171,12 @@ const bodyPageSchemas = BODY_PAGES.map((page) =>
         of: [editorialBlockType],
         description: editorialBodyDescription(page.intro),
       }),
+      ...(page.type === 'aboutPage'
+        ? [seoField(SEO_DEFAULTS.about, 'la page amatencio.com/about')]
+        : []),
     ],
     preview: { prepare: () => ({ title: page.title }) },
   })
 );
 
-export const pageSchemas = [homePageSchema, ...bodyPageSchemas];
+export const pageSchemas = [hubPageSchema, homePageSchema, ...bodyPageSchemas];

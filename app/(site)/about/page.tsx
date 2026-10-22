@@ -7,13 +7,44 @@ import { TextReveal } from '@/components/site/TextReveal';
 import { ContactAside } from '@/components/site/ContactAside';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { breadcrumbJsonLd, personJsonLd } from '@/lib/seo/jsonld';
+import { SEO_DEFAULTS } from '@/lib/seo/defaults';
+import { AUTHOR_FULL_NAME } from '@/lib/site/author';
+import { HUB_URL, hubHref } from '@/lib/site/sites';
 
-export const metadata = buildMetadata({
-  title: 'About',
-  description:
-    "Alexandre Matencio — art director turned photographer, based in Villejuif near Paris. Author photography between street, landscape and portrait.",
-  path: '/about',
-});
+/**
+ * LA page About — la seule des sites, hors celle du journal (2026-10-22).
+ * Construite ici, servie par Caddy sous `amatencio.com/about/` : la canonical
+ * et le fil d'Ariane désignent donc le hub, pas le portfolio. Elle porte aussi
+ * l'ancienne page Digital Agency, à la suite, sous `#digital-agency`.
+ *
+ * Titre et description : Studio → Pages → About → « Référencement (Google) ».
+ */
+export async function generateMetadata() {
+  const seo = (await getSiteSettings())?.aboutSeo;
+  return buildMetadata({
+    absoluteTitle: seo?.title?.trim() || SEO_DEFAULTS.about.title,
+    description: seo?.description?.trim() || SEO_DEFAULTS.about.description,
+    path: '/about',
+    origin: hubHref(''),
+    siteName: AUTHOR_FULL_NAME,
+  });
+}
+
+/**
+ * L'intertitre posé entre le texte de About et celui de Digital Agency. Un
+ * bloc Portable Text et non un second `PortableBody` : le chapô est le bloc
+ * d'INDEX 0 du tableau, et un second corps ouvrirait sur un second chapô.
+ * `anchor` devient l'`id` du titre (PortableBody, h2) — l'ancienne adresse
+ * /about/digital-agency y renvoie.
+ */
+const AGENCY_HEADING = {
+  _type: 'block',
+  _key: 'digital-agency-heading',
+  style: 'h2',
+  anchor: 'digital-agency',
+  markDefs: [],
+  children: [{ _type: 'span', _key: 'digital-agency-heading-text', text: 'DIGITAL AGENCY', marks: [] }],
+};
 
 export const revalidate = 300;
 
@@ -29,7 +60,10 @@ Art Director for 8 years, photographer by way of cinema. Edit this copy from Stu
 
 export default async function AboutPage() {
   const settings = await getSiteSettings();
-  const aboutBody = settings?.aboutBody;
+  const agencyBody = settings?.digitalAgencyBody ?? [];
+  const aboutBody = settings?.aboutBody
+    ? [...settings.aboutBody, ...(agencyBody.length ? [AGENCY_HEADING, ...agencyBody] : [])]
+    : undefined;
 
   return (
     <>
@@ -37,8 +71,8 @@ export default async function AboutPage() {
         data={[
           personJsonLd(),
           breadcrumbJsonLd([
-            { name: 'Home', path: '/' },
-            { name: 'About', path: '/about' },
+            { name: 'Home', url: HUB_URL },
+            { name: 'About', url: hubHref('/about/') },
           ]),
         ]}
       />

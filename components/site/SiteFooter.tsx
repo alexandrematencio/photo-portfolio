@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { photoHref } from '@/lib/site/sites';
+import { ABOUT_URL, hubHref, photoHref } from '@/lib/site/sites';
 import { SITES } from '@/lib/site/nav';
 import { getSiteSettings, socialLinks } from '@/lib/sanity/queries';
 import { FooterWordmark } from './FooterWordmark';
@@ -42,8 +42,9 @@ export async function SiteFooter() {
         <div className="footer-col">
           <p className="footer-label">About</p>
           <ul className="footer-links">
-            <li><Link href={photoHref('/about/')}>About</Link></li>
-            <li><Link href={photoHref('/about/digital-agency/')}>Digital agency</Link></li>
+            {/* LA page About vit sur le hub, Digital agency fondue dedans (2026-10-22). */}
+            <li><Link href={ABOUT_URL}>About</Link></li>
+            <li><Link href={hubHref('/about/#digital-agency')}>Digital agency</Link></li>
           </ul>
         </div>
 

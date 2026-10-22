@@ -7,14 +7,18 @@ import { getHomepagePhotos, getSiteSettings } from '@/lib/sanity/queries';
 import { resolveMotion } from '@/lib/motion/presets';
 import { resolveHeroImages } from '@/lib/site/hero';
 import { buildMetadata } from '@/lib/seo/metadata';
+import { SEO_DEFAULTS } from '@/lib/seo/defaults';
 import { webSiteJsonLd, imageGalleryJsonLd } from '@/lib/seo/jsonld';
 
-export const metadata = buildMetadata({
-  absoluteTitle: 'Alexandre Matencio — Street, Landscape & Portrait Photographer',
-  description:
-    "Alexandre Matencio, photographer near Paris. Author photography — street, landscape and portrait — from Paris, Moscow, Djerba and Vietnam.",
-  path: '/',
-});
+// Titre et description : Studio → Pages → Accueil → « Référencement (Google) ».
+export async function generateMetadata() {
+  const seo = (await getSiteSettings())?.homeSeo;
+  return buildMetadata({
+    absoluteTitle: seo?.title?.trim() || SEO_DEFAULTS.photoHome.title,
+    description: seo?.description?.trim() || SEO_DEFAULTS.photoHome.description,
+    path: '/',
+  });
+}
 
 export const revalidate = 60;
 

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ABOUT_URL } from '@/lib/site/sites';
 import { notFound } from 'next/navigation';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { PageShell } from '@/components/site/PageShell';
@@ -136,7 +137,7 @@ export default async function SeriesDetailPage({
                 Browse all series
               </Link>
               {' · '}
-              <Link href="/about/" className={EDITORIAL_LINK_DECORATION}>
+              <Link href={ABOUT_URL} className={EDITORIAL_LINK_DECORATION}>
                 About the photographer
               </Link>
               {' · '}

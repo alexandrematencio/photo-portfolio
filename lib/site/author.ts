@@ -7,6 +7,10 @@
  */
 export const AUTHOR_NAME = 'Alexandre Matencio';
 export const AUTHOR_SHORT = 'A. Matencio';
+/** Le nom complet, deuxième prénom compris : celui qu'on doit retrouver en le
+ *  cherchant tel quel (demande Alexandre, 2026-10-22). Porté par le Person et
+ *  par le texte visible de la page d'accueil (am-home). */
+export const AUTHOR_FULL_NAME = 'Alexandre Xavier Matencio';
 
 /** Signature des articles du journal quand le Studio n'en donne pas
  *  (`journalSettings.signature` et ses traductions) — filet de sécurité, pas

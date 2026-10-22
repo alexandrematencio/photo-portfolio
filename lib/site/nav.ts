@@ -14,7 +14,7 @@
  * en chargement à froid ET au rechargement.
  */
 
-import { HUB_URL, IS_BLOG, blogHref, photoHref } from './sites';
+import { ABOUT_URL, HUB_URL, IS_BLOG, blogHref, photoHref } from './sites';
 
 export type NavLink = {
   href: string;
@@ -61,12 +61,13 @@ export const NAV_LINKS: NavLink[] = IS_BLOG
       // 2026-10-18).
       { href: HUB_URL, label: 'All sites', menu: 'sites' },
       { href: '/', label: 'Journal', menu: 'journal' },
-      { href: photoHref('/about/'), label: 'About' },
+      { href: ABOUT_URL, label: 'About' },
     ]
   : [
       { href: '/series', label: 'Series' },
       { href: '/archives', label: 'Archives' },
-      { href: '/about', label: 'About' },
+      // LA page About vit sur le hub (2026-10-22) : adresse absolue.
+      { href: ABOUT_URL, label: 'About' },
       { href: blogHref('/'), label: 'Journal' },
       { href: HUB_URL, label: 'All sites', menu: 'sites' },
     ];
@@ -126,6 +127,9 @@ function stripSlash(path: string): string {
 }
 
 export function isSamePage(href: string, pathname: string): boolean {
+  // About est une adresse absolue (le hub), mais sa page est construite ICI,
+  // sous /about : c'est ce chemin qui la désigne pour le surlignage.
+  if (href === ABOUT_URL) return stripSlash(pathname) === '/about';
   return stripSlash(href) === stripSlash(pathname);
 }
 

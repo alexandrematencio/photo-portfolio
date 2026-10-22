@@ -1,5 +1,5 @@
 import { defineConfig, type DocumentActionsResolver } from 'sanity';
-import { BLOG_URL } from '@/lib/site/sites';
+import { BLOG_URL, hubHref } from '@/lib/site/sites';
 import { structureTool } from 'sanity/structure';
 import { visionTool } from '@sanity/vision';
 import { colorInput } from '@sanity/color-input';
@@ -24,7 +24,7 @@ import {
 // — voir le commentaire `defaultDocumentNode` ci-dessous). Les fichiers restent dans
 // `sanity/preview/` pour réactivation rapide.
 import { apiVersion, dataset, projectId, siteUrl } from '@/lib/sanity/env';
-import { PAGE_DOCS } from '@/sanity/schemas/pages';
+import { HUB_PAGE_TYPES, PAGE_DOCS } from '@/sanity/schemas/pages';
 import { ArticlePreviewView } from '@/sanity/preview/ArticlePreviewView';
 
 // Réglages, funnel curation et un document par page : tous singletons.
@@ -263,7 +263,9 @@ export const studioConfig = defineConfig({
           return slug ? `${BLOG_URL}/?theme=${slug}` : `${BLOG_URL}/`;
         default: {
           const page = PAGE_DOCS.find((p) => p.type === document._type);
-          return page ? `${base}${page.path}` : prev;
+          if (!page) return prev;
+          // L'accueil d'amatencio.com et le About vivent sur le hub.
+          return HUB_PAGE_TYPES.has(page.type) ? hubHref(page.path) : `${base}${page.path}`;
         }
       }
     },

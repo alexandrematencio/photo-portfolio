@@ -117,3 +117,40 @@ export const editorialBodyDescription = (intro: string) =>
   `ℹ️ Le PREMIER paragraphe de la page s’affiche automatiquement en chapô — plus gros, plus gras, sur toute la largeur. Rien à choisir, et l’éditeur ci-dessous ne le montre pas : il apparaît tel quel sur le site. Pour ouvrir sur autre chose, commence par un titre. ` +
   `Email : sélectionne quelques mots (« write to me ») et pose un lien « mailto:… » — l’adresse n’apparaît ni à l’écran ni dans le code de la page. (Le raccourci « @EMAIL » existe encore mais AFFICHE l’adresse en entier : à éviter.) Taper « AAXLO » (1ʳᵉ fois seulement) insère le logo AAXLO cliquable. Un lien dont l’URL est « @pseudo » pointe vers Telegram. ` +
   `ℹ️ Après « Publish », le site en ligne se met à jour tout seul en 3 à 4 minutes.`;
+
+/**
+ * Ce que Google affiche d'une page : le titre bleu et les deux lignes grises
+ * sous lui. Vide = le texte par défaut du code, recopié dans l'aide du champ
+ * pour que l'éditeur sache ce qu'il remplace. `defaults` vient donc de la
+ * même constante que celle que lit le site (lib/seo/defaults.ts) : un seul
+ * texte, jamais deux à garder d'accord.
+ */
+export function seoField(defaults: { title: string; description: string }, where: string) {
+  return defineField({
+    name: 'seo',
+    title: 'Référencement (Google)',
+    type: 'object',
+    options: { collapsible: true, collapsed: false },
+    description: `Le titre et la description que Google montre pour ${where}, et que reprennent les aperçus de lien (WhatsApp, LinkedIn…). Laisser vide = le texte par défaut, indiqué sous chaque champ. Google peut réécrire une description qu’il juge peu pertinente : écris-la pour un humain qui hésite à cliquer. ℹ️ Après « Publish », le site en ligne se met à jour tout seul en 3 à 4 minutes, et Google le voit à son prochain passage (quelques jours).`,
+    fields: [
+      defineField({
+        name: 'title',
+        title: 'Titre',
+        type: 'string',
+        description: `Vise 50 à 60 caractères, ton nom en tête. Par défaut : « ${defaults.title} »`,
+        validation: (Rule) => Rule.max(70).warning('Au-delà de ~60 caractères, Google coupe le titre.'),
+      }),
+      defineField({
+        name: 'description',
+        title: 'Description',
+        type: 'text',
+        rows: 3,
+        description: `Vise 120 à 155 caractères : qui, quoi, où. Par défaut : « ${defaults.description} »`,
+        validation: (Rule) => [
+          Rule.max(160).warning('Au-delà de ~155 caractères, Google coupe la description.'),
+          Rule.min(70).warning('Trop courte : Google risque de la remplacer par un extrait de la page.'),
+        ],
+      }),
+    ],
+  });
+}
