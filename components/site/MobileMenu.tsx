@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { GlyphLogo } from './GlyphLogo';
 import { SitesList, type MenuEntry } from './SitesMenu';
-import { IS_BLOG } from '@/lib/site/sites';
+import { HUB_URL, IS_BLOG, isHubPage } from '@/lib/site/sites';
 import { DICT, homePath, langOfPath } from '@/lib/journal/i18n';
 import { cn } from '@/lib/utils/cn';
 import {
@@ -15,6 +15,7 @@ import {
   CONTROL_RADIUS,
 } from '@/lib/site/controls';
 import {
+  HUB_NAV_LINKS,
   MOBILE_NAV_LINKS,
   isSamePage,
   notifySamePageNav,
@@ -38,8 +39,6 @@ import {
 // la liste est composée dans `lib/site/nav.ts`, jamais ici. Le lien Instagram
 // qui vivait là a été retiré le 2026-08-24 — les réseaux vivent sur /contact.
 
-const MOBILE_LINKS = MOBILE_NAV_LINKS;
-
 export function MobileMenu({ journalMenu }: { journalMenu?: MenuEntry[] }) {
   const [open, setOpen] = useState(false);
   // Le sous-menu déplié — « All sites » ou, sur le blog, « Journal ». Un seul à la fois.
@@ -47,6 +46,9 @@ export function MobileMenu({ journalMenu }: { journalMenu?: MenuEntry[] }) {
   const drawerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const lang = langOfPath(pathname);
+  // About vit sur le hub : son menu est celui d'amatencio.com (lib/site/nav.ts).
+  const onHub = isHubPage(pathname);
+  const MOBILE_LINKS = onHub ? HUB_NAV_LINKS : MOBILE_NAV_LINKS;
 
   // Close on route change so navigating from inside the menu dismisses it.
   useEffect(() => {
@@ -141,7 +143,7 @@ export function MobileMenu({ journalMenu }: { journalMenu?: MenuEntry[] }) {
             style={{ paddingBlock: 32, paddingInline: 'var(--page-gutter)' }}
           >
             <Link
-              href={IS_BLOG ? homePath(lang) : '/'}
+              href={IS_BLOG ? homePath(lang) : onHub ? HUB_URL : '/'}
               aria-label={IS_BLOG ? DICT[lang].journalHome : 'Home'}
               onClick={() => setOpen(false)}
               className="inline-flex"
