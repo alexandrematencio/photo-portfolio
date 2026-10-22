@@ -132,6 +132,9 @@ type Dict = {
   feedTitle: string;
   back: string;
   language: string;
+  /** Le sommaire d'un article (rail, dès `xl`) : son étiquette, et le lien qui ramène en haut. */
+  contents: string;
+  backToTop: string;
   allArticles: string;
   minutes: (n: number) => string;
   references: (n: number) => string;
@@ -296,6 +299,8 @@ export const DICT: Record<Lang, Dict> = {
     feedTitle: 'Journal d’Alexandre Matencio',
     back: 'Retour',
     language: 'Langue',
+    contents: 'Sommaire',
+    backToTop: 'Haut de page',
     allArticles: 'Tous les articles',
     minutes: (n) => `${n} min de lecture`,
     references: (n) => `${n} ${plural(n, 'référence', 'références')}`,
@@ -465,6 +470,8 @@ export const DICT: Record<Lang, Dict> = {
     feedTitle: 'Alexandre Matencio’s Journal',
     back: 'Back',
     language: 'Language',
+    contents: 'Contents',
+    backToTop: 'Top',
     allArticles: 'All articles',
     minutes: (n) => `${n} min read`,
     references: (n) => `${n} ${plural(n, 'reference', 'references')}`,
@@ -634,6 +641,8 @@ export const DICT: Record<Lang, Dict> = {
     feedTitle: 'Журнал Александра Матенсио',
     back: 'Назад',
     language: 'Язык',
+    contents: 'Содержание',
+    backToTop: 'Наверх',
     allArticles: 'Все статьи',
     minutes: (n) => `${n} мин чтения`,
     references: (n) => `${n} ${ru(n, 'источник', 'источника', 'источников')}`,

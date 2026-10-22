@@ -56,6 +56,14 @@ const EDITORIAL_WIDTH = 1107;
 const RAIL_WIDTH = 176;
 /** Sous le menu : le conteneur de défilement commence déjà sous la nav-bar (FramedScroll). */
 const RAIL_STICKY_TOP = 24;
+/**
+ * Avec un sommaire (2026-10-22), le bloc du rail ne prend plus la largeur du
+ * bouton Back mais une largeur FIXE : les intertitres ont besoin de place, et
+ * tout le bloc — Back, drapeaux, barre, sommaire — garde un seul bord gauche
+ * et un seul bord droit. Les 28 px laissés à gauche logent le voyant du
+ * sommaire, suspendu dans la marge.
+ */
+const RAIL_CONTENTS_WIDTH = RAIL_WIDTH - 28;
 
 /**
  * Écart titre → sous-titre. Serré exprès : le sous-titre appartient au bloc de
@@ -91,6 +99,7 @@ export function PageShell({
   back,
   language,
   progress,
+  contents,
 }: {
   title: ReactNode;
   /** Lien de retour (journal : `BackLink`) — dans le rail. Facultatif. */
@@ -103,6 +112,8 @@ export function PageShell({
    * dessous. L'article prend alors `data-reading` — c'est lui qu'elles mesurent.
    */
   progress?: { rail: ReactNode; top: ReactNode };
+  /** Sommaire (journal : `TableOfContents`) — sous l'avancement, dans le rail dès `xl` seulement. */
+  contents?: ReactNode;
   /**
    * Corps du titre quand ce n'est pas un MOT de page mais une PHRASE — un
    * titre d'article du journal fait douze mots, et au corps unique il
@@ -209,8 +220,14 @@ export function PageShell({
             plus large — le bouton Back — et tout le reste s'y justifie, bord à
             bord (2026-10-22) : drapeaux répartis, barre d'avancement étirée. */}
         <div className="hidden xl:block">
-          <div className="sticky flex flex-col items-end" style={{ top: RAIL_STICKY_TOP }}>
-            <div className="flex flex-col gap-5">
+          {/* Plafonné à la hauteur du conteneur de défilement (sous la
+              nav-bar, `top-16` de FramedScroll) : un long sommaire défile
+              dans sa propre boîte au lieu de passer sous le bas de l'écran. */}
+          <div
+            className="sticky flex flex-col items-end"
+            style={{ top: RAIL_STICKY_TOP, maxHeight: contents ? `calc(100dvh - 4rem - ${RAIL_STICKY_TOP * 2}px)` : undefined }}
+          >
+            <div className="flex min-h-0 flex-col gap-5" style={{ width: contents ? RAIL_CONTENTS_WIDTH : undefined }}>
               {back}
               {progress ? (
                 <div className="flex flex-col gap-3">
@@ -220,6 +237,7 @@ export function PageShell({
               ) : (
                 language
               )}
+              {contents && <div className="flex min-h-0 flex-col" style={{ marginTop: 28 }}>{contents}</div>}
             </div>
           </div>
         </div>
