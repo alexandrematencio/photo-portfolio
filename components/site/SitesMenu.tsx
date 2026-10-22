@@ -20,7 +20,7 @@ import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils/cn';
 import { CONTROL_RADIUS } from '@/lib/site/controls';
 import { SITES, isSamePage } from '@/lib/site/nav';
-import { isExternal } from '@/lib/site/sites';
+import { isExternal, isHubPage } from '@/lib/site/sites';
 import { MICRO_LABEL, MICRO_LABEL_XS } from '@/lib/site/typography';
 import { StateDot } from './StateDot';
 
@@ -163,7 +163,8 @@ export function SitesList({
         <Row
           key={site.href ?? site.label}
           site={site}
-          here={site.here ?? Boolean(site.href && !isExternal(site.href) && pathname && isSamePage(site.href, pathname))}
+          // Sur une page du hub, aucun des sites listés n'est celui où l'on est.
+          here={!isHubPage(pathname) && (site.here ?? Boolean(site.href && !isExternal(site.href) && pathname && isSamePage(site.href, pathname)))}
           onNavigate={onNavigate}
         />
       ))}

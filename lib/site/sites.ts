@@ -45,6 +45,15 @@ export function hubHref(path: string): string {
 /** La page About, sur le hub. */
 export const ABOUT_URL = hubHref('/about/');
 
+/**
+ * Une page du HUB construite par ce dépôt — aujourd'hui About seule. Servie
+ * sous `amatencio.com`, elle porte le menu du hub (`HUB_NAV_LINKS`), jamais
+ * celui du portfolio : le glyph y ramène à la porte d'amatencio.com.
+ */
+export function isHubPage(pathname: string | null): boolean {
+  return !IS_BLOG && !!pathname && /^\/about(\/|$)/.test(pathname);
+}
+
 /** Adresse d'une page du portfolio, valable depuis n'importe quel site. */
 export function photoHref(path: string): string {
   return IS_BLOG ? `${PHOTO_URL}${path}` : path;

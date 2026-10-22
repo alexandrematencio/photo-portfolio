@@ -73,6 +73,17 @@ export const NAV_LINKS: NavLink[] = IS_BLOG
     ];
 
 /**
+ * Le menu des pages du HUB construites ici (About, `isHubPage`) : le glyph
+ * ramène à amatencio.com, puis « All sites », puis About — actif. Ni Series ni
+ * Archives : on n'est plus dans le portfolio (demande Alexandre, 2026-10-22).
+ * Pas de morph sur ces pages : la rangée se cale à gauche, comme le journal.
+ */
+export const HUB_NAV_LINKS: NavLink[] = [
+  { href: HUB_URL, label: 'All sites', menu: 'sites' },
+  { href: ABOUT_URL, label: 'About' },
+];
+
+/**
  * Les sites d'amatencio.com, dans le menu « All sites ». `href: null` : site
  * annoncé mais pas encore en ligne — affiché grisé, avec « Soon », jamais un
  * lien mort. Adresses écrites par `photoHref` / `blogHref` : elles restent

@@ -7,9 +7,10 @@ import { ACTIVE_FILL_PADDING, CONTROL_RADIUS } from '@/lib/site/controls';
 import { GlyphLogo } from './GlyphLogo';
 import { SitesMenu, type MenuEntry } from './SitesMenu';
 import { DICT, homePath, langOfPath } from '@/lib/journal/i18n';
-import { IS_BLOG, isExternal, isPhotoHome } from '@/lib/site/sites';
+import { HUB_URL, IS_BLOG, isExternal, isHubPage, isPhotoHome } from '@/lib/site/sites';
 import {
-  NAV_LINKS as LINKS,
+  HUB_NAV_LINKS,
+  NAV_LINKS,
   isSamePage,
   notifySamePageNav,
 } from '@/lib/site/nav';
@@ -36,6 +37,11 @@ type SiteHeaderProps = {
 export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
   const pathname = usePathname();
   const lang = langOfPath(pathname);
+  // About vit sur le hub : son menu est celui d'amatencio.com (lib/site/nav.ts).
+  const onHub = isHubPage(pathname);
+  const LINKS = onHub ? HUB_NAV_LINKS : NAV_LINKS;
+  // Une rangée calée à gauche quand la nav-bar n'est pas l'arrivée du morph.
+  const leftAligned = IS_BLOG || onHub;
   const glyphLabel = IS_BLOG ? DICT[lang].journalHome : 'A. Matencio — home';
   // L'intention, pas l'anticipation : appui, focus ou survol du logo
   // (cf. lib/utils/image-preload.ts). La nav-bar ne défile jamais sous le
@@ -80,7 +86,7 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
           // hero de la home (CLAUDE.md §3.6), qui répartit l'espace restant.
           className={cn(
             'flex h-full items-center',
-            IS_BLOG ? 'justify-start md:gap-10' : 'justify-between'
+            leftAligned ? 'justify-start md:gap-10' : 'justify-between'
           )}
           // Gauche : la gouttière de page (20 sous `md`, 32 au-dessus), pour
           // que le glyph tombe sur la verticale du contenu sur téléphone aussi.
@@ -89,7 +95,7 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
           style={{ paddingLeft: 'var(--page-gutter)', paddingRight: 64 }}
         >
           <Link
-            href={IS_BLOG ? homePath(lang) : '/'}
+            href={IS_BLOG ? homePath(lang) : onHub ? HUB_URL : '/'}
             className="flex items-center shrink-0"
             aria-label={glyphLabel}
             onPointerEnter={warmHero}
@@ -100,7 +106,8 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
             // annulée — elle part en même temps. Clic modifié (nouvel onglet,
             // nouvelle fenêtre) : rien, c'est une autre page qui s'ouvre.
             onClick={(e) => {
-              if (IS_BLOG) return;
+              // Hub : chargement complet de la porte, pas de hero à faire naître.
+              if (IS_BLOG || onHub) return;
               if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
                 return;
               }
