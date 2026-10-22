@@ -1036,6 +1036,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
               <SitesMenu
                 key={link.label}
                 label={link.label}
+                href={link.href}
                 ref={(el) => {
                   navItemsRef.current[i] = el;
                 }}

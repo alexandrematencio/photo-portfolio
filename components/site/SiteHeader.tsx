@@ -136,6 +136,7 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
                 <SitesMenu
                   key={link.label}
                   label={link.label}
+                  href={link.href}
                   data-cursor-invert
                   data-nav-link
                   className="hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none"
@@ -150,6 +151,9 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
                 <SitesMenu
                   key={link.label}
                   label={link.label}
+                  // Le clic mène à l'accueil du journal DANS la langue de la
+                  // page : la première rangée du menu (« Tous les articles »).
+                  href={journalMenu?.[0]?.href ?? link.href}
                   entries={journalMenu ?? []}
                   aria-current="page"
                   data-cursor-invert

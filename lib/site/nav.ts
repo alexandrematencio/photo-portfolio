@@ -14,16 +14,17 @@
  * en chargement à froid ET au rechargement.
  */
 
-import { IS_BLOG, blogHref, photoHref } from './sites';
+import { HUB_URL, IS_BLOG, blogHref, photoHref } from './sites';
 
 export type NavLink = {
   href: string;
   label: string;
   /**
-   * `'sites'` : l'entrée n'est pas un lien mais le déclencheur du menu
-   * « All sites » (`SitesMenu`). Elle garde sa place dans la liste — le morph
-   * du hero et `measureNavBar` comptent les entrées par leur rang — et son
-   * `href` vide ne correspond à aucune page, donc jamais active.
+   * `'sites'` : le déclencheur du menu « All sites » (`SitesMenu`). Elle
+   * garde sa place dans la liste — le morph du hero et `measureNavBar`
+   * comptent les entrées par leur rang. Le menu s'ouvre au SURVOL ; le clic
+   * suit `href`, le hub `amatencio.com` (2026-10-22) — une adresse d'un autre
+   * site, donc jamais active.
    *
    * `'journal'` : le menu « Journal » de blog.amatencio.com — tous les
    * articles, puis chaque série. Toujours ACTIF sur le blog : on y est dans
@@ -58,7 +59,7 @@ export const NAV_LINKS: NavLink[] = IS_BLOG
       // un menu, surligné comme page active —, puis la page About du
       // portfolio, qui porte le contact (ordre demandé par Alexandre le
       // 2026-10-18).
-      { href: '', label: 'All sites', menu: 'sites' },
+      { href: HUB_URL, label: 'All sites', menu: 'sites' },
       { href: '/', label: 'Journal', menu: 'journal' },
       { href: photoHref('/about/'), label: 'About' },
     ]
@@ -67,7 +68,7 @@ export const NAV_LINKS: NavLink[] = IS_BLOG
       { href: '/archives', label: 'Archives' },
       { href: '/about', label: 'About' },
       { href: blogHref('/'), label: 'Journal' },
-      { href: '', label: 'All sites', menu: 'sites' },
+      { href: HUB_URL, label: 'All sites', menu: 'sites' },
     ];
 
 /**
