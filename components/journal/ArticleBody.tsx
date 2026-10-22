@@ -261,8 +261,12 @@ export function ArticleBody({
                     maxWidth: PULLQUOTE_MAX,
                     borderTop: '1px solid var(--color-fg)',
                     borderBottom: '1px solid var(--color-fg)',
-                    paddingTop: 20,
-                    paddingBottom: 24,
+                    // Calés sur Newsreader (2026-10-22) : centre le bloc des
+                    // capitales à la ligne de base entre les deux filets —
+                    // mesuré, 29 px de part et d'autre (20/24 servaient
+                    // Helvetica et laissaient le serif 5 px trop haut).
+                    paddingTop: 25,
+                    paddingBottom: 19,
                   }}
                 >
                   <p className={EDITORIAL_PULLQUOTE}>
