@@ -35,10 +35,11 @@ import type { ArticleSummary } from '@/lib/journal/types';
  * ligne ne garde que la partie : le nom est déjà dans le filtre.
  *
  * Les THÉMATIQUES (2026-10-19) : un second filtre, qui se combine au premier
- * (série ET thématique). Les deux partagent la même place, en ONGLETS
- * (« Séries | Thématiques », séries par défaut) ; l'onglet n'est qu'une vue,
- * il ne remet aucun filtre à zéro — un voyant sur l'onglet fermé dit qu'il
- * filtre encore. Les onglets n'apparaissent qu'à la première thématique posée
+ * (série ET thématique). Les deux partagent la même place : deux DOSSIERS
+ * sur la colonne desktop (`Folder`, 2026-10-24), deux onglets sur téléphone
+ * (séries ouvertes par défaut) ; ouvrir l'un n'est qu'une vue,
+ * il ne remet aucun filtre à zéro — un voyant sur le fermé dit qu'il
+ * filtre encore. Dossiers et onglets n'apparaissent qu'à la première thématique posée
  * sur un article. Les compteurs d'un filtre se lisent dans l'autre — « (3) »
  * promet trois lignes. La thématique choisie s'écrit dans l'adresse
  * (`?theme=`) : c'est le lien que posent les pages d'article, et elle ouvre
@@ -281,24 +282,35 @@ export function JournalIndex({
       {/* FILTRES — desktop, colonne collante */}
       <aside className="hidden md:flex flex-col gap-10 self-start sticky top-6" aria-label={t.filters}>
         {language}
-        {themes.length === 0 || tab === 'series' ? (
-          <FilterGroup
-            heading={themes.length ? <FilterTabs idBase={`${tabsId}-d`} tab={tab} onTab={setTab} lit={lit} lang={lang} rule /> : t.seriesHeading}
-            panelId={themes.length ? `${tabsId}-d-series` : undefined}
-            items={filters}
-            isOn={(key) => key === series}
-            onChange={setSeries}
-          >
+        {themes.length === 0 ? (
+          <FilterGroup heading={t.seriesHeading} items={filters} isOn={(key) => key === series} onChange={setSeries}>
             {seriesLink && <div style={{ paddingTop: 16 }}>{seriesLink}</div>}
           </FilterGroup>
         ) : (
-          <FilterGroup
-            heading={<FilterTabs idBase={`${tabsId}-d`} tab={tab} onTab={setTab} lit={lit} lang={lang} rule />}
-            panelId={`${tabsId}-d-themes`}
-            items={themes}
-            isOn={(key) => (key === ALL ? picked.length === 0 : picked.includes(key))}
-            onChange={setTheme}
-          />
+          <div role="group" aria-label={t.filters} className="flex flex-col">
+            <Folder
+              id={`${tabsId}-d-series`}
+              name={t.seriesHeading}
+              open={tab === 'series'}
+              onOpen={() => setTab('series')}
+              lit={lit.series}
+              items={filters}
+              isOn={(key) => key === series}
+              onChange={setSeries}
+            >
+              {seriesLink && <div style={{ paddingTop: 12, paddingLeft: TREE_INDENT }}>{seriesLink}</div>}
+            </Folder>
+            <Folder
+              id={`${tabsId}-d-themes`}
+              name={t.themesHeading}
+              open={tab === 'themes'}
+              onOpen={() => setTab('themes')}
+              lit={lit.themes}
+              items={themes}
+              isOn={(key) => (key === ALL ? picked.length === 0 : picked.includes(key))}
+              onChange={setTheme}
+            />
+          </div>
         )}
 
         {covers.length > 0 && (
@@ -473,21 +485,43 @@ function ThemeBar({
   );
 }
 
-/** Un groupe de la colonne de filtres (desktop) : titre filé, une ligne par choix, voyant d'état. */
+/** Une ligne de choix de la colonne de filtres : voyant, pastille de couleur, libellé, compteur. */
+function FilterButton({ filter: f, on, onChange }: { filter: Filter; on: boolean; onChange: (key: string) => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={() => onChange(f.key)}
+      className={cn(
+        'flex w-full items-center gap-[10px] text-left text-[15px] font-bold tracking-[-0.02em] leading-[1.3] transition-colors motion-reduce:transition-none',
+        on ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
+      )}
+      style={{ paddingBlock: ITEM_PAD }}
+    >
+      <StateDot on={on} />
+      <span className="flex items-center gap-[8px]">
+        <TagSwatch color={f.color ?? null} />
+        <span>
+          {f.label} <span className="font-normal tabular-nums">({f.count})</span>
+        </span>
+      </span>
+    </button>
+  );
+}
+
+/** Padding vertical d'une ligne de choix ; la branche de l'arborescence se cale sur le centre de sa première ligne. */
+const ITEM_PAD = 6;
+
+/** Un groupe de la colonne de filtres (desktop), tant qu'aucune thématique n'existe : titre filé, une ligne par choix. */
 function FilterGroup({
   heading,
-  panelId,
   items,
   isOn,
   onChange,
   children,
 }: {
-  /** Un titre, ou la barre d'onglets quand les thématiques existent. */
   heading: ReactNode;
-  /** Présent quand le groupe est le panneau d'un onglet. */
-  panelId?: string;
   items: Filter[];
-  /** Plusieurs entrées peuvent être allumées : plusieurs thématiques filtrent. */
   isOn: (key: string) => boolean;
   onChange: (key: string) => void;
   /** Sous la liste (le lien vers la page de la série choisie). */
@@ -497,42 +531,16 @@ function FilterGroup({
     <div className="flex flex-col">
       <div
         className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}
-        style={{ paddingBottom: TAB_RULE_GAP, borderBottom: '1px solid var(--color-line)' }}
+        style={{ paddingBottom: 12, borderBottom: '1px solid var(--color-line)' }}
       >
         {heading}
       </div>
-      <ul
-        id={panelId}
-        role={panelId ? 'tabpanel' : undefined}
-        aria-labelledby={panelId ? `${panelId}-tab` : undefined}
-        className="flex flex-col"
-        style={{ paddingTop: 12 }}
-      >
-        {items.map((f) => {
-          const on = isOn(f.key);
-          return (
-            <li key={f.key}>
-              <button
-                type="button"
-                aria-pressed={on}
-                onClick={() => onChange(f.key)}
-                className={cn(
-                  'flex w-full items-center gap-[10px] text-left text-[15px] font-bold tracking-[-0.02em] leading-[1.3] transition-colors motion-reduce:transition-none',
-                  on ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
-                )}
-                style={{ paddingBlock: 6 }}
-              >
-                <StateDot on={on} />
-                <span className="flex items-center gap-[8px]">
-                  <TagSwatch color={f.color ?? null} />
-                  <span>
-                    {f.label} <span className="font-normal tabular-nums">({f.count})</span>
-                  </span>
-                </span>
-              </button>
-            </li>
-          );
-        })}
+      <ul className="flex flex-col" style={{ paddingTop: 12 }}>
+        {items.map((f) => (
+          <li key={f.key}>
+            <FilterButton filter={f} on={isOn(f.key)} onChange={onChange} />
+          </li>
+        ))}
       </ul>
       {children}
     </div>
@@ -540,19 +548,153 @@ function FilterGroup({
 }
 
 /**
+ * « séries/ » et « thématiques/ » sur la colonne desktop (2026-10-24, demande
+ * Alexandre : les onglets ne disaient pas assez qu'on passe de l'un à
+ * l'autre). Une arborescence de serveur, volontairement rudimentaire : deux
+ * dossiers l'un sous l'autre, un seul ouvert. Ce qui le fait comprendre : le
+ * chevron qui tourne, l'icône de dossier qui s'ouvre, la barre oblique et la
+ * fonte à chasse fixe des noms, le nombre d'entrées au fer droit, et les
+ * branches qui raccrochent chaque entrée à son dossier. Le dossier fermé
+ * reste en vue à sa place : on voit ce qu'on peut ouvrir.
+ *
+ * L'ordre ne bouge jamais (séries au-dessus). Ouvrir l'un ferme l'autre, et,
+ * comme les onglets d'avant, ne touche à aucun filtre : le voyant d'un dossier
+ * FERMÉ dit qu'il trie encore. Le contenu se déplie en hauteur
+ * (`grid-template-rows` 0fr → 1fr, aucune hauteur mesurée) ; replié, il est
+ * `inert` — ni focus clavier ni lecteur d'écran dans une liste invisible.
+ */
+
+/** Retrait des entrées sous leur dossier : la branche part du milieu du chevron. */
+const TREE_INDENT = 22;
+
+/** Abscisse de la branche verticale : le centre du chevron (8 px). */
+const TREE_TRUNK = 4;
+
+function Folder({
+  id,
+  name,
+  open,
+  onOpen,
+  lit,
+  items,
+  isOn,
+  onChange,
+  children,
+}: {
+  id: string;
+  name: string;
+  open: boolean;
+  onOpen: () => void;
+  /** Son filtre trie-t-il encore ? Ne s'affiche que dossier fermé. */
+  lit: boolean;
+  items: Filter[];
+  isOn: (key: string) => boolean;
+  onChange: (key: string) => void;
+  children?: ReactNode;
+}) {
+  // « Tout » n'est pas une entrée du dossier.
+  const entries = items.filter((f) => f.key !== ALL).length;
+  // Centre de la première ligne d'une entrée : 15 px × 1,3 d'interligne.
+  const branchY = ITEM_PAD + (15 * 1.3) / 2;
+  return (
+    <div className="flex flex-col">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={onOpen}
+        className={cn(
+          'flex w-full items-center gap-[8px] text-left font-mono text-[13px] leading-none transition-colors duration-200 motion-reduce:transition-none',
+          open ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
+        )}
+        style={{ paddingBlock: 8 }}
+      >
+        <svg
+          aria-hidden
+          width={8}
+          height={8}
+          viewBox="0 0 8 8"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={cn('flex-none transition-[rotate] duration-200 ease-out motion-reduce:transition-none', open && 'rotate-90')}
+        >
+          <path d="M2.75 1.25 5.5 4 2.75 6.75" />
+        </svg>
+        <FolderIcon open={open} />
+        <span className="min-w-0 truncate">{name.toLocaleLowerCase()}/</span>
+        <StateDot on={!open && lit} />
+        {/* Le reset de `globals.css` remet les marges à zéro : un `ml-auto` serait avalé. */}
+        <span aria-hidden className="flex-1" />
+        <span className="tabular-nums text-[var(--color-fg-muted)]">{entries}</span>
+      </button>
+      <div
+        id={id}
+        inert={!open}
+        className="grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+        style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <ul className="flex flex-col" style={{ paddingBottom: 10 }}>
+            {items.map((f, i) => (
+              <li key={f.key} className="relative" style={{ paddingLeft: TREE_INDENT }}>
+                {/* La branche : le tronc, arrêté à la dernière entrée (└), et le rameau. */}
+                <span
+                  aria-hidden
+                  className="absolute w-px bg-[var(--color-fg-muted)] opacity-40"
+                  style={{ left: TREE_TRUNK, top: 0, height: i === items.length - 1 ? branchY : '100%' }}
+                />
+                <span
+                  aria-hidden
+                  className="absolute h-px bg-[var(--color-fg-muted)] opacity-40"
+                  style={{ left: TREE_TRUNK, top: branchY, width: TREE_INDENT - TREE_TRUNK - 6 }}
+                />
+                <FilterButton filter={f} on={isOn(f.key)} onChange={onChange} />
+              </li>
+            ))}
+          </ul>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Le dossier de l'arborescence : fermé, un classeur ; ouvert, la face avant basculée. */
+function FolderIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      aria-hidden
+      width={15}
+      height={15}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.25}
+      strokeLinejoin="round"
+      className="flex-none"
+    >
+      {open ? (
+        <>
+          <path d="M2 12.5V3.5h4l1.5 1.5H12.5v2" />
+          <path d="M2 12.5 4 7h10.5l-2 5.5z" />
+        </>
+      ) : (
+        <path d="M2 12.5V3.5h4l1.5 1.5H14v7.5z" />
+      )}
+    </svg>
+  );
+}
+
+/**
  * « Séries | Thématiques » — deux onglets au corps de l'étiquette, l'ouvert à
  * l'encre, l'autre en gris. ← / → passent de l'un à l'autre (motif ARIA des
  * onglets). Le voyant ne s'allume que sur un onglet FERMÉ dont le filtre trie
- * encore : sur l'onglet ouvert, la liste le montre déjà.
- *
- * Sur la colonne desktop (`rule`, 2026-10-20 — « Thématiques » ne se voyait
- * pas) : les deux onglets se partagent la largeur, le second fer à droite, et
- * l'ouvert pose un trait d'encre de 2 px SUR le filet du groupe — l'onglet se
- * lit comme un onglet, pas comme un gris un peu plus foncé.
+ * encore : sur l'onglet ouvert, la liste le montre déjà. Téléphone seulement :
+ * la colonne desktop range les deux filtres en dossiers (`Folder`).
  */
-
-/** Écart étiquette → filet sous les onglets ; doit rester égal au `paddingBottom` de `FilterGroup`. */
-const TAB_RULE_GAP = 12;
 
 function FilterTabs({
   idBase,
@@ -560,15 +702,12 @@ function FilterTabs({
   onTab,
   lit,
   lang,
-  rule = false,
 }: {
   idBase: string;
   tab: Tab;
   onTab: (tab: Tab) => void;
   lit: Record<Tab, boolean>;
   lang: Lang;
-  /** Posé au-dessus du filet de `FilterGroup` : onglets justifiés, trait sous l'ouvert. */
-  rule?: boolean;
 }) {
   const t = DICT[lang];
   const tabs: [Tab, string][] = [
@@ -580,7 +719,7 @@ function FilterTabs({
     <div
       role="tablist"
       aria-label={t.filters}
-      className={cn(MICRO_LABEL, 'flex items-center gap-4 text-[13px] tracking-[0.02em]', rule && 'justify-between')}
+      className={cn(MICRO_LABEL, 'flex items-center gap-4 text-[13px] tracking-[0.02em]')}
     >
       {tabs.map(([key, label]) => {
         const on = key === tab;
@@ -605,23 +744,12 @@ function FilterTabs({
               refs.current[next]?.focus();
             }}
             className={cn(
-              'relative flex items-center gap-[6px] uppercase transition-colors duration-200 motion-reduce:transition-none',
+              'flex items-center gap-[6px] uppercase transition-colors duration-200 motion-reduce:transition-none',
               on ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
             )}
           >
             {label}
             {!on && lit[key] && <StateDot on />}
-            {rule && (
-              <span
-                aria-hidden
-                className={cn(
-                  'absolute inset-x-0 bg-[var(--color-fg)] transition-opacity duration-200 ease-out motion-reduce:transition-none',
-                  on ? 'opacity-100' : 'opacity-0',
-                )}
-                // 2 px dont le bas couvre exactement le filet de 1 px.
-                style={{ bottom: -(TAB_RULE_GAP + 1), height: 2 }}
-              />
-            )}
           </button>
         );
       })}
