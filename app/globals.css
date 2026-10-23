@@ -1341,3 +1341,33 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
   }
 }
 
+
+/* ── Surligné du journal (2026-10-23) ─────────────────────────────────────
+   La phrase marquée au jaune dans le Studio (`Highlight.tsx`, qui dit d'où
+   vient l'effet). Le fond est un dégradé plein dont la LARGEUR s'anime : sur
+   un `<mark>` coupé en plusieurs lignes, il court ligne après ligne.
+   - `background-color: transparent` : le `<mark>` du navigateur est déjà
+     jaune, et ce jaune-là ne s'animerait pas.
+   - État de départ (trait vide) dans le HTML servi ; mouvement réduit : plein
+     d'emblée, sans transition ; sans JS : `<noscript>` d'`ArticleBody`.
+   - 1 s, `cubic-bezier(0.25, 1, 0.5, 1)` : les valeurs du pen. Au-delà des
+     600 ms du §3.2, assumé : rien n'attend ce trait, il se lit pendant
+     qu'il court, et plus court il claque au lieu de surligner. */
+:root {
+  --color-highlight: #f2f20d;
+}
+.journal-hl {
+  color: inherit;
+  background-color: transparent;
+  background-image: linear-gradient(var(--color-highlight), var(--color-highlight));
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .journal-hl {
+    transition: background-size 1s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .journal-hl:not([data-on]) {
+    background-size: 0% 100%;
+  }
+}

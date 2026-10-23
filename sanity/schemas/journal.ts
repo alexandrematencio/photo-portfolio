@@ -1,4 +1,5 @@
-import { createElement } from 'react';
+import { HighlightIcon } from '@sanity/icons';
+import { createElement, type ReactNode } from 'react';
 import { defineArrayMember, defineField, defineType } from 'sanity';
 import { NoteRefInput } from '../inputs/NoteRefInput';
 import { assetWithinCap } from '../validation/assetWithinCap';
@@ -132,7 +133,7 @@ export const journalPullQuote = defineType({
     defineField({
       name: 'text',
       title: 'Phrase reprise',
-      description: 'Une phrase du texte, MOT POUR MOT, posée juste après le paragraphe d’où elle vient. Deux ou trois par article, jamais deux de suite. Les guillemets sont ajoutés par le site.',
+      description: 'Gardée pour les articles qui en ont déjà. Pour un nouvel article, surligner la phrase dans le texte (bouton « Surligner ») plutôt que la reprendre ici.',
       type: 'text',
       rows: 3,
       validation: (Rule) => [
@@ -583,7 +584,7 @@ export const post = defineType({
       name: 'body',
       title: 'Texte',
       description:
-        'Le premier paragraphe devient le chapô (plus grand, en gras). Le menu « + » insère une citation en exergue, une figure, une image, un tableau, un bilan ou une question à trancher ; dans une phrase, le bouton d’objet en ligne insère un appel de référence ou une note à trancher.',
+        'Le premier paragraphe devient le chapô (plus grand, en gras). Pour faire ressortir une phrase : la sélectionner, puis le bouton « Surligner » (le marqueur jaune). Le menu « + » insère une citation en exergue, une figure, une image, un tableau, un bilan ou une question à trancher ; dans une phrase, le bouton d’objet en ligne insère un appel de référence ou une note à trancher.',
       type: 'array',
       of: [
         defineArrayMember({
@@ -598,6 +599,16 @@ export const post = defineType({
               { title: 'Gras', value: 'strong' },
               { title: 'Emphase', value: 'em' },
               { title: 'Titre d’œuvre', value: 'cite' },
+              // Le surligneur (2026-10-23) : remplace la citation en exergue
+              // pour les nouveaux articles. Sur le site, le jaune se tire au
+              // défilement (`Highlights.tsx`) ; ici, il est posé.
+              {
+                title: 'Surligner',
+                value: 'highlight',
+                icon: HighlightIcon,
+                component: ({ children }: { children?: ReactNode }) =>
+                  createElement('mark', { style: { backgroundColor: 'var(--color-highlight, #f2f20d)', color: 'inherit' } }, children),
+              },
             ],
             // Lien dans le texte (2026-10-21) : vers un article du journal —
             // la traduction pointe alors la version de sa langue (articles.ts) —

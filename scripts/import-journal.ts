@@ -25,7 +25,7 @@
  * (title, dek, series, part, date, referencesNote), `## intertitre`,
  * `> citation en exergue`, tableaux `|`, tableau à colonne « Famille » =
  * bilan de verdicts, `{{figure:loop}}`, `[^clé]: référence`, et en ligne
- * **gras**, *emphase*, _titre d'œuvre_, `[^clé]` (appel), `[question]`
+ * **gras**, *emphase*, _titre d'œuvre_, ==surligné==, `[^clé]` (appel), `[question]`
  * (note à trancher ; seule sur sa ligne = paragraphe à trancher).
  */
 import { createClient } from '@sanity/client';
@@ -56,12 +56,13 @@ function slugify(s: string) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-const INLINE = /(\*\*[^*]+\*\*|\*[^*\s][^*]*\*|_[^_]+_|\[\^[a-z0-9]+\]|\[[^\]^][^\]]*\])/g;
+const INLINE = /(==[^=]+==|\*\*[^*]+\*\*|\*[^*\s][^*]*\*|_[^_]+_|\[\^[a-z0-9]+\]|\[[^\]^][^\]]*\])/g;
 
 function children(text: string, marks: string[] = []): Child[] {
   const out: Child[] = [];
   for (const part of text.split(INLINE).filter(Boolean)) {
-    if (part.startsWith('**')) out.push(...children(part.slice(2, -2), [...marks, 'strong']));
+    if (part.length > 4 && part.startsWith('==') && part.endsWith('==')) out.push(...children(part.slice(2, -2), [...marks, 'highlight']));
+    else if (part.startsWith('**')) out.push(...children(part.slice(2, -2), [...marks, 'strong']));
     else if (part.startsWith('[^')) out.push({ _type: 'journalNoteRef', _key: key(), refKey: part.slice(2, -1) });
     else if (part.startsWith('[') && part.endsWith(']')) out.push({ _type: 'journalDraftNote', _key: key(), text: part.slice(1, -1) });
     else if (part.length > 2 && part.startsWith('_') && part.endsWith('_')) out.push(...children(part.slice(1, -1), [...marks, 'cite']));

@@ -33,7 +33,7 @@ function visible(children: PTBlock['children']) {
   const out: string[] = [];
   for (const c of children) {
     if (c._type === 'span') {
-      const marks = [...((c as { marks?: string[] }).marks ?? [])].filter((m) => ['strong', 'em', 'cite'].includes(m)).sort().join('+');
+      const marks = [...((c as { marks?: string[] }).marks ?? [])].filter((m) => ['strong', 'em', 'cite', 'highlight'].includes(m)).sort().join('+');
       const text = (c as { text: string }).text;
       if (!text) continue;
       const last = out[out.length - 1];
@@ -110,6 +110,23 @@ function fabricated() {
   ok('note prise pour un appel : refusée', () => assert.throws(() => parseMarkup('<ref id="d1"/><ref id="n1"/>', block), /inventé/));
   ok('balise non fermée : refusée', () => assert.throws(() => parseMarkup('<i>x<ref id="n1"/><note id="d1"/>', block), /jamais fermée/));
   ok('balise croisée : refusée', () => assert.throws(() => parseMarkup('<b><i>x</b></i><ref id="n1"/><note id="d1"/>', block), /mal fermée/));
+  ok('surligné : <mark> à l’extérieur, retour identique', () => {
+    const hl: PTBlock = {
+      _type: 'block',
+      _key: 'b2',
+      style: 'normal',
+      markDefs: [],
+      children: [
+        { _type: 'span', _key: 's1', text: 'Avant. ', marks: [] },
+        { _type: 'span', _key: 's2', text: 'La phrase ', marks: ['highlight'] },
+        { _type: 'span', _key: 's3', text: 'clé', marks: ['highlight', 'em'] },
+        { _type: 'span', _key: 's4', text: '.', marks: ['highlight'] },
+      ],
+    };
+    const m = blockToMarkup(hl);
+    assert.equal(m, 'Avant. <mark>La phrase <i>clé</i>.</mark>');
+    assert.deepEqual(visible(parseMarkup(m, hl)), visible(hl.children));
+  });
   ok('balise inconnue : refusée', () => assert.throws(() => parseMarkup('<u>x</u><ref id="n1"/><note id="d1"/>', block), /inconnue/));
   const linkBlock: PTBlock = {
     _type: 'block',

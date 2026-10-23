@@ -20,6 +20,7 @@ import { StateDot } from '@/components/site/StateDot';
 import { DraftLabel, NoteCall, NoteRow, NotesProvider, type RowNote } from './Notes';
 import { JournalFigure } from './figures';
 import { ArticleImage } from './ArticleImage';
+import { Highlight } from './Highlight';
 import { VerdictTable } from './VerdictTable';
 import { DataTable } from './DataTable';
 
@@ -82,7 +83,35 @@ function renderLinked(node: ReactNode, link: InlineLink, key: number): ReactNode
   );
 }
 
+const lit = (node: Inline | undefined) => node?.t === 'text' && node.marks.includes('highlight');
+
+/**
+ * Les passages surlignés qui se suivent forment UN seul trait : une emphase
+ * ou un lien au milieu d'une phrase surlignée la découpe en plusieurs spans,
+ * et autant de `<mark>` partiraient ensemble au lieu de courir d'un bout à
+ * l'autre. Un appel de note pris entre deux passages surlignés reste dans le trait.
+ */
 function renderInline(nodes: Inline[], numbering?: Numbering): ReactNode[] {
+  const out: ReactNode[] = [];
+  let run: ReactNode[] = [];
+  const flush = (i: number) => {
+    if (run.length) out.push(<Highlight key={`hl${i}`}>{run}</Highlight>);
+    run = [];
+  };
+  renderNodes(nodes, numbering).forEach((rendered, i) => {
+    const node = nodes[i];
+    const bridged = node.t !== 'text' && run.length > 0 && lit(nodes.slice(i + 1).find((n) => n.t === 'text'));
+    if (lit(node) || bridged) run.push(rendered);
+    else {
+      flush(i);
+      out.push(rendered);
+    }
+  });
+  flush(nodes.length);
+  return out;
+}
+
+function renderNodes(nodes: Inline[], numbering?: Numbering): ReactNode[] {
   return nodes.map((node, i) => {
     if (node.t === 'text') {
       const marked = renderMarked(node.text, node.marks, i);
@@ -224,6 +253,9 @@ export function ArticleBody({
   return (
     <NotesProvider lang={lang}>
       <div className="flex flex-col">
+        <noscript>
+          <style>{'.journal-hl{background-size:100% 100%!important}'}</style>
+        </noscript>
         {blocks.map((block, i) => {
           const prev = blocks[i - 1];
           const afterObject =
