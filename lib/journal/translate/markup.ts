@@ -9,7 +9,8 @@
  *
  *   « Je l'ai lu dans <cite>Le Corps</cite> <ref id="k3"/>, puis <i>oublié</i>. »
  *
- * - `<b>`, `<i>`, `<cite>` : les trois décorateurs du schéma (strong, em, cite).
+ * - `<b>`, `<i>`, `<cite>`, `<mark>` : les quatre décorateurs du schéma
+ *   (strong, em, cite, highlight — le surligné, 2026-10-23).
  * - `<a id="…">…</a>` : un lien (annotation `journalLink`), désigné par la
  *   `_key` de sa définition. Le lien lui-même (article, adresse) reste dans
  *   les `markDefs` du bloc, recopiés tels quels : le modèle ne déplace que
@@ -38,7 +39,7 @@ export type PTBlock = {
 };
 
 /** Décorateur du schéma → balise. L'ordre fixe l'imbrication à l'aller. */
-const TAGS: Record<string, string> = { strong: 'b', em: 'i', cite: 'cite' };
+const TAGS: Record<string, string> = { highlight: 'mark', strong: 'b', em: 'i', cite: 'cite' };
 const MARKS: Record<string, string> = Object.fromEntries(Object.entries(TAGS).map(([m, t]) => [t, m]));
 
 /** Les clés des liens d'un bloc (annotations `journalLink`). */
@@ -108,7 +109,7 @@ export function inlineKeys(block: PTBlock): string[] {
   return (block.children ?? []).filter((c) => !isSpan(c)).map((c) => c._key);
 }
 
-const TOKEN = /<\/?(b|i|cite)>|<(ref|note) id="([^"]+)"\s*\/>|<a id="([^"]+)">|(<\/a>)|<[^>]*>/g;
+const TOKEN = /<\/?(b|i|cite|mark)>|<(ref|note) id="([^"]+)"\s*\/>|<a id="([^"]+)">|(<\/a>)|<[^>]*>/g;
 
 /**
  * Une ligne balisée → les `children` d'un bloc. `original` fournit les objets

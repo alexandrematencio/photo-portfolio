@@ -24,7 +24,7 @@ import { DEFAULT_LANG, type Lang } from './i18n';
 /** Lecture silencieuse d'un texte argumentatif, en mots par minute. */
 const WORDS_PER_MINUTE = 220;
 
-const MARKS: InlineMark[] = ['strong', 'em', 'cite'];
+const MARKS: InlineMark[] = ['strong', 'em', 'cite', 'highlight'];
 
 /** Une image telle que le Studio la stocke : un asset, un recadrage facultatif, un texte alternatif. */
 export type RawImage = {

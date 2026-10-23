@@ -12,7 +12,7 @@ export type VerdictKind = 'converge' | 'nuance' | 'open' | 'fails';
 
 export type Verdict = { idea: string; prior: string; verdict: string; kind: VerdictKind };
 
-export type InlineMark = 'strong' | 'em' | 'cite';
+export type InlineMark = 'strong' | 'em' | 'cite' | 'highlight';
 
 /**
  * Lien posé sur un passage. `article` : l'_id d'un article original, que
