@@ -36,14 +36,14 @@ import type { ArticleSummary } from '@/lib/journal/types';
  *
  * Les THÉMATIQUES (2026-10-19) : un second filtre, qui se combine au premier
  * (série ET thématique). Les deux partagent la même place : deux DOSSIERS
- * sur la colonne desktop (`Folder`, 2026-10-24), deux onglets sur téléphone
- * (séries ouvertes par défaut) ; ouvrir l'un n'est qu'une vue,
+ * (`Folder`, 2026-10-24 ; des onglets avant), séries ouvertes par défaut ;
+ * ouvrir l'un n'est qu'une vue,
  * il ne remet aucun filtre à zéro — un voyant sur le fermé dit qu'il
- * filtre encore. Dossiers et onglets n'apparaissent qu'à la première thématique posée
+ * filtre encore. Les dossiers n'apparaissent qu'à la première thématique posée
  * sur un article. Les compteurs d'un filtre se lisent dans l'autre — « (3) »
  * promet trois lignes. La thématique choisie s'écrit dans l'adresse
  * (`?theme=`) : c'est le lien que posent les pages d'article, et elle ouvre
- * l'onglet des thématiques. Chaque ligne de l'index nomme ses thématiques
+ * le dossier des thématiques. Chaque ligne de l'index nomme ses thématiques
  * sous son titre.
  *
  * Plusieurs thématiques peuvent filtrer à la fois (2026-10-22, demande
@@ -228,6 +228,19 @@ export function JournalIndex({
   // Valeur unique pour les contrôles à choix unique ; plusieurs → `MIXED`.
   const theme = picked.length === 0 ? ALL : picked.length === 1 ? picked[0] : MIXED;
 
+  const seriesSelector = (
+    <ListSelector
+      hint={t.seriesHint}
+      ariaLabel={t.filterBySeries}
+      items={filters}
+      value={series}
+      onChange={setSeries}
+      mark="dot"
+      tone="plate"
+      lit={series !== ALL}
+    />
+  );
+
   return (
     <div className="flex flex-col md:grid md:gap-x-12" style={{ gridTemplateColumns: `${FILTER_COL}px minmax(0, 1fr)` }}>
       {/* FILTRES — téléphone. Les drapeaux vivent dans le bloc de titre
@@ -238,45 +251,52 @@ export function JournalIndex({
         className="md:hidden"
         style={{ marginTop: MOBILE_FILTERS_GAP - PAGE_TITLE_GAP, marginBottom: 32, scrollMarginTop: 16 }}
       >
-        {themes.length > 0 && (
-          <div style={{ marginBottom: 12 }}>
-            <FilterTabs idBase={`${tabsId}-m`} tab={tab} onTab={setTab} lit={lit} lang={lang} />
+        {themes.length === 0 ? (
+          <>
+            {seriesSelector}
+            {seriesLink && <div style={{ marginTop: 16 }}>{seriesLink}</div>}
+          </>
+        ) : (
+          <div role="group" aria-label={t.filters} className="flex flex-col">
+            <Folder
+              id={`${tabsId}-m-series`}
+              name={t.seriesHeading}
+              open={tab === 'series'}
+              onOpen={() => setTab('series')}
+              lit={lit.series}
+              entries={filters.length - 1}
+              roomy
+            >
+              <FolderLeaf after={seriesLink}>{seriesSelector}</FolderLeaf>
+            </Folder>
+            <Folder
+              id={`${tabsId}-m-themes`}
+              name={t.themesHeading}
+              open={tab === 'themes'}
+              onOpen={() => setTab('themes')}
+              lit={lit.themes}
+              entries={themes.length - 1}
+              roomy
+            >
+              <FolderLeaf>
+                <ListSelector
+                  hint={t.themeHint}
+                  ariaLabel={t.filterByTheme}
+                  items={
+                    theme === MIXED
+                      ? [{ key: MIXED, label: t.themesPicked(picked.length), count: shown.length }, ...themes]
+                      : themes
+                  }
+                  value={theme}
+                  onChange={setTheme}
+                  mark="dot"
+                  tone="plate"
+                  lit={picked.length > 0}
+                />
+              </FolderLeaf>
+            </Folder>
           </div>
         )}
-        <div
-          role={themes.length ? 'tabpanel' : undefined}
-          id={`${tabsId}-m-${tab}`}
-          aria-labelledby={themes.length ? `${tabsId}-m-${tab}-tab` : undefined}
-        >
-          {tab === 'series' || themes.length === 0 ? (
-            <ListSelector
-              hint={t.seriesHint}
-              ariaLabel={t.filterBySeries}
-              items={filters}
-              value={series}
-              onChange={setSeries}
-              mark="dot"
-              tone="plate"
-              lit={series !== ALL}
-            />
-          ) : (
-            <ListSelector
-              hint={t.themeHint}
-              ariaLabel={t.filterByTheme}
-              items={
-                theme === MIXED
-                  ? [{ key: MIXED, label: t.themesPicked(picked.length), count: shown.length }, ...themes]
-                  : themes
-              }
-              value={theme}
-              onChange={setTheme}
-              mark="dot"
-              tone="plate"
-              lit={picked.length > 0}
-            />
-          )}
-        </div>
-        {seriesLink && tab === 'series' && <div style={{ marginTop: 16 }}>{seriesLink}</div>}
       </div>
 
       {/* FILTRES — desktop, colonne collante */}
@@ -294,11 +314,11 @@ export function JournalIndex({
               open={tab === 'series'}
               onOpen={() => setTab('series')}
               lit={lit.series}
-              items={filters}
-              isOn={(key) => key === series}
-              onChange={setSeries}
+              entries={filters.length - 1}
             >
-              {seriesLink && <div style={{ paddingTop: 12, paddingLeft: TREE_INDENT }}>{seriesLink}</div>}
+              <FolderList items={filters} isOn={(key) => key === series} onChange={setSeries}>
+                {seriesLink && <div style={{ paddingBottom: 10, paddingLeft: TREE_INDENT }}>{seriesLink}</div>}
+              </FolderList>
             </Folder>
             <Folder
               id={`${tabsId}-d-themes`}
@@ -306,10 +326,14 @@ export function JournalIndex({
               open={tab === 'themes'}
               onOpen={() => setTab('themes')}
               lit={lit.themes}
-              items={themes}
-              isOn={(key) => (key === ALL ? picked.length === 0 : picked.includes(key))}
-              onChange={setTheme}
-            />
+              entries={themes.length - 1}
+            >
+              <FolderList
+                items={themes}
+                isOn={(key) => (key === ALL ? picked.length === 0 : picked.includes(key))}
+                onChange={setTheme}
+              />
+            </Folder>
           </div>
         )}
 
@@ -548,11 +572,11 @@ function FilterGroup({
 }
 
 /**
- * « séries/ » et « thématiques/ » sur la colonne desktop (2026-10-24, demande
- * Alexandre : les onglets ne disaient pas assez qu'on passe de l'un à
- * l'autre). Une arborescence de serveur, volontairement rudimentaire : deux
- * dossiers l'un sous l'autre, un seul ouvert. Ce qui le fait comprendre : le
- * chevron qui tourne, l'icône de dossier qui s'ouvre, la barre oblique et la
+ * « séries/ » et « thématiques/ » (2026-10-24, demande Alexandre : les
+ * onglets ne disaient pas assez qu'on passe de l'un à l'autre ; le téléphone a
+ * suivi le même jour). Une arborescence de serveur, volontairement
+ * rudimentaire : deux dossiers l'un sous l'autre, un seul ouvert. Ce qui le
+ * fait comprendre : le chevron qui tourne, l'icône de dossier qui s'ouvre, la barre oblique et la
  * fonte à chasse fixe des noms, le nombre d'entrées au fer droit, et les
  * branches qui raccrochent chaque entrée à son dossier. Le dossier fermé
  * reste en vue à sa place : on voit ce qu'on peut ouvrir.
@@ -576,9 +600,8 @@ function Folder({
   open,
   onOpen,
   lit,
-  items,
-  isOn,
-  onChange,
+  entries,
+  roomy = false,
   children,
 }: {
   id: string;
@@ -587,15 +610,22 @@ function Folder({
   onOpen: () => void;
   /** Son filtre trie-t-il encore ? Ne s'affiche que dossier fermé. */
   lit: boolean;
-  items: Filter[];
-  isOn: (key: string) => boolean;
-  onChange: (key: string) => void;
-  children?: ReactNode;
+  /** Nombre d'entrées du dossier, « Tout » exclu. */
+  entries: number;
+  /** Téléphone : une ligne plus haute, à la mesure d'un doigt. */
+  roomy?: boolean;
+  /** Le contenu : `FolderList` (desktop) ou `FolderLeaf` (téléphone). */
+  children: ReactNode;
 }) {
-  // « Tout » n'est pas une entrée du dossier.
-  const entries = items.filter((f) => f.key !== ALL).length;
-  // Centre de la première ligne d'une entrée : 15 px × 1,3 d'interligne.
-  const branchY = ITEM_PAD + (15 * 1.3) / 2;
+  // Le rognage ne sert qu'au dépliage. Une fois ouvert, le contenu déborde
+  // librement : le tiroir du `ListSelector` (téléphone) est en `absolute`
+  // sous son champ, un `overflow: hidden` le couperait net.
+  const [clip, setClip] = useState(true);
+  useEffect(() => {
+    if (!open) return setClip(true);
+    const id = window.setTimeout(() => setClip(false), FOLDER_MS);
+    return () => window.clearTimeout(id);
+  }, [open]);
   return (
     <div className="flex flex-col">
       <button
@@ -607,7 +637,7 @@ function Folder({
           'flex w-full items-center gap-[8px] text-left font-mono text-[13px] leading-none transition-colors duration-200 motion-reduce:transition-none',
           open ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
         )}
-        style={{ paddingBlock: 8 }}
+        style={{ paddingBlock: roomy ? 12 : 8 }}
       >
         <svg
           aria-hidden
@@ -633,31 +663,77 @@ function Folder({
       <div
         id={id}
         inert={!open}
-        className="grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
-        style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
+        className="grid transition-[grid-template-rows] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+        style={{ gridTemplateRows: open ? '1fr' : '0fr', transitionDuration: `${FOLDER_MS}ms` }}
       >
-        <div className="min-h-0 overflow-hidden">
-          <ul className="flex flex-col" style={{ paddingBottom: 10 }}>
-            {items.map((f, i) => (
-              <li key={f.key} className="relative" style={{ paddingLeft: TREE_INDENT }}>
-                {/* La branche : le tronc, arrêté à la dernière entrée (└), et le rameau. */}
-                <span
-                  aria-hidden
-                  className="absolute w-px bg-[var(--color-fg-muted)] opacity-40"
-                  style={{ left: TREE_TRUNK, top: 0, height: i === items.length - 1 ? branchY : '100%' }}
-                />
-                <span
-                  aria-hidden
-                  className="absolute h-px bg-[var(--color-fg-muted)] opacity-40"
-                  style={{ left: TREE_TRUNK, top: branchY, width: TREE_INDENT - TREE_TRUNK - 6 }}
-                />
-                <FilterButton filter={f} on={isOn(f.key)} onChange={onChange} />
-              </li>
-            ))}
-          </ul>
-          {children}
-        </div>
+        <div className={cn('min-h-0', clip && 'overflow-hidden')}>{children}</div>
       </div>
+    </div>
+  );
+}
+
+/** Durée du dépliage d'un dossier. */
+const FOLDER_MS = 300;
+
+/** Un trait de l'arborescence : le tronc (arrêté au rameau sur la dernière entrée, └) et le rameau. */
+function Branch({ y, last }: { y: number | string; last: boolean }) {
+  return (
+    <>
+      <span
+        aria-hidden
+        className="absolute w-px bg-[var(--color-fg-muted)] opacity-40"
+        style={{ left: TREE_TRUNK, top: 0, height: last ? y : '100%' }}
+      />
+      <span
+        aria-hidden
+        className="absolute h-px bg-[var(--color-fg-muted)] opacity-40"
+        style={{ left: TREE_TRUNK, top: y, width: TREE_INDENT - TREE_TRUNK - 6 }}
+      />
+    </>
+  );
+}
+
+/** Desktop : une entrée par ligne, chacune sur sa branche. */
+function FolderList({
+  items,
+  isOn,
+  onChange,
+  children,
+}: {
+  items: Filter[];
+  isOn: (key: string) => boolean;
+  onChange: (key: string) => void;
+  children?: ReactNode;
+}) {
+  // Centre de la première ligne d'une entrée : 15 px × 1,3 d'interligne.
+  const branchY = ITEM_PAD + (15 * 1.3) / 2;
+  return (
+    <>
+      <ul className="flex flex-col" style={{ paddingBottom: 10 }}>
+        {items.map((f, i) => (
+          <li key={f.key} className="relative" style={{ paddingLeft: TREE_INDENT }}>
+            <Branch y={branchY} last={i === items.length - 1} />
+            <FilterButton filter={f} on={isOn(f.key)} onChange={onChange} />
+          </li>
+        ))}
+      </ul>
+      {children}
+    </>
+  );
+}
+
+/**
+ * Téléphone : une seule branche (└), et au bout le champ `ListSelector` —
+ * la liste dépliée en lignes pousserait l'index d'un écran entier vers le bas.
+ */
+function FolderLeaf({ children, after }: { children: ReactNode; after?: ReactNode }) {
+  return (
+    <div style={{ paddingBottom: 12 }}>
+      <div className="relative" style={{ paddingLeft: TREE_INDENT }}>
+        <Branch y="50%" last />
+        {children}
+      </div>
+      {after && <div style={{ paddingTop: 12, paddingLeft: TREE_INDENT }}>{after}</div>}
     </div>
   );
 }
@@ -685,75 +761,6 @@ function FolderIcon({ open }: { open: boolean }) {
         <path d="M2 12.5V3.5h4l1.5 1.5H14v7.5z" />
       )}
     </svg>
-  );
-}
-
-/**
- * « Séries | Thématiques » — deux onglets au corps de l'étiquette, l'ouvert à
- * l'encre, l'autre en gris. ← / → passent de l'un à l'autre (motif ARIA des
- * onglets). Le voyant ne s'allume que sur un onglet FERMÉ dont le filtre trie
- * encore : sur l'onglet ouvert, la liste le montre déjà. Téléphone seulement :
- * la colonne desktop range les deux filtres en dossiers (`Folder`).
- */
-
-function FilterTabs({
-  idBase,
-  tab,
-  onTab,
-  lit,
-  lang,
-}: {
-  idBase: string;
-  tab: Tab;
-  onTab: (tab: Tab) => void;
-  lit: Record<Tab, boolean>;
-  lang: Lang;
-}) {
-  const t = DICT[lang];
-  const tabs: [Tab, string][] = [
-    ['series', t.seriesHeading],
-    ['themes', t.themesHeading],
-  ];
-  const refs = useRef<Record<string, HTMLButtonElement | null>>({});
-  return (
-    <div
-      role="tablist"
-      aria-label={t.filters}
-      className={cn(MICRO_LABEL, 'flex items-center gap-4 text-[13px] tracking-[0.02em]')}
-    >
-      {tabs.map(([key, label]) => {
-        const on = key === tab;
-        return (
-          <button
-            key={key}
-            ref={(el) => {
-              refs.current[key] = el;
-            }}
-            type="button"
-            role="tab"
-            id={`${idBase}-${key}-tab`}
-            aria-selected={on}
-            aria-controls={`${idBase}-${key}`}
-            tabIndex={on ? 0 : -1}
-            onClick={() => onTab(key)}
-            onKeyDown={(e) => {
-              if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-              e.preventDefault();
-              const next: Tab = key === 'series' ? 'themes' : 'series';
-              onTab(next);
-              refs.current[next]?.focus();
-            }}
-            className={cn(
-              'flex items-center gap-[6px] uppercase transition-colors duration-200 motion-reduce:transition-none',
-              on ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
-            )}
-          >
-            {label}
-            {!on && lit[key] && <StateDot on />}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
