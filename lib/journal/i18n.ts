@@ -158,6 +158,9 @@ type Dict = {
   noSeries: string;
   /** Thématiques (`journalTag`) : nom du dossier de filtres, liste d’un article. */
   themesHeading: string;
+  /** Dernière ligne d'un dossier en aperçu (premier passage) : elle l'ouvre en entier. */
+  showAllSeries: (n: number) => string;
+  showAllThemes: (n: number) => string;
   filterByTheme: string;
   /** Bandeau au-dessus de l'index quand des thématiques filtrent : son étiquette, son bouton de sortie. */
   filtering: string;
@@ -319,6 +322,8 @@ export const DICT: Record<Lang, Dict> = {
     all: 'Tout',
     noSeries: 'Hors série',
     themesHeading: 'Thématiques',
+    showAllSeries: (n) => `voir les ${n} séries`,
+    showAllThemes: (n) => `voir les ${n} thématiques`,
     filterByTheme: 'Filtrer par thématique',
     filtering: 'Filtrage',
     clearFilter: 'Tout afficher',
@@ -488,6 +493,8 @@ export const DICT: Record<Lang, Dict> = {
     all: 'All',
     noSeries: 'Standalone',
     themesHeading: 'Topics',
+    showAllSeries: (n) => `show all ${n} series`,
+    showAllThemes: (n) => `show all ${n} topics`,
     filterByTheme: 'Filter by topic',
     filtering: 'Filtering',
     clearFilter: 'Show all',
@@ -658,6 +665,8 @@ export const DICT: Record<Lang, Dict> = {
     all: 'Все',
     noSeries: 'Вне серий',
     themesHeading: 'Темы',
+    showAllSeries: (n) => `показать все серии (${n})`,
+    showAllThemes: (n) => `показать все темы (${n})`,
     filterByTheme: 'Фильтр по теме',
     filtering: 'Фильтр',
     clearFilter: 'Показать все',
