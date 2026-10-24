@@ -9,6 +9,7 @@ import { EDITORIAL_SIDENOTE, MICRO_LABEL, PAGE_TITLE_GAP } from '@/lib/site/typo
 import { cn } from '@/lib/utils/cn';
 import { TagSwatch } from '@/components/journal/TagSwatch';
 import type { ArticleSummary } from '@/lib/journal/types';
+import { FIRST_VISIT, readFolders, writeFolders, type FolderMemory, type FolderName, type FolderState } from '@/lib/journal/folder-memory';
 
 /**
  * PAGE D'ACCUEIL DU JOURNAL — reprise de stripe.dev/blog (demande Alexandre,
@@ -82,8 +83,6 @@ const MOBILE_FILTERS_GAP = 28;
 
 type Filter = { key: string; label: string; count: number; color?: string | null };
 
-type Tab = 'series' | 'themes';
-
 export function JournalIndex({
   articles,
   lang,
@@ -98,7 +97,18 @@ export function JournalIndex({
   const [series, setSeries] = useState(ALL);
   // Les thématiques qui filtrent ; vide = toutes.
   const [picked, setPickedState] = useState<string[]>([]);
-  const [tab, setTab] = useState<Tab>('series');
+  // Chaque dossier : en aperçu (premier passage), ouvert ou fermé. Le HTML
+  // servi part de l'aperçu ; la mémoire du lecteur est relue au montage,
+  // SANS transition (`settled`), pour qu'un retour ne rejoue pas un dépliage.
+  const [folders, setFoldersState] = useState<FolderMemory>(FIRST_VISIT);
+  const [settled, setSettled] = useState(false);
+  const setFolder = (name: FolderName, state: FolderState) =>
+    setFoldersState((prev) => {
+      const next = { ...prev, [name]: state };
+      writeFolders(next);
+      return next;
+    });
+  const toggleFolder = (name: FolderName) => setFolder(name, folders[name] === 'open' ? 'closed' : 'open');
   const bar = useRef<HTMLDivElement | null>(null);
   // La ligne survolée (ou focalisée) : sa couverture s'ouvre dans la colonne de gauche.
   const [active, setActive] = useState<string | null>(null);
@@ -152,6 +162,12 @@ export function JournalIndex({
     ];
   }, [articles, t, lang, series]);
 
+  useEffect(() => {
+    setFoldersState(readFolders());
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => setSettled(true)));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
   // `?theme=<slug>,<slug>` : lu au montage (l'export est statique, le HTML
   // servi ne connaît pas l'adresse), réécrit à chaque choix pour que l'adresse
   // se partage. Un slug inconnu (thématique retirée depuis) est ignoré.
@@ -161,7 +177,7 @@ export function JournalIndex({
       .filter((slug) => articles.some((a) => a.tags.some((tag) => tag.slug === slug)));
     if (slugs.length) {
       setPickedState(slugs);
-      setTab('themes');
+      setFolder('themes', 'open');
     }
   }, [articles]);
 
@@ -190,7 +206,7 @@ export function JournalIndex({
   // pendant qu'il s'ouvre, la cible tient.
   const pickTheme = (key: string) => {
     setPicked([key]);
-    setTab('themes');
+    setFolder('themes', 'open');
     const box = bar.current;
     if (box && box.getBoundingClientRect().top < 0) {
       const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -261,22 +277,34 @@ export function JournalIndex({
             <Folder
               id={`${tabsId}-m-series`}
               name={t.seriesHeading}
-              open={tab === 'series'}
-              onOpen={() => setTab('series')}
+              state={folders.series}
+              settled={settled}
+              onToggle={() => toggleFolder('series')}
               lit={lit.series}
               entries={filters.length - 1}
               roomy
+              peek={
+                <FolderPeek
+                  current={filters[0]}
+                  isOn={(key) => key === series}
+                  onChange={setSeries}
+                  more={t.showAllSeries(filters.length - 1)}
+                  onMore={() => setFolder('series', 'open')}
+                />
+              }
             >
               <FolderFlow items={filters} isOn={(key) => key === series} onChange={setSeries} after={seriesLink} />
             </Folder>
             <Folder
               id={`${tabsId}-m-themes`}
               name={t.themesHeading}
-              open={tab === 'themes'}
-              onOpen={() => setTab('themes')}
+              state={folders.themes}
+              settled={settled}
+              onToggle={() => toggleFolder('themes')}
               lit={lit.themes}
               entries={themes.length - 1}
               roomy
+              peek={<FolderPeek more={t.showAllThemes(themes.length - 1)} onMore={() => setFolder('themes', 'open')} />}
             >
               <FolderFlow
                 items={themes}
@@ -300,10 +328,20 @@ export function JournalIndex({
             <Folder
               id={`${tabsId}-d-series`}
               name={t.seriesHeading}
-              open={tab === 'series'}
-              onOpen={() => setTab('series')}
+              state={folders.series}
+              settled={settled}
+              onToggle={() => toggleFolder('series')}
               lit={lit.series}
               entries={filters.length - 1}
+              peek={
+                <FolderPeek
+                  current={filters[0]}
+                  isOn={(key) => key === series}
+                  onChange={setSeries}
+                  more={t.showAllSeries(filters.length - 1)}
+                  onMore={() => setFolder('series', 'open')}
+                />
+              }
             >
               <FolderList items={filters} isOn={(key) => key === series} onChange={setSeries}>
                 {seriesLink && <div style={{ paddingBottom: 10, paddingLeft: TREE_INDENT }}>{seriesLink}</div>}
@@ -312,10 +350,12 @@ export function JournalIndex({
             <Folder
               id={`${tabsId}-d-themes`}
               name={t.themesHeading}
-              open={tab === 'themes'}
-              onOpen={() => setTab('themes')}
+              state={folders.themes}
+              settled={settled}
+              onToggle={() => toggleFolder('themes')}
               lit={lit.themes}
               entries={themes.length - 1}
+              peek={<FolderPeek more={t.showAllThemes(themes.length - 1)} onMore={() => setFolder('themes', 'open')} />}
             >
               <FolderList
                 items={themes}
@@ -586,17 +626,24 @@ const TREE_TRUNK = 4;
 function Folder({
   id,
   name,
-  open,
-  onOpen,
+  state,
+  settled,
+  onToggle,
   lit,
   entries,
   roomy = false,
+  peek,
   children,
 }: {
   id: string;
   name: string;
-  open: boolean;
-  onOpen: () => void;
+  /** `peek` : chevron baissé, seul l'aperçu est déplié (premier passage). */
+  state: FolderState;
+  /** Faux jusqu'à la relecture de la mémoire : aucune transition avant. */
+  settled: boolean;
+  onToggle: () => void;
+  /** L'aperçu du premier passage : l'entrée courante et « voir les n … ». */
+  peek: ReactNode;
   /** Son filtre trie-t-il encore ? Ne s'affiche que dossier fermé. */
   lit: boolean;
   /** Nombre d'entrées du dossier, « Tout » exclu. */
@@ -606,6 +653,9 @@ function Folder({
   /** Le contenu : `FolderList` (desktop) ou `FolderFlow` (téléphone). */
   children: ReactNode;
 }) {
+  const open = state === 'open';
+  const down = state !== 'closed';
+  const motion = settled ? `${FOLDER_MS}ms` : '0ms';
   // Le rognage ne sert qu'au dépliage : une fois ouvert, le contenu déborde
   // librement (un anneau de focus, un tiroir posé en `absolute`).
   const [clip, setClip] = useState(true);
@@ -620,10 +670,10 @@ function Folder({
         type="button"
         aria-expanded={open}
         aria-controls={id}
-        onClick={onOpen}
+        onClick={onToggle}
         className={cn(
           'flex w-full items-center gap-[8px] text-left font-mono text-[13px] leading-none transition-colors duration-200 motion-reduce:transition-none',
-          open ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
+          down ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
         )}
         style={{ paddingBlock: roomy ? 12 : 8 }}
       >
@@ -637,22 +687,31 @@ function Folder({
           strokeWidth={1.5}
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={cn('flex-none transition-[rotate] duration-200 ease-out motion-reduce:transition-none', open && 'rotate-90')}
+          className={cn('flex-none transition-[rotate] duration-200 ease-out motion-reduce:transition-none', down && 'rotate-90')}
         >
           <path d="M2.75 1.25 5.5 4 2.75 6.75" />
         </svg>
-        <FolderIcon open={open} />
+        <FolderIcon open={down} />
         <span className="min-w-0 truncate">{name.toLocaleLowerCase()}/</span>
         <StateDot on={!open && lit} />
         {/* Le reset de `globals.css` remet les marges à zéro : un `ml-auto` serait avalé. */}
         <span aria-hidden className="flex-1" />
         <span className="tabular-nums text-[var(--color-fg-muted)]">{entries}</span>
       </button>
+      {/* Deux régions empilées : l'aperçu se replie pendant que la liste se
+          déplie, la hauteur passe de l'une à l'autre sans rien mesurer. */}
+      <div
+        inert={state !== 'peek'}
+        className="grid transition-[grid-template-rows] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+        style={{ gridTemplateRows: state === 'peek' ? '1fr' : '0fr', transitionDuration: motion }}
+      >
+        <div className="min-h-0 overflow-hidden">{peek}</div>
+      </div>
       <div
         id={id}
         inert={!open}
         className="grid transition-[grid-template-rows] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
-        style={{ gridTemplateRows: open ? '1fr' : '0fr', transitionDuration: `${FOLDER_MS}ms` }}
+        style={{ gridTemplateRows: open ? '1fr' : '0fr', transitionDuration: motion }}
       >
         <div className={cn('min-h-0', clip && 'overflow-hidden')}>{children}</div>
       </div>
@@ -780,6 +839,46 @@ function FolderFlow({
         </ul>
       </div>
       {after && <div style={{ paddingTop: 12, paddingLeft: TREE_INDENT }}>{after}</div>}
+    </div>
+  );
+}
+
+/**
+ * L'aperçu d'un dossier au premier passage (2026-10-24, Alexandre) : l'entrée
+ * courante sur sa branche (└, séries seulement) puis « voir les n … » en
+ * italique, qui ouvre le dossier entier. Il dit qu'il y a des choix sans
+ * pousser les premiers titres de l'index sous l'écran.
+ */
+function FolderPeek({
+  current,
+  isOn,
+  onChange,
+  more,
+  onMore,
+}: {
+  current?: Filter;
+  isOn?: (key: string) => boolean;
+  onChange?: (key: string) => void;
+  more: string;
+  onMore: () => void;
+}) {
+  return (
+    <div className="flex flex-col" style={{ paddingBottom: 10 }}>
+      {current && isOn && onChange && (
+        <div className="relative" style={{ paddingLeft: TREE_INDENT }}>
+          <Branch y={LS_BRANCH_Y} last />
+          <LsEntry filter={current} on={isOn(current.key)} onChange={onChange} />
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={onMore}
+        className="w-fit text-left font-mono text-[13px] italic leading-[1.3] text-[var(--color-fg-muted)] transition-colors duration-200 hover:text-[var(--color-fg)] motion-reduce:transition-none"
+        style={{ paddingBlock: ITEM_PAD, marginLeft: TREE_INDENT }}
+      >
+        <span aria-hidden>- </span>
+        {more}
+      </button>
     </div>
   );
 }
