@@ -118,7 +118,11 @@ export function JournalIndex({
     }
     return [
       { key: ALL, label: t.all, count: pool.length },
-      ...[...counts].map(([name, count]) => ({ key: name, label: name === HORS_SERIE ? t.noSeries : name, count })),
+      // « Hors série » ferme la liste : c'est le reste, pas une série de plus
+      // (même place que « Autres » dans un filtre, 2026-10-24).
+      ...[...counts]
+        .sort(([a], [b]) => Number(a === HORS_SERIE) - Number(b === HORS_SERIE))
+        .map(([name, count]) => ({ key: name, label: name === HORS_SERIE ? t.noSeries : name, count })),
     ];
   }, [articles, t, picked]);
 
