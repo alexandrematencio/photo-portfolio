@@ -104,9 +104,9 @@ export async function JournalHome({ lang }: { lang: Lang }) {
             <AboutLink href={aboutPath(lang)} label={t.aboutLink} />
             {/* Téléphone (2026-10-20) : les drapeaux montent dans le bloc de
                 titre, sous « À propos » ; en desktop ils restent en tête de
-                la colonne de filtres. */}
+                la colonne de filtres. Serrés au fer droit (2026-10-24). */}
             <div className="md:hidden" style={{ marginTop: 8 }}>
-              <LanguageSwitch lang={lang} alternates={alternates} />
+              <LanguageSwitch lang={lang} alternates={alternates} end />
             </div>
           </>
         }
