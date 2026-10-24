@@ -29,18 +29,24 @@ export function LanguageSwitch({
   lang,
   alternates,
   heading = false,
+  end = false,
 }: {
   lang: Lang;
   alternates: Alternates;
   /** `true` : l'en-tête « Langue » des colonnes de filtres (accueil). */
   heading?: boolean;
+  /**
+   * `true` : les drapeaux se serrent au fer droit (rangée mobile de
+   * l'accueil, 2026-10-24 — répartis sur toute la largeur, ils laissaient
+   * trop de vide entre eux).
+   */
+  end?: boolean;
 }) {
   const t = DICT[lang];
   // Hors en-tête, la rangée se justifie sur la largeur qu'on lui donne : dans
-  // le rail d'un article, celle du bouton Back (PageShell). Laissée à sa
-  // largeur propre (rangée mobile), `justify-between` ne change rien.
+  // le rail d'un article, celle du bouton Back (PageShell).
   const row = (
-    <ul className={cn('flex items-center gap-x-4', !heading && 'justify-between')}>
+    <ul className={cn('flex items-center gap-x-4', end ? 'justify-end' : !heading && 'justify-between')}>
       {LANGS.map((l) => {
         const here = l === lang;
         const href = alternates[l];
