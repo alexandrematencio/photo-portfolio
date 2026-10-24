@@ -267,7 +267,7 @@ export function JournalIndex({
               entries={filters.length - 1}
               roomy
             >
-              <FolderLeaf after={seriesLink}>{seriesSelector}</FolderLeaf>
+              <FolderFlow items={filters} isOn={(key) => key === series} onChange={setSeries} after={seriesLink} />
             </Folder>
             <Folder
               id={`${tabsId}-m-themes`}
@@ -278,22 +278,11 @@ export function JournalIndex({
               entries={themes.length - 1}
               roomy
             >
-              <FolderLeaf>
-                <ListSelector
-                  hint={t.themeHint}
-                  ariaLabel={t.filterByTheme}
-                  items={
-                    theme === MIXED
-                      ? [{ key: MIXED, label: t.themesPicked(picked.length), count: shown.length }, ...themes]
-                      : themes
-                  }
-                  value={theme}
-                  onChange={setTheme}
-                  mark="dot"
-                  tone="plate"
-                  lit={picked.length > 0}
-                />
-              </FolderLeaf>
+              <FolderFlow
+                items={themes}
+                isOn={(key) => (key === ALL ? picked.length === 0 : picked.includes(key))}
+                onChange={setTheme}
+              />
             </Folder>
           </div>
         )}
@@ -719,6 +708,53 @@ function FolderList({
       </ul>
       {children}
     </>
+  );
+}
+
+/** PROTOTYPE — téléphone : les entrées à la suite, comme la sortie d'un `ls`, sur une seule branche. */
+function FolderFlow({
+  items,
+  isOn,
+  onChange,
+  after,
+}: {
+  items: Filter[];
+  isOn: (key: string) => boolean;
+  onChange: (key: string) => void;
+  after?: ReactNode;
+}) {
+  return (
+    <div style={{ paddingBottom: 14 }}>
+      <div className="relative" style={{ paddingLeft: TREE_INDENT }}>
+        <Branch y={13} last />
+        <ul className="flex flex-wrap gap-x-5 gap-y-1">
+          {items.map((f) => {
+            const on = isOn(f.key);
+            return (
+              <li key={f.key}>
+                <button
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => onChange(f.key)}
+                  className={cn(
+                    'flex items-center gap-[8px] font-mono text-[13px] leading-[1.3] transition-colors duration-200 motion-reduce:transition-none',
+                    on ? 'text-[var(--color-fg)] font-bold' : 'text-[var(--color-fg-muted)]',
+                  )}
+                  style={{ paddingBlock: 6 }}
+                >
+                  <StateDot on={on} />
+                  <TagSwatch color={f.color ?? null} />
+                  <span>
+                    {f.label.toLocaleLowerCase()} <span className="opacity-70">{f.count}</span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+      {after && <div style={{ paddingTop: 12, paddingLeft: TREE_INDENT }}>{after}</div>}
+    </div>
   );
 }
 
