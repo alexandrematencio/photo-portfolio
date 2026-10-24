@@ -156,14 +156,12 @@ type Dict = {
   seriesHint: string;
   all: string;
   noSeries: string;
-  /** Thématiques (`journalTag`) : titre du groupe de filtres, étiquette du module téléphone, liste d'un article. */
+  /** Thématiques (`journalTag`) : nom du dossier de filtres, liste d’un article. */
   themesHeading: string;
-  themeHint: string;
   filterByTheme: string;
-  /** Bandeau au-dessus de l'index quand des thématiques filtrent : son étiquette, son bouton de sortie, le champ téléphone à plusieurs thèmes. */
+  /** Bandeau au-dessus de l'index quand des thématiques filtrent : son étiquette, son bouton de sortie. */
   filtering: string;
   clearFilter: string;
-  themesPicked: (n: number) => string;
   dateCol: string;
   titleCol: string;
   noArticles: string;
@@ -321,11 +319,9 @@ export const DICT: Record<Lang, Dict> = {
     all: 'Tout',
     noSeries: 'Hors série',
     themesHeading: 'Thématiques',
-    themeHint: 'THÈME',
     filterByTheme: 'Filtrer par thématique',
     filtering: 'Filtrage',
     clearFilter: 'Tout afficher',
-    themesPicked: (n) => `${n} thématiques`,
     dateCol: 'Date',
     titleCol: 'Titre',
     noArticles: 'Aucun article publié pour l’instant.',
@@ -492,11 +488,9 @@ export const DICT: Record<Lang, Dict> = {
     all: 'All',
     noSeries: 'Standalone',
     themesHeading: 'Topics',
-    themeHint: 'TOPIC',
     filterByTheme: 'Filter by topic',
     filtering: 'Filtering',
     clearFilter: 'Show all',
-    themesPicked: (n) => `${n} topics`,
     dateCol: 'Date',
     titleCol: 'Title',
     noArticles: 'Nothing published yet.',
@@ -664,11 +658,9 @@ export const DICT: Record<Lang, Dict> = {
     all: 'Все',
     noSeries: 'Вне серий',
     themesHeading: 'Темы',
-    themeHint: 'ТЕМА',
     filterByTheme: 'Фильтр по теме',
     filtering: 'Фильтр',
     clearFilter: 'Показать все',
-    themesPicked: (n) => `${n} ${n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'темы' : 'тем'}`,
     dateCol: 'Дата',
     titleCol: 'Заголовок',
     noArticles: 'Пока ничего не опубликовано.',

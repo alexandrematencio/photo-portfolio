@@ -23,8 +23,9 @@ import type { ArticleSummary } from '@/lib/journal/types';
  *   surface (§4.3), il reste ce qu'il est partout : le voyant de la ligne
  *   active.
  *
- * Sous `md`, la colonne de filtres devient un module `ListSelector` (le
- * composant unique du site pour une rangée de choix sur téléphone).
+ * Sous `md`, la colonne de filtres monte au-dessus de l'index : les mêmes
+ * dossiers, leurs entrées à la suite (`FolderFlow`). Un `ListSelector` ne
+ * reste que tant qu'aucune thématique n'existe.
  *
  * Une ligne qui appartient à une série le dit sous son titre (2026-10-19,
  * descendue de la colonne de droite le 2026-10-21) : une flèche, le nom de la
@@ -66,9 +67,6 @@ import type { ArticleSummary } from '@/lib/journal/types';
  */
 
 const ALL = '__all';
-
-/** Champ téléphone quand plusieurs thématiques filtrent : une valeur qui ne se choisit pas. */
-const MIXED = '__mixed';
 
 /** Filtre des articles qui n'appartiennent à aucune série (clé interne ; le libellé vient du dictionnaire). */
 const HORS_SERIE = '__none';
@@ -171,9 +169,9 @@ export function JournalIndex({
     window.history.replaceState(window.history.state, '', url);
   };
 
-  // Colonne de gauche et champ téléphone : un seul choix, « Tout » vide le filtre.
+  // Depuis les dossiers : un seul choix, « Tout » vide le filtre.
   const setTheme = (key: string) => {
-    if (key !== MIXED) setPicked(key === ALL ? [] : [key]);
+    setPicked(key === ALL ? [] : [key]);
   };
 
   // Bascule depuis le bandeau : ajoute ou retire, dans l'ordre de la liste.
@@ -225,8 +223,6 @@ export function JournalIndex({
   const tabsId = useId();
   // Le voyant de chaque onglet : son filtre trie-t-il encore ?
   const lit = { series: series !== ALL, themes: picked.length > 0 };
-  // Valeur unique pour les contrôles à choix unique ; plusieurs → `MIXED`.
-  const theme = picked.length === 0 ? ALL : picked.length === 1 ? picked[0] : MIXED;
 
   const seriesSelector = (
     <ListSelector
@@ -603,12 +599,11 @@ function Folder({
   entries: number;
   /** Téléphone : une ligne plus haute, à la mesure d'un doigt. */
   roomy?: boolean;
-  /** Le contenu : `FolderList` (desktop) ou `FolderLeaf` (téléphone). */
+  /** Le contenu : `FolderList` (desktop) ou `FolderFlow` (téléphone). */
   children: ReactNode;
 }) {
-  // Le rognage ne sert qu'au dépliage. Une fois ouvert, le contenu déborde
-  // librement : le tiroir du `ListSelector` (téléphone) est en `absolute`
-  // sous son champ, un `overflow: hidden` le couperait net.
+  // Le rognage ne sert qu'au dépliage : une fois ouvert, le contenu déborde
+  // librement (un anneau de focus, un tiroir posé en `absolute`).
   const [clip, setClip] = useState(true);
   useEffect(() => {
     if (!open) return setClip(true);
@@ -682,7 +677,38 @@ function Branch({ y, last }: { y: number | string; last: boolean }) {
   );
 }
 
-/** Desktop : une entrée par ligne, chacune sur sa branche. */
+/**
+ * Une entrée de dossier, façon `ls` (2026-10-24, Alexandre) : chasse fixe,
+ * minuscules, le nombre d'articles en suffixe estompé. Le choix actif passe à
+ * l'encre et en gras, voyant allumé. La chasse fixe la sépare aussi des
+ * thématiques en capitales sous chaque ligne de l'index : un filtre ne se
+ * confond pas avec une étiquette.
+ */
+function LsEntry({ filter: f, on, onChange }: { filter: Filter; on: boolean; onChange: (key: string) => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={() => onChange(f.key)}
+      className={cn(
+        'flex items-center gap-[8px] text-left font-mono text-[13px] leading-[1.3] transition-colors duration-200 motion-reduce:transition-none',
+        on ? 'text-[var(--color-fg)] font-bold' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
+      )}
+      style={{ paddingBlock: ITEM_PAD }}
+    >
+      <StateDot on={on} />
+      <TagSwatch color={f.color ?? null} />
+      <span>
+        {f.label.toLocaleLowerCase()} <span className="opacity-70">{f.count}</span>
+      </span>
+    </button>
+  );
+}
+
+/** Centre de la première ligne d'une entrée : 13 px × 1,3 d'interligne. */
+const LS_BRANCH_Y = ITEM_PAD + (13 * 1.3) / 2;
+
+/** Desktop (`ls -1`) : une entrée par ligne, chacune sur sa branche. */
 function FolderList({
   items,
   isOn,
@@ -694,15 +720,13 @@ function FolderList({
   onChange: (key: string) => void;
   children?: ReactNode;
 }) {
-  // Centre de la première ligne d'une entrée : 15 px × 1,3 d'interligne.
-  const branchY = ITEM_PAD + (15 * 1.3) / 2;
   return (
     <>
       <ul className="flex flex-col" style={{ paddingBottom: 10 }}>
         {items.map((f, i) => (
           <li key={f.key} className="relative" style={{ paddingLeft: TREE_INDENT }}>
-            <Branch y={branchY} last={i === items.length - 1} />
-            <FilterButton filter={f} on={isOn(f.key)} onChange={onChange} />
+            <Branch y={LS_BRANCH_Y} last={i === items.length - 1} />
+            <LsEntry filter={f} on={isOn(f.key)} onChange={onChange} />
           </li>
         ))}
       </ul>
@@ -711,7 +735,11 @@ function FolderList({
   );
 }
 
-/** PROTOTYPE — téléphone : les entrées à la suite, comme la sortie d'un `ls`, sur une seule branche. */
+/**
+ * Téléphone (`ls`) : les entrées à la suite, sur une seule branche (└). Une
+ * par ligne pousserait l'index d'un écran entier vers le bas ; le champ
+ * `ListSelector` qui était là cachait les choix et répétait le nom du dossier.
+ */
 function FolderFlow({
   items,
   isOn,
@@ -726,48 +754,14 @@ function FolderFlow({
   return (
     <div style={{ paddingBottom: 14 }}>
       <div className="relative" style={{ paddingLeft: TREE_INDENT }}>
-        <Branch y={13} last />
+        <Branch y={LS_BRANCH_Y} last />
         <ul className="flex flex-wrap gap-x-5 gap-y-1">
-          {items.map((f) => {
-            const on = isOn(f.key);
-            return (
-              <li key={f.key}>
-                <button
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => onChange(f.key)}
-                  className={cn(
-                    'flex items-center gap-[8px] font-mono text-[13px] leading-[1.3] transition-colors duration-200 motion-reduce:transition-none',
-                    on ? 'text-[var(--color-fg)] font-bold' : 'text-[var(--color-fg-muted)]',
-                  )}
-                  style={{ paddingBlock: 6 }}
-                >
-                  <StateDot on={on} />
-                  <TagSwatch color={f.color ?? null} />
-                  <span>
-                    {f.label.toLocaleLowerCase()} <span className="opacity-70">{f.count}</span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
+          {items.map((f) => (
+            <li key={f.key}>
+              <LsEntry filter={f} on={isOn(f.key)} onChange={onChange} />
+            </li>
+          ))}
         </ul>
-      </div>
-      {after && <div style={{ paddingTop: 12, paddingLeft: TREE_INDENT }}>{after}</div>}
-    </div>
-  );
-}
-
-/**
- * Téléphone : une seule branche (└), et au bout le champ `ListSelector` —
- * la liste dépliée en lignes pousserait l'index d'un écran entier vers le bas.
- */
-function FolderLeaf({ children, after }: { children: ReactNode; after?: ReactNode }) {
-  return (
-    <div style={{ paddingBottom: 12 }}>
-      <div className="relative" style={{ paddingLeft: TREE_INDENT }}>
-        <Branch y="50%" last />
-        {children}
       </div>
       {after && <div style={{ paddingTop: 12, paddingLeft: TREE_INDENT }}>{after}</div>}
     </div>
