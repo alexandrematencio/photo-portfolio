@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import {
   PAGE_CONTROLS_GAP,
   PAGE_TITLE,
@@ -64,6 +64,10 @@ const RAIL_STICKY_TOP = 24;
  * sommaire, suspendu dans la marge.
  */
 const RAIL_CONTENTS_WIDTH = RAIL_WIDTH - 28;
+/** De part et d'autre de chaque filet du rail : le même air partout, aucun bloc ne colle à son voisin. */
+const RAIL_SECTION_GAP = 16;
+/** Écart drapeau → chevron (4) + chevron (14) dans `LanguageSwitch` : ce qui dépasse sous les drapeaux. */
+const FLAG_CHEVRON_HANG = 18;
 
 /**
  * Écart titre → sous-titre. Serré exprès : le sous-titre appartient au bloc de
@@ -227,17 +231,26 @@ export function PageShell({
             className="sticky flex flex-col items-end"
             style={{ top: RAIL_STICKY_TOP, maxHeight: contents ? `calc(100dvh - 4rem - ${RAIL_STICKY_TOP * 2}px)` : undefined }}
           >
-            <div className="flex min-h-0 flex-col gap-5" style={{ width: contents ? RAIL_CONTENTS_WIDTH : undefined }}>
-              {back}
-              {progress ? (
-                <div className="flex flex-col gap-3">
-                  {language}
-                  {progress.rail}
-                </div>
-              ) : (
-                language
-              )}
-              {contents && <div className="flex min-h-0 flex-col" style={{ marginTop: 28 }}>{contents}</div>}
+            {/* Un bloc par fonction — retour, langue, avancement, sommaire —
+                séparés d'un filet CLAIR à égale distance des deux voisins
+                (2026-10-25). Le noir est réservé au souligné de « Sommaire » :
+                il ancre le bloc principal, les petits blocs de contrôle se
+                distinguent déjà par leur forme. */}
+            <div className="flex min-h-0 flex-col" style={{ width: contents ? RAIL_CONTENTS_WIDTH : undefined, gap: RAIL_SECTION_GAP }}>
+              {[
+                back,
+                // Le chevron de la langue courante pend dans l'air du dessous :
+                // l'écart filet → drapeaux et drapeaux → filet est le même, le
+                // chevron seul s'approche du filet bas (voulu, 2026-10-25).
+                language && <div style={{ marginBottom: -FLAG_CHEVRON_HANG }}>{language}</div>,
+                progress?.rail,
+                contents && <div className="flex min-h-0 flex-col">{contents}</div>,
+              ]
+                .filter(Boolean)
+                .flatMap((block, i) => [
+                  i > 0 && <div key={`rule-${i}`} aria-hidden className="shrink-0 self-stretch" style={{ height: 1, backgroundColor: 'var(--color-line)' }} />,
+                  <Fragment key={i}>{block}</Fragment>,
+                ])}
             </div>
           </div>
         </div>
