@@ -21,8 +21,9 @@ import { cn } from '@/lib/utils/cn';
  * §4.3, « l'orange dit ce qui est actif »), suspendu dans la marge gauche
  * comme la colonne des séries de `/series` ; l'entrée active passe du
  * `fg-muted` au noir, le libellé ne vire jamais à l'orange (sous le seuil du
- * petit texte). Entrées en 12 px gras capitales : la voix des noms de série,
- * et l'écho des H2 en dalle qu'elles désignent.
+ * petit texte). Entrées en 11 px capitales, graisse 500 ; l'entrée active
+ * reprend le gras — l'écho des H2 en dalle qu'elles désignent — et le voyant
+ * la pousse de `ACTIVE_SHIFT` vers la droite (2026-10-25).
  *
  * **Pourquoi du JS et pas `scroll-target-group`** : la démo repose sur
  * `:target-current` et l'ancrage CSS, Chrome seul. La section courante est
@@ -42,6 +43,12 @@ const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const DURATION = 260;
 /** Hauteur de ligne des entrées, en px : le témoin se centre sur la PREMIÈRE ligne d'une entrée qui en a deux. */
 const LINE = 15;
+/**
+ * Décalage de l'entrée active, en `transform` : il ne fait rien rerouler. Toutes
+ * les entrées se composent 8 px plus étroites (`marginRight`), l'active a donc
+ * la place de glisser sans déborder du rail.
+ */
+const ACTIVE_SHIFT = 8;
 
 export function TableOfContents({ sections, lang }: { sections: ArticleSection[]; lang: Lang }) {
   const t = DICT[lang];
@@ -124,9 +131,14 @@ export function TableOfContents({ sections, lang }: { sections: ArticleSection[]
 
   return (
     <nav aria-label={t.contents} className="flex min-h-0 flex-col">
+      {/* Un SOULIGNÉ, pas un séparateur (2026-10-25) : interligne à 1 et
+          ~6 px de la ligne de base au filet, deux fois moins que les 12 qui
+          le séparent des entrées — le filet appartient au titre. Noir : il
+          ancre le bloc principal du rail, quand les filets entre blocs sont
+          clairs (PageShell). */}
       <span
-        className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}
-        style={{ paddingBottom: 12, borderBottom: '1px solid var(--color-line)' }}
+        className={cn(MICRO_LABEL, 'leading-none text-[var(--color-fg-muted)]')}
+        style={{ paddingBottom: 4, borderBottom: '1px solid var(--color-fg)' }}
       >
         {t.contents}
       </span>
@@ -161,12 +173,18 @@ export function TableOfContents({ sections, lang }: { sections: ArticleSection[]
                 aria-current={i === active ? 'location' : undefined}
                 title={s.label}
                 className={cn(
-                  'line-clamp-2 text-[12px] font-bold uppercase tracking-[-0.02em] transition-colors motion-reduce:transition-none',
+                  'line-clamp-2 text-[11px] uppercase tracking-[-0.02em] transition-[color,transform] motion-reduce:transition-none',
                   i === active
-                    ? 'text-[var(--color-fg)]'
-                    : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)]',
+                    ? 'font-bold text-[var(--color-fg)]'
+                    : 'font-medium text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)]',
                 )}
-                style={{ lineHeight: `${LINE}px`, transitionDuration: `${DURATION}ms`, transitionTimingFunction: EASE }}
+                style={{
+                  lineHeight: `${LINE}px`,
+                  marginRight: ACTIVE_SHIFT,
+                  transform: i === active ? `translateX(${ACTIVE_SHIFT}px)` : undefined,
+                  transitionDuration: `${DURATION}ms`,
+                  transitionTimingFunction: EASE,
+                }}
               >
                 {s.label}
               </a>
@@ -175,7 +193,12 @@ export function TableOfContents({ sections, lang }: { sections: ArticleSection[]
         </ol>
       </div>
       {/* « Haut de page » : absent tant qu'on est dans l'introduction, comme
-          dans la démo. Toujours rendu (opacité), la colonne ne bouge pas. */}
+          dans la démo. Toujours rendu (opacité), la colonne ne bouge pas.
+          Un vrai BOUTON depuis le 2026-10-25 (un lien gris sous un filet se
+          perdait dans la liste) : encadré comme Retour, qu'il referme en bas
+          du rail, mais au corps des étiquettes — c'est l'action secondaire.
+          Toute la largeur, flèche au fer droit ; au survol, la flèche monte
+          de 2 px, le sens du geste (micro-interaction : 160 ms, ease-out). */}
       <a
         href="#"
         onClick={(e) => go(e, null)}
@@ -183,12 +206,12 @@ export function TableOfContents({ sections, lang }: { sections: ArticleSection[]
         aria-hidden={past ? undefined : true}
         className={cn(
           MICRO_LABEL,
-          'flex items-center gap-[6px] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)] motion-reduce:!transition-none',
+          'group flex shrink-0 items-center justify-between leading-none text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)] motion-reduce:!transition-none',
         )}
         style={{
-          marginTop: 12,
-          paddingTop: 12,
-          borderTop: '1px solid var(--color-line)',
+          marginTop: 16,
+          padding: '9px 10px',
+          border: '1px solid currentColor',
           alignSelf: 'stretch',
           opacity: past ? 1 : 0,
           pointerEvents: past ? undefined : 'none',
@@ -196,7 +219,12 @@ export function TableOfContents({ sections, lang }: { sections: ArticleSection[]
         }}
       >
         {t.backToTop}
-        <ArrowUp size={12} strokeWidth={2.75} aria-hidden />
+        <ArrowUp
+          size={13}
+          strokeWidth={2.75}
+          aria-hidden
+          className="transition-transform duration-[160ms] ease-out group-hover:-translate-y-[2px] group-focus-visible:-translate-y-[2px] motion-reduce:transition-none motion-reduce:group-hover:translate-y-0 motion-reduce:group-focus-visible:translate-y-0"
+        />
       </a>
     </nav>
   );

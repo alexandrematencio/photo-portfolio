@@ -27,9 +27,11 @@ import { DataTable } from './DataTable';
 /**
  * Corps d'un article du journal (brand book §14). Rythme vertical repris de
  * `RHYTHM` (PortableBody) — chapô 40, courant 24, H2 64 / 24 — et un cran
- * ajouté pour les objets que l'article introduit (exergue, figure, image, tableau) :
- * 64 de part et d'autre. Marges en style inline : le reset `* { margin: 0 }`
- * avale les utilities (CLAUDE.md §7.5–7.8).
+ * ajouté pour les objets que l'article introduit (figure, image, tableau) :
+ * 64 de part et d'autre. L'exergue, elle, garde l'écart courant (24) dessus
+ * et dessous (demande Alexandre, 2026-10-25) : à 64, ses deux filets se
+ * lisaient comme un changement de partie. Marges en style inline : le reset
+ * `* { margin: 0 }` avale les utilities (CLAUDE.md §7.5–7.8).
  */
 const RHYTHM = { lead: 40, body: 24, h2Top: 64, h2Bottom: 24, object: 64 } as const;
 
@@ -260,7 +262,7 @@ export function ArticleBody({
           const prev = blocks[i - 1];
           const afterObject =
             prev &&
-            (prev.type === 'quote' || prev.type === 'figure' || prev.type === 'image' || prev.type === 'table' || prev.type === 'verdicts');
+            (prev.type === 'figure' || prev.type === 'image' || prev.type === 'table' || prev.type === 'verdicts');
           const top = (base: number) => (i === 0 ? 0 : afterObject ? RHYTHM.object : base);
 
           switch (block.type) {
@@ -292,7 +294,7 @@ export function ArticleBody({
                   key={i}
                   aria-hidden
                   style={{
-                    marginTop: RHYTHM.object,
+                    marginTop: top(RHYTHM.body),
                     maxWidth: PULLQUOTE_MAX,
                     borderTop: '1px solid var(--color-fg)',
                     borderBottom: '1px solid var(--color-fg)',

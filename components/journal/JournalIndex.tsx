@@ -77,6 +77,10 @@ const DATE_COL = 128;
 
 /** Largeur de la colonne de filtres au-dessus de `md`. */
 const FILTER_COL = 220;
+/** De part et d'autre d'un filet de la colonne de filtres — la valeur du rail d'un article (PageShell). */
+const RAIL_SECTION_GAP = 16;
+/** Ce qui dépasse sous les drapeaux : écart (4) + chevron (14) de `LanguageSwitch` — idem PageShell. */
+const FLAG_CHEVRON_HANG = 18;
 
 /** Téléphone : écart drapeaux (bloc de titre) → onglets des filtres. */
 const MOBILE_FILTERS_GAP = 28;
@@ -109,6 +113,15 @@ export function JournalIndex({
       return next;
     });
   const toggleFolder = (name: FolderName) => setFolder(name, folders[name] === 'open' ? 'closed' : 'open');
+  // Desktop : PAS d'aperçu ni de mémoire — la colonne a la place de tout
+  // montrer. Un dossier ouvert à la fois, séries au chargement : c'est par
+  // elles qu'on entre dans le journal (rétabli le 2026-10-25, l'aperçu du
+  // téléphone avait gagné le desktop avec 61afae1).
+  const [deskOpen, setDeskOpen] = useState<FolderName>('series');
+  const openThemes = () => {
+    setFolder('themes', 'open');
+    setDeskOpen('themes');
+  };
   const bar = useRef<HTMLDivElement | null>(null);
   // La ligne survolée (ou focalisée) : sa couverture s'ouvre dans la colonne de gauche.
   const [active, setActive] = useState<string | null>(null);
@@ -177,7 +190,7 @@ export function JournalIndex({
       .filter((slug) => articles.some((a) => a.tags.some((tag) => tag.slug === slug)));
     if (slugs.length) {
       setPickedState(slugs);
-      setFolder('themes', 'open');
+      openThemes();
     }
   }, [articles]);
 
@@ -206,7 +219,7 @@ export function JournalIndex({
   // pendant qu'il s'ouvre, la cible tient.
   const pickTheme = (key: string) => {
     setPicked([key]);
-    setFolder('themes', 'open');
+    openThemes();
     const box = bar.current;
     if (box && box.getBoundingClientRect().top < 0) {
       const instant = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -317,8 +330,13 @@ export function JournalIndex({
       </div>
 
       {/* FILTRES — desktop, colonne collante */}
-      <aside className="hidden md:flex flex-col gap-10 self-start sticky top-6" aria-label={t.filters}>
-        {language}
+      {/* Même grammaire que le rail d'un article (2026-10-25) : un filet
+          CLAIR entre les blocs, 16 px de part et d'autre ; le chevron de la
+          langue pend dans l'air du dessous. Pas de filet au-dessus des
+          couvertures : vides hors survol, il pendrait sur du blanc. */}
+      <aside className="hidden md:flex flex-col self-start sticky top-6" aria-label={t.filters} style={{ gap: RAIL_SECTION_GAP }}>
+        <div style={{ marginBottom: -FLAG_CHEVRON_HANG }}>{language}</div>
+        <div aria-hidden className="shrink-0 self-stretch" style={{ height: 1, backgroundColor: 'var(--color-line)' }} />
         {themes.length === 0 ? (
           <FilterGroup heading={t.seriesHeading} items={filters} isOn={(key) => key === series} onChange={setSeries}>
             {seriesLink && <div style={{ paddingTop: 16 }}>{seriesLink}</div>}
@@ -328,20 +346,12 @@ export function JournalIndex({
             <Folder
               id={`${tabsId}-d-series`}
               name={t.seriesHeading}
-              state={folders.series}
+              state={deskOpen === 'series' ? 'open' : 'closed'}
               settled={settled}
-              onToggle={() => toggleFolder('series')}
+              onToggle={() => setDeskOpen('series')}
               lit={lit.series}
               entries={filters.length - 1}
-              peek={
-                <FolderPeek
-                  current={filters[0]}
-                  isOn={(key) => key === series}
-                  onChange={setSeries}
-                  more={t.showAllSeries(filters.length - 1)}
-                  onMore={() => setFolder('series', 'open')}
-                />
-              }
+              peek={null}
             >
               <FolderList items={filters} isOn={(key) => key === series} onChange={setSeries}>
                 {seriesLink && <div style={{ paddingBottom: 10, paddingLeft: TREE_INDENT }}>{seriesLink}</div>}
@@ -350,12 +360,12 @@ export function JournalIndex({
             <Folder
               id={`${tabsId}-d-themes`}
               name={t.themesHeading}
-              state={folders.themes}
+              state={deskOpen === 'themes' ? 'open' : 'closed'}
               settled={settled}
-              onToggle={() => toggleFolder('themes')}
+              onToggle={() => setDeskOpen('themes')}
               lit={lit.themes}
               entries={themes.length - 1}
-              peek={<FolderPeek more={t.showAllThemes(themes.length - 1)} onMore={() => setFolder('themes', 'open')} />}
+              peek={null}
             >
               <FolderList
                 items={themes}
@@ -367,7 +377,7 @@ export function JournalIndex({
         )}
 
         {covers.length > 0 && (
-          <div className="journal-covers" aria-hidden>
+          <div className="journal-covers" aria-hidden style={{ marginTop: 40 - RAIL_SECTION_GAP }}>
             {covers.map((a) => (
               <div key={a.slug} className="journal-cover" data-on={a.slug === active ? '' : undefined}>
                 <img
@@ -396,11 +406,13 @@ export function JournalIndex({
           onClear={() => setPicked([])}
         />
         <div
-          className={cn(MICRO_LABEL, 'hidden md:grid text-[var(--color-fg-muted)]')}
+          className={cn(MICRO_LABEL, 'hidden md:grid leading-none text-[var(--color-fg-muted)]')}
           style={{
             gridTemplateColumns: `${DATE_COL}px minmax(0, 1fr)`,
-            paddingBottom: 12,
-            borderBottom: '1px solid var(--color-line)',
+            // Même souligné que « Langue », sur la même ligne : les deux
+            // filets noirs n'en font qu'un, d'une colonne à l'autre (2026-10-25).
+            paddingBottom: 4,
+            borderBottom: '1px solid var(--color-fg)',
           }}
         >
           {/* Aligné sur le texte des dates : retrait de ligne (8) + voyant (7) + écart (10). */}

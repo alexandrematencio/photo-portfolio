@@ -472,7 +472,7 @@ export const DICT: Record<Lang, Dict> = {
     back: 'Back',
     language: 'Language',
     contents: 'Contents',
-    backToTop: 'Top',
+    backToTop: 'Back to top',
     allArticles: 'All articles',
     minutes: (n) => `${n} min read`,
     references: (n) => `${n} ${plural(n, 'reference', 'references')}`,

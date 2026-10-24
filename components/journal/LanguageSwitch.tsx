@@ -104,13 +104,16 @@ export function LanguageSwitch({
   if (!heading) return <nav aria-label={t.language}>{row}</nav>;
   return (
     <nav aria-label={t.language} className="flex flex-col">
+      {/* Souligné noir et serré, comme « Sommaire » dans le rail d'un article
+          (2026-10-25). 16 + les 6 du drapeau : filet → drapeaux = drapeaux →
+          filet suivant, le chevron pendant dessous (`JournalIndex`). */}
       <span
-        className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}
-        style={{ paddingBottom: 12, borderBottom: '1px solid var(--color-line)' }}
+        className={cn(MICRO_LABEL, 'leading-none text-[var(--color-fg-muted)]')}
+        style={{ paddingBottom: 4, borderBottom: '1px solid var(--color-fg)' }}
       >
         {t.language}
       </span>
-      <div style={{ paddingTop: 12 }}>{row}</div>
+      <div style={{ paddingTop: 16 }}>{row}</div>
     </nav>
   );
 }
