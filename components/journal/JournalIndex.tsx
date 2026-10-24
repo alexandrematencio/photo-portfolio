@@ -679,12 +679,23 @@ function Branch({ y, last }: { y: number | string; last: boolean }) {
 
 /**
  * Une entrée de dossier, façon `ls` (2026-10-24, Alexandre) : chasse fixe,
- * minuscules, le nombre d'articles en suffixe estompé. Le choix actif passe à
+ * minuscules, le nombre d'articles entre parenthèses, estompé. Le choix actif passe à
  * l'encre et en gras, voyant allumé. La chasse fixe la sépare aussi des
  * thématiques en capitales sous chaque ligne de l'index : un filtre ne se
  * confond pas avec une étiquette.
  */
-function LsEntry({ filter: f, on, onChange }: { filter: Filter; on: boolean; onChange: (key: string) => void }) {
+function LsEntry({
+  filter: f,
+  on,
+  onChange,
+  dash = false,
+}: {
+  filter: Filter;
+  on: boolean;
+  onChange: (key: string) => void;
+  /** Tiret de tête, pour les entrées mises à la suite sur téléphone. */
+  dash?: boolean;
+}) {
   return (
     <button
       type="button"
@@ -699,7 +710,8 @@ function LsEntry({ filter: f, on, onChange }: { filter: Filter; on: boolean; onC
       <StateDot on={on} />
       <TagSwatch color={f.color ?? null} />
       <span>
-        {f.label.toLocaleLowerCase()} <span className="opacity-70">{f.count}</span>
+        {dash && <span aria-hidden className="font-normal text-[var(--color-fg-muted)]">- </span>}
+        {f.label.toLocaleLowerCase()} <span className="opacity-70">({f.count})</span>
       </span>
     </button>
   );
@@ -758,7 +770,7 @@ function FolderFlow({
         <ul className="flex flex-wrap gap-x-5 gap-y-1">
           {items.map((f) => (
             <li key={f.key}>
-              <LsEntry filter={f} on={isOn(f.key)} onChange={onChange} />
+              <LsEntry filter={f} on={isOn(f.key)} onChange={onChange} dash />
             </li>
           ))}
         </ul>
