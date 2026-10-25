@@ -53,6 +53,7 @@ export function ArticleView({
       // Un sommaire d'une entrée n'aide personne à s'orienter.
       contents={sections.length > 1 ? <TableOfContents sections={sections} lang={lang} /> : undefined}
       centered
+      rule
       titleSize="calc(var(--page-title-size) * var(--article-title-scale))"
       subtitle={
         <div className="flex flex-col gap-5" style={{ marginTop: 12 }}>

@@ -77,6 +77,16 @@ const FLAG_CHEVRON_HANG = 18;
  */
 const SUBTITLE_GAP = 12;
 
+/**
+ * Le FILET sous le bloc de titre (journal, 2026-10-25, demande Alexandre) :
+ * les 96 px vides entre la ligne de métadonnées et le chapô se lisaient comme
+ * un décalage accidentel. Le filet les coupe en deux moitiés égales — 48 au-
+ * dessus, 48 au-dessous — si bien que l'écart TOTAL reste `PAGE_TITLE_GAP`,
+ * la mesure des autres pages, mais devient visiblement voulu : il ferme le
+ * bloc de titre au lieu de flotter.
+ */
+const RULE_GAP = PAGE_TITLE_GAP / 2;
+
 export function PageTitle({
   children,
   size = 'var(--page-title-size)',
@@ -105,6 +115,7 @@ export function PageShell({
   language,
   progress,
   contents,
+  rule = false,
 }: {
   title: ReactNode;
   /** Lien de retour (journal : `BackLink`) — dans le rail. Facultatif. */
@@ -156,6 +167,8 @@ export function PageShell({
    * une sans l'autre rejoue l'asymétrie 96/40 que la mesure corrige.
    */
   controlBand?: boolean;
+  /** `true` : un filet ferme le bloc de titre, à mi-chemin du corps (cf. `RULE_GAP`). */
+  rule?: boolean;
   width?: number | false;
 }) {
   const maxWidth = width === false ? undefined : width;
@@ -170,7 +183,7 @@ export function PageShell({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: controlBand ? PAGE_CONTROLS_GAP : PAGE_TITLE_GAP,
+        gap: controlBand ? PAGE_CONTROLS_GAP : rule ? RULE_GAP : PAGE_TITLE_GAP,
         paddingInline: bleed ? undefined : 'var(--page-gutter)',
         maxWidth: bleed ? undefined : maxWidth,
         marginInline: centered && !bleed ? 'auto' : undefined,
@@ -184,6 +197,8 @@ export function PageShell({
           gap: SUBTITLE_GAP,
           paddingInline: bleed ? 'var(--page-gutter)' : undefined,
           maxWidth: bleed ? maxWidth : undefined,
+          paddingBottom: rule ? RULE_GAP : undefined,
+          borderBottom: rule ? '1px solid var(--color-line)' : undefined,
         }}
       >
         {/* Sous `xl`, le rail est une rangée au-dessus du titre. 12 + le
