@@ -179,6 +179,10 @@ type Dict = {
   toDecide: string;
   close: string;
   notes: string;
+  /** Notes repliées dans la marge, faute de place : « + 2 notes · 26, 27 ». */
+  foldedNotes: (ids: string[]) => string;
+  /** Replier les notes dépliées. */
+  foldNotes: string;
   verdicts: {
     converge: string;
     nuance: string;
@@ -340,6 +344,8 @@ export const DICT: Record<Lang, Dict> = {
     toDecide: 'À trancher',
     close: 'Fermer',
     notes: 'Notes',
+    foldedNotes: (ids) => `+ ${ids.length} note${ids.length > 1 ? 's' : ''} · ${ids.join(', ')}`,
+    foldNotes: 'Replier',
     verdicts: {
       converge: 'Converge',
       nuance: 'Converge avec réserve',
@@ -511,6 +517,8 @@ export const DICT: Record<Lang, Dict> = {
     toDecide: 'To settle',
     close: 'Close',
     notes: 'Notes',
+    foldedNotes: (ids) => `+ ${ids.length} note${ids.length > 1 ? 's' : ''} · ${ids.join(', ')}`,
+    foldNotes: 'Collapse',
     verdicts: {
       converge: 'Converges',
       nuance: 'Converges, with caveats',
@@ -683,6 +691,12 @@ export const DICT: Record<Lang, Dict> = {
     toDecide: 'Решить',
     close: 'Закрыть',
     notes: 'Сноски',
+    foldedNotes: (ids) => {
+      const n = ids.length;
+      const word = n % 10 === 1 && n % 100 !== 11 ? 'сноска' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'сноски' : 'сносок';
+      return `+ ${n} ${word} · ${ids.join(', ')}`;
+    },
+    foldNotes: 'Свернуть',
     verdicts: {
       converge: 'Сходится',
       nuance: 'Сходится с оговоркой',

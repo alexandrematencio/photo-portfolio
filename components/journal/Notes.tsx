@@ -24,10 +24,11 @@ import { DICT, DEFAULT_LANG, type Lang } from '@/lib/journal/i18n';
  * mobile. Un seul état partagé par l'article : la note ALLUMÉE.
  *
  * Deux sources, une priorité : le survol (passager) l'emporte sur l'épingle
- * (posée au clic). Survoler l'appel 12 allume la note 12 en marge, et
- * inversement ; cliquer l'épingle — sur téléphone, c'est le seul geste, et
- * il ouvre la note SOUS le paragraphe au lieu d'envoyer le lecteur en bas
- * de page puis de l'obliger à remonter.
+ * (posée au clic). Survoler l'appel 12 allume la note 12 en marge et l'amène
+ * en face de sa ligne si elle n'y est pas (repliée, ou poussée plus bas) ;
+ * cliquer l'épingle là, jusqu'au clic suivant sur l'appel ou sur la note, ou
+ * Échap. Sur téléphone, le clic est le seul geste, et il ouvre la note SOUS
+ * le paragraphe au lieu d'envoyer le lecteur en bas de page.
  *
  * L'orange ne dit qu'une chose ici, comme partout sur le site (§4.3) : quelle
  * note est active. Aplat derrière le chiffre, voyant devant la note.
@@ -49,9 +50,18 @@ type NotesState = {
   lang: Lang;
   lit: string | null;
   pinned: string | null;
-  setHover: (id: string | null) => void;
+  /** Notes repliées par rangée (clé : première note de la rangée). */
+  folds: Folds;
+  expanded: ReadonlySet<string>;
+  hoverOn: (id: string, from: HoverSource) => void;
+  hoverOff: () => void;
   togglePin: (id: string) => void;
+  toggleFold: (row: string) => void;
 };
+
+type HoverSource = 'call' | 'note';
+type Fold = { ids: string[]; top: number };
+type Folds = Record<string, Fold>;
 
 const NotesContext = createContext<NotesState | null>(null);
 
@@ -61,21 +71,76 @@ function useNotes(): NotesState {
   return ctx;
 }
 
+/**
+ * Délai avant d'éteindre un survol : le temps d'aller de l'appel à sa note,
+ * qui vient de se poser en face, sans qu'elle reparte sous le pointeur.
+ */
+const HOVER_GRACE = 160;
+
 export function NotesProvider({ children, lang }: { children: ReactNode; lang: Lang }) {
-  const [hover, setHover] = useState<string | null>(null);
+  const [hover, setHover] = useState<{ id: string; from: HoverSource } | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const [folds, setFolds] = useState<Folds>({});
+  const leave = useRef(0);
+  const flowRef = useRef<HTMLDivElement>(null);
+  const flow = useRef<Flow | null>(null);
+  const expandedRef = useRef(expanded);
+  const focusRef = useRef<string | null>(null);
+
+  // La note MISE AU POINT — déplacée en face de son appel. L'appel survolé
+  // la commande ; une fois le pointeur passé sur la note elle-même, elle
+  // reste où elle est (la survoler ne doit pas la faire fuir) ; sinon,
+  // l'épingle.
+  const focus =
+    hover?.from === 'call' ? hover.id : hover?.from === 'note' && hover.id === focusRef.current ? hover.id : pinned;
+
+  useEffect(() => {
+    flow.current = flowSidenotes(flowRef.current, expandedRef, setFolds, () => applyFocus(flowRef.current, focusRef.current));
+    return () => flow.current?.dispose();
+  }, []);
+  useEffect(() => {
+    expandedRef.current = expanded;
+    flow.current?.schedule();
+  }, [expanded]);
+  useEffect(() => {
+    focusRef.current = focus;
+    applyFocus(flowRef.current, focus);
+  }, [focus]);
+  // Échap rend la note épinglée à sa place.
+  useEffect(() => {
+    if (!pinned) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setPinned(null);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pinned]);
+  useEffect(() => () => clearTimeout(leave.current), []);
+
   const value = useMemo<NotesState>(
     () => ({
       lang,
-      lit: hover ?? pinned,
+      lit: hover?.id ?? pinned,
       pinned,
-      setHover,
+      folds,
+      expanded,
+      hoverOn: (id, from) => {
+        clearTimeout(leave.current);
+        setHover({ id, from });
+      },
+      hoverOff: () => {
+        clearTimeout(leave.current);
+        leave.current = window.setTimeout(() => setHover(null), HOVER_GRACE);
+      },
       togglePin: (id) => setPinned((p) => (p === id ? null : id)),
+      toggleFold: (row) =>
+        setExpanded((prev) => {
+          const next = new Set(prev);
+          if (!next.delete(row)) next.add(row);
+          return next;
+        }),
     }),
-    [hover, pinned, lang],
+    [hover, pinned, folds, expanded, lang],
   );
-  const flowRef = useRef<HTMLDivElement>(null);
-  useEffect(() => flowSidenotes(flowRef.current), []);
   return (
     <NotesContext.Provider value={value}>
       <div ref={flowRef} className="contents">
@@ -85,67 +150,171 @@ export function NotesProvider({ children, lang }: { children: ReactNode; lang: L
   );
 }
 
-/** Écart entre deux notes de marge — celui d'une même rangée (`gap-3`). */
+/** Écart entre deux notes de marge. */
 const SIDENOTE_GAP = 12;
 /** Air minimal entre la dernière note et l'objet large qui suit. */
 const SIDENOTE_OBSTACLE_GAP = 24;
+/** Hauteur de l'étiquette « + n notes » : une ligne de note. */
+const FOLD_HEIGHT = 19;
+/**
+ * En deçà, une note est déjà en face de son appel : la mise au point
+ * l'allume sans la déplacer. Une demi-ligne de texte courant.
+ */
+const DISPLACE_MIN = 16;
+
+type Flow = { schedule: () => void; dispose: () => void };
 
 /**
- * Écoulement des notes de marge. Elles sont HORS FLUX (absolues dans leur
- * cellule) : une rangée a la hauteur de son paragraphe, jamais celle de ses
- * notes. Avant (2026-10-22), un paragraphe court à cinq références laissait
- * un trou de 250 px avant le suivant.
- *
- * En échange, ce passage empile les notes comme une colonne : chacune part
- * à hauteur de son paragraphe, et glisse vers le bas seulement si elle
- * mordrait sur la précédente. Un bloc qui déborde dans la marge (exergue,
- * figure, tableau, H2) est un mur : si les notes l'atteignent, c'est la
- * dernière rangée qui s'allonge, du strict nécessaire.
- *
- * Lit les enfants directs de la colonne de l'article, dans l'ordre. Rejoué
- * à chaque changement de taille (fontes, redimensionnement, images).
+ * Haut de la note alignée sur la LIGNE de son appel : la ligne se retrouve
+ * par l'interligne du paragraphe (un appel en exposant déborde au-dessus de
+ * sa ligne, son propre rect ne la donne pas), puis la première ligne de la
+ * note est centrée sur elle.
  */
-function flowSidenotes(root: HTMLElement | null) {
+function anchorOf(note: HTMLElement): number {
+  const call = document.getElementById(note.id.replace(/^sn-/, 'call-'));
+  const para = call?.closest('p');
+  if (!call || !para) return note.getBoundingClientRect().top;
+  const line = parseFloat(getComputedStyle(para).lineHeight);
+  const noteLine = parseFloat(getComputedStyle(note).lineHeight);
+  const top = para.getBoundingClientRect().top;
+  const r = call.getBoundingClientRect();
+  const index = Math.max(0, Math.floor(((r.top + r.bottom) / 2 - top) / line));
+  return top + index * line + (line - noteLine) / 2;
+}
+
+/**
+ * Bord droit de ce qu'un bloc DESSINE, pas de sa boîte : un H2 court occupe
+ * toute la colonne mais ne touche pas la marge, il ne doit pas y faire mur.
+ */
+function inkRight(el: HTMLElement): number {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const r = range.getBoundingClientRect();
+  return r.width || r.height ? r.right : el.getBoundingClientRect().right;
+}
+
+/**
+ * Écoulement des notes de marge (refonte 2026-10-25, demande Alexandre).
+ *
+ * **Le texte fixe les espacements, rien d'autre.** Avant, une pile de notes
+ * qui atteignait un objet débordant dans la marge (exergue, H2) allongeait
+ * la rangée d'autant : 200 px de vide entre deux paragraphes pour une note
+ * longue. Désormais une rangée n'est JAMAIS rallongée par la mise en page.
+ *
+ * Chaque note se pose en face de la ligne de son appel, ou plus bas si la
+ * précédente occupe encore la place. Sa rangée dispose de la marge jusqu'au
+ * prochain appel d'une autre rangée, ou jusqu'au prochain objet qui mord
+ * sur la marge. Ce qui ne tient pas se REPLIE derrière une étiquette
+ * « + 2 notes · 26, 27 », posée là où la première note repliée aurait dû
+ * paraître. Une note repliée reste à un survol de son appel (cf. `applyFocus`).
+ *
+ * Déplier est un geste du lecteur : là, et là seulement, les notes suivantes
+ * descendent, et si un objet barre la marge, la rangée s'allonge — le
+ * lecteur a demandé la place.
+ *
+ * Les notes sont positionnées par `top` ; `translate` est réservé à la mise
+ * au point, qui s'anime. Rejoué à chaque changement de taille.
+ */
+function flowSidenotes(
+  root: HTMLElement | null,
+  expanded: { current: ReadonlySet<string> },
+  publish: (folds: Folds) => void,
+  after: () => void,
+): Flow | null {
   const column = root?.firstElementChild as HTMLElement | null | undefined;
-  if (!column) return;
+  if (!column) return null;
 
   let frame = 0;
+  let last = '';
   const run = () => {
     const children = Array.from(column.children) as HTMLElement[];
-    const rows = children.filter((el) => el.hasAttribute('data-note-row'));
-    const asides = rows
-      .map((row) => row.querySelector<HTMLElement>('[data-sidenotes]'))
-      .filter((a): a is HTMLElement => a !== null);
-    for (const row of rows) row.style.paddingBottom = '';
-    for (const aside of asides) aside.style.transform = '';
-    // Sous 1100 px, la marge est cachée : rien à empiler.
-    const marginLeft = asides.find((a) => a.offsetParent !== null)?.getBoundingClientRect().left;
-    if (marginLeft === undefined) return;
+    for (const el of children) if (el.hasAttribute('data-note-row')) el.style.paddingBottom = '';
+    for (const n of column.querySelectorAll<HTMLElement>('[data-sidenote][data-folded]')) n.removeAttribute('data-folded');
+    const next: Folds = {};
+    const done = () => {
+      const key = JSON.stringify(next);
+      if (key !== last) publish(next);
+      last = key;
+      after();
+    };
+    // Sous 1100 px, la marge est cachée : rien à écouler.
+    const marginLeft = Array.from(column.querySelectorAll<HTMLElement>('[data-sidenotes]'))
+      .find((a) => a.offsetParent !== null)
+      ?.getBoundingClientRect().left;
+    if (marginLeft === undefined) return done();
+
+    type Item = { row: HTMLElement; aside: HTMLElement; notes: HTMLElement[] } | { wall: HTMLElement };
+    const items: Item[] = [];
+    for (const el of children) {
+      if (el.hasAttribute('data-note-row')) {
+        const aside = el.querySelector<HTMLElement>('[data-sidenotes]');
+        if (aside) items.push({ row: el, aside, notes: Array.from(aside.querySelectorAll<HTMLElement>('[data-sidenote]')) });
+      } else if (inkRight(el) > marginLeft) {
+        items.push({ wall: el });
+      }
+    }
 
     let floor = -Infinity;
     let lastRow: HTMLElement | null = null;
-    for (const el of children) {
-      if (el.hasAttribute('data-note-row')) {
-        lastRow = el;
-        const aside = el.querySelector<HTMLElement>('[data-sidenotes]');
-        if (!aside) continue;
-        const top = aside.getBoundingClientRect().top;
-        const shift = Math.max(0, floor + SIDENOTE_GAP - top);
-        if (shift > 0) aside.style.transform = `translateY(${shift}px)`;
-        floor = top + shift + aside.offsetHeight;
-        continue;
+    items.forEach((item, k) => {
+      if ('wall' in item) {
+        // Seul un dépli peut encore atteindre un mur : la rangée s'allonge.
+        const overlap = floor + SIDENOTE_OBSTACLE_GAP - item.wall.getBoundingClientRect().top;
+        if (overlap > 0 && lastRow) lastRow.style.paddingBottom = `${overlap}px`;
+        floor = -Infinity;
+        lastRow = null;
+        return;
       }
-      const rect = el.getBoundingClientRect();
-      if (rect.right <= marginLeft) continue; // tient dans la mesure : pas un mur
-      const overlap = floor + SIDENOTE_OBSTACLE_GAP - rect.top;
-      if (overlap > 0 && lastRow) {
-        lastRow.style.paddingBottom = `${overlap}px`;
-        // Le mur et tout ce qui suit viennent de descendre : les notes déjà
-        // posées sont au-dessus, la suite se mesure à nouveau.
+      const { row, aside, notes } = item;
+      lastRow = row;
+      const key = notes[0].id.replace(/^sn-/, '');
+      const base = aside.getBoundingClientRect().top;
+      const following = items[k + 1];
+      const limit = !following
+        ? Infinity
+        : 'wall' in following
+          ? following.wall.getBoundingClientRect().top - SIDENOTE_OBSTACLE_GAP
+          : anchorOf(following.notes[0]) - SIDENOTE_GAP;
+      const heights = notes.map((n) => n.offsetHeight);
+      const anchors = notes.map(anchorOf);
+
+      // Empile les `count` premières notes sous le plancher.
+      const stack = (count: number) => {
+        const tops: number[] = [];
+        let y = floor;
+        for (let i = 0; i < count; i++) {
+          tops.push(Math.max(anchors[i], y + SIDENOTE_GAP));
+          y = tops[i] + heights[i];
+        }
+        return { tops, bottom: y };
+      };
+      const all = stack(notes.length);
+      let cut = notes.length;
+      if (all.bottom > limit) {
+        // Garder les premières notes tant qu'elles laissent la place de l'étiquette.
+        cut = 0;
+        while (cut < notes.length && all.tops[cut] + heights[cut] + SIDENOTE_GAP + FOLD_HEIGHT <= limit) cut++;
       }
-      floor = -Infinity;
-      lastRow = null;
-    }
+      const open = cut < notes.length && expanded.current.has(key);
+      const shown = open ? notes.length : cut;
+      notes.forEach((n, i) => {
+        n.style.top = `${all.tops[i] - base}px`;
+      });
+      if (cut === notes.length) {
+        floor = all.bottom;
+        return;
+      }
+      const kept = stack(cut);
+      const foldTop = open ? all.bottom + SIDENOTE_GAP : Math.max(anchors[cut], kept.bottom + SIDENOTE_GAP);
+      for (let i = shown; i < notes.length; i++) {
+        notes[i].setAttribute('data-folded', '');
+        // Une note repliée part de son étiquette quand on la met au point.
+        notes[i].style.top = `${foldTop - base}px`;
+      }
+      next[key] = { ids: notes.slice(cut).map((n) => n.id.replace(/^sn-/, '')), top: foldTop - base };
+      floor = foldTop + FOLD_HEIGHT;
+    });
+    done();
   };
 
   const schedule = () => {
@@ -156,10 +325,43 @@ function flowSidenotes(root: HTMLElement | null) {
   document.fonts?.ready.then(schedule);
   const ro = new ResizeObserver(schedule);
   ro.observe(column);
-  return () => {
-    cancelAnimationFrame(frame);
-    ro.disconnect();
+  return {
+    schedule,
+    dispose: () => {
+      cancelAnimationFrame(frame);
+      ro.disconnect();
+    },
   };
+}
+
+/**
+ * MISE AU POINT d'une note : elle vient se poser en face de la ligne de son
+ * appel, par-dessus ses voisines qui s'estompent. Repliée, elle sort de son
+ * étiquette ; déjà en face (à `DISPLACE_MIN` près), elle s'allume sur place.
+ * La rendre (`id` nul ou autre) la renvoie à sa place.
+ */
+function applyFocus(root: HTMLElement | null, id: string | null) {
+  if (!root) return;
+  for (const n of root.querySelectorAll<HTMLElement>('[data-sidenote][data-focus]')) {
+    if (n.id === `sn-${id}`) continue;
+    n.removeAttribute('data-focus');
+    n.style.translate = '';
+  }
+  for (const a of root.querySelectorAll<HTMLElement>('[data-sidenotes][data-raised]')) a.removeAttribute('data-raised');
+  root.removeAttribute('data-displaced');
+  const note = id ? document.getElementById(`sn-${id}`) : null;
+  const aside = note?.parentElement;
+  if (!note || !aside || aside.offsetParent === null) return;
+  const slot = aside.getBoundingClientRect().top + (parseFloat(note.style.top) || 0);
+  const delta = anchorOf(note) - slot;
+  note.setAttribute('data-focus', '');
+  if (note.hasAttribute('data-folded') || Math.abs(delta) > DISPLACE_MIN) {
+    note.style.translate = `0 ${delta}px`;
+    aside.setAttribute('data-raised', '');
+    root.setAttribute('data-displaced', '');
+  } else {
+    note.style.translate = '';
+  }
 }
 
 function noteName(id: string, kind: NoteKind, lang: Lang) {
@@ -167,7 +369,7 @@ function noteName(id: string, kind: NoteKind, lang: Lang) {
 }
 
 export function NoteCall({ id, kind, href }: { id: string; kind: NoteKind; href: string }) {
-  const { lang, lit, pinned, setHover, togglePin } = useNotes();
+  const { lang, lit, pinned, hoverOn, hoverOff, togglePin } = useNotes();
   const n = id;
   return (
     <a
@@ -183,10 +385,10 @@ export function NoteCall({ id, kind, href }: { id: string; kind: NoteKind; href:
         borderRadius: 1,
         backgroundColor: lit === n ? 'var(--color-active-bg)' : undefined,
       }}
-      onMouseEnter={() => setHover(n)}
-      onMouseLeave={() => setHover(null)}
-      onFocus={() => setHover(n)}
-      onBlur={() => setHover(null)}
+      onMouseEnter={() => hoverOn(n, 'call')}
+      onMouseLeave={hoverOff}
+      onFocus={() => hoverOn(n, 'call')}
+      onBlur={hoverOff}
       onClick={(e) => {
         e.preventDefault();
         togglePin(n);
@@ -209,11 +411,14 @@ export type RowNote = { id: string; kind: NoteKind; body: ReactNode };
 /** Largeur de la colonne de chiffres en marge — le voyant, son écart, deux chiffres. */
 const SIDENOTE_NUM_WIDTH = 30;
 
+/** Courbe et durée du site (cf. TableOfContents) : la note glisse en 260 ms. */
+const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+
 /**
  * Un paragraphe et ses notes. Au-dessus de 1100 px : grille à deux colonnes,
  * le corps à la mesure (680), les notes dans la marge droite que la colonne
- * de 1107 laisse libre. En dessous : le paragraphe seul, et la note épinglée
- * qui s'ouvre juste après lui.
+ * de 1107 laisse libre, posées une à une par `flowSidenotes`. En dessous :
+ * le paragraphe seul, et la note épinglée qui s'ouvre juste après lui.
  */
 export function NoteRow({
   notes,
@@ -224,9 +429,12 @@ export function NoteRow({
   children: ReactNode;
   style?: CSSProperties;
 }) {
-  const { lang, lit, pinned, setHover, togglePin } = useNotes();
+  const { lang, lit, pinned, folds, expanded, hoverOn, hoverOff, togglePin, toggleFold } = useNotes();
   const t = DICT[lang];
   const open = notes.find((note) => note.id === pinned);
+  const key = notes[0]?.id;
+  const fold = key ? folds[key] : undefined;
+  const unfolded = key ? expanded.has(key) : false;
 
   return (
     <div
@@ -241,25 +449,41 @@ export function NoteRow({
 
       {notes.length > 0 && (
         // Cellule vide qui porte les notes HORS FLUX : la rangée prend la
-        // hauteur du paragraphe. L'empilement est fait par `flowSidenotes`.
-        <div className="hidden min-[1100px]:block relative">
+        // hauteur du paragraphe. La note mise au point passe au-dessus des
+        // rangées suivantes (`data-raised`). Les notes débordent de leur
+        // cellule : la cellule laisse passer le pointeur, sinon celle de la
+        // rangée suivante capte les clics des notes dépliées.
+        <div className="hidden min-[1100px]:block relative pointer-events-none">
           <aside
             data-sidenotes
             aria-label={t.notes}
-            className="absolute inset-x-0 top-0 flex flex-col gap-3"
-            style={{ paddingTop: 5 }}
+            className="pointer-events-auto absolute inset-x-0 top-0 data-[raised]:z-10"
           >
             {notes.map(({ id, kind, body }) => (
               <p
                 key={id}
                 id={`sn-${id}`}
+                data-sidenote
                 className={cn(
                   EDITORIAL_SIDENOTE,
-                  'flex transition-colors motion-reduce:transition-none',
+                  'absolute inset-x-0 flex bg-[var(--color-bg)]',
+                  // Repliée : absente, sauf mise au point — elle sort alors
+                  // en fondu (`starting:`) et y rentre de même.
+                  '[&[data-folded]:not([data-focus])]:hidden [&[data-folded]:not([data-focus])]:opacity-0 starting:opacity-0',
+                  // Une note mise au point hors de sa place : les autres s'effacent.
+                  '[[data-displaced]_&:not([data-focus])]:opacity-25',
+                  'data-[focus]:z-10 data-[focus]:shadow-[0_0_0_8px_var(--color-bg)]',
+                  'motion-reduce:!transition-none',
                   lit === id && 'text-[var(--color-fg)]',
+                  pinned === id && 'cursor-pointer',
                 )}
-                onMouseEnter={() => setHover(id)}
-                onMouseLeave={() => setHover(null)}
+                style={{
+                  transition: `translate 260ms ${EASE}, opacity 200ms ${EASE}, color 200ms ${EASE}, display 200ms allow-discrete`,
+                }}
+                onMouseEnter={() => hoverOn(id, 'note')}
+                onMouseLeave={hoverOff}
+                // Cliquer la note épinglée la rend à sa place, comme l'appel.
+                onClick={() => pinned === id && togglePin(id)}
               >
                 {/* Colonne de chiffres calée sur la PREMIÈRE ligne de la note
                     (hauteur = un interligne) : centrée sur toute la note, le
@@ -279,6 +503,23 @@ export function NoteRow({
                 </span>
               </p>
             ))}
+            {fold && fold.ids.length > 0 && (
+              // L'étiquette du pli : combien, et lesquelles — le lecteur qui
+              // cherche la 27 sait qu'elle est là sans déplier.
+              <button
+                type="button"
+                aria-expanded={unfolded}
+                onClick={() => toggleFold(key!)}
+                className={cn(
+                  MICRO_LABEL,
+                  'absolute left-0 flex items-center leading-none text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)]',
+                  '[[data-displaced]_&]:opacity-25 transition-[color,opacity] duration-200 motion-reduce:transition-none',
+                )}
+                style={{ top: fold.top, height: FOLD_HEIGHT, paddingLeft: SIDENOTE_NUM_WIDTH }}
+              >
+                {unfolded ? t.foldNotes : t.foldedNotes(fold.ids)}
+              </button>
+            )}
           </aside>
         </div>
       )}

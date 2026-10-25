@@ -35,9 +35,6 @@ import { DataTable } from './DataTable';
  */
 const RHYTHM = { lead: 40, body: 24, h2Top: 64, h2Bottom: 24, object: 64 } as const;
 
-/** Largeur d'une exergue : plus large que la mesure, moins que la colonne. */
-const PULLQUOTE_MAX = 920;
-
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
 
 /**
@@ -163,7 +160,9 @@ function ArticleH2({ id, text, style, lang }: { id: string; text: string; style:
         <>
           <span className="sr-only">{sep}</span>
           <span
-            className={cn(MICRO_LABEL, 'block tracking-normal leading-[1.2] text-[var(--color-fg-muted)]')}
+            // `w-fit` : en bloc pleine largeur, l'étiquette ferait mur dans la
+            // marge de notes (`flowSidenotes` mesure ce qui est DESSINÉ).
+            className={cn(MICRO_LABEL, 'block w-fit tracking-normal leading-[1.2] text-[var(--color-fg-muted)]')}
             style={{ marginTop: 14 }}
           >
             {frenchSpaces(verdict)}
@@ -295,7 +294,10 @@ export function ArticleBody({
                   aria-hidden
                   style={{
                     marginTop: top(RHYTHM.body),
-                    maxWidth: PULLQUOTE_MAX,
+                    // À la mesure, pas au-delà (2026-10-25) : débordant dans la
+                    // marge, elle barrait la colonne de notes et repoussait le
+                    // paragraphe d'avant.
+                    maxWidth: 'var(--editorial-measure)',
                     borderTop: '1px solid var(--color-fg)',
                     borderBottom: '1px solid var(--color-fg)',
                     // Calés sur Newsreader (2026-10-22) : centre le bloc des
