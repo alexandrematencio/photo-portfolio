@@ -47,7 +47,8 @@ const EDITORIAL_WIDTH = 1107;
  * Le RAIL du journal (2026-10-18, demande Alexandre) : le bouton Back et le
  * sélecteur de langue, glissés à GAUCHE de l'article et collés sous le menu
  * au défilement — le retour reste à portée de main. Deux rails de même
- * largeur, le second vide : la colonne reste centrée.
+ * largeur, le second vide : la colonne reste centrée — tant que la place le
+ * permet ; en deçà, le second rail rétrécit d'abord.
  *
  * Dès 1280 px seulement (`xl`) : en dessous, la marge ne loge pas un bouton
  * sans écraser la colonne de notes (seuil 1100, Notes.tsx). Le rail
@@ -216,7 +217,13 @@ export function PageShell({
       )}
       <div
         className="xl:grid"
-        style={{ gridTemplateColumns: `${RAIL_WIDTH}px minmax(0, ${maxWidth ?? EDITORIAL_WIDTH}px) ${RAIL_WIDTH}px`, justifyContent: 'center' }}
+        // Le rail de droite, vide, cède sa place AVANT la colonne (2026-10-25) :
+        // de 1280 à ~1460 px, deux rails pleins réduisaient la marge de notes
+        // à 136 px. Il ne sert qu'à centrer ; la colonne se décale d'autant.
+        style={{
+          gridTemplateColumns: `${RAIL_WIDTH}px minmax(0, ${maxWidth ?? EDITORIAL_WIDTH}px) clamp(0px, calc(100% - ${RAIL_WIDTH + (maxWidth ?? EDITORIAL_WIDTH)}px), ${RAIL_WIDTH}px)`,
+          justifyContent: 'center',
+        }}
       >
         {/* La cellule court sur toute la hauteur de l'article : c'est elle qui
             borne le collant. Le rail se cale sur son bord DROIT, contre la
