@@ -378,7 +378,9 @@ export function NoteCall({ id, kind, href }: { id: string; kind: NoteKind; href:
       aria-label={noteName(id, kind, lang)}
       aria-describedby={`sn-${id}`}
       aria-expanded={pinned === id}
-      className={cn(NOTE_CALL, 'text-[var(--color-fg)] scroll-mt-24')}
+      // Cobalt comme les liens du journal (2026-10-25) : un appel EST un lien.
+      // Allumé, le chiffre repasse au noir sur l'aplat orange.
+      className={cn(NOTE_CALL, 'scroll-mt-24', lit === n ? 'text-[var(--color-fg)]' : 'text-[var(--color-accent)]')}
       style={{
         padding: '1px 2px',
         marginLeft: -1,
@@ -435,6 +437,17 @@ export function NoteRow({
   const key = notes[0]?.id;
   const fold = key ? folds[key] : undefined;
   const unfolded = key ? expanded.has(key) : false;
+  const drawer = useRef<HTMLDivElement>(null);
+
+  // Le tiroir s'ouvre sous le paragraphe, souvent sous l'horizon : on le
+  // ramène dans l'écran, sinon le lecteur croit que rien ne s'est passé.
+  // `nearest` : déjà visible, rien ne bouge.
+  useEffect(() => {
+    const el = drawer.current;
+    if (!open || !el || el.offsetParent === null) return;
+    const smooth = window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
+    el.scrollIntoView({ block: 'nearest', behavior: smooth ? 'smooth' : 'auto' });
+  }, [open]);
 
   return (
     <div
@@ -526,8 +539,10 @@ export function NoteRow({
 
       {open && (
         <div
+          ref={drawer}
           className="min-[1100px]:hidden flex flex-col gap-2"
           style={{
+            scrollMarginBottom: 24,
             marginTop: 16,
             padding: '12px 14px 14px',
             backgroundColor: 'var(--color-bg-elev)',
