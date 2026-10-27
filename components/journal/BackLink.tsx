@@ -29,6 +29,9 @@ export function NavMemory() {
   return null;
 }
 
+/** « Back » remontera l'historique au lieu de suivre son lien (`HomeReturn`). */
+export const backGoesBack = () => visited > 1;
+
 export function BackLink({ href, lang }: { href: string; lang: Lang }) {
   const label = DICT[lang].back;
   const router = useRouter();
@@ -45,6 +48,7 @@ export function BackLink({ href, lang }: { href: string; lang: Lang }) {
     <Link
       href={href}
       onClick={onClick}
+      data-back-link
       // Bouton encadré (maquette d'Alexandre, 2026-10-18). Padding en style
       // inline : le reset `* { padding: 0 }` avalerait une utility Tailwind.
       // Au survol comme au focus clavier, texte et cadre s'éclaircissent

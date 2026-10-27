@@ -13,6 +13,7 @@ import { TopBarAutoHide } from '@/components/site/TopBarAutoHide';
 import { CursorInvert } from '@/components/site/CursorInvert';
 import { EmailHoneypot } from '@/components/site/EmailHoneypot';
 import { NavMemory } from '@/components/journal/BackLink';
+import { HomeReturn } from '@/components/journal/HomeReturn';
 import { getAllSeries, getArticles } from '@/lib/journal/articles';
 import { DICT, LOCALE, homePath, languageScript, seriesPath, type Lang } from '@/lib/journal/i18n';
 import type { MenuEntry } from '@/components/site/SitesMenu';
@@ -73,6 +74,7 @@ export async function BlogShell({ lang, children }: { lang: Lang; children: Reac
           <MainPadding>{children}</MainPadding>
         </FramedScroll>
         <PageArrival />
+        <HomeReturn />
         <NavMemory />
         <ScrollThumb />
       </body>
