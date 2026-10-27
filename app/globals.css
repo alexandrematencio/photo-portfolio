@@ -589,6 +589,24 @@
   }
 }
 
+/* « + » de l'index du journal (`JournalIndex`, demande Alexandre du
+   2026-10-27) : tant que la ligne est survolée, il tourne d'un quart de tour,
+   se pose, recommence — c'est lui qu'on clique, pas le libellé. Un quart de
+   tour et non un tour continu : à 90° un « + » est encore un « + », la boucle
+   ne saute jamais, et la pause laisse l'œil le relire. Le quart de tour finit
+   d'un léger dépassement (back.out) : il se pose au lieu de s'arrêter net.
+   Ouvert, le bouton n'a plus l'animation et passe à 45° (« × »). */
+@keyframes journal-plus-turn {
+  0% {
+    rotate: 0deg;
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  35%,
+  100% {
+    rotate: 90deg;
+  }
+}
+
 html {
   background-color: var(--color-bg);
   color: var(--color-fg);

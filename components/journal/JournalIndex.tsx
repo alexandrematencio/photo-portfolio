@@ -1139,9 +1139,12 @@ function Row({
             )}
             style={{ paddingInline: '12px 10px' }}
           >
+            {/* `leading-none` + 1 px : les capitales d'Helvetica sont plus
+                hautes que le centre de leur boîte (le jambage du bas y est
+                compté) ; sans ce cran, « APERÇU » flottait au-dessus du « + ». */}
             <span
               className={cn(
-                'transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none',
+                'leading-none translate-y-px transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none',
                 !open &&
                   'md:translate-x-[6px] md:opacity-0 md:group-hover:translate-x-0 md:group-hover:opacity-100 md:group-focus-within:translate-x-0 md:group-focus-within:opacity-100',
               )}
@@ -1149,18 +1152,29 @@ function Row({
               {open ? t.close : t.preview}
               <span className="sr-only"> — {article.title}</span>
             </span>
-            <span
+            {/* Un tracé plutôt que le glyphe « + » : son centre est celui de
+                sa boîte, quelle que soit la fonte système qui le dessinerait. */}
+            <svg
               aria-hidden
+              viewBox="0 0 12 12"
+              width={12}
+              height={12}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
               className={cn(
-                'inline-block text-[22px] font-normal leading-none',
+                'shrink-0',
                 // Tailwind v4 : `rotate-45` écrit la propriété `rotate` — d'où
                 // `transition-[rotate]` et pas `transition-transform` (CLAUDE.md §7).
                 'transition-[rotate] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
-                open && 'rotate-45',
+                // Quart de tour en boucle au survol (globals.css, `journal-plus-turn`).
+                open
+                  ? 'rotate-45'
+                  : 'motion-safe:md:group-hover:animate-[journal-plus-turn_1.4s_infinite] motion-safe:md:group-focus-within:animate-[journal-plus-turn_1.4s_infinite]',
               )}
             >
-              +
-            </span>
+              <path d="M6 0v12M0 6h12" />
+            </svg>
           </button>
         </div>
 
