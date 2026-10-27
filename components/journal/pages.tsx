@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageShell } from '@/components/site/PageShell';
+import { JournalIntro } from '@/components/journal/JournalIntro';
 import { JournalIndex } from '@/components/journal/JournalIndex';
 import { ArticleView } from '@/components/journal/ArticleView';
 import { BackLink } from '@/components/journal/BackLink';
@@ -82,6 +83,7 @@ export async function JournalHome({ lang }: { lang: Lang }) {
   return (
     <>
       <JsonLd data={blogJsonLd(articles, lang)} />
+      <JournalIntro />
       <PageShell
         centered
         title={
