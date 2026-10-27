@@ -26,7 +26,18 @@ export const AUTHOR_JOURNAL_SIGNATURE = {
 export const AUTHOR_SAME_AS = [
   'https://www.instagram.com/alxmtc',
   'https://www.instagram.com/alxmtnc',
+  'https://github.com/alexandrematencio',
 ];
+
+/** L'agence d'Alexandre. Son `@id` est celui que déclare aaxlo.com lui-même
+ *  (`#identity`) : Google relie les deux entités au lieu d'en voir deux. Ce
+ *  n'est pas un `sameAs` — l'agence n'est pas la personne (2026-10-27). */
+export const AUTHOR_AGENCY = {
+  '@type': 'Organization',
+  '@id': 'https://aaxlo.com/#identity',
+  name: 'AAXLO',
+  url: 'https://aaxlo.com/',
+} as const;
 
 /** Avis de copyright, tel qu'il est écrit dans les fichiers ET dans le JSON-LD. */
 export function copyrightNotice(year: number = new Date().getFullYear()): string {

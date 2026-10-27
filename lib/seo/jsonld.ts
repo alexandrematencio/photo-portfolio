@@ -1,7 +1,7 @@
 import { indexableImageUrl, urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
 import { SITE_INFO, withSlash } from '@/lib/seo/metadata';
-import { AUTHOR_FULL_NAME, AUTHOR_NAME, AUTHOR_SAME_AS, AUTHOR_SHORT, copyrightNotice } from '@/lib/site/author';
+import { AUTHOR_AGENCY, AUTHOR_FULL_NAME, AUTHOR_NAME, AUTHOR_SAME_AS, AUTHOR_SHORT, copyrightNotice } from '@/lib/site/author';
 import { ABOUT_URL, BLOG_URL, HUB_URL, PHOTO_URL } from '@/lib/site/sites';
 
 /**
@@ -59,7 +59,8 @@ export function personJsonLd(): JsonLdObject {
     mainEntityOfPage: ABOUT_URL,
     sameAs: [...AUTHOR_SAME_AS, `${PHOTO_URL}/`, `${BLOG_URL}/`],
     address: { '@type': 'PostalAddress', addressLocality: 'Villejuif', addressCountry: 'FR' },
-    knowsAbout: ['Street photography', 'Landscape photography', 'Portrait photography'],
+    knowsAbout: ['Art direction', 'Product design', 'Street photography', 'Landscape photography', 'Portrait photography'],
+    worksFor: AUTHOR_AGENCY,
     image: `${PHOTO_URL}/img/photo-profile.jpg`,
   };
 }
