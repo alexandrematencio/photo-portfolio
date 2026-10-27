@@ -1115,22 +1115,52 @@ function Row({
               )}
             </span>
           </div>
+          {/* Le « + » dit ce qu'il fait (2026-10-27) : seul, il passait pour un
+              ornement de la ligne, puisque toute la ligne est un lien et
+              s'inverse d'un bloc. D'où un libellé (« Aperçu », « Fermer » une
+              fois ouvert) — révélé au survol de la ligne sur desktop, toujours
+              là sur téléphone où le survol n'existe pas — et un second état
+              sous le pointeur : la ligne passe à l'encre, le bouton repasse au
+              papier. On voit la cible changer en quittant le titre. Le nom
+              accessible reprend le libellé visible (WCAG 2.5.3). Padding
+              inline : le reset `* { padding: 0 }`. */}
           <button
             type="button"
             aria-expanded={open}
             aria-controls={panelId}
-            aria-label={open ? t.collapse(article.title) : t.expand(article.title)}
             onClick={() => setOpen((v) => !v)}
             className={cn(
-              'relative z-10 flex h-8 w-8 shrink-0 items-center justify-center text-[22px] font-normal leading-none text-[var(--color-fg)]',
+              MICRO_LABEL,
+              'relative z-10 -my-[6px] flex h-11 shrink-0 items-center gap-2 text-[var(--color-fg)]',
               'group-hover:text-[var(--color-bg)] group-focus-within:text-[var(--color-bg)]',
-              // Tailwind v4 : `rotate-45` écrit la propriété `rotate` — d'où
-              // `transition-[rotate]` et pas `transition-transform` (CLAUDE.md §7).
-              'transition-[rotate,color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
-              open && 'rotate-45',
+              // `!` : le survol du bouton l'emporte sur celui de la ligne, comme le lien de série.
+              'hover:bg-[var(--color-bg)] hover:text-[var(--color-fg)]! focus-visible:bg-[var(--color-bg)] focus-visible:text-[var(--color-fg)]! focus-visible:outline-none',
+              'transition-colors duration-150 ease-out motion-reduce:transition-none',
             )}
+            style={{ paddingInline: '12px 10px' }}
           >
-            <span aria-hidden>+</span>
+            <span
+              className={cn(
+                'transition-[opacity,translate] duration-200 ease-out motion-reduce:transition-none',
+                !open &&
+                  'md:translate-x-[6px] md:opacity-0 md:group-hover:translate-x-0 md:group-hover:opacity-100 md:group-focus-within:translate-x-0 md:group-focus-within:opacity-100',
+              )}
+            >
+              {open ? t.close : t.preview}
+              <span className="sr-only"> — {article.title}</span>
+            </span>
+            <span
+              aria-hidden
+              className={cn(
+                'inline-block text-[22px] font-normal leading-none',
+                // Tailwind v4 : `rotate-45` écrit la propriété `rotate` — d'où
+                // `transition-[rotate]` et pas `transition-transform` (CLAUDE.md §7).
+                'transition-[rotate] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+                open && 'rotate-45',
+              )}
+            >
+              +
+            </span>
           </button>
         </div>
 

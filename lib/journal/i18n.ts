@@ -170,8 +170,8 @@ type Dict = {
   noArticles: string;
   /** Étiquette des articles d'au moins `LONG_READ_MINUTES` sur l'index. */
   longRead: string;
-  expand: (title: string) => string;
-  collapse: (title: string) => string;
+  /** Libellé du « + » de l'index, qui déplie le chapeau. */
+  preview: string;
   referencesTitle: string;
   backToCall: (n: string) => string;
   note: (n: string) => string;
@@ -335,8 +335,7 @@ export const DICT: Record<Lang, Dict> = {
     titleCol: 'Titre',
     noArticles: 'Aucun article publié pour l’instant.',
     longRead: 'Long read',
-    expand: (t) => `Déplier « ${t} »`,
-    collapse: (t) => `Replier « ${t} »`,
+    preview: 'Aperçu',
     referencesTitle: 'Références',
     backToCall: (n) => `Retour à l’appel de note ${n}`,
     note: (n) => `Note ${n}`,
@@ -508,8 +507,7 @@ export const DICT: Record<Lang, Dict> = {
     titleCol: 'Title',
     noArticles: 'Nothing published yet.',
     longRead: 'Long read',
-    expand: (t) => `Expand “${t}”`,
-    collapse: (t) => `Collapse “${t}”`,
+    preview: 'Preview',
     referencesTitle: 'References',
     backToCall: (n) => `Back to note call ${n}`,
     note: (n) => `Note ${n}`,
@@ -682,8 +680,7 @@ export const DICT: Record<Lang, Dict> = {
     titleCol: 'Заголовок',
     noArticles: 'Пока ничего не опубликовано.',
     longRead: 'Лонгрид',
-    expand: (t) => `Развернуть «${t}»`,
-    collapse: (t) => `Свернуть «${t}»`,
+    preview: 'Анонс',
     referencesTitle: 'Источники',
     backToCall: (n) => `Вернуться к сноске ${n}`,
     note: (n) => `Сноска ${n}`,
