@@ -27,6 +27,7 @@ export const AUTHOR_SAME_AS = [
   'https://www.instagram.com/alxmtc',
   'https://www.instagram.com/alxmtnc',
   'https://github.com/alexandrematencio',
+  'https://www.linkedin.com/in/alexandre-matencio-a17470106/',
 ];
 
 /** L'agence d'Alexandre. Son `@id` est celui que déclare aaxlo.com lui-même

@@ -31,7 +31,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const photos = await getAllPhotos();
   const archiveImages = photos.flatMap((p) => {
     const url = indexableImageUrl(p.image);
-    return url ? [url] : [];
+    // Next écrit les URL d'images telles quelles dans le XML : les `&` des
+    // paramètres du CDN (`?w=1600&q=80`) le rendaient invalide, et Search
+    // Console refusait tout le sitemap (« Couldn't fetch », 2026-10-27).
+    return url ? [url.replace(/&/g, '&amp;')] : [];
   });
 
   // Slash final : le site est en `trailingSlash: true` — déclarer `/series`
