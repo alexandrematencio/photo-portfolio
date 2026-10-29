@@ -251,12 +251,9 @@ ouvrent le même panneau.
    repasse à sa grille avant de livrer. `prefers-reduced-motion` remplace
    chaque mouvement par un fondu ou par rien.
 
-## Phase 5 (plus tard) : /en/map et /ru/map
+## Phase 5 : /en/concept-map et /ru/concept-map — FAITE (2026-10-29, main ef20c2b, traductions publiées le même jour)
 
-Les ancres marchent déjà dans les trois langues. Il manque les libellés : les
-verdicts et extraits passeraient par le même traducteur incrémental, en
-réutilisant ce qui n'a pas changé. On ne s'y lance qu'une fois la carte
-française rodée.
+Voir « Phase 5 — FAITE » plus bas pour le détail, les écarts et ce qu'on y a appris.
 
 ## Le circuit, une fois en place
 
@@ -271,6 +268,10 @@ final et le Publish) :
    ce qui ne doit pas sortir.
 4. `npm run map:build` produit le brouillon `journalMap` et le rapport :
    citations introuvables, nœuds orphelins, nouveaux ponts entre séries.
+   Il conserve les traductions déjà faites.
+4 bis. Une fois l'article traduit : `npm run map:translate -- --export <f>`,
+   Claude traduit les seuls textes nouveaux ou modifiés, `--import <f>`
+   vérifie, puis `--import <f> --write` (accord d'Alexandre) et Publish.
 5. Alexandre publie l'article, puis la carte. L'article peut aussi partir
    seul : la carte en ligne reste simplement sur sa version précédente
    jusqu'au Publish suivant.
@@ -538,18 +539,7 @@ Appris en route (phase 4 bis et menu) :
    - Le build suivant met `/concept-map` et le tiroir des articles à jour
      tout seuls ; l'image OG non (`node scripts/make-og-concept-map.mjs`,
      dev 3021 en marche, puis commit).
-2. **Phase 5 — EN/RU** :
-   - libellés de la carte en anglais et en russe (thèses, mécanismes,
-     définitions, rimes) : vault ou traducteur incrémental ;
-   - `/en/concept-map` et `/ru/concept-map` (aujourd'hui `CONCEPT_MAP_PATH`
-     est français seul, lib/journal/i18n.ts) ;
-   - le tiroir dans les articles EN/RU (`JournalArticle` ne passe la carte
-     qu'en `fr` ; les clés de paragraphe sont déjà les mêmes) et les textes
-     du tiroir (« Suit la lecture », « Revenir au passage lu »…) dans
-     `DICT` ;
-   - lien de la nav-bar, menu Journal, sitemap et hreflang dans les trois
-     langues (le lien de la nav pointe vers la version de la langue) ;
-   - `journalIsActive` à rendre vrai pour les trois adresses.
+2. ~~Phase 5 — EN/RU~~ : faite, voir ci-dessous.
 3. **En dernier, après toutes les phases : la page « À propos de la Concept
    Map »**, demandée par Alexandre le 2026-10-29. Elle explique le principe
    comme à un enfant de 10 ans : un article dit plusieurs idées (thèses),
@@ -582,3 +572,41 @@ Appris en route (phase 4 bis et menu) :
     multiplicateur* ;
   - bloc « à trancher » et citation en exergue divergente dans *Hot chats* ;
   - liste des directions pour l'« À propos » court.
+
+### Phase 5 — FAITE (2026-10-29, main ef20c2b, en ligne)
+
+- **Où vivent les libellés EN/RU** : dans le document `journalMap` lui-même,
+  champ `translations` (`journalMapText {lang, id, field, src, text, auto?}`),
+  et pas dans le vault. `id` = nodeId, ou `rhyme|<source>|<target>`. `src` =
+  empreinte FNV-1a du français (pour une citation : français + paragraphe
+  traduit). Une phrase reprise dans le vault ou un article retraduit rend
+  l'entrée périmée, et seule elle est redemandée. `map:build` conserve le
+  champ : un seul Publish suffit. Modèle pur : `lib/journal/conceptMapI18n.ts`.
+- **Qui traduit** : Claude, dans la session, via `npm run map:translate`
+  (export → traduction → import). Pas d'appel API : aucune clé Anthropic en
+  local, et la traduction se relit mieux dans la conversation.
+- **Les citations ne se retraduisent pas** : on reprend la phrase de l'article
+  traduit (`alignQuote` d'office quand les deux paragraphes ont autant de
+  phrases et que la citation couvre ≥ 60 % de la phrase ; sinon à la main,
+  `quoteFits` refuse un texte absent du paragraphe). Bilan du premier passage :
+  149 EN et 127 RU d'office, 25 + 24 à la main.
+- **Identifiants partagés** : les nœuds gardent leur id français, `#n=` vaut
+  dans toutes les langues. Un article non traduit sort de la carte de la
+  langue (le RU n'a pas *Hot chats* : 7 articles, 75 thèses, 76 mécanismes).
+  Un libellé manquant garde son français avec un `console.warn`.
+- **Sans traduction publiée**, la page de la langue affiche un avis, passe en
+  `noindex` et sort des hreflang et du sitemap (`conceptMapAlternates`). Le
+  code a donc pu partir en ligne avant l'écriture des traductions.
+- « Concept Map » ne se traduit pas ; l'image OG française sert aux trois
+  langues pour l'instant.
+- 838 traductions écrites le 2026-10-29 avec l'accord d'Alexandre, publiées
+  par lui, vérifiées en ligne (carte, tiroir, hreflang, sitemap).
+
+**Appris en route.**
+- Essai local sans toucher la prod : `MAP_TRANSLATIONS=<fichier de --out>`
+  avec le dev du blog (lu en dev seulement).
+- Le contrôle « pas de russe » a attrapé un nom propre laissé en anglais
+  (*Dark Ego Vehicle Principle*) : en russe, garder l'original entre
+  parenthèses derrière une traduction.
+- Les thématiques se traduisent en mettant en regard les tags de l'article
+  FR et ceux de sa traduction, pas par un dictionnaire.
