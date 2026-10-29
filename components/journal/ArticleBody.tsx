@@ -24,6 +24,10 @@ import { Highlight } from './Highlight';
 import { PassageArrival } from './PassageArrival';
 import { VerdictTable } from './VerdictTable';
 import { DataTable } from './DataTable';
+import { MapMark } from './concept-map/ArticleMap';
+
+/** Les marques de la Concept Map, par clé de paragraphe (`ArticleView`). */
+export type MapMarks = Record<string, { id: string; label: string; anchor: boolean }>;
 
 /**
  * Corps d'un article du journal (brand book §14). Rythme vertical repris de
@@ -233,10 +237,12 @@ export function ArticleBody({
   article,
   series,
   signature,
+  marks,
 }: {
   article: Article;
   series: ArticleSummary[];
   signature: string;
+  marks?: MapMarks;
 }) {
   const lang = article.lang;
   const t = DICT[lang];
@@ -273,9 +279,12 @@ export function ArticleBody({
               // Ancre du passage : `#p-<clé>` (cf. `PassageArrival`).
               const passage = block.key ? { id: `p-${block.key}`, className: 'journal-passage' } : { className: undefined };
               const after = prev?.type === 'h2' ? RHYTHM.h2Bottom : i - 1 === leadIndex ? RHYTHM.lead : RHYTHM.body;
+              const m = block.key ? marks?.[block.key] : undefined;
+              const mark = m && <MapMark {...m} />;
               if (isLead && notes.length === 0) {
                 return (
                   <p key={i} {...passage} className={cn(EDITORIAL_LEAD, passage.className)} style={{ marginTop: top(0) }}>
+                    {mark}
                     {renderInline(block.inline, numbering)}
                   </p>
                 );
@@ -283,6 +292,7 @@ export function ArticleBody({
               return (
                 <NoteRow key={i} notes={notes} style={{ marginTop: top(isLead ? 0 : after) }}>
                   <p {...passage} className={cn(isLead ? EDITORIAL_LEAD : EDITORIAL_BODY, passage.className)}>
+                    {mark}
                     {renderInline(block.inline, numbering)}
                   </p>
                 </NoteRow>

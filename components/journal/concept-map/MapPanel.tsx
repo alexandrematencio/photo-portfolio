@@ -56,7 +56,7 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
 
-export function MapPanel({ ix, id, onSelect, onClose }: { ix: MapIndex; id: string; onSelect: (id: string) => void; onClose: () => void }) {
+export function MapPanel({ ix, id, onSelect, onClose }: { ix: MapIndex; id: string; onSelect: (id: string) => void; onClose?: () => void }) {
   const node = ix.byId.get(id);
   if (!node) return null;
   const article = (aid: string) => ix.byId.get(aid);
@@ -181,17 +181,20 @@ export function MapPanel({ ix, id, onSelect, onClose }: { ix: MapIndex; id: stri
     <div key={id} className="concept-panel flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <p className={SUBHEAD}>{kicker}</p>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Fermer"
-          className={cn(MICRO_LABEL, '-mt-1 text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)] motion-reduce:transition-none')}
-          style={{ padding: 4 }}
-        >
-          <svg aria-hidden width={12} height={12} viewBox="0 0 12 12" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round">
-            <path d="M2 2l8 8M10 2l-8 8" />
-          </svg>
-        </button>
+        {/* Dans l'article, c'est l'en-tête du tiroir qui ferme (ArticleMap). */}
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            className={cn(MICRO_LABEL, '-mt-1 text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)] motion-reduce:transition-none')}
+            style={{ padding: 4 }}
+          >
+            <svg aria-hidden width={12} height={12} viewBox="0 0 12 12" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round">
+              <path d="M2 2l8 8M10 2l-8 8" />
+            </svg>
+          </button>
+        )}
       </div>
       <h2 className={EDITORIAL_H3}>{frenchSpaces(node.label)}</h2>
       {body}

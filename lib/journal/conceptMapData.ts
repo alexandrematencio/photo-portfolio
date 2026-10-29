@@ -36,6 +36,8 @@ export type MapViewNode = {
   /** Thèse : son article (`a:<slug>`). Mécanisme : les articles qui l'emploient. */
   articles: string[];
   order?: number;
+  /** Thèse : les paragraphes qu'elle couvre (clés), du sien jusqu'à celui de la thèse suivante. */
+  covers?: string[];
   quote?: string;
   definition?: string;
   /** Mécanisme : sa thématique de couleur (la plus fréquente parmi ses articles). */
@@ -76,7 +78,16 @@ const hrefOf = (article: Article | undefined, slug: string, target: { kind: stri
   return base;
 };
 
-export async function getConceptMapView(): Promise<MapView | null> {
+let cached: Promise<MapView | null> | undefined;
+
+/** Une lecture par build, comme `getCorpus` : chaque page d'article en a besoin. */
+export function getConceptMapView(): Promise<MapView | null> {
+  if (process.env.NODE_ENV !== 'production') return fetchConceptMapView();
+  cached ??= fetchConceptMapView();
+  return cached;
+}
+
+async function fetchConceptMapView(): Promise<MapView | null> {
   if (!sanityClient) return null;
   const [map, posts, articles] = await Promise.all([
     sanityClient.fetch<JournalMapDoc | null>(JOURNAL_MAP_QUERY, {}, { next: { revalidate: 60 } }),
@@ -140,6 +151,7 @@ export async function getConceptMapView(): Promise<MapView | null> {
         series: seriesOf(art),
         articles: [art],
         order: n.order,
+        covers: c.covers,
         quote: n.quote,
       });
     } else {
@@ -178,5 +190,38 @@ export async function getConceptMapView(): Promise<MapView | null> {
       const a = articles.find((x) => x.series === title)!;
       return { title, href: seriesPath(a.seriesSlug!, 'fr') };
     }),
+  };
+}
+
+/**
+ * La part de la carte qu'un article emporte (phase 4 bis) : l'article, ses
+ * thèses, les mécanismes qu'elles emploient, les autres thèses (et leurs
+ * articles) qui emploient ces mêmes mécanismes, et les rimes de ces
+ * mécanismes. Le reste du journal reste sur `/concept-map`.
+ */
+export function articleMapView(view: MapView, slug: string): MapView | null {
+  const articleId = `a:${slug}`;
+  const byId = new Map(view.nodes.map((n) => [n.id, n]));
+  if (!byId.has(articleId)) return null;
+  const keep = new Set([articleId]);
+  const theses = view.nodes.filter((n) => n.kind === 'thesis' && n.articles[0] === articleId).map((n) => n.id);
+  theses.forEach((t) => keep.add(t));
+  const mechs = new Set(view.edges.filter((e) => e.kind === 'uses' && keep.has(e.source)).map((e) => e.target));
+  mechs.forEach((m) => keep.add(m));
+  for (const e of view.edges) {
+    if (e.kind === 'uses' && mechs.has(e.target)) {
+      keep.add(e.source);
+      byId.get(e.source)?.articles.forEach((a) => keep.add(a));
+    }
+    if (e.kind === 'rhyme' && (mechs.has(e.source) || mechs.has(e.target))) keep.add(e.source).add(e.target);
+  }
+  if (!theses.length) return null;
+  const nodes = view.nodes.filter((n) => keep.has(n.id));
+  const themes = new Set(nodes.flatMap((n) => n.themes));
+  return {
+    nodes,
+    edges: view.edges.filter((e) => keep.has(e.source) && keep.has(e.target)),
+    themes: view.themes.filter((t) => themes.has(t.title)),
+    series: view.series,
   };
 }

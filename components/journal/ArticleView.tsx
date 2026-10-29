@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { PageShell } from '@/components/site/PageShell';
-import { ArticleBody } from '@/components/journal/ArticleBody';
+import { ArticleBody, type MapMarks } from '@/components/journal/ArticleBody';
+import { ArticleMap } from '@/components/journal/concept-map/ArticleMap';
+import type { MapView } from '@/lib/journal/conceptMapData';
 import { BackLink } from '@/components/journal/BackLink';
 import { LanguageSwitch } from '@/components/journal/LanguageSwitch';
 import { ReadingProgress } from '@/components/journal/ReadingProgress';
@@ -23,11 +25,14 @@ export function ArticleView({
   article,
   series,
   signature,
+  map,
 }: {
   article: Article;
   /** Les articles de sa série, dans l'ordre de lecture (vide hors série). */
   series: ArticleSummary[];
   signature: string;
+  /** Sa part de la Concept Map (`articleMapView`) ; absente dans l'aperçu du Studio et hors français. */
+  map?: MapView | null;
 }) {
   const lang = article.lang;
   const t = DICT[lang];
@@ -43,6 +48,13 @@ export function ArticleView({
     t.minutes(article.minutes),
     article.referenceCount > 0 ? t.references(article.referenceCount) : null,
   ].filter((m): m is string => Boolean(m));
+
+  // Une marque par paragraphe couvert ; celui de la citation est le premier.
+  const marks: MapMarks = {};
+  for (const n of map?.nodes ?? [])
+    if (n.kind === 'thesis' && n.articles[0] === `a:${article.slug}`)
+      (n.covers ?? []).forEach((k, i) => (marks[k] = { id: n.id, label: n.label, anchor: i === 0 }));
+  const body = <ArticleBody article={article} series={series} signature={signature} marks={map ? marks : undefined} />;
 
   return (
     <PageShell
@@ -100,7 +112,13 @@ export function ArticleView({
         </div>
       }
     >
-      <ArticleBody article={article} series={series} signature={signature} />
+      {map ? (
+        <ArticleMap view={map} slug={article.slug}>
+          {body}
+        </ArticleMap>
+      ) : (
+        body
+      )}
     </PageShell>
   );
 }
