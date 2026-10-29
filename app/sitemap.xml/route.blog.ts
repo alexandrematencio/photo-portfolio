@@ -1,6 +1,6 @@
 import { getAllArticles, getAllSeries } from '@/lib/journal/articles';
 import { SITE_INFO, withSlash } from '@/lib/seo/metadata';
-import { LANGS, LOCALE, aboutPath, homePath } from '@/lib/journal/i18n';
+import { CONCEPT_MAP_PATH, LANGS, LOCALE, aboutPath, homePath } from '@/lib/journal/i18n';
 import type { Alternates } from '@/lib/journal/types';
 
 /**
@@ -40,6 +40,8 @@ export async function GET() {
       lastmod: undefined as string | undefined,
       alternates: Object.fromEntries(LANGS.map((x) => [x, aboutPath(x)])) as Alternates,
     })),
+    // La Concept Map : français seulement (phase 5 pour EN/RU).
+    { loc: abs(CONCEPT_MAP_PATH), lastmod: undefined as string | undefined, alternates: { fr: CONCEPT_MAP_PATH } as Alternates },
     // Une série a changé quand l'un de ses articles a changé.
     ...series.map((s) => ({
       loc: abs(s.alternates[s.lang]!),

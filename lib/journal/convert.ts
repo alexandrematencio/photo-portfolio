@@ -139,7 +139,7 @@ function blocksOf(body: PTBlock[]): ArticleBlock[] {
       case 'block': {
         if (b.style === 'h2') {
           const text = plainOf(b.children).trim();
-          if (text) blocks.push({ type: 'h2', text });
+          if (text) blocks.push({ type: 'h2', text, key: b._key });
         } else {
           const inline = inlineOf(b.children, b.markDefs);
           if (inline.length) blocks.push({ type: 'p', inline, key: b._key });

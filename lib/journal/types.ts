@@ -57,7 +57,8 @@ export type ArticleBlock =
    * paragraphe (liens vers un passage, Concept Map).
    */
   | { type: 'p'; inline: Inline[]; key?: string }
-  | { type: 'h2'; text: string }
+  /** `key` : le `_key` de l'intertitre — repli `section` de la Concept Map. */
+  | { type: 'h2'; text: string; key?: string }
   | { type: 'quote'; text: string }
   | { type: 'figure'; name: FigureName }
   /** Image posée dans le texte. `wide` : toute la colonne, sinon la mesure de lecture. */

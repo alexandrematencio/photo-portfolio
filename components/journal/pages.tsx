@@ -9,6 +9,8 @@ import { BackLink } from '@/components/journal/BackLink';
 import { LanguageSwitch } from '@/components/journal/LanguageSwitch';
 import { SeriesArticleList } from '@/components/journal/SeriesArticleList';
 import { AboutLink } from '@/components/journal/AboutLink';
+import { ConceptMapExplorer } from '@/components/journal/concept-map/ConceptMapExplorer';
+import { getConceptMapView } from '@/lib/journal/conceptMapData';
 import { PortableBody } from '@/components/site/PortableBody';
 import {
   getAllSeries,
@@ -21,9 +23,9 @@ import {
   summarize,
 } from '@/lib/journal/articles';
 import { frenchSpaces } from '@/lib/journal/french';
-import { DICT, LANGS, aboutPath, articlePath, homePath, seriesPath, type Lang } from '@/lib/journal/i18n';
+import { CONCEPT_MAP_PATH, DICT, LANGS, aboutPath, articlePath, homePath, seriesPath, type Lang } from '@/lib/journal/i18n';
 import type { JournalSeries } from '@/lib/journal/types';
-import { buildMetadata } from '@/lib/seo/metadata';
+import { SITE_INFO, buildMetadata } from '@/lib/seo/metadata';
 import { JsonLd } from '@/components/seo/JsonLd';
 import {
   aboutBreadcrumbJsonLd,
@@ -158,6 +160,53 @@ export async function JournalAbout({ lang }: { lang: Lang }) {
         <PortableBody value={body ?? undefined} variant="editorial" fallback={<p className={EDITORIAL_BODY}>{t.siteDescription}</p>} />
       </PageShell>
     </>
+  );
+}
+
+// ── Concept Map ───────────────────────────────────────────────────────────
+
+export async function conceptMapMetadata(): Promise<Metadata> {
+  return buildMetadata({
+    title: 'Concept Map',
+    description:
+      'Les articles du journal décomposés en thèses, et les mécanismes qu’ils partagent d’un texte à l’autre. Chaque point mène au passage qui le dit.',
+    path: CONCEPT_MAP_PATH,
+    image: `${SITE_INFO.url}/og-concept-map.png`,
+    lang: 'fr',
+    alternates: { fr: CONCEPT_MAP_PATH },
+  });
+}
+
+/**
+ * La Concept Map du journal (docs/superpowers/plans/2026-10-28-journal-map.md,
+ * phase 4) : la carte publiée dans le Studio, lue au build.
+ */
+export async function JournalConceptMap() {
+  const view = await getConceptMapView();
+  const count = (kind: string) => view?.nodes.filter((n) => n.kind === kind).length ?? 0;
+  return (
+    <PageShell
+      title="Concept Map"
+      back={<BackLink lang="fr" href={homePath('fr')} />}
+      centered
+      width={1280}
+      subtitle={
+        <div className="flex flex-col gap-5" style={{ marginTop: 12 }}>
+          <p className={cn(EDITORIAL_H3, 'max-w-[var(--editorial-measure)]')}>
+            {frenchSpaces('Les articles du journal décomposés en thèses, et les mécanismes qu’ils partagent d’un texte à l’autre. Chaque point mène au passage qui le dit.')}
+          </p>
+          {view && (
+            <p className={cn(MICRO_LABEL, 'flex flex-wrap gap-x-4 gap-y-1 text-[var(--color-fg-muted)]')}>
+              <span>{count('article')} articles</span>
+              <span>{count('thesis')} thèses</span>
+              <span>{count('mechanism')} mécanismes</span>
+            </p>
+          )}
+        </div>
+      }
+    >
+      {view ? <ConceptMapExplorer view={view} /> : <p className={EDITORIAL_BODY}>La carte n’est pas encore publiée.</p>}
+    </PageShell>
   );
 }
 

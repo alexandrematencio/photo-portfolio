@@ -68,6 +68,9 @@ export function aboutPath(lang: Lang = DEFAULT_LANG): string {
   return `${langPrefix(lang)}/${ABOUT_SEGMENT[lang]}/`;
 }
 
+/** La Concept Map : même adresse dans les trois langues ; français seulement jusqu'à la phase 5. */
+export const CONCEPT_MAP_PATH = '/concept-map/';
+
 /** La langue d'une adresse du journal, lue sur son premier segment. */
 export function langOfPath(pathname: string | null): Lang {
   const first = pathname?.split('/')[1];
