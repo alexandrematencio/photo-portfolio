@@ -4,7 +4,7 @@ import { structureTool } from 'sanity/structure';
 import { visionTool } from '@sanity/vision';
 import { colorInput } from '@sanity/color-input';
 import { schemaTypes } from '@/sanity/schemas';
-import { buildStructure } from '@/sanity/structure';
+import { buildStructure, journalMapViews } from '@/sanity/structure';
 import { dashboardTool } from '@/sanity/tools';
 import { StudioLayout } from '@/sanity/components/StudioLayout';
 import { FormInputWithSummary } from '@/sanity/components/DocumentValidationSummary';
@@ -26,6 +26,7 @@ import {
 import { apiVersion, dataset, projectId, siteUrl } from '@/lib/sanity/env';
 import { HUB_PAGE_TYPES, PAGE_DOCS } from '@/sanity/schemas/pages';
 import { ArticlePreviewView } from '@/sanity/preview/ArticlePreviewView';
+import { ConceptMapBadge } from '@/sanity/components/ConceptMapBadge';
 
 // Réglages, funnel curation et un document par page : tous singletons.
 const SINGLETON_TYPES = new Set([
@@ -33,6 +34,7 @@ const SINGLETON_TYPES = new Set([
   'funnelCuration',
   'journalSettings',
   'journalAboutPage',
+  'journalMap',
   ...PAGE_DOCS.map((p) => p.type),
 ]);
 const SINGLETON_FORBIDDEN_ACTIONS = new Set([
@@ -197,10 +199,13 @@ export const studioConfig = defineConfig({
       // Seule exception : l'article du journal (2026-10-18, demande Alexandre).
       // Son aperçu est une page sans GSAP ni Lenis, qui ne se charge que si
       // l'onglet est ouvert — pas le coût qui a fait couper les autres.
+      // La Concept Map ouvre sur son état : cf. journalMapViews.
       defaultDocumentNode: (S, { schemaType }) =>
         schemaType === 'post'
           ? S.document().views([S.view.form(), S.view.component(ArticlePreviewView).title('Aperçu').id('preview')])
-          : S.document().views([S.view.form()]),
+          : schemaType === 'journalMap'
+            ? journalMapViews(S, S.document())
+            : S.document().views([S.view.form()]),
     }),
     visionTool({ defaultApiVersion: apiVersion }),
     // Le type `color` (sélecteur teinte/saturation + hex) : couleur des thématiques du journal.
@@ -237,6 +242,9 @@ export const studioConfig = defineConfig({
       ),
     // "Open preview" link in the document menu — same URL pattern as the
     // preview pane, hash-based for static-export compatibility.
+    // Pastille sur l'article français dont des nœuds de la Concept Map ne
+    // retrouvent plus leur citation (texte affiché, brouillon compris).
+    badges: (prev, { schemaType }) => (schemaType === 'post' ? [...prev, ConceptMapBadge] : prev),
     productionUrl: async (prev, { document }) => {
       const base = siteUrl;
       if (!base) return prev;
