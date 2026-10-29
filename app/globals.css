@@ -1393,47 +1393,50 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
   }
 }
 
-/* LE SOULIGNÉ DES CITATIONS DE LA CONCEPT MAP (2026-10-29, demande
-   Alexandre) — `ConceptQuote`. La phrase qu'une thèse ou un mécanisme cite
-   reçoit un pointillé gris clair : la pastille « thèse 3/7 » a enfin un
-   endroit où pointer dans le texte. Le geste du surligné (fond dont la
-   largeur passe de 0 à 100 %, même déclencheur, même courbe), dosé plus bas :
-   - pointillé 3 / 3 px, 1 px d'épaisseur, en `--color-concept-line` ; la
-     citation de la thèse en cours (`data-current`) fonce d'un cran ;
+/* LE SOULIGNÉ DES CITATIONS DE LA CONCEPT MAP (2026-10-29, demandes
+   Alexandre) — `ConceptQuote`. La phrase qu'une thèse ou un mécanisme cite.
+   Il ne paraît QUE quand la citation est à l'écran, donc avec sa pastille
+   (`ArticleMap`, même état) : il dit à quoi la pastille renvoie, rien de
+   plus. Même geste que le surligné jaune (`.journal-hl` : un fond dont la
+   largeur passe de 0 à 100 %), dosé plus bas :
+   - pointillé 3 / 3 px, 1 px d'épaisseur, en `--color-concept-line` ;
    - posé dans 3 px de `padding-bottom` qui ne touchent pas l'interligne :
      un surligné jaune imbriqué couvrirait sinon le trait ;
-   - 900 ms, un peu plus vif que le jaune : il pèse moins.
-   Mouvement réduit : plein d'emblée ; sans JS : `<noscript>` d'`ArticleBody`. */
+   - entrée 900 ms qui freine ; sortie 300 ms qui prend son élan, presque
+     toujours hors champ ;
+   - cliquable : la main, et au survol une ombre de gris (opacité −15 %),
+     sans changer de couleur.
+   Mouvement réduit : il paraît et disparaît. Sans JS : jamais (pas de
+   pastille à désigner, `<noscript>` d'`ArticleBody`). */
 :root {
   --color-concept-line: var(--color-fg-faint);
-  --color-concept-line-current: var(--color-fg-muted);
-}
-/* Déclarée pour que le passage d'une thèse à la suivante se fonde (200 ms)
-   au lieu de sauter : une variable non typée ne s'interpole pas. */
-@property --concept-line {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: transparent;
 }
 .journal-concept {
-  --concept-line: var(--color-concept-line);
   padding-bottom: 3px;
-  background-image: repeating-linear-gradient(to right, var(--concept-line) 0 3px, transparent 3px 6px);
+  background-image: repeating-linear-gradient(to right, var(--color-concept-line) 0 3px, transparent 3px 6px);
   background-repeat: no-repeat;
   background-position: 0 100%;
+  background-size: 0% 1px;
+  cursor: pointer;
+}
+.journal-concept[data-on] {
   background-size: 100% 1px;
 }
-.journal-concept[data-current] {
-  --concept-line: var(--color-concept-line-current);
+@media (hover: hover) {
+  .journal-concept:hover {
+    opacity: 0.85;
+  }
 }
 @media (prefers-reduced-motion: no-preference) {
   .journal-concept {
     transition:
-      background-size 0.9s cubic-bezier(0.25, 1, 0.5, 1),
-      --concept-line 200ms ease-out;
+      background-size 0.3s cubic-bezier(0.4, 0, 1, 1),
+      opacity 150ms ease-out;
   }
-  .journal-concept:not([data-on]) {
-    background-size: 0% 1px;
+  .journal-concept[data-on] {
+    transition:
+      background-size 0.9s cubic-bezier(0.25, 1, 0.5, 1),
+      opacity 150ms ease-out;
   }
 }
 
@@ -1531,26 +1534,65 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
     translate: 100% 0;
   }
 }
-.article-map-pill {
+/* LES PASTILLES, EN HAUT (2026-10-29, demande Alexandre) — une par
+   citation à l'écran, sous la barre du site, dans l'ordre de lecture.
+   Toutes montées : une fente (`.article-map-slot`) se déplie de 0 à sa
+   hauteur (`grid-template-rows` 0fr → 1fr), si bien qu'une pastille qui part
+   laisse les autres glisser au lieu de sauter. La pastille descend de 6 px
+   en entrant (elle vient du haut), remonte en sortant. Toutes de la même
+   largeur : de largeurs inégales, la pile se lisait comme un escalier.
+   Sur téléphone : la première seulement — une pile couvrirait le texte
+   qu'elle désigne. `M` ne s'affiche que sur la première. */
+.article-map-pills {
   position: fixed;
   z-index: 25;
-  bottom: calc(16px + env(safe-area-inset-bottom));
+  top: calc(64px + 12px);
   left: var(--page-gutter);
   right: var(--page-gutter);
-  opacity: 0;
-  translate: 0 8px;
-  visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
 }
-.article-map-pill[data-shown] {
+.article-map-slot {
+  display: grid;
+  grid-template-rows: 0fr;
+}
+.article-map-slot[data-shown] {
+  grid-template-rows: 1fr;
+}
+/* La place de l'ombre (et de l'écart de 8 px) dans la fente qui rogne. */
+.article-map-slot > div {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 2px 4px 8px;
+  margin: -2px -4px 0;
+}
+.article-map-pill {
+  opacity: 0;
+  translate: 0 -6px;
+  visibility: hidden;
+  pointer-events: auto;
+}
+.article-map-slot[data-shown] .article-map-pill {
   opacity: 1;
   translate: 0 0;
   visibility: visible;
 }
+.article-map-slot[data-shown] ~ .article-map-slot kbd {
+  display: none !important;
+}
+@media (max-width: 767px) {
+  .article-map-slot[data-shown] ~ .article-map-slot {
+    display: none;
+  }
+}
 @media (min-width: 768px) {
-  .article-map-pill {
+  .article-map-pills {
     left: auto;
     right: 24px;
-    max-width: 360px;
+    width: 360px;
   }
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -1560,10 +1602,16 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
   .article-map[data-open] {
     transition: translate 340ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
   }
+  .article-map-slot {
+    transition: grid-template-rows 160ms ease-in;
+  }
+  .article-map-slot[data-shown] {
+    transition: grid-template-rows 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
   .article-map-pill {
     transition: opacity 160ms ease-in, translate 160ms ease-in, visibility 0s linear 160ms;
   }
-  .article-map-pill[data-shown] {
+  .article-map-slot[data-shown] .article-map-pill {
     transition: opacity 240ms cubic-bezier(0.22, 1, 0.36, 1), translate 240ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
   }
 }
@@ -1571,8 +1619,14 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
   .article-map,
   .article-map[data-open],
   .article-map-pill,
-  .article-map-pill[data-shown] {
+  .article-map-slot[data-shown] .article-map-pill {
     translate: none;
+  }
+  .article-map-pill {
+    transition: opacity 160ms, visibility 0s linear 160ms;
+  }
+  .article-map-slot[data-shown] .article-map-pill {
+    transition: opacity 160ms, visibility 0s;
   }
   .article-map {
     opacity: 0;
@@ -1583,32 +1637,56 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
     transition: opacity 160ms, visibility 0s;
   }
 }
-.map-mark {
-  display: none;
+/* LES MARQUES DANS LA MARGE DROITE (2026-10-29, demande Alexandre) —
+   `ConceptMarks`. Accrochées au bord droit du paragraphe, dans la gouttière
+   de 48 px qui le sépare des notes : la marque à 16 px du texte, en face de
+   la première ligne de sa citation ; les branches (citation en plusieurs
+   morceaux) entre le texte et elle. Elles paraissent avec le pointillé, en
+   fondu (action secondaire : le trait mène). Sur écran tactile ou étroit :
+   rien, la pastille suffit. */
+.concept-marks {
   position: absolute;
-  /* -30 : dans la gouttière, près du texte qu'elle marque ; le rail en est
-     à 64 depuis le 2026-10-29 (PageShell, `RAIL_TEXT_GAP`). */
-  left: -30px;
-  top: 0.4em;
+  left: 100%;
+  top: 0;
+  display: none;
+}
+.concept-mark-button {
+  position: absolute;
+  display: flex;
   width: 14px;
   height: 14px;
 }
+.concept-mark-branches {
+  position: absolute;
+  left: 2px;
+  overflow: visible;
+  fill: none;
+  stroke: var(--color-concept-line);
+  stroke-width: 1;
+}
+.concept-mark {
+  opacity: 0;
+  visibility: hidden;
+}
+.concept-mark[data-on],
+.concept-mark:focus-within {
+  opacity: 1;
+  visibility: visible;
+}
 @media (hover: hover) and (pointer: fine) and (min-width: 768px) {
-  .map-mark {
-    display: flex;
-    opacity: 0;
-    transition: opacity 160ms ease-out, color 160ms ease-out;
-  }
-  .map-mark[data-current] {
-    opacity: 0.45;
-  }
-  .journal-passage:hover > .map-mark,
-  .map-mark:focus-visible {
-    opacity: 1;
+  .concept-marks {
+    display: block;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .map-mark {
-    transition: none;
+@media (prefers-reduced-motion: no-preference) {
+  .concept-mark {
+    transition: opacity 200ms ease-in, visibility 0s linear 200ms;
+  }
+  .concept-mark[data-on],
+  .concept-mark:focus-within {
+    transition: opacity 400ms cubic-bezier(0.22, 1, 0.36, 1) 150ms, visibility 0s;
+  }
+  .concept-mark-button {
+    transition: color 160ms ease-out;
   }
 }

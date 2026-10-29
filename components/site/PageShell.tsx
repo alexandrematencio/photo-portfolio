@@ -57,10 +57,8 @@ const EDITORIAL_WIDTH = 1107;
 const RAIL_WIDTH = 208;
 /**
  * Air entre le rail et le texte, EN PLUS de la gouttière de l'article
- * (2026-10-29, demande Alexandre) : l'écart double, 32 → 64 à `xl`. Le corps
- * respire, et la marque de la Concept Map (`.map-mark`, dans la gouttière)
- * ne touche plus le sommaire. Pris sur `RAIL_WIDTH` (176 → 208) : le
- * sommaire garde sa largeur.
+ * (2026-10-29, demande Alexandre) : l'écart double, 32 → 64 à `xl`, le corps
+ * respire. Pris sur `RAIL_WIDTH` (176 → 208) : le sommaire garde sa largeur.
  */
 const RAIL_TEXT_GAP = 32;
 /** Sous le menu : le conteneur de défilement commence déjà sous la nav-bar (FramedScroll). */

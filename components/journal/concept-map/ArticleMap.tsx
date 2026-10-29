@@ -17,7 +17,6 @@ import { StateDot } from '@/components/site/StateDot';
 import { CONTROL_RADIUS } from '@/lib/site/controls';
 import { frenchSpaces } from '@/lib/journal/french';
 import { conceptMapPath, DICT, type Lang } from '@/lib/journal/i18n';
-import { useDrawOnArrival } from '@/components/journal/Highlight';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import type { MapView } from '@/lib/journal/conceptMapData';
@@ -41,8 +40,8 @@ import { MapPanel, ReadLink } from './MapPanel';
  * la lecture ; choisir un autre nœud le détache, « Revenir au passage lu »
  * le raccroche.
  *
- * Accès : la marque dans la marge gauche (survol, focus), la pastille en bas
- * d'écran, la touche `M`. Échap ferme. Le dessin (Sigma) n'est chargé qu'à la
+ * Accès : la citation soulignée (un clic), sa marque dans la marge droite,
+ * les pastilles en haut d'écran, la touche `M`. Échap ferme. Le dessin (Sigma) n'est chargé qu'à la
  * première ouverture, et seulement dès 768 px — sur téléphone, le panneau
  * seul.
  *
@@ -55,10 +54,20 @@ const Graph = dynamic(() => import('./ConceptMapGraph'), { ssr: false });
 /** Le nœud se pose dans le tiers gauche du dessin : son libellé part à droite et doit y tenir. */
 const GRAPH_LABEL_ROOM = 200;
 
+/** La barre du site (`SiteHeader`, h-16) : ce qu'elle couvre n'est pas à l'écran. */
+const SITE_HEADER = 64;
+
 /** Nom provisoire de la vue — à Alexandre de le choisir. */
 export const ARTICLE_MAP_LABEL = 'Concept Map';
 
-type Ctx = { openAt: (id: string) => void; reading: string | null; lang: Lang };
+/**
+ * LES CITATIONS À L'ÉCRAN (2026-10-29, demande Alexandre) : un seul état
+ * commande le pointillé (`ConceptQuote`), la marque de marge
+ * (`ConceptMarks`) et la pastille. Une citation est « à l'écran » dès
+ * qu'une partie passe sous la barre du site ; deux à l'écran, deux pastilles,
+ * dans l'ordre de lecture.
+ */
+type Ctx = { openAt: (id: string) => void; visible: ReadonlySet<string>; lang: Lang };
 const ArticleMapContext = createContext<Ctx | null>(null);
 
 const editable = (t: EventTarget | null) =>
@@ -84,6 +93,9 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
   const [center, setCenter] = useState(0);
   const [wide, setWide] = useState(false);
   const [drawn, setDrawn] = useState(false);
+  /** Les citations soulignées, dans l'ordre du texte, et celles qui sont à l'écran. */
+  const [order, setOrder] = useState<string[]>([]);
+  const [visible, setVisible] = useState<ReadonlySet<string>>(() => new Set());
   const panel = useRef<HTMLElement>(null);
   const heading = useRef<HTMLParagraphElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
@@ -108,6 +120,23 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
     }
     return () => io.disconnect();
   }, [thesisOf]);
+
+  // Les citations à l'écran. Une citation coupée en plusieurs morceaux est
+  // à l'écran dès que l'un d'eux l'est.
+  useEffect(() => {
+    const els = [...document.querySelectorAll<HTMLElement>('.journal-concept[data-concept]')];
+    setOrder([...new Set(els.map((el) => el.dataset.concept!))]);
+    const seen = new Set<HTMLElement>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) e.isIntersecting ? seen.add(e.target as HTMLElement) : seen.delete(e.target as HTMLElement);
+        setVisible(new Set([...seen].map((el) => el.dataset.concept!)));
+      },
+      { rootMargin: `-${SITE_HEADER}px 0px 0px 0px` },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [view]);
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px)');
@@ -139,14 +168,14 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
 
   const ctx = useMemo<Ctx>(
     () => ({
-      reading,
+      visible,
       lang: view.lang,
       openAt: (id) => {
         pick(id);
         show(true);
       },
     }),
-    [reading, pick, show, view.lang],
+    [visible, pick, show, view.lang],
   );
 
   // `M` ouvre et ferme, Échap ferme.
@@ -193,43 +222,50 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
     } else window.location.hash = a.hash;
   };
 
-  const readingNode = reading ? ix.byId.get(reading) : null;
-
   return (
     <ArticleMapContext.Provider value={ctx}>
       {children}
 
-      {/* La pastille : la thèse en cours, un toucher ouvre le panneau. */}
-      <button
-        type="button"
-        onClick={() => {
-          setPicked(null);
-          show(true);
-        }}
-        data-shown={readingNode && !open ? '' : undefined}
-        aria-hidden={!readingNode || open}
-        tabIndex={readingNode && !open ? 0 : -1}
-        className="article-map-pill flex items-center gap-3 border border-[var(--color-line)] bg-[var(--color-bg-raised)] text-left shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-        style={{ borderRadius: CONTROL_RADIUS, padding: '10px 14px' }}
-      >
-        <MapGlyph />
-        <span className="flex min-w-0 flex-col">
-          <span className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
-            {ARTICLE_MAP_LABEL}
-            {reading && ` · ${theses.indexOf(reading) + 1}/${theses.length}`}
-          </span>
-          <span className="truncate text-[14px] font-bold leading-[1.3] text-[var(--color-fg)]">
-            {readingNode && frenchSpaces(readingNode.label)}
-          </span>
-        </span>
-        <kbd
-          aria-hidden
-          className={cn(MICRO_LABEL, 'hidden flex-none border border-[var(--color-line)] text-[var(--color-fg-muted)] [@media(hover:hover)]:inline-block')}
-          style={{ padding: '1px 5px', borderRadius: CONTROL_RADIUS }}
-        >
-          M
-        </kbd>
-      </button>
+      {/* Les pastilles, en haut : une par citation à l'écran, dans l'ordre de
+          lecture ; un toucher ouvre le panneau sur elle. Toutes montées,
+          repliées tant qu'elles sont hors champ (CSS `.article-map-slot`). */}
+      <div className="article-map-pills">
+        {order.map((id) => {
+          const node = ix.byId.get(id);
+          const on = !open && visible.has(id);
+          if (!node) return null;
+          const n = theses.indexOf(id);
+          return (
+            <div key={id} className="article-map-slot" data-shown={on ? '' : undefined}>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => ctx.openAt(id)}
+                  aria-hidden={!on}
+                  tabIndex={on ? 0 : -1}
+                  className="article-map-pill flex items-center gap-3 border border-[var(--color-line)] bg-[var(--color-bg-raised)] text-left shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                  style={{ borderRadius: CONTROL_RADIUS, padding: '10px 14px' }}
+                >
+                  <MapGlyph />
+                  <span className="flex min-w-0 flex-col">
+                    <span className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
+                      {ARTICLE_MAP_LABEL} · {n >= 0 ? `${n + 1}/${theses.length}` : t.map.mechanism}
+                    </span>
+                    <span className="truncate text-[14px] font-bold leading-[1.3] text-[var(--color-fg)]">{frenchSpaces(node.label)}</span>
+                  </span>
+                  <kbd
+                    aria-hidden
+                    className={cn(MICRO_LABEL, 'hidden flex-none border border-[var(--color-line)] text-[var(--color-fg-muted)] [@media(hover:hover)]:inline-block')}
+                    style={{ padding: '1px 5px', borderRadius: CONTROL_RADIUS }}
+                  >
+                    M
+                  </kbd>
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       <aside
         ref={panel}
@@ -331,47 +367,102 @@ function MapGlyph() {
   );
 }
 
+/** Écart entre deux marques qui tomberaient sur la même ligne. */
+const MARK_STEP = 16;
+
 /**
- * La marque dans la marge gauche d'un paragraphe couvert par une thèse :
- * visible au survol du paragraphe ou au focus ; à demi, en permanence, sur
- * le paragraphe de la thèse en cours. Seul le paragraphe de la citation porte un vrai bouton nommé ; sur
- * les suivants, la marque sert la souris et se tait pour le lecteur d'écran
- * (une annonce par paragraphe noierait le texte). Sur écran tactile : rien,
- * la pastille fait ce travail (CSS `.map-mark`).
+ * LES MARQUES DANS LA MARGE DROITE (2026-10-29, demande Alexandre) — une par
+ * citation soulignée du paragraphe, en face du début de sa PREMIÈRE ligne,
+ * dans la gouttière qui sépare le texte des notes. Une citation coupée en
+ * plusieurs morceaux (une autre citation au milieu, ou plus tard des
+ * passages dans d'autres paragraphes) : un filet relie la marque à chaque
+ * morceau, une branche par morceau — c'est le même concept. Mesuré sur le
+ * texte rendu, remesuré quand le paragraphe change de taille (police,
+ * largeur, note dépliée). Visible avec son pointillé, donc avec sa pastille.
+ * Sur écran tactile : rien, la pastille fait ce travail (CSS `.concept-mark`).
  */
-export function MapMark({ id, label, anchor }: { id: string; label: string; anchor: boolean }) {
+export function ConceptMarks({ items }: { items: { id: string; label: string }[] }) {
   const ctx = useContext(ArticleMapContext);
+  const box = useRef<HTMLSpanElement>(null);
+  const [placed, setPlaced] = useState<{ id: string; label: string; x: number; ys: number[] }[]>([]);
+  const key = items.map((i) => i.id).join(' ');
+
+  useEffect(() => {
+    const p = box.current?.parentElement;
+    if (!p) return;
+    const measure = () => {
+      const top = p.getBoundingClientRect().top;
+      const rows: number[] = [];
+      setPlaced(
+        items.flatMap(({ id, label }) => {
+          // Le milieu de la première ligne de chaque morceau ; les 3 px du bas
+          // portent le pointillé (`.journal-concept`).
+          const ys = [...document.querySelectorAll<HTMLElement>(`.journal-concept[data-concept="${CSS.escape(id)}"]`)]
+            .map((el) => [...el.getClientRects()].find((r) => r.width > 0))
+            .filter((r): r is DOMRect => Boolean(r))
+            .map((r) => Math.round(r.top - top + (r.height - 3) / 2));
+          if (!ys.length) return [];
+          const lines = [...new Set(ys)].sort((a, b) => a - b);
+          const x = rows.filter((y) => Math.abs(y - lines[0]) < 12).length * MARK_STEP;
+          rows.push(lines[0]);
+          return [{ id, label, x, ys: lines }];
+        }),
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(p);
+    return () => ro.disconnect();
+    // `items` change d'identité à chaque rendu ; ses ids, non.
+  }, [key]);
+
   if (!ctx) return null;
   return (
-    <button
-      type="button"
-      onClick={() => ctx.openAt(id)}
-      data-current={anchor && ctx.reading === id ? '' : undefined}
-      aria-label={anchor ? DICT[ctx.lang].map.mark(label) : undefined}
-      aria-hidden={anchor ? undefined : true}
-      tabIndex={anchor ? undefined : -1}
-      title={label}
-      className="map-mark items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)]"
-    >
-      <MapGlyph />
-    </button>
+    <span ref={box} className="concept-marks">
+      {placed.map(({ id, label, x, ys }) => {
+        const span = ys.at(-1)! - ys[0];
+        return (
+          <span key={id} className="concept-mark" data-on={ctx.visible.has(id) ? '' : undefined}>
+            {ys.length > 1 && (
+              <svg aria-hidden className="concept-mark-branches" width={12} height={span + 1} style={{ top: ys[0] }}>
+                <path d={`M8.5 0.5V${span + 0.5}${ys.map((y) => `M0 ${y - ys[0] + 0.5}H8.5`).join('')}M8.5 0.5H12`} />
+              </svg>
+            )}
+            <button
+              type="button"
+              onClick={() => ctx.openAt(id)}
+              aria-label={DICT[ctx.lang].map.mark(label)}
+              title={label}
+              className="concept-mark-button items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)]"
+              style={{ top: ys[0] - 7, left: 16 + x }}
+            >
+              <MapGlyph />
+            </button>
+          </span>
+        );
+      })}
+    </span>
   );
 }
 
 /**
  * LE SOULIGNÉ D'UNE CITATION (2026-10-29, demande Alexandre) — la phrase du
- * texte qu'une thèse ou un mécanisme de la carte cite (`quote`). La pastille
- * dit « thèse 3/7 : … » ; le pointillé montre DANS le texte d'où elle vient.
- * Même geste que le surligné jaune (`Highlight`, même déclencheur, même
- * courbe) mais en retrait : un pointillé gris clair, qui ne concurrence ni
- * le jaune ni les liens. La citation de la thèse en cours — celle de la
- * pastille — fonce d'un cran (`data-current`). CSS : `.journal-concept`.
+ * texte qu'une thèse ou un mécanisme de la carte cite (`quote`). Le
+ * pointillé gris clair se trace quand la citation entre à l'écran, en même
+ * temps que sa pastille paraît en haut : le lecteur voit à quoi la pastille
+ * renvoie. Hors champ, il se retire. Un clic ouvre la carte sur elle — sauf
+ * sur un lien ou un appel de note qu'elle contient, ou au bout d'une
+ * sélection de texte. Au survol, une ombre de gris (opacité −15 %), rien de
+ * plus. CSS : `.journal-concept`.
  */
 export function ConceptQuote({ id, children }: { id: string; children: ReactNode }) {
   const ctx = useContext(ArticleMapContext);
-  const ref = useDrawOnArrival<HTMLSpanElement>();
+  const onClick = (e: MouseEvent<HTMLSpanElement>) => {
+    if (!ctx || (e.target as HTMLElement).closest('a, button') || !window.getSelection()?.isCollapsed) return;
+    ctx.openAt(id);
+  };
   return (
-    <span ref={ref} className="journal-concept" data-current={ctx?.reading === id ? '' : undefined}>
+    <span className="journal-concept" data-concept={id} data-on={ctx?.visible.has(id) ? '' : undefined} onClick={ctx ? onClick : undefined}>
       {children}
     </span>
   );

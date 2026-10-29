@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { PageShell } from '@/components/site/PageShell';
-import { ArticleBody, type MapMarks, type MapQuotes } from '@/components/journal/ArticleBody';
+import { ArticleBody, type MapQuotes } from '@/components/journal/ArticleBody';
 import { ArticleMap } from '@/components/journal/concept-map/ArticleMap';
 import type { MapView } from '@/lib/journal/conceptMapData';
 import { BackLink } from '@/components/journal/BackLink';
@@ -49,21 +49,16 @@ export function ArticleView({
     article.referenceCount > 0 ? t.references(article.referenceCount) : null,
   ].filter((m): m is string => Boolean(m));
 
-  // Une marque par paragraphe couvert ; celui de la citation est le premier.
-  const marks: MapMarks = {};
-  for (const n of map?.nodes ?? [])
-    if (n.kind === 'thesis' && n.articles[0] === map?.article)
-      (n.covers ?? []).forEach((k, i) => (marks[k] = { id: n.id, label: n.label, anchor: i === 0 }));
   // Les citations à souligner : thèses et mécanismes dont le passage cité est
   // dans CET article (le texte le confirme, cf. `markQuotes`). Thèses d'abord.
   const quotes: MapQuotes = {};
   for (const kind of ['thesis', 'mechanism'] as const)
     for (const n of map?.nodes ?? []) {
       const key = n.kind === kind && n.quote ? n.href.match(/#p-(.+)$/)?.[1] : undefined;
-      if (key) (quotes[key] ??= []).push({ id: n.id, quote: n.quote! });
+      if (key) (quotes[key] ??= []).push({ id: n.id, label: n.label, quote: n.quote! });
     }
   const body = (
-    <ArticleBody article={article} series={series} signature={signature} marks={map ? marks : undefined} quotes={map ? quotes : undefined} />
+    <ArticleBody article={article} series={series} signature={signature} quotes={map ? quotes : undefined} />
   );
 
   return (
