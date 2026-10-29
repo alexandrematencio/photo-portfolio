@@ -428,7 +428,7 @@ sans carte.
   `CAPITAL.md` ; note projet
   `am-photo/resources/learning/concept-map-ancres-et-graphe.md`.
 
-## Prochaines actions (état au 2026-10-29, après la phase 4 bis)
+## Prochaines actions (état au 2026-10-29, après la phase 4 bis et le lien de menu)
 
 Fait et en ligne : phases 1 à 4. Carte publiée par Alexandre (182 nœuds,
 410 liens), page blog.amatencio.com/concept-map/ (main 8039d42, notes
@@ -507,7 +507,27 @@ Appris en route :
 - la part de carte alourdit la page de ~13 Ko compressés (Le prix d'un club :
   28 → 41 Ko gzip).
 
-### Ensuite
+### Après la phase 4 bis — nom et lien dans le menu (2026-10-29)
+
+- **Nom validé par Alexandre : « Concept Map »**, partout (page, tiroir,
+  pastille, menu). `ARTICLE_MAP_LABEL` reste la constante du tiroir.
+- **Lien « Concept Map » dans la nav-bar du blog**, entre Journal et About
+  (`NAV_LINKS`, lib/site/nav.ts ; même liste pour le menu mobile). L'entrée
+  du menu déroulant « Journal » reste aussi.
+- « Journal » était surligné sur TOUTES les pages du blog : il ne l'est plus
+  sur /concept-map (`journalIsActive`, nav.ts), sinon deux entrées actives.
+- Le lien mène à `/concept-map/` (français) depuis EN/RU aussi, jusqu'à la
+  phase 5.
+
+Appris en route (phase 4 bis et menu) :
+- la rangée du blog à quatre entrées tient dès 768 px (About finit à 704 px) ;
+  le morph du hero ne concerne que le portfolio, pas le blog ;
+- `lib/site/nav.ts` importe désormais `CONCEPT_MAP_PATH` de
+  lib/journal/i18n.ts (sans dépendance, aucun cycle) ;
+- le dev du blog écrit dans `.next-blog/` : un CSS figé se purge là ;
+- la part de carte embarquée coûte ~13 Ko compressés par article.
+
+### Prochaines actions, dans l'ordre
 
 1. **Skill `journal-writing`**
    (am-photo/.claude/skills/journal-writing) : ajouter l'étape Concept Map.
@@ -515,12 +535,29 @@ Appris en route :
    - Lancer `npm run map:build -- --write` depuis `am-blog` (accord
      d'Alexandre : écriture prod), puis Publish de « Journal ▸ Concept Map ».
    - Surveiller la pastille de dérive après chaque retouche d'un article.
-   - Le build suivant met la page `/concept-map` à jour toute seule ;
-     l'image OG non (`node scripts/make-og-concept-map.mjs`, puis commit).
-2. **Phase 5** : libellés EN/RU de la carte (vault ou traduction auto),
-   `/en/concept-map` et `/ru/concept-map`, entrée de menu et sitemap dans les
-   trois langues (aujourd'hui FR seulement : `CONCEPT_MAP_PATH`,
-   lib/journal/i18n.ts).
+   - Le build suivant met `/concept-map` et le tiroir des articles à jour
+     tout seuls ; l'image OG non (`node scripts/make-og-concept-map.mjs`,
+     dev 3021 en marche, puis commit).
+2. **Phase 5 — EN/RU** :
+   - libellés de la carte en anglais et en russe (thèses, mécanismes,
+     définitions, rimes) : vault ou traducteur incrémental ;
+   - `/en/concept-map` et `/ru/concept-map` (aujourd'hui `CONCEPT_MAP_PATH`
+     est français seul, lib/journal/i18n.ts) ;
+   - le tiroir dans les articles EN/RU (`JournalArticle` ne passe la carte
+     qu'en `fr` ; les clés de paragraphe sont déjà les mêmes) et les textes
+     du tiroir (« Suit la lecture », « Revenir au passage lu »…) dans
+     `DICT` ;
+   - lien de la nav-bar, menu Journal, sitemap et hreflang dans les trois
+     langues (le lien de la nav pointe vers la version de la langue) ;
+   - `journalIsActive` à rendre vrai pour les trois adresses.
+3. **En dernier, après toutes les phases : la page « À propos de la Concept
+   Map »**, demandée par Alexandre le 2026-10-29. Elle explique le principe
+   comme à un enfant de 10 ans : un article dit plusieurs idées (thèses),
+   ces idées s'appuient sur des rouages (mécanismes), et le même rouage
+   revient d'un article à l'autre ; chaque point mène à la phrase qui le dit.
+   Dans les trois langues (FR/EN/RU), liée depuis /concept-map et le tiroir.
+   Texte à écrire avec la skill `journal-writing` (voix d'Alexandre, relue
+   par lui), page sur le modèle de l'« À propos » du journal.
 
 ### En attente d'Alexandre
 
@@ -528,8 +565,11 @@ Appris en route :
   (pas aux couleurs de série), palette de repli des thématiques (ou poser
   ses couleurs dans le Studio, elles passent devant), thématique des
   mécanismes déduite, sigma 3.0.3.
-- **Nommer** la vue dans l'article (en ligne sous « Concept Map »,
-  `ARTICLE_MAP_LABEL`) ; dire si le tiroir sur les notes lui convient.
+- Dire si le tiroir posé sur la marge des notes (dès 1280 px, tant qu'il
+  est ouvert) lui convient.
+- Répondre à « ça mérite d'être capitalisé ? » pour `ArticleMap.tsx`
+  (l'archive `RESOURCES/existing-components/concept-map-anchored-graph` ne
+  contient pas encore la phase 4 bis).
 - Relire dans Obsidian les 49 rimes `proposée` (passer en `validée` ou
   supprimer) et, à loisir, les 91 citations ancrées. Après chaque
   correction : `map:build -- --write`, puis Publish.

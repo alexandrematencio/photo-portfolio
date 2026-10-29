@@ -11,6 +11,7 @@ import { HUB_URL, IS_BLOG, isExternal, isHubPage, isPhotoHome } from '@/lib/site
 import {
   HUB_NAV_LINKS,
   NAV_LINKS,
+  journalIsActive,
   isSamePage,
   notifySamePageNav,
 } from '@/lib/site/nav';
@@ -162,11 +163,14 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
                   // page : la première rangée du menu (« Tous les articles »).
                   href={journalMenu?.[0]?.href ?? link.href}
                   entries={journalMenu ?? []}
-                  aria-current="page"
+                  aria-current={journalIsActive(pathname) ? 'page' : undefined}
                   data-cursor-invert
                   data-nav-link
                   style={{ padding: ACTIVE_FILL_PADDING, borderRadius: CONTROL_RADIUS }}
-                  className="hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none bg-[var(--color-active-bg)]"
+                  className={cn(
+                    'hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none',
+                    journalIsActive(pathname) && 'bg-[var(--color-active-bg)]',
+                  )}
                 />
               );
             }
