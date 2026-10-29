@@ -10,7 +10,7 @@ import { LanguageSwitch } from '@/components/journal/LanguageSwitch';
 import { SeriesArticleList } from '@/components/journal/SeriesArticleList';
 import { AboutLink } from '@/components/journal/AboutLink';
 import { ConceptMapExplorer } from '@/components/journal/concept-map/ConceptMapExplorer';
-import { getConceptMapView } from '@/lib/journal/conceptMapData';
+import { articleMapView, getConceptMapView } from '@/lib/journal/conceptMapData';
 import { PortableBody } from '@/components/site/PortableBody';
 import {
   getAllSeries,
@@ -240,12 +240,18 @@ export async function JournalArticle({ lang, params }: SlugParams & { lang: Lang
   const { slug } = await params;
   const article = await getArticle(slug, lang);
   if (!article) notFound();
-  const [series, signature] = await Promise.all([getSeries(article.seriesSlug, lang), getSignature(lang)]);
+  const [series, signature, view] = await Promise.all([
+    getSeries(article.seriesSlug, lang),
+    getSignature(lang),
+    // Français seulement tant que les libellés de la carte n'existent pas en EN/RU (phase 5).
+    lang === 'fr' ? getConceptMapView() : null,
+  ]);
+  const map = view && articleMapView(view, slug);
 
   return (
     <>
       <JsonLd data={[blogPostingJsonLd(article), journalBreadcrumbJsonLd(article)]} />
-      <ArticleView article={article} series={series} signature={signature} />
+      <ArticleView article={article} series={series} signature={signature} map={map} />
     </>
   );
 }

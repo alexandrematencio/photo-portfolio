@@ -1448,3 +1448,119 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
     translate: 0 8px;
   }
 }
+
+/* ── CONCEPT MAP DANS L'ARTICLE (phase 4 bis, concept-map/ArticleMap.tsx) ──
+   Le panneau : feuille qui monte du bas, tiroir à droite dès 1280 px, sous
+   la nav-bar (4rem). Il n'est jamais dans le flux : le texte ne bouge pas.
+   - Entrée : 340 ms ease-out (un panneau arrive et freine) ; sortie : 220 ms
+     ease-in, plus courte (animation-principles §6, §9). `visibility` suit la
+     sortie, retardée d'autant : fermé, rien n'y est atteignable.
+   - Mouvement réduit : un fondu, aucun déplacement.
+   La pastille : même vocabulaire en petit (240 / 160 ms, 8 px).
+   La marque : dans la marge GAUCHE, au-delà du filet d'arrivée (-14 px) ;
+   la droite est aux notes, le texte au surligneur. Souris seulement. */
+.article-map {
+  position: fixed;
+  z-index: 30;
+  inset-inline: 0;
+  bottom: 0;
+  max-height: 78dvh;
+  border-top-width: 1px;
+  translate: 0 100%;
+  visibility: hidden;
+}
+.article-map[data-open] {
+  translate: 0 0;
+  visibility: visible;
+}
+@media (min-width: 1280px) {
+  .article-map {
+    top: 4rem;
+    left: auto;
+    width: 400px;
+    max-height: none;
+    border-top-width: 0;
+    border-left-width: 1px;
+    translate: 100% 0;
+  }
+}
+.article-map-pill {
+  position: fixed;
+  z-index: 25;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  left: var(--page-gutter);
+  right: var(--page-gutter);
+  opacity: 0;
+  translate: 0 8px;
+  visibility: hidden;
+}
+.article-map-pill[data-shown] {
+  opacity: 1;
+  translate: 0 0;
+  visibility: visible;
+}
+@media (min-width: 768px) {
+  .article-map-pill {
+    left: auto;
+    right: 24px;
+    max-width: 360px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .article-map {
+    transition: translate 220ms cubic-bezier(0.4, 0, 1, 1), visibility 0s linear 220ms;
+  }
+  .article-map[data-open] {
+    transition: translate 340ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
+  }
+  .article-map-pill {
+    transition: opacity 160ms ease-in, translate 160ms ease-in, visibility 0s linear 160ms;
+  }
+  .article-map-pill[data-shown] {
+    transition: opacity 240ms cubic-bezier(0.22, 1, 0.36, 1), translate 240ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .article-map,
+  .article-map[data-open],
+  .article-map-pill,
+  .article-map-pill[data-shown] {
+    translate: none;
+  }
+  .article-map {
+    opacity: 0;
+    transition: opacity 160ms, visibility 0s linear 160ms;
+  }
+  .article-map[data-open] {
+    opacity: 1;
+    transition: opacity 160ms, visibility 0s;
+  }
+}
+.map-mark {
+  display: none;
+  position: absolute;
+  /* -30 : dans la gouttière (32 px), sans mordre sur le rail du sommaire. */
+  left: -30px;
+  top: 0.4em;
+  width: 14px;
+  height: 14px;
+}
+@media (hover: hover) and (pointer: fine) and (min-width: 768px) {
+  .map-mark {
+    display: flex;
+    opacity: 0;
+    transition: opacity 160ms ease-out, color 160ms ease-out;
+  }
+  .map-mark[data-current] {
+    opacity: 0.45;
+  }
+  .journal-passage:hover > .map-mark,
+  .map-mark:focus-visible {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-mark {
+    transition: none;
+  }
+}

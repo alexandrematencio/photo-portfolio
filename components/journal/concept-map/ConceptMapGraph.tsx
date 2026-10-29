@@ -54,6 +54,7 @@ export default function ConceptMapGraph({
   selected,
   center,
   inset = 0,
+  zoom = 0.7,
   onSelect,
 }: {
   ix: MapIndex;
@@ -63,6 +64,8 @@ export default function ConceptMapGraph({
   center: number;
   /** Pixels masqués à droite par le panneau : le nœud cherché se pose au milieu de ce qui reste visible. */
   inset?: number;
+  /** Zoom maximal quand la caméra va chercher un nœud (plus petit = plus près). */
+  zoom?: number;
   onSelect: (id: string | null) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -191,7 +194,7 @@ export default function ConceptMapGraph({
     if (!d) return;
     const camera = r.getCamera();
     const now = camera.getState();
-    const ratio = Math.min(now.ratio, 0.7);
+    const ratio = Math.min(now.ratio, zoom);
     // Le décalage en coordonnées du graphe, mesuré au zoom courant puis ramené au zoom visé.
     const { width, height } = r.getDimensions();
     const a = r.viewportToFramedGraph({ x: width / 2, y: height / 2 });
