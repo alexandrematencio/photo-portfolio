@@ -1430,3 +1430,21 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
     transition: opacity 0s, scale 450ms cubic-bezier(0.25, 1, 0.5, 1);
   }
 }
+
+/* ── CONCEPT MAP (/concept-map, components/journal/concept-map) ─────────────
+   Le panneau d'un nœud entre en glissant de 8 px vers le haut et en
+   apparaissant, 240 ms ease-out : un panneau est un objet moyen, il arrive et
+   freine (animation-principles §6, §9). Il se rejoue à chaque nœud (`key`),
+   ce qui dit « autre chose » sans bouger le reste de la page. Le dessin, lui,
+   s'estompe en JS (ConceptMapGraph). Rien sous reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .concept-panel {
+    animation: concept-panel-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+@keyframes concept-panel-in {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}

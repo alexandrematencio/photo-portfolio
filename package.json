@@ -59,6 +59,7 @@
     "react-dom": "^19.0.0",
     "react-zoom-pan-pinch": "^4.0.3",
     "sanity": "^5.26.0",
+    "sigma": "3.0.3",
     "styled-components": "^6.1.13",
     "tailwind-merge": "^2.6.0",
     "tsx": "^4.22.3",
