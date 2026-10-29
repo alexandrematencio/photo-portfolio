@@ -74,7 +74,7 @@ export type PTChild =
 export type PTMarkDef = { _key: string; _type: string; article?: { _ref?: string }; href?: string };
 
 export type PTBlock =
-  | { _type: 'block'; style?: string; children?: PTChild[]; markDefs?: PTMarkDef[] }
+  | { _type: 'block'; _key?: string; style?: string; children?: PTChild[]; markDefs?: PTMarkDef[] }
   | { _type: 'journalPullQuote'; text?: string }
   | { _type: 'journalFigure'; figure?: string }
   | { _type: 'journalImage'; image?: RawImage; caption?: string; wide?: boolean }
@@ -142,7 +142,7 @@ function blocksOf(body: PTBlock[]): ArticleBlock[] {
           if (text) blocks.push({ type: 'h2', text });
         } else {
           const inline = inlineOf(b.children, b.markDefs);
-          if (inline.length) blocks.push({ type: 'p', inline });
+          if (inline.length) blocks.push({ type: 'p', inline, key: b._key });
         }
         break;
       }

@@ -21,6 +21,7 @@ import { DraftLabel, NoteCall, NoteRow, NotesProvider, type RowNote } from './No
 import { JournalFigure } from './figures';
 import { ArticleImage } from './ArticleImage';
 import { Highlight } from './Highlight';
+import { PassageArrival } from './PassageArrival';
 import { VerdictTable } from './VerdictTable';
 import { DataTable } from './DataTable';
 
@@ -257,6 +258,7 @@ export function ArticleBody({
         <noscript>
           <style>{'.journal-hl{background-size:100% 100%!important}'}</style>
         </noscript>
+        <PassageArrival />
         {blocks.map((block, i) => {
           const prev = blocks[i - 1];
           const afterObject =
@@ -268,17 +270,21 @@ export function ArticleBody({
             case 'p': {
               const notes = notesOf(block.inline, article, numbering);
               const isLead = i === leadIndex;
+              // Ancre du passage : `#p-<clé>` (cf. `PassageArrival`).
+              const passage = block.key ? { id: `p-${block.key}`, className: 'journal-passage' } : { className: undefined };
               const after = prev?.type === 'h2' ? RHYTHM.h2Bottom : i - 1 === leadIndex ? RHYTHM.lead : RHYTHM.body;
               if (isLead && notes.length === 0) {
                 return (
-                  <p key={i} className={EDITORIAL_LEAD} style={{ marginTop: top(0) }}>
+                  <p key={i} {...passage} className={cn(EDITORIAL_LEAD, passage.className)} style={{ marginTop: top(0) }}>
                     {renderInline(block.inline, numbering)}
                   </p>
                 );
               }
               return (
                 <NoteRow key={i} notes={notes} style={{ marginTop: top(isLead ? 0 : after) }}>
-                  <p className={isLead ? EDITORIAL_LEAD : EDITORIAL_BODY}>{renderInline(block.inline, numbering)}</p>
+                  <p {...passage} className={cn(isLead ? EDITORIAL_LEAD : EDITORIAL_BODY, passage.className)}>
+                    {renderInline(block.inline, numbering)}
+                  </p>
                 </NoteRow>
               );
             }
