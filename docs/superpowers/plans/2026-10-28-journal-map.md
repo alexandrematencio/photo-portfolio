@@ -320,3 +320,78 @@ sans carte.
   Claude. Les 16 rimes `écrite` viennent de ses textes et n'ont pas besoin
   de cette relecture.
 - Valider la proposition de la phase 4 bis.
+
+## Appris en route (2026-10-29)
+
+- **Les articles du journal ne passent pas par `PortableBody`** : c'est
+  `components/journal/ArticleBody.tsx` qui les rend, à partir du modèle de
+  `lib/journal/convert.ts` (`blocksOf`). Une donnée du Studio qui doit
+  atteindre la page passe par `types.ts` → `convert.ts` → `ArticleBody`.
+- **Les traductions écrites le 2026-10-18 avaient leurs propres clés**
+  (`b0001`, `q000f`…), contrairement au code actuel de `translate-post`, qui
+  recopie les clés françaises. Réalignées par `align-translation-keys` (8
+  documents). `npm run check-map-anchors` surveille la régression.
+- **`import-journal` numérotait les clés avec un compteur GLOBAL** (`k0`,
+  `k1`… sur tous les fichiers d'un import), donc la clé d'un paragraphe
+  dépendait même des articles importés avant lui. Remplacé par des clés
+  aléatoires + reprise des clés existantes (`lib/journal/stableKeys.ts`).
+- **`:target` ne suffit pas pour l'arrivée sur un passage** : la navigation
+  client de Next passe par `pushState`, qui ne met pas `:target` à jour. D'où
+  `PassageArrival` (montage + `hashchange`).
+- **Les thèses du vault n'avaient pas de citation**, seulement un résumé
+  rédigé par Claude ; seuls les mécanismes portaient une citation exacte. Les
+  91 citations ont été posées par alignement automatique (`anchors.py`,
+  archivé) : ordre du texte + bonus de section. Les deux scores les plus
+  faibles ont été relus à la main et sont justes.
+- **Le classifieur du mode auto bloque toute écriture en production Sanity**
+  (et même le dry-run d'`import-journal`, qu'il ne distingue pas) : demander
+  l'accord explicite d'Alexandre avant de lancer ces scripts.
+- **Port 3011 = le serveur d'une autre checkout.** Pour tester cette
+  worktree : `SITE_TARGET=blog npx next dev -p 3021`, Playwright avec
+  `locale: 'fr-FR'` et `executablePath` vers
+  `~/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/…`, import
+  de playwright par chemin absolu depuis le scratchpad.
+- `npx eslint` sur un fichier isolé échoue (config ESLint à migrer, problème
+  antérieur) ; `npx tsc --noEmit` est la vérification qui marche.
+- Matplotlib n'est pas installé : pas d'aperçu image de la mise en page hors
+  du navigateur.
+
+## Prochaines actions (état au 2026-10-29)
+
+Fait et en ligne : phase 1 (main 3c1c32a, clés EN/RU alignées), phase 2
+(main d056564). Sortie actuelle de `map:build` : 8 articles, 91 thèses
+ancrées sur 91, 83 mécanismes, 15 rimes écrites, 49 proposées non publiées,
+0 problème.
+
+1. **Phase 3** (prochaine) :
+   - schéma `sanity/schemas/journalMap.ts` (singleton, lecture seule, sous
+     « Journal ▸ Carte » ; nom affiché « Concept Map ») ;
+   - `map:build --write` écrit le brouillon `drafts.journalMap` (accord
+     d'Alexandre requis pour l'écriture en production) ;
+   - `map:check` dans le build : recalage d'une ancre par la citation, sinon
+     repli section puis article, jamais d'échec du build ;
+   - pastille de dérive dans le Studio et liste dans le Dashboard.
+2. **Phase 4** : page `/concept-map` (Sigma.js + graphology, positions de
+   `journalMap`), panneau latéral, filtres, liste filtrable sur mobile et
+   pour le clavier. Lire `animation-principles.md` avant d'écrire.
+3. **Phase 4 bis** : panneau Concept Map dans l'article (thèse courante au
+   centre, `covers` pour savoir où l'on est, touche `M`, marque de marge,
+   coexistence avec le surligneur).
+4. **Ajouter l'étape Concept Map à la skill `journal-writing`**
+   (am-photo/.claude/skills/journal-writing) : décomposer l'article dans le
+   vault, relecture d'Alexandre, `map:build`, Publish.
+
+En attente d'Alexandre :
+- relire dans Obsidian les 91 citations ancrées (le passage où le lecteur
+  arrivera) et les 49 rimes `proposée` (passer en `validée` ou supprimer) ;
+- trancher : publier les `definition` des mécanismes (rédigées par Claude)
+  telles quelles, ou les relire d'abord ;
+- nommer la vue centrée dans l'article ;
+- **bug en ligne** : *Hot chats make hot charts* affiche « ## L'argent : les
+  commus paient déjà pour… » en texte brut dans un paragraphe (intertitre
+  tapé dans le texte) ; à convertir en vrai H2 dans le Studio, par lui ou
+  par Claude avec son accord ;
+- toujours ouverts depuis le 2026-10-28 : « 50 000 euros de dettes à
+  confirmer » visible dans *Le plancher et le multiplicateur* ; bloc « à
+  trancher » et citation en exergue divergente dans *Hot chats* ; liste des
+  directions pour l'« À propos » court.
