@@ -401,7 +401,34 @@ moment d'écrire ces lignes, la version publiée n'existait pas encore :
 vérifier `count(*[_id=="journalMap"].nodes)` sur l'API publique avant la
 phase 4, et lui rappeler Publish si c'est 0.
 
-### À exécuter ensuite : phase 4, la page `/concept-map`
+### Phase 4 — FAITE (2026-10-29, main 8039d42, en ligne)
+
+Carte publiée par Alexandre (182 nœuds, 410 liens). Page
+blog.amatencio.com/concept-map/ vérifiée en ligne : `#n=<id>` ouvre le
+panneau, « Lire le passage » arrive sur le paragraphe avec le filet, le
+retour arrière retrouve le nœud.
+
+Écarts assumés par rapport au plan ci-dessous :
+- sigma **3.0.3** et non 4.x (4.0.0 sorti le 2026-10-08, trop jeune) ;
+- articles à l'ENCRE, pas aux couleurs de série : la couleur reste aux
+  mécanismes (une seule chose mène) ; la série passe par le filtre et le
+  panneau ;
+- les mécanismes n'ont pas de thématique dans le vault : elle est déduite
+  des articles qui les emploient (la plus fréquente colore le nœud) ;
+- aucune thématique n'a de couleur dans le Studio : repli par nom dans
+  `THEME_FALLBACK` (conceptMapData.ts) ; une couleur posée dans le Studio
+  passe devant ;
+- le « verdict » d'une thèse n'existe pas dans le document : le panneau
+  montre son libellé, sa citation et ses mécanismes ;
+- vue Carte/Liste : choix CSS avant montage (liste sous 768 px), la liste
+  est dans le HTML du build (83 mécanismes, chaque passage en lien) ;
+- l'image OG (`public/og-concept-map.png`) est une capture du dessin, à
+  refaire à la main si la carte change beaucoup.
+
+Pour le repli `section`, le `_key` du H2 suit maintenant la conversion
+(`ArticleBlock` h2 `key`) : `conceptMapData` le traduit en id d'intertitre.
+
+### (archive) Le plan de la phase 4
 
 Avant d'écrire : `git fetch` et partir d'`origin/main` ; lire
 `~/Documents/FREELANCE/RESOURCES/animation-principles.md` ; charger la skill
