@@ -81,6 +81,9 @@
   /* Citations en exergue du journal (Newsreader, blog seul — BlogShell). Le
      cyrillique, que Newsreader ne dessine pas, passe à son repli serif. */
   --font-quote: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  /* Index de la Concept Map (Switzer, blog seul — BlogShell). Le cyrillique
+     retombe sur Inter. */
+  --font-index: var(--font-switzer), var(--font-inter), -apple-system, system-ui, sans-serif;
 
   --shadow-soft: 0 8px 40px rgba(10, 10, 10, 0.08);
 

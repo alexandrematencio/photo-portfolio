@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { interLatinCyrillic as inter } from '@/app/fonts/inter';
 import { newsreader } from '@/app/fonts/newsreader';
+import { switzer } from '@/app/fonts/switzer';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { SiteHeader } from '@/components/site/SiteHeader';
 import { SiteFooter } from '@/components/site/SiteFooter';
@@ -62,7 +63,7 @@ async function journalMenu(lang: Lang): Promise<MenuEntry[]> {
 export async function BlogShell({ lang, children }: { lang: Lang; children: React.ReactNode }) {
   const menu = await journalMenu(lang);
   return (
-    <html lang={LOCALE[lang].bcp47} className={`${inter.variable} ${newsreader.variable}`}>
+    <html lang={LOCALE[lang].bcp47} className={`${inter.variable} ${newsreader.variable} ${switzer.variable}`}>
       <body suppressHydrationWarning>
         {/* La langue du système, AVANT la première peinture (lib/journal/i18n.ts). */}
         <script dangerouslySetInnerHTML={{ __html: languageScript(lang) }} />
