@@ -428,7 +428,7 @@ sans carte.
   `CAPITAL.md` ; note projet
   `am-photo/resources/learning/concept-map-ancres-et-graphe.md`.
 
-## Prochaines actions (état au 2026-10-29, après la phase 4)
+## Prochaines actions (état au 2026-10-29, après la phase 4 bis)
 
 Fait et en ligne : phases 1 à 4. Carte publiée par Alexandre (182 nœuds,
 410 liens), page blog.amatencio.com/concept-map/ (main 8039d42, notes
@@ -462,39 +462,50 @@ retour arrière retrouve le nœud.
 Pour le repli `section`, le `_key` du H2 suit maintenant la conversion
 (`ArticleBlock` h2 `key`) : `conceptMapData` le traduit en id d'intertitre.
 
-### À exécuter ensuite : phase 4 bis, la carte dans l'article
+### Phase 4 bis — FAITE (2026-10-29, main 0ff749f, en ligne)
 
-Avant d'écrire : `git fetch`, partir d'`origin/main` ; relire la section
-« Phase 4 bis » plus haut (la proposition validée dans son principe) et
-`animation-principles.md` ; charger `design-system`. Le nom de la vue est
-à Alexandre : à défaut, libellé provisoire « Concept Map » dans le bouton,
-à remplacer en une ligne.
+Chaque article FRANÇAIS emporte sa part de la carte : `articleMapView`
+(lib/journal/conceptMapData.ts) garde l'article, ses thèses (avec leurs
+`covers`), leurs mécanismes, les thèses des autres articles qui emploient
+ces mécanismes et leurs rimes. `getConceptMapView()` est mémoïsé par build.
+Composant : `components/journal/concept-map/ArticleMap.tsx` (fournisseur
+autour d'`ArticleBody`, branché dans `ArticleView` par la prop `map`).
 
-1. **Données** : l'article sait déjà tout. Dans le loader d'article
-   (`JournalArticle`, components/journal/pages.tsx), appeler
-   `getConceptMapView()` (mémoïser par build comme `getCorpus`) et passer au
-   client un sous-graphe : les thèses de l'article avec leurs `covers`
-   recalculés (`checkConceptMap` les rend déjà), leurs mécanismes, et pour
-   chaque mécanisme les thèses des AUTRES articles qui l'emploient. Rien
-   pour EN/RU tant que la phase 5 n'est pas faite (les clés sont les mêmes :
-   possible plus tard sans recalcul).
-2. **Où suis-je** : un `IntersectionObserver` sur les paragraphes `#p-<clé>`
-   ; la thèse courante est celle dont `covers` contient le paragraphe le plus
-   haut visible. Aucun écouteur `scroll`.
-3. **Le panneau** : tiroir à droite dès `xl` (ne pousse pas le texte, ne
-   recouvre pas les notes en marge — mesurer contre `Notes.tsx`, seuil 1100),
-   feuille du bas sur mobile. Réutiliser `MapPanel` (thèse) et
-   `ConceptMapGraph` en mode réduit (voisinage seul, `neighbourhood` de
-   model.ts) ; « Voir dans la Concept Map → » mène à `/concept-map/#n=<id>`.
-4. **Accès** : marque de marge au survol/focus du paragraphe, pastille
-   flottante sur mobile avec le nom de la thèse en cours, touche `M`.
-   Tester AVEC le surligneur (`Highlight.tsx`) : même marge, même sélection.
-5. **Arrivée depuis /concept-map** : `PassageArrival` existe ; ajouter le
-   panneau fermé, nœud d'origine au centre.
-6. **Vérification** : Playwright 3021 (ordinateur, mobile, reduced-motion),
-   suivi de lecture sur un long article (*Le prix d'un club*, 8 thèses),
-   `tsc`, `check-map-anchors`, grille d'animation. Puis mise en ligne
-   habituelle.
+- Suivi de lecture : IntersectionObserver sur les `#p-<clé>` couverts, bande
+  d'1 % aux 35 % de l'écran ; entre deux paragraphes, la thèse d'avant reste.
+- Panneau : tiroir de 400 px à droite dès 1280 px, sous la nav-bar ; feuille
+  du bas (78 dvh) en dessous. Le dessin (Sigma, zoom 0.3, nœud dans le tiers
+  gauche pour que son nom tienne) n'est chargé qu'à la première ouverture et
+  seulement dès 768 px. Le panneau suit la lecture (« Suit la lecture ») ;
+  choisir un nœud le détache (« Revenir au passage lu »), ← / → passent
+  d'une thèse à l'autre.
+- Accès : marque dans la marge GAUCHE (−30 px, souris seulement ; bouton
+  nommé sur le paragraphe de la citation, muette ailleurs ; à demi sur la
+  thèse en cours), pastille en bas d'écran (« Concept Map · 2/8 » + nom de
+  la thèse), touche `M`, Échap.
+- « Lire le passage » vers le même article : on laisse le navigateur suivre
+  l'ancre pour que `hashchange` réveille `PassageArrival` ; la feuille se
+  referme sur mobile.
+- Arrivée depuis /concept-map (`#p-<clé>`) : la thèse du passage est la
+  thèse courante, panneau fermé.
+- Libellé provisoire « Concept Map » : `ARTICLE_MAP_LABEL` dans
+  ArticleMap.tsx, une ligne à changer quand Alexandre aura nommé la vue.
+
+Écarts assumés :
+- le tiroir recouvre la marge des notes tant qu'il est ouvert : à 1440 px,
+  la colonne de notes commence à 952 px, il n'y a pas d'autre place ;
+- pas de filtres « couches » (rimes, thématiques, tout le journal) dans le
+  tiroir : le lien « Voir dans la Concept Map → » ouvre la carte complète
+  centrée sur le nœud ;
+- pas de navigation au clavier DANS le dessin (comme sur /concept-map) :
+  le panneau porte les mêmes liens en boutons.
+
+Appris en route :
+- le serveur de dev du blog écrit dans `.next-blog/` (distDir à part) : un
+  CSS figé se purge là (`rm -rf .next-blog/dev .next-blog/cache`), pas dans
+  `.next/` ;
+- la part de carte alourdit la page de ~13 Ko compressés (Le prix d'un club :
+  28 → 41 Ko gzip).
 
 ### Ensuite
 
@@ -517,7 +528,8 @@ Avant d'écrire : `git fetch`, partir d'`origin/main` ; relire la section
   (pas aux couleurs de série), palette de repli des thématiques (ou poser
   ses couleurs dans le Studio, elles passent devant), thématique des
   mécanismes déduite, sigma 3.0.3.
-- **Nommer** la vue centrée dans l'article (phase 4 bis).
+- **Nommer** la vue dans l'article (en ligne sous « Concept Map »,
+  `ARTICLE_MAP_LABEL`) ; dire si le tiroir sur les notes lui convient.
 - Relire dans Obsidian les 49 rimes `proposée` (passer en `validée` ou
   supprimer) et, à loisir, les 91 citations ancrées. Après chaque
   correction : `map:build -- --write`, puis Publish.
