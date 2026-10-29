@@ -87,6 +87,19 @@ avant même que la carte existe.
 
 ## Phase 2 : le vault devient la racine (environ 1 jour)
 
+**Livrée le 2026-10-29.** Vault migré en place (aucune retouche manuelle à
+perdre) : propriétés structurées sur thèses, mécanismes et articles ; chaque
+thèse porte désormais sa `citation`, choisie par un alignement automatique
+(ordre du texte + section) puis à relire par Alexandre — 91/91 retrouvées.
+Générateur archivé dans `_archive/generateur-2026-10-28/` (LISEZMOI : ne plus
+lancer). `npm run map:build` écrit `.concept-map/concept-map.json` (gitignoré)
+et `.concept-map/rapport.md` ; l'écriture du brouillon `journalMap` dans
+Sanity arrive avec son schéma, en phase 3. Mise en page reproductible
+vérifiée (deux exports depuis zéro : positions identiques). Les sections du
+corps des notes ne sont plus régénérées : ce sont les propriétés qui font foi.
+À trancher : les `definition` des mécanismes sont rédigées par Claude ; les
+publier telles quelles ou les faire relire.
+
 1. **Migration, faite une seule fois.** On réécrit les notes avec un
    frontmatter structuré, lisible par machine et confortable dans Obsidian :
    ```yaml

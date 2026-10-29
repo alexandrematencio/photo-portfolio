@@ -83,3 +83,6 @@ Desktop.ini
 
 # Audit SEO : décisions et points faibles, pas pour un repo public
 docs/SEO-*.pdf
+
+# Sortie de npm run map:build (Concept Map)
+/.concept-map
