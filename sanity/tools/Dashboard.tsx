@@ -31,6 +31,7 @@ import {
 } from './search/photoIndexQuery';
 import { SearchCard } from './search/SearchCard';
 import { CurationCard } from './CurationCard';
+import { ConceptMapStatus } from '@/sanity/components/ConceptMapStatus';
 
 const API_VERSION = '2026-01-01';
 
@@ -226,6 +227,7 @@ export function Dashboard() {
             <CurationCard curation={data.curation} thumbUrl={thumbUrl} />
             <CatalogueCard data={data} />
             <AlertsCard data={data} />
+            <ConceptMapCard />
             <DraftsCard data={data} />
             <RecentCard data={data} thumbUrl={thumbUrl} />
           </>
@@ -508,6 +510,18 @@ function AlertGroup({
         )}
       </Stack>
     </Stack>
+  );
+}
+
+// — Concept Map du journal : la carte PUBLIÉE contre les articles publiés —
+function ConceptMapCard() {
+  return (
+    <Card padding={4} radius={2} shadow={1}>
+      <Stack space={4}>
+        <Heading size={1}>Concept Map du journal</Heading>
+        <ConceptMapStatus />
+      </Stack>
+    </Card>
   );
 }
 

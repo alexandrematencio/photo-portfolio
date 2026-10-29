@@ -3,6 +3,9 @@
  *
  *   npm run map:build              → lit le vault, écrit .concept-map/ et affiche le rapport
  *   npm run map:build -- --strict  → échoue si une citation ne se retrouve pas
+ *   npm run map:build -- --write   → écrit aussi le BROUILLON `drafts.journalMap`
+ *                                    (SANITY_API_WRITE_TOKEN), à relire et publier
+ *                                    dans le Studio (Journal ▸ Concept Map)
  *
  * Le vault Obsidian fait foi (`JOURNAL_VAULT`, par défaut
  * ~/Documents/ALEX-PERSO/BLOG/Graphe-du-journal) : on y corrige les thèses,
@@ -36,8 +39,11 @@ import path from 'node:path';
 import Graph from 'graphology';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { parse as parseYaml } from 'yaml';
+import { mapParagraphs, normalizeQuote as normalize, type MapBlock } from '../lib/journal/mapAnchors';
+import { JOURNAL_MAP_ID, JOURNAL_MAP_QUERY, type JournalMapDoc } from '../lib/journal/conceptMap';
 
 const STRICT = process.argv.includes('--strict');
+const WRITE = process.argv.includes('--write');
 const VAULT = process.env.JOURNAL_VAULT ?? path.join(homedir(), 'Documents/ALEX-PERSO/BLOG/Graphe-du-journal');
 const OUT_DIR = path.join(process.cwd(), '.concept-map');
 const OUT = path.join(OUT_DIR, 'concept-map.json');
@@ -71,29 +77,10 @@ const isPublic = (n: Note) => n.meta.public !== false;
 
 // ---------- les articles publiés ----------
 
-type Block = { _key: string; _type: string; style?: string; children?: { _type: string; text?: string }[] };
-type Post = { slug: string; title: string; body: Block[] };
+type Post = { slug: string; title: string; body: MapBlock[] };
 
-/** Ce qui ne doit pas empêcher une citation de se retrouver : espaces fines, apostrophes, point final. */
-const normalize = (s: string) =>
-  s
-    .normalize('NFC')
-    .replace(/[   ]/g, ' ')
-    .replace(/[’‘]/g, "'")
-    .replace(/[“”]/g, '"')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/[.…]+$/, '')
-    .toLowerCase();
-
-const plain = (b: Block) => (b.children ?? []).filter((c) => c._type === 'span').map((c) => c.text ?? '').join('');
 const fingerprint = (s: string) => createHash('sha1').update(normalize(s)).digest('hex').slice(0, 10);
-
-/** Les paragraphes d'un article, dans l'ordre : ceux qui portent une ancre `#p-<clé>`. */
-const paragraphs = (post: Post) =>
-  post.body
-    .filter((b) => b._type === 'block' && (b.style ?? 'normal') === 'normal' && plain(b).trim())
-    .map((b) => ({ key: b._key, text: plain(b) }));
+const paragraphs = (post: Post) => mapParagraphs(post.body);
 
 // ---------- le modèle exporté ----------
 
@@ -112,10 +99,12 @@ export type MapNode =
       covers: string[];
       /** Empreinte du texte du paragraphe d'ancre au moment de l'export (garde de dérive, phase 3). */
       print: string | null;
+      /** `_key` de l'intertitre qui précède l'ancre : le repli du lien si le paragraphe disparaît. */
+      section: string | null;
       x: number;
       y: number;
     }
-  | { id: string; kind: 'mechanism'; label: string; definition: string; quote: string; quoteArticle: string; anchor: string | null; x: number; y: number };
+  | { id: string; kind: 'mechanism'; label: string; definition: string; quote: string; quoteArticle: string; anchor: string | null; section: string | null; x: number; y: number };
 
 export type MapEdge = { source: string; target: string; kind: 'part' | 'next' | 'uses' | 'rhyme'; why?: string };
 
@@ -125,7 +114,9 @@ async function main() {
   const byFile = new Map(notes.map((n) => [n.file, n]));
   const of = (type: string) => notes.filter((n) => n.meta.type === type);
 
-  const client = createClient({ projectId: 'yh5i5diw', dataset: 'production', apiVersion: '2026-01-01', useCdn: false });
+  const token = process.env.SANITY_API_WRITE_TOKEN;
+  if (WRITE && !token) throw new Error('SANITY_API_WRITE_TOKEN manquant (.env.local) pour --write');
+  const client = createClient({ projectId: 'yh5i5diw', dataset: 'production', apiVersion: '2026-01-01', useCdn: false, token, perspective: 'raw' });
   const posts = await client.fetch<Post[]>(
     `*[_type == "post" && !defined(translationOf) && !(_id in path("drafts.**"))]{ "slug": slug.current, title, body }`,
   );
@@ -201,6 +192,7 @@ async function main() {
         anchor: i >= 0 ? paras[i].key : null,
         covers: i >= 0 ? paras.slice(i, nextAnchor).map((p) => p.key) : [],
         print: i >= 0 ? fingerprint(paras[i].text) : null,
+        section: i >= 0 ? paras[i].section : null,
         x: 0,
         y: 0,
       });
@@ -234,6 +226,7 @@ async function main() {
       quote: str(n.meta.citation),
       quoteArticle: qa,
       anchor: para?.key ?? null,
+      section: para?.section ?? null,
       x: 0,
       y: 0,
     });
@@ -259,8 +252,12 @@ async function main() {
   }
 
   // Mise en page
-  const previous = existsSync(OUT) ? (JSON.parse(readFileSync(OUT, 'utf8')) as { nodes: MapNode[] }) : null;
-  const prevPos = new Map((previous?.nodes ?? []).map((n) => [n.id, { x: n.x, y: n.y }]));
+  // Positions de départ : le dernier export local, sinon la carte publiée
+  // (un autre poste, un clone neuf) — jamais un tirage neuf si une carte existe.
+  const local = existsSync(OUT) ? (JSON.parse(readFileSync(OUT, 'utf8')) as { nodes: MapNode[] }) : null;
+  const published = local ? null : await client.withConfig({ perspective: 'published' }).fetch<JournalMapDoc | null>(JOURNAL_MAP_QUERY);
+  const previous = local?.nodes.length ? local.nodes : published?.nodes?.length ? published.nodes.map((n) => ({ ...n, id: n.nodeId })) : null;
+  const prevPos = new Map((previous ?? []).map((n) => [n.id, { x: n.x, y: n.y }]));
   const graph = new Graph({ type: 'undirected', multi: false });
   let seed = 7;
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 200 - 100;
@@ -299,6 +296,21 @@ async function main() {
   console.log(lines.join('\n'));
   console.log(`\n→ ${path.relative(process.cwd(), OUT)}`);
   if (STRICT && problems.length) process.exit(1);
+
+  if (WRITE) {
+    // Brouillon seulement : la carte publique change au Publish d'Alexandre.
+    // Lecture seule dans le Studio — on la corrige dans le vault.
+    const key = (s: string) => createHash('sha1').update(s).digest('hex').slice(0, 12);
+    const clean = <T extends object>(o: T) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null && v !== '' && !(Array.isArray(v) && !v.length)));
+    await client.createOrReplace({
+      _id: `drafts.${JOURNAL_MAP_ID}`,
+      _type: 'journalMap',
+      exportedAt,
+      nodes: nodes.map(({ id, ...n }) => ({ _key: key(id), _type: 'journalMapNode', nodeId: id, ...clean(n) })),
+      edges: edges.map((e) => ({ _key: key(`${e.kind}|${e.source}|${e.target}`), _type: 'journalMapEdge', ...clean(e) })),
+    });
+    console.log(`\n✓ Brouillon drafts.${JOURNAL_MAP_ID} écrit : à relire et publier dans le Studio (Journal ▸ Concept Map).`);
+  }
 }
 
 main().catch((e) => {

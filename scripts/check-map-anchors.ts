@@ -12,10 +12,14 @@
  *    - chaque traduction porte les clés de son article français, bloc pour
  *      bloc — sinon un lien `#p-…` partagé en français tomberait dans le
  *      vide en anglais ou en russe (`align-translation-keys` répare).
+ * 3. La garde de la phase 3 (lib/journal/mapAnchors.ts) : recalage d'une
+ *    ancre par sa citation, replis intertitre puis article, `covers`
+ *    recalculés, clés manquantes dans une traduction.
  */
 import { createClient } from '@sanity/client';
 import assert from 'node:assert/strict';
 import { reuseKeys, type KeyedBlock } from '../lib/journal/stableKeys';
+import { missingKeys, resolveAnchor, resolveArticleTheses, type MapBlock } from '../lib/journal/mapAnchors';
 
 let passed = 0;
 const ok = (label: string, fn: () => void) => {
@@ -89,7 +93,41 @@ async function realPosts() {
   }
 }
 
+function guard() {
+  console.log('\nGarde des ancres (phase 3)');
+  const b = (...bs: KeyedBlock[]) => bs.map((x) => ({ ...x, children: x.children?.map((c) => ({ _type: 'span', ...c })) })) as MapBlock[];
+  const body = b(p('a', 'Intro. Le chat chaud fait le chart chaud.'), h2('s1', 'Argent : ça paie'), p('b', 'Les commus paient déjà.'), p('c', 'Le reste suit.'));
+  const t1 = { quote: 'le chat chaud fait le chart chaud.', anchor: 'a', section: null };
+  const t2 = { quote: 'Les commus paient déjà', anchor: 'b', section: 's1' };
+
+  ok('ancre intacte → ok (casse, point final, apostrophes ignorés)', () => assert.equal(resolveAnchor(t1, body).status, 'ok'));
+  ok('paragraphe scindé : la citation passe sous une clé neuve → recalée', () => {
+    const split = b(p('a', 'Intro.'), p('n1', 'Le chat chaud fait le chart chaud.'), h2('s1', 'Argent'), p('b', 'Les commus paient déjà.'));
+    assert.deepEqual(resolveAnchor(t1, split), { status: 'moved', target: { kind: 'paragraph', key: 'n1' } });
+  });
+  ok('citation réécrite, paragraphe toujours là → lien gardé, dérive signalée', () => {
+    const r = resolveAnchor(t2, b(h2('s1', 'Argent'), p('b', 'Les communautés paient.')));
+    assert.deepEqual(r, { status: 'reworded', target: { kind: 'paragraph', key: 'b' } });
+  });
+  ok('paragraphe disparu → intertitre de repli', () =>
+    assert.deepEqual(resolveAnchor(t2, b(h2('s1', 'Argent'), p('z', 'Autre chose.'))), { status: 'section', target: { kind: 'section', key: 's1' } }));
+  ok('intertitre disparu aussi → article', () =>
+    assert.deepEqual(resolveAnchor(t2, b(p('z', 'Autre chose.'))), { status: 'article', target: { kind: 'article', key: null } }));
+  ok('covers recalculés sur le texte du moment', () => {
+    const r = resolveArticleTheses([t1, t2], body);
+    assert.deepEqual(r.map((x) => x.covers), [['a'], ['b', 'c']]);
+    const inserted = b(p('a', 'Intro. Le chat chaud fait le chart chaud.'), p('new', 'Ajout.'), h2('s1', 'Argent'), p('b', 'Les commus paient déjà.'));
+    assert.deepEqual(resolveArticleTheses([t1, t2], inserted).map((x) => x.covers), [['a', 'new'], ['b']]);
+  });
+  ok('une thèse en dérive ne couvre rien, la précédente s’étend', () => {
+    const r = resolveArticleTheses([t1, t2], b(p('a', 'Intro. Le chat chaud fait le chart chaud.'), p('c', 'Le reste suit.')));
+    assert.deepEqual(r.map((x) => [x.status, x.covers]), [['ok', ['a', 'c']], ['article', []]]);
+  });
+  ok('clés absentes d’une traduction', () => assert.deepEqual(missingKeys(['a', 'b', 'b'], b(p('a', 'x'))), ['b']));
+}
+
 fabricated();
+guard();
 realPosts()
   .then(() => console.log(`\n${passed} assertions vertes.`))
   .catch((e) => {

@@ -363,14 +363,27 @@ Fait et en ligne : phase 1 (main 3c1c32a, clés EN/RU alignées), phase 2
 ancrées sur 91, 83 mécanismes, 15 rimes écrites, 49 proposées non publiées,
 0 problème.
 
-1. **Phase 3** (prochaine) :
-   - schéma `sanity/schemas/journalMap.ts` (singleton, lecture seule, sous
-     « Journal ▸ Carte » ; nom affiché « Concept Map ») ;
-   - `map:build --write` écrit le brouillon `drafts.journalMap` (accord
-     d'Alexandre requis pour l'écriture en production) ;
-   - `map:check` dans le build : recalage d'une ancre par la citation, sinon
-     repli section puis article, jamais d'échec du build ;
-   - pastille de dérive dans le Studio et liste dans le Dashboard.
+1. **Phase 3 : faite le 2026-10-29** (code en ligne ; reste le premier
+   `npm run map:build -- --write`, qui écrit en production : accord
+   d'Alexandre, puis son Publish de « Journal ▸ Concept Map »).
+   - `lib/journal/mapAnchors.ts` (pur) : `resolveAnchor` → `ok` | `moved`
+     (citation retrouvée ailleurs, recalée) | `reworded` (citation perdue,
+     paragraphe là) | `section` (repli sur le `_key` de l'intertitre, stocké
+     à l'export) | `article`. `resolveArticleTheses` recalcule les `covers`
+     sur le texte du moment. Les trois derniers statuts sont la dérive.
+   - `lib/journal/conceptMap.ts` : forme du document, GROQ, et
+     `checkConceptMap(map, posts)` (dérive + clés absentes en EN/RU). C'est
+     CE recalage que la page de la phase 4 appliquera au build : le script du
+     VPS lance `next build` directement, pas un script npm.
+   - `npm run map:check` : même vérification en console, toujours en sortie 0.
+   - Studio : singleton `journalMap` en lecture seule, onglets « État » puis
+     « Données » ; pastille « Concept Map : N à reprendre » à côté de Publish
+     sur l'article (texte affiché, brouillon compris) ; carte au Tableau de
+     bord. Vérifié sur `/studio-probe` avec la carte servie par interception
+     Playwright (une dérive et un recalage fabriqués).
+   - 39 assertions (`check-map-anchors`) ; sur les vrais articles, 174/174
+     nœuds `ok` et `covers` identiques à l'export.
+   - ⚠️ `/studio-probe` ne marche que sur le port 3010 (CORS Sanity).
 2. **Phase 4** : page `/concept-map` (Sigma.js + graphology, positions de
    `journalMap`), panneau latéral, filtres, liste filtrable sur mobile et
    pour le clavier. Lire `animation-principles.md` avant d'écrire.

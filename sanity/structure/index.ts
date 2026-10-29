@@ -1,10 +1,12 @@
 import type {
   StructureBuilder,
   StructureResolverContext,
+  DocumentBuilder,
 } from 'sanity/structure';
 
 import { photoGridPane } from './photoGrid';
 import { PAGE_DOCS } from '../schemas/pages';
+import { ConceptMapStatusView } from '../components/ConceptMapStatus';
 
 const API_VERSION = '2026-01-01';
 
@@ -540,6 +542,15 @@ function taxonomiesGroupNode(S: StructureBuilder) {
 }
 
 /**
+ * La Concept Map ouvre sur son état (dérive contre le texte publié) : ses
+ * données sont en lecture seule, l'état est ce qu'on vient y lire. Partagé
+ * avec `defaultDocumentNode` (ouverture depuis la recherche ou un lien) — un
+ * `S.document()` explicite n'en hérite pas.
+ */
+export const journalMapViews = (S: StructureBuilder, doc: DocumentBuilder) =>
+  doc.views([S.view.component(ConceptMapStatusView).title('État').id('status'), S.view.form().title('Données')]);
+
+/**
  * LE JOURNAL — rubrique à part, sous un filet : rien de ce qui suit ne
  * touche à la photo. Deviendra son propre espace (« workspace ») quand le
  * Studio partira sur studio.amatencio.com.
@@ -590,6 +601,13 @@ function journalGroupNode(S: StructureBuilder) {
             .title('À propos du journal')
             .id('journalAboutPage')
             .child(S.document().schemaType('journalAboutPage').documentId('journalAboutPage')),
+          // La Concept Map (2026-10-29) : écrite depuis le vault par
+          // `map:build -- --write`, lecture seule ici — on n'y fait que Publish.
+          S.divider(),
+          S.listItem()
+            .title('Concept Map')
+            .id('journalMap')
+            .child(journalMapViews(S, S.document().schemaType('journalMap').documentId('journalMap'))),
         ]),
     );
 }
