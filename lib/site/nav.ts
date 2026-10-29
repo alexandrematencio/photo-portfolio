@@ -14,6 +14,7 @@
  * en chargement à froid ET au rechargement.
  */
 
+import { CONCEPT_MAP_PATH } from '@/lib/journal/i18n';
 import { ABOUT_URL, HUB_URL, IS_BLOG, blogHref, photoHref } from './sites';
 
 export type NavLink = {
@@ -58,9 +59,11 @@ export const NAV_LINKS: NavLink[] = IS_BLOG
       // Le journal (blog.amatencio.com) : « All sites », puis « Journal » —
       // un menu, surligné comme page active —, puis la page About du
       // portfolio, qui porte le contact (ordre demandé par Alexandre le
-      // 2026-10-18).
+      // 2026-10-18). La Concept Map entre entre les deux (2026-10-29,
+      // demande Alexandre) ; en français seulement jusqu'à la phase 5.
       { href: HUB_URL, label: 'All sites', menu: 'sites' },
       { href: '/', label: 'Journal', menu: 'journal' },
+      { href: CONCEPT_MAP_PATH, label: 'Concept Map' },
       { href: ABOUT_URL, label: 'About' },
     ]
   : [
@@ -135,6 +138,14 @@ export const SAME_PAGE_NAV_EVENT = 'nav:same-page';
 /** Compare deux chemins sans se soucier du slash final (`trailingSlash: true`). */
 function stripSlash(path: string): string {
   return path.length > 1 ? path.replace(/\/+$/, '') : path;
+}
+
+/**
+ * « Journal » est surligné sur tout le blog, SAUF sur la Concept Map : elle a
+ * sa propre entrée, et deux pages actives ne disent plus où l'on est.
+ */
+export function journalIsActive(pathname: string): boolean {
+  return !isSamePage(CONCEPT_MAP_PATH, pathname);
 }
 
 export function isSamePage(href: string, pathname: string): boolean {

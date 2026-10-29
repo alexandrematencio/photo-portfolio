@@ -18,6 +18,7 @@ import {
   HUB_NAV_LINKS,
   MOBILE_NAV_LINKS,
   isSamePage,
+  journalIsActive,
   notifySamePageNav,
 } from '@/lib/site/nav';
 
@@ -216,13 +217,13 @@ export function MobileMenu({ journalMenu }: { journalMenu?: MenuEntry[] }) {
                       type="button"
                       aria-expanded={subOn}
                       aria-controls={panelId}
-                      aria-current={menu === 'journal' ? 'page' : undefined}
+                      aria-current={menu === 'journal' && journalIsActive(pathname) ? 'page' : undefined}
                       onClick={() => setSubOpen((v) => (v === menu ? null : menu))}
                       style={itemStyle}
                       className={cn(
                         itemClass,
                         'flex items-center text-left',
-                        menu === 'journal' && 'bg-[var(--color-active-bg)]'
+                        menu === 'journal' && journalIsActive(pathname) && 'bg-[var(--color-active-bg)]'
                       )}
                     >
                       {link.label}
