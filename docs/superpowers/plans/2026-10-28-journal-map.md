@@ -390,16 +390,50 @@ sans carte.
 - **14 ancres sur 174 précèdent le premier intertitre** : pas de `section`,
   leur repli va directement à l'article. Normal.
 
-## Prochaines actions (état au 2026-10-29, fin de session)
+### Appris en route — phase 4 (2026-10-29)
 
-Fait et en ligne : phase 1 (main 3c1c32a), phase 2 (main d056564), phase 3
-(main 3959de1). Brouillon `drafts.journalMap` écrit le 2026-10-29 à 11:14
-UTC (182 nœuds : 8 articles, 91 thèses, 83 mécanismes ; 410 liens).
-Alexandre a vu l'onglet État : 174 nœuds en place. Il publie la carte telle
-quelle, définitions de Claude comprises (son « ok » du 2026-10-29). Au
-moment d'écrire ces lignes, la version publiée n'existait pas encore :
-vérifier `count(*[_id=="journalMap"].nodes)` sur l'API publique avant la
-phase 4, et lui rappeler Publish si c'est 0.
+- **La couleur n'existe pas encore dans les données.** Aucune thématique
+  n'a de couleur dans le Studio, et les mécanismes n'ont pas de thématique
+  dans le vault. La page déduit la seconde (thématique la plus fréquente
+  parmi les articles qui emploient le mécanisme) et prend un repli pour la
+  première (`THEME_FALLBACK`, conceptMapData.ts). Vérifier les données avant
+  de promettre une légende.
+- **Le repli `section` demandait le `_key` du H2 côté site.** La conversion
+  Portable Text → modèle d'article le jetait ; il est porté maintenant
+  (`ArticleBlock` h2 `key`), et `articleSections` donne l'id lisible.
+- **Sigma : tout passe par les reducers.** Filtres, sélection et survol
+  écrivent dans un objet lu par `nodeReducer`/`edgeReducer`, puis
+  `refresh({ skipIndexation: true })`. Sigma ne se reconstruit qu'au
+  changement de données. Le fondu est un `fade` 0→1 animé en rAF (180 ms
+  aller, 140 ms retour, rien sous reduced-motion).
+- **La caméra doit éviter le panneau.** Un nœud choisi depuis le panneau se
+  centrait dessous : décalage calculé avec `viewportToFramedGraph` au zoom
+  courant, ramené au zoom visé (`inset`). Seul un nouveau `center` déplace
+  la caméra, jamais un clic dans le dessin.
+- **Vue Carte/Liste sans flash.** Tant que la page n'a pas tourné, le CSS
+  choisit (`hidden md:block` / `md:hidden`) ; la liste est dans le HTML du
+  build. Le graphe ne se monte que si sa vue est affichée.
+- **Libellés coupés.** Un libellé qui dépasse le canevas est rogné (le titre
+  long de *Protéger tout le monde…* au bord droit). `stagePadding` est
+  symétrique : pas de remède simple, accepté.
+- **Playwright + WebGL headless** : `--use-angle=swiftshader
+  --enable-unsafe-swiftshader`, sinon pas de canevas.
+- **Ne pas tester le dessin, tester le parcours** : `#n=<id>` → panneau →
+  « Lire le passage » → paragraphe `data-arrived` → retour arrière qui rouvre
+  le nœud. L'image OG se régénère par `node scripts/make-og-concept-map.mjs`
+  (dev 3021 en marche ; `CHROME=…` si le Chromium de Playwright manque).
+- **Le build du blog sort dans `out-blog/`**, pas `out/`.
+- **Capitalisé** (accord d'Alexandre, 2026-10-29) :
+  `RESOURCES/existing-components/concept-map-anchored-graph/` + ligne §C de
+  `CAPITAL.md` ; note projet
+  `am-photo/resources/learning/concept-map-ancres-et-graphe.md`.
+
+## Prochaines actions (état au 2026-10-29, après la phase 4)
+
+Fait et en ligne : phases 1 à 4. Carte publiée par Alexandre (182 nœuds,
+410 liens), page blog.amatencio.com/concept-map/ (main 8039d42, notes
+b542dae). Branches fusionnées : `feat/concept-map-phase4` et toutes les
+précédentes.
 
 ### Phase 4 — FAITE (2026-10-29, main 8039d42, en ligne)
 
@@ -428,83 +462,65 @@ retour arrière retrouve le nœud.
 Pour le repli `section`, le `_key` du H2 suit maintenant la conversion
 (`ArticleBlock` h2 `key`) : `conceptMapData` le traduit en id d'intertitre.
 
-### (archive) Le plan de la phase 4
+### À exécuter ensuite : phase 4 bis, la carte dans l'article
 
-Avant d'écrire : `git fetch` et partir d'`origin/main` ; lire
-`~/Documents/FREELANCE/RESOURCES/animation-principles.md` ; charger la skill
-`design-system` (cadre de page, typographie, couleurs d'état).
+Avant d'écrire : `git fetch`, partir d'`origin/main` ; relire la section
+« Phase 4 bis » plus haut (la proposition validée dans son principe) et
+`animation-principles.md` ; charger `design-system`. Le nom de la vue est
+à Alexandre : à défaut, libellé provisoire « Concept Map » dans le bouton,
+à remplacer en une ligne.
 
-1. **Données au build** : `lib/journal/conceptMapData.ts` (serveur).
-   - Lire `JOURNAL_MAP_QUERY` et `MAP_POSTS_QUERY` (lib/journal/conceptMap.ts),
-     puis passer le résultat à `checkConceptMap`. Écrire la dérive en
-     `console.warn` dans le log de build, sans jamais lever d'erreur.
-   - Ressortir un modèle de vue : chaque nœud avec son `href`.
-   - Thèse ou mécanisme `paragraph` : `/<slug>/#p-<clé>`.
-   - Repli `section` : l'`id` du H2, calculé par `articleSections`
-     (lib/journal/sections.ts) sur l'article converti. On ne peut pas
-     utiliser la clé de bloc, parce que les H2 ont des ids tirés du texte.
-   - Repli `article` : `/<slug>/`.
-   - Couleurs : la thématique vient du vault (nom) ; la rapprocher de
-     `journalTag` (titre → `color`), et la série de `journalSeries`.
-   - Sans carte publiée, la page affiche un état vide propre.
-2. **Route** : `app/(blog)/concept-map/page.blog.tsx`, sur le modèle de
-   `app/(blog)/a-propos/page.blog.tsx`, avec métadonnées et OG dans
-   `components/journal/pages.tsx`. FR seulement : `/en` et `/ru` attendent
-   la phase 5.
-3. **Le graphe** : `components/journal/concept-map/`, en composant client
-   chargé dynamiquement (`ssr: false`).
-   - Ajouter `sigma` en version exacte, au moins deux semaines d'ancienneté.
-     graphology@0.26.0 est déjà là.
-   - Les positions sont celles du document, aucune mise en page dans le
-     navigateur.
-   - Hiérarchie visuelle : article gros, thèse en satellite, mécanisme
-     coloré par thématique, rime en lien fin. Les libellés n'apparaissent
-     qu'au zoom.
-   - Au survol, les voisins restent nets et le reste s'estompe ; au clic,
-     un panneau s'ouvre.
-4. **Panneau latéral** :
-   - thèse : verdict, citation, « Lire le passage → » vers son `href` ;
-   - mécanisme : définition, articles qui l'emploient, et leurs passages ;
-   - article : chapô, série, ses thèses dans l'ordre.
-5. **Filtres** : série, thématique, « structures communes seulement »
-   (mécanismes présents dans au moins deux articles).
-6. **Liste filtrable** (mécanisme → articles → passages) : c'est la vue sous
-   768 px, avec le graphe derrière un bouton ; c'est aussi le chemin clavier
-   et lecteur d'écran sur grand écran.
-7. **Raccords** : lien discret dans la navigation du blog, entrée dans
-   `app/sitemap.ts` et image OG.
-8. **Vérification** :
-   - `SITE_TARGET=blog npx next dev -p 3021`, puis Playwright (`fr-FR`) sur
-     ordinateur, mobile et en mouvement réduit ;
-   - un clic sur une thèse doit arriver sur le bon paragraphe, avec le filet
-     orange ;
-   - `npx tsc --noEmit` et `npm run check-map-anchors` ;
-   - repasser la grille de relecture d'`animation-principles.md`.
-   Puis la mise en ligne habituelle (fusion dans am-blog-translate, push,
-   rebuild VPS, vérification en ligne).
+1. **Données** : l'article sait déjà tout. Dans le loader d'article
+   (`JournalArticle`, components/journal/pages.tsx), appeler
+   `getConceptMapView()` (mémoïser par build comme `getCorpus`) et passer au
+   client un sous-graphe : les thèses de l'article avec leurs `covers`
+   recalculés (`checkConceptMap` les rend déjà), leurs mécanismes, et pour
+   chaque mécanisme les thèses des AUTRES articles qui l'emploient. Rien
+   pour EN/RU tant que la phase 5 n'est pas faite (les clés sont les mêmes :
+   possible plus tard sans recalcul).
+2. **Où suis-je** : un `IntersectionObserver` sur les paragraphes `#p-<clé>`
+   ; la thèse courante est celle dont `covers` contient le paragraphe le plus
+   haut visible. Aucun écouteur `scroll`.
+3. **Le panneau** : tiroir à droite dès `xl` (ne pousse pas le texte, ne
+   recouvre pas les notes en marge — mesurer contre `Notes.tsx`, seuil 1100),
+   feuille du bas sur mobile. Réutiliser `MapPanel` (thèse) et
+   `ConceptMapGraph` en mode réduit (voisinage seul, `neighbourhood` de
+   model.ts) ; « Voir dans la Concept Map → » mène à `/concept-map/#n=<id>`.
+4. **Accès** : marque de marge au survol/focus du paragraphe, pastille
+   flottante sur mobile avec le nom de la thèse en cours, touche `M`.
+   Tester AVEC le surligneur (`Highlight.tsx`) : même marge, même sélection.
+5. **Arrivée depuis /concept-map** : `PassageArrival` existe ; ajouter le
+   panneau fermé, nœud d'origine au centre.
+6. **Vérification** : Playwright 3021 (ordinateur, mobile, reduced-motion),
+   suivi de lecture sur un long article (*Le prix d'un club*, 8 thèses),
+   `tsc`, `check-map-anchors`, grille d'animation. Puis mise en ligne
+   habituelle.
 
 ### Ensuite
 
-1. **Phase 4 bis** : le panneau Concept Map dans l'article.
-   - La thèse courante au centre ; `covers` dit où l'on est.
-   - Touche `M`, marque de marge, pastille sur mobile.
-   - Coexistence avec le surligneur.
-   - Le nom de cette vue reste à donner par Alexandre.
-2. **Skill `journal-writing`**
+1. **Skill `journal-writing`**
    (am-photo/.claude/skills/journal-writing) : ajouter l'étape Concept Map.
    - Décomposer l'article dans le vault, puis faire relire Alexandre.
-   - Lancer `npm run map:build -- --write` depuis `am-blog`, puis Publish de
-     « Journal ▸ Concept Map ».
+   - Lancer `npm run map:build -- --write` depuis `am-blog` (accord
+     d'Alexandre : écriture prod), puis Publish de « Journal ▸ Concept Map ».
    - Surveiller la pastille de dérive après chaque retouche d'un article.
-3. **Phase 5** : libellés EN/RU, `/en/concept-map` et `/ru/concept-map`.
+   - Le build suivant met la page `/concept-map` à jour toute seule ;
+     l'image OG non (`node scripts/make-og-concept-map.mjs`, puis commit).
+2. **Phase 5** : libellés EN/RU de la carte (vault ou traduction auto),
+   `/en/concept-map` et `/ru/concept-map`, entrée de menu et sitemap dans les
+   trois langues (aujourd'hui FR seulement : `CONCEPT_MAP_PATH`,
+   lib/journal/i18n.ts).
 
 ### En attente d'Alexandre
 
-- Publish de « Journal ▸ Concept Map », s'il n'est pas déjà fait.
+- **Confirmer ou défaire les choix de la phase 4** : articles à l'encre
+  (pas aux couleurs de série), palette de repli des thématiques (ou poser
+  ses couleurs dans le Studio, elles passent devant), thématique des
+  mécanismes déduite, sigma 3.0.3.
+- **Nommer** la vue centrée dans l'article (phase 4 bis).
 - Relire dans Obsidian les 49 rimes `proposée` (passer en `validée` ou
   supprimer) et, à loisir, les 91 citations ancrées. Après chaque
   correction : `map:build -- --write`, puis Publish.
-- Nommer la vue centrée dans l'article (phase 4 bis).
 - **Bug en ligne** : *Hot chats make hot charts* affiche « ## L'argent : les
   commus paient déjà pour… » en texte brut dans un paragraphe. À convertir
   en vrai H2 dans le Studio, par lui ou par Claude avec son accord. Une fois
