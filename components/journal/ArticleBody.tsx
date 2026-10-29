@@ -24,13 +24,11 @@ import { Highlight } from './Highlight';
 import { PassageArrival } from './PassageArrival';
 import { VerdictTable } from './VerdictTable';
 import { DataTable } from './DataTable';
-import { ConceptQuote, MapMark } from './concept-map/ArticleMap';
+import { ConceptMarks, ConceptQuote } from './concept-map/ArticleMap';
 import { normalizeQuote } from '@/lib/journal/mapAnchors';
 
-/** Les marques de la Concept Map, par clé de paragraphe (`ArticleView`). */
-export type MapMarks = Record<string, { id: string; label: string; anchor: boolean }>;
 /** Les citations de la Concept Map, par clé de paragraphe, thèses d'abord (`ArticleView`). */
-export type MapQuotes = Record<string, { id: string; quote: string }[]>;
+export type MapQuotes = Record<string, { id: string; label: string; quote: string }[]>;
 
 /** Un nœud du paragraphe, et la citation de la carte qu'il porte (`ConceptQuote`). */
 type Piece = Inline & { concept?: string };
@@ -44,7 +42,7 @@ type Piece = Inline & { concept?: string };
  * Deux citations qui se chevauchent : la première servie garde le passage.
  * Les appels de note gardent leur identité — la numérotation y est accrochée.
  */
-function markQuotes(nodes: Inline[], quotes: { id: string; quote: string }[] | undefined): Piece[] {
+function markQuotes(nodes: Inline[], quotes: MapQuotes[string] | undefined): Piece[] {
   if (!quotes?.length) return nodes;
   const raw = nodes.map((n) => (n.t === 'text' ? n.text : '')).join('');
   let norm = '';
@@ -314,13 +312,11 @@ export function ArticleBody({
   article,
   series,
   signature,
-  marks,
   quotes,
 }: {
   article: Article;
   series: ArticleSummary[];
   signature: string;
-  marks?: MapMarks;
   quotes?: MapQuotes;
 }) {
   const lang = article.lang;
@@ -342,7 +338,8 @@ export function ArticleBody({
     <NotesProvider lang={lang}>
       <div className="flex flex-col">
         <noscript>
-          <style>{'.journal-hl{background-size:100% 100%!important}.journal-concept{background-size:100% 1px!important}'}</style>
+          {/* Sans JS, ni pastille ni carte : le pointillé, qui y renvoie, reste caché. */}
+          <style>{'.journal-hl{background-size:100% 100%!important}'}</style>
         </noscript>
         <PassageArrival />
         {blocks.map((block, i) => {
@@ -359,9 +356,11 @@ export function ArticleBody({
               // Ancre du passage : `#p-<clé>` (cf. `PassageArrival`).
               const passage = block.key ? { id: `p-${block.key}`, className: 'journal-passage' } : { className: undefined };
               const after = prev?.type === 'h2' ? RHYTHM.h2Bottom : i - 1 === leadIndex ? RHYTHM.lead : RHYTHM.body;
-              const m = block.key ? marks?.[block.key] : undefined;
-              const mark = m && <MapMark {...m} />;
-              const inline = markQuotes(block.inline, block.key ? quotes?.[block.key] : undefined);
+              const cited = block.key ? quotes?.[block.key] : undefined;
+              const inline = markQuotes(block.inline, cited);
+              // Une marque par citation retrouvée dans le texte (`ConceptMarks`).
+              const found = cited?.filter((q) => inline.some((n) => n.concept === q.id));
+              const mark = found?.length ? <ConceptMarks items={found} /> : null;
               if (isLead && notes.length === 0) {
                 return (
                   <p key={i} {...passage} className={cn(EDITORIAL_LEAD, passage.className)} style={{ marginTop: top(0) }}>
