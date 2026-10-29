@@ -170,12 +170,14 @@ function LsEntry({
   on,
   onChange,
   dash = false,
+  type = 'ls',
 }: {
   filter: Filter;
   on: boolean;
   onChange: (key: string) => void;
   /** Tiret de tête, pour les entrées mises à la suite sur téléphone. */
   dash?: boolean;
+  type?: EntryType;
 }) {
   return (
     <button
@@ -183,7 +185,10 @@ function LsEntry({
       aria-pressed={on}
       onClick={() => onChange(f.key)}
       className={cn(
-        'flex items-center gap-[8px] text-left font-mono text-[13px] leading-[1.3] transition-colors duration-200 motion-reduce:transition-none',
+        'flex items-center gap-[8px] text-left transition-colors duration-200 motion-reduce:transition-none',
+        // L'interligne APRÈS la taille : tailwind-merge efface un `leading-*` placé avant un `text-[…px]`.
+        ENTRY_TYPE[type],
+        'leading-[1.3]',
         on ? 'text-[var(--color-fg)] font-bold' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
       )}
       style={{ paddingBlock: ITEM_PAD }}
@@ -198,19 +203,30 @@ function LsEntry({
   );
 }
 
-/** Centre de la première ligne d'une entrée : 13 px × 1,3 d'interligne. */
-const LS_BRANCH_Y = ITEM_PAD + (13 * 1.3) / 2;
+/**
+ * La fonte d'une entrée : `ls`, chasse fixe à 13 px (accueil du journal) ;
+ * `index`, Switzer à 12 px (thèses/ et mécanismes/ de la Concept Map,
+ * demande Alexandre du 2026-10-29).
+ */
+type EntryType = 'ls' | 'index';
+const ENTRY_TYPE: Record<EntryType, string> = { ls: 'font-mono text-[13px]', index: 'font-[family-name:var(--font-index)] text-[12px]' };
+const ENTRY_SIZE: Record<EntryType, number> = { ls: 13, index: 12 };
+
+/** Centre de la première ligne d'une entrée : corps × 1,3 d'interligne. */
+const branchY = (type: EntryType) => ITEM_PAD + (ENTRY_SIZE[type] * 1.3) / 2;
 
 /** Desktop (`ls -1`) : une entrée par ligne, chacune sur sa branche. */
 export function FolderList({
   items,
   isOn,
   onChange,
+  type = 'ls',
   children,
 }: {
   items: Filter[];
   isOn: (key: string) => boolean;
   onChange: (key: string) => void;
+  type?: EntryType;
   children?: ReactNode;
 }) {
   return (
@@ -218,8 +234,8 @@ export function FolderList({
       <ul className="flex flex-col" style={{ paddingBottom: 10 }}>
         {items.map((f, i) => (
           <li key={f.key} className="relative" style={{ paddingLeft: TREE_INDENT }}>
-            <Branch y={LS_BRANCH_Y} last={i === items.length - 1} />
-            <LsEntry filter={f} on={isOn(f.key)} onChange={onChange} />
+            <Branch y={branchY(type)} last={i === items.length - 1} />
+            <LsEntry filter={f} on={isOn(f.key)} onChange={onChange} type={type} />
           </li>
         ))}
       </ul>
@@ -247,7 +263,7 @@ export function FolderFlow({
   return (
     <div style={{ paddingBottom: 14 }}>
       <div className="relative" style={{ paddingLeft: TREE_INDENT }}>
-        <Branch y={LS_BRANCH_Y} last />
+        <Branch y={branchY('ls')} last />
         <ul className="flex flex-wrap gap-x-5 gap-y-1">
           {items.map((f) => (
             <li key={f.key}>
@@ -284,7 +300,7 @@ export function FolderPeek({
     <div className="flex flex-col" style={{ paddingBottom: 10 }}>
       {current && isOn && onChange && (
         <div className="relative" style={{ paddingLeft: TREE_INDENT }}>
-          <Branch y={LS_BRANCH_Y} last />
+          <Branch y={branchY('ls')} last />
           <LsEntry filter={current} on={isOn(current.key)} onChange={onChange} />
         </div>
       )}

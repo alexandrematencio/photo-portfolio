@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StateDot } from '@/components/site/StateDot';
 import { TagSwatch } from '@/components/journal/TagSwatch';
-import { Folder, FOLDER_MS, FolderList, TREE_INDENT, type Filter } from '@/components/journal/FolderTree';
+import { Folder, FOLDER_MS, FolderList, type Filter } from '@/components/journal/FolderTree';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import { DICT } from '@/lib/journal/i18n';
@@ -74,10 +74,13 @@ function Group({ label, children }: { label: string; children: ReactNode }) {
  */
 const ASIDE_MAX = 'calc(100dvh - 7rem)';
 
-/** Une ligne de rubrique dans « thèses/ » : le titre de l'article, estompé, sur la branche. */
+/** Une ligne de rubrique dans « thèses/ » : le titre de l'article, en Switzer (Alexandre, 2026-10-29), au ras du dossier. */
 function ArticleHeading({ children }: { children: ReactNode }) {
   return (
-    <p className="font-mono text-[12px] leading-[1.3] text-[var(--color-fg-faint)]" style={{ paddingTop: 8, paddingLeft: TREE_INDENT }}>
+    <p
+      className="font-[family-name:var(--font-index)] text-[14px] font-medium leading-[18px] text-[var(--color-fg-faint)]"
+      style={{ paddingTop: 16, paddingBottom: 16, paddingLeft: 0 }}
+    >
       {children}
     </p>
   );
@@ -227,7 +230,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
               {index.theses.map((g) => (
                 <div key={g.article.id}>
                   <ArticleHeading>{g.article.label}</ArticleHeading>
-                  <FolderList items={g.items} isOn={(key) => key === shown} onChange={show} />
+                  <FolderList items={g.items} isOn={(key) => key === shown} onChange={show} type="index" />
                 </div>
               ))}
             </div>
@@ -242,7 +245,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
             entries={index.mechanisms.length}
             peek={null}
           >
-            <FolderList items={index.mechanisms} isOn={(key) => key === shown} onChange={show} />
+            <FolderList items={index.mechanisms} isOn={(key) => key === shown} onChange={show} type="index" />
           </Folder>
         </div>
         <div className="flex flex-col gap-2 border-t border-[var(--color-line)]" style={{ paddingTop: 12 }}>
