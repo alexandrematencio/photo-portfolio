@@ -331,6 +331,10 @@ type Dict = {
     openFull: string;
     /** Le bouton de marge d'un paragraphe, pour le lecteur d'écran. */
     mark: (label: string) => string;
+    /** Les deux dossiers de la colonne de gauche (le composant les met en minuscules, avec « / »). */
+    thesesFolder: string;
+    mechanismsFolder: string;
+    index: string;
   };
 };
 
@@ -553,6 +557,9 @@ export const DICT: Record<Lang, Dict> = {
       following: 'Suit la lecture',
       openFull: 'Voir dans la Concept Map',
       mark: (label) => `Concept Map : ${label}`,
+      thesesFolder: 'Thèses',
+      mechanismsFolder: 'Mécanismes',
+      index: 'Index',
     },
     dateLocale: 'fr-FR',
   },
@@ -763,6 +770,9 @@ export const DICT: Record<Lang, Dict> = {
       following: 'Following your reading',
       openFull: 'See it in the Concept Map',
       mark: (label) => `Concept Map: ${label}`,
+      thesesFolder: 'Theses',
+      mechanismsFolder: 'Mechanisms',
+      index: 'Index',
     },
     dateLocale: 'en-GB',
   },
@@ -979,6 +989,9 @@ export const DICT: Record<Lang, Dict> = {
       following: 'Следует за чтением',
       openFull: 'Открыть в Concept Map',
       mark: (label) => `Concept Map: ${label}`,
+      thesesFolder: 'Тезисы',
+      mechanismsFolder: 'Механизмы',
+      index: 'Указатель',
     },
     dateLocale: 'ru-RU',
   },

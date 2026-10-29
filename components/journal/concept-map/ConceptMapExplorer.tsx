@@ -1,9 +1,10 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StateDot } from '@/components/site/StateDot';
 import { TagSwatch } from '@/components/journal/TagSwatch';
+import { Folder, FOLDER_MS, FolderList, TREE_INDENT, type Filter } from '@/components/journal/FolderTree';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import { DICT } from '@/lib/journal/i18n';
@@ -23,6 +24,11 @@ import { MapList } from './MapList';
  *
  * La sélection vit dans l'adresse (`#n=<id>`) : elle se partage, et le retour
  * arrière depuis un passage retrouve le nœud ouvert.
+ *
+ * Sous les filtres, « thèses/ » et « mécanismes/ » (2026-10-29, Alexandre) :
+ * l'index complet de la carte, dans les dossiers de l'accueil du journal
+ * (`FolderTree`), un seul ouvert à la fois, fermés au départ. Ils suivent les
+ * filtres ; une entrée ouvre son nœud sur la carte, comme la liste.
  */
 
 const Graph = dynamic(() => import('./ConceptMapGraph'), { ssr: false });
@@ -61,6 +67,22 @@ function Group({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/**
+ * Dès 768 px, la colonne collante ne dépasse jamais la hauteur visible
+ * (barre de navigation, 64 px, et 24 px d'air dessus et dessous) : un dossier
+ * ouvert la fait défiler, elle, au lieu de pousser la carte hors de l'écran.
+ */
+const ASIDE_MAX = 'calc(100dvh - 7rem)';
+
+/** Une ligne de rubrique dans « thèses/ » : le titre de l'article, estompé, sur la branche. */
+function ArticleHeading({ children }: { children: ReactNode }) {
+  return (
+    <p className="font-mono text-[12px] leading-[1.3] text-[var(--color-fg-faint)]" style={{ paddingTop: 8, paddingLeft: TREE_INDENT }}>
+      {children}
+    </p>
+  );
+}
+
 const readHash = () => {
   const m = window.location.hash.match(new RegExp(`^#${HASH_KEY}=(.+)$`));
   return m ? decodeURIComponent(m[1]) : null;
@@ -73,6 +95,9 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const [center, setCenter] = useState(0);
   const [view, setView] = useState<View>('auto');
   const [wide, setWide] = useState<boolean | null>(null);
+  const [folder, setFolder] = useState<'theses' | 'mechanisms' | null>(null);
+  const [settled, setSettled] = useState(false);
+  const folderId = useId();
   const dict = DICT[data.lang];
   const t = dict.map;
 
@@ -80,6 +105,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     const mq = window.matchMedia('(min-width: 768px)');
     const sync = () => setWide(mq.matches);
     sync();
+    setSettled(true);
     mq.addEventListener('change', sync);
     const fromHash = readHash();
     if (fromHash && ix.byId.has(fromHash)) {
@@ -115,11 +141,43 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const toggle = <K extends keyof Filters>(key: K, value: Filters[K]) =>
     setFilters((f) => ({ ...f, [key]: f[key] === value ? NO_FILTER[key] : value }));
 
+  // L'index des dossiers : les thèses par article (ordre de lecture), les mécanismes par nom.
+  const index = useMemo(() => {
+    const theses = data.nodes
+      .filter((a) => a.kind === 'article' && visible.has(a.id))
+      .map((a) => ({
+        article: a,
+        items: (ix.thesesOfArticle.get(a.id) ?? []).filter((id) => visible.has(id)).map((id): Filter => ({ key: id, label: ix.byId.get(id)!.label })),
+      }))
+      .filter((g) => g.items.length > 0);
+    const mechanisms = data.nodes
+      .filter((m) => m.kind === 'mechanism' && visible.has(m.id))
+      .sort((a, b) => a.label.localeCompare(b.label, data.lang))
+      .map((m): Filter => ({ key: m.id, label: m.label, count: m.articles.length, color: (m.theme && ix.themeColor.get(m.theme)) || null }));
+    return { theses, mechanisms, thesisCount: theses.reduce((k, g) => k + g.items.length, 0) };
+  }, [data, ix, visible]);
+  const stage = useRef<HTMLElement>(null);
+  const show = (id: string) => {
+    if (current === 'list') setView('map');
+    select(id === shown ? null : id, true);
+    // Téléphone : la carte est sous la colonne. On replie le dossier, puis on y
+    // descend une fois le repli fini (avant, la cible bouge encore sous le défilement).
+    if (wide) return;
+    setFolder(null);
+    const smooth = window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
+    window.setTimeout(() => stage.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' }), smooth ? FOLDER_MS : 0);
+  };
+  const toggleFolder = (name: 'theses' | 'mechanisms') => setFolder((f) => (f === name ? null : name));
+
   const n = (kind: string) => [...visible].filter((id) => ix.byId.get(id)?.kind === kind).length;
 
   return (
     <div className="flex flex-col gap-8 md:grid md:gap-x-12" style={{ gridTemplateColumns: `${FILTER_COL}px minmax(0, 1fr)` }}>
-      <aside className="flex flex-col gap-6 self-start md:sticky md:top-6" aria-label={t.filters}>
+      <aside
+        className="flex flex-col gap-6 self-start md:sticky md:top-6 md:max-h-[var(--aside-max)] md:overflow-y-auto md:overscroll-contain"
+        style={{ ['--aside-max' as string]: ASIDE_MAX }}
+        aria-label={t.filters}
+      >
         <Group label={t.view}>
           <Choice on={current === 'map'} onClick={() => setView('map')}>
             {t.mapView}
@@ -154,6 +212,39 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
             </span>
           </Choice>
         </Group>
+        <div role="group" aria-label={t.index} className="flex flex-col">
+          <Folder
+            id={`${folderId}-theses`}
+            name={t.thesesFolder}
+            state={folder === 'theses' ? 'open' : 'closed'}
+            settled={settled}
+            onToggle={() => toggleFolder('theses')}
+            lit={!!shown && ix.byId.get(shown)?.kind === 'thesis'}
+            entries={index.thesisCount}
+            peek={null}
+          >
+            <div>
+              {index.theses.map((g) => (
+                <div key={g.article.id}>
+                  <ArticleHeading>{g.article.label}</ArticleHeading>
+                  <FolderList items={g.items} isOn={(key) => key === shown} onChange={show} />
+                </div>
+              ))}
+            </div>
+          </Folder>
+          <Folder
+            id={`${folderId}-mechanisms`}
+            name={t.mechanismsFolder}
+            state={folder === 'mechanisms' ? 'open' : 'closed'}
+            settled={settled}
+            onToggle={() => toggleFolder('mechanisms')}
+            lit={!!shown && ix.byId.get(shown)?.kind === 'mechanism'}
+            entries={index.mechanisms.length}
+            peek={null}
+          >
+            <FolderList items={index.mechanisms} isOn={(key) => key === shown} onChange={show} />
+          </Folder>
+        </div>
         <div className="flex flex-col gap-2 border-t border-[var(--color-line)]" style={{ paddingTop: 12 }}>
           <p aria-live="polite" className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
             {dict.articles(n('article'))} · {t.theses(n('thesis'))} · {t.mechanisms(n('mechanism'))}
@@ -166,7 +257,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
         </div>
       </aside>
 
-      <section aria-label="Concept Map" className="min-w-0">
+      <section ref={stage} aria-label="Concept Map" className="min-w-0" style={{ scrollMarginTop: 16 }}>
         <div className={cn(view === 'auto' ? 'hidden md:block' : current === 'map' ? 'block' : 'hidden')}>
           <p className="sr-only">{t.drawingNote}</p>
           <div className="flex flex-col gap-6 md:relative">

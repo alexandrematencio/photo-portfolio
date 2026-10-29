@@ -66,18 +66,20 @@ export type MapView = {
 
 /**
  * Aucune thématique n'a de couleur dans le Studio au 2026-10-29. Repli par
- * nom, des tons d'encre lisibles sur le papier ; une couleur choisie dans le
- * Studio passe devant. Jamais l'orange : c'est la couleur d'état (§4.3).
+ * nom, palette donnée par Alexandre le 2026-10-29 (capture, huit tons pour
+ * huit thématiques, attribués au plus près des teintes d'avant) ; une couleur
+ * choisie dans le Studio passe devant. Les tons clairs (vert, cyan, jaune)
+ * sont sous 3:1 sur le papier : ils marquent, ils ne portent aucun texte.
  */
 const THEME_FALLBACK: Record<string, string> = {
-  Economie: '#b07d12',
-  Société: '#27408b',
-  Esprit: '#7a4c9e',
-  Corps: '#b23f66',
-  Psychologie: '#1c8a80',
-  Design: '#5d8f2c',
-  Science: '#3fa6cf',
-  Philosophie: '#6b645a',
+  Economie: '#ffb200',
+  Société: '#0013ff',
+  Esprit: '#501ba1',
+  Corps: '#ff5100',
+  Psychologie: '#ff9065',
+  Design: '#54f76d',
+  Science: '#00eeff',
+  Philosophie: '#9d9fb3',
 };
 const OTHER = '#8d887c';
 
