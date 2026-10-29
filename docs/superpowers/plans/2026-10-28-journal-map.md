@@ -356,55 +356,134 @@ sans carte.
 - Matplotlib n'est pas installé : pas d'aperçu image de la mise en page hors
   du navigateur.
 
-## Prochaines actions (état au 2026-10-29)
+### Appris en route — phase 3 (2026-10-29)
 
-Fait et en ligne : phase 1 (main 3c1c32a, clés EN/RU alignées), phase 2
-(main d056564). Sortie actuelle de `map:build` : 8 articles, 91 thèses
-ancrées sur 91, 83 mécanismes, 15 rimes écrites, 49 proposées non publiées,
-0 problème.
+- **Le recalage au build vit dans la page, pas dans un script npm** : le
+  script du VPS (`rebuild-photo.sh`) lance `next build` directement. Un
+  `map:check` ajouté à `build:blog` n'y tournerait jamais. La page
+  `/concept-map` appelle `checkConceptMap` à son build ; `map:check` ne sert
+  qu'en console.
+- **Un `S.document()` explicite dans la Structure n'hérite PAS de
+  `defaultDocumentNode`** : la Concept Map s'ouvrait sur le formulaire.
+  `journalMapViews(S, doc)` (sanity/structure/index.ts) sert aux deux.
+- **Badges de document (Sanity 5.26)** : rendus dans la barre du bas, à
+  gauche de Publish ; ce sont des hooks (`useClient`, `useEffect` permis),
+  qui reçoivent `draft` et `published`.
+- **`/studio-probe` ne marche que sur le port 3010** : sur 3021, l'appel
+  `acl` est refusé (origines CORS du projet Sanity) et le Studio tombe en
+  erreur. Pour le Studio : `npx next dev -p 3010` (sans `SITE_TARGET`) ;
+  pour le blog : `SITE_TARGET=blog npx next dev -p 3021`.
+- **La sonde ne lit pas les brouillons** (lecture publique) : pour voir un
+  document non publié, Playwright intercepte la requête (`page.route`
+  sur `api.sanity.io/.../data/query/`) et sert le JSON local. Le client
+  Sanity encode les espaces de la GROQ en `+` dans l'URL : filtrer sur
+  `quoteArticle+==+$slug`, pas sur la requête en clair.
+- **Scripts jetables en TypeScript dans le scratchpad** : extension `.mts`
+  (top-level await) et import de `@sanity/client` par chemin absolu
+  (`am-blog/node_modules/@sanity/client/dist/index.js`).
+- **Le Studio en ligne se vérifie sur le serveur** : `amatencio.com/studio`
+  répond 401 à curl ; `ssh amatencio-vps 'grep -rl "<texte>"
+  /srv/www/photo/_next/static/chunks'` prouve que le code est servi.
+- **`npm run …` se lance depuis `am-blog`** (Alexandre l'a lancé depuis
+  `amatencio/` : ENOENT `package.json`). `map:build` lit `.env.local` seul
+  (`--env-file-if-exists`).
+- **14 ancres sur 174 précèdent le premier intertitre** : pas de `section`,
+  leur repli va directement à l'article. Normal.
 
-1. **Phase 3 : faite le 2026-10-29** (code en ligne ; reste le premier
-   `npm run map:build -- --write`, qui écrit en production : accord
-   d'Alexandre, puis son Publish de « Journal ▸ Concept Map »).
-   - `lib/journal/mapAnchors.ts` (pur) : `resolveAnchor` → `ok` | `moved`
-     (citation retrouvée ailleurs, recalée) | `reworded` (citation perdue,
-     paragraphe là) | `section` (repli sur le `_key` de l'intertitre, stocké
-     à l'export) | `article`. `resolveArticleTheses` recalcule les `covers`
-     sur le texte du moment. Les trois derniers statuts sont la dérive.
-   - `lib/journal/conceptMap.ts` : forme du document, GROQ, et
-     `checkConceptMap(map, posts)` (dérive + clés absentes en EN/RU). C'est
-     CE recalage que la page de la phase 4 appliquera au build : le script du
-     VPS lance `next build` directement, pas un script npm.
-   - `npm run map:check` : même vérification en console, toujours en sortie 0.
-   - Studio : singleton `journalMap` en lecture seule, onglets « État » puis
-     « Données » ; pastille « Concept Map : N à reprendre » à côté de Publish
-     sur l'article (texte affiché, brouillon compris) ; carte au Tableau de
-     bord. Vérifié sur `/studio-probe` avec la carte servie par interception
-     Playwright (une dérive et un recalage fabriqués).
-   - 39 assertions (`check-map-anchors`) ; sur les vrais articles, 174/174
-     nœuds `ok` et `covers` identiques à l'export.
-   - ⚠️ `/studio-probe` ne marche que sur le port 3010 (CORS Sanity).
-2. **Phase 4** : page `/concept-map` (Sigma.js + graphology, positions de
-   `journalMap`), panneau latéral, filtres, liste filtrable sur mobile et
-   pour le clavier. Lire `animation-principles.md` avant d'écrire.
-3. **Phase 4 bis** : panneau Concept Map dans l'article (thèse courante au
-   centre, `covers` pour savoir où l'on est, touche `M`, marque de marge,
-   coexistence avec le surligneur).
-4. **Ajouter l'étape Concept Map à la skill `journal-writing`**
-   (am-photo/.claude/skills/journal-writing) : décomposer l'article dans le
-   vault, relecture d'Alexandre, `map:build`, Publish.
+## Prochaines actions (état au 2026-10-29, fin de session)
 
-En attente d'Alexandre :
-- relire dans Obsidian les 91 citations ancrées (le passage où le lecteur
-  arrivera) et les 49 rimes `proposée` (passer en `validée` ou supprimer) ;
-- trancher : publier les `definition` des mécanismes (rédigées par Claude)
-  telles quelles, ou les relire d'abord ;
-- nommer la vue centrée dans l'article ;
-- **bug en ligne** : *Hot chats make hot charts* affiche « ## L'argent : les
-  commus paient déjà pour… » en texte brut dans un paragraphe (intertitre
-  tapé dans le texte) ; à convertir en vrai H2 dans le Studio, par lui ou
-  par Claude avec son accord ;
-- toujours ouverts depuis le 2026-10-28 : « 50 000 euros de dettes à
-  confirmer » visible dans *Le plancher et le multiplicateur* ; bloc « à
-  trancher » et citation en exergue divergente dans *Hot chats* ; liste des
-  directions pour l'« À propos » court.
+Fait et en ligne : phase 1 (main 3c1c32a), phase 2 (main d056564), phase 3
+(main 3959de1). Brouillon `drafts.journalMap` écrit le 2026-10-29 à 11:14
+UTC (182 nœuds : 8 articles, 91 thèses, 83 mécanismes ; 410 liens).
+Alexandre a vu l'onglet État : 174 nœuds en place. Il publie la carte telle
+quelle, définitions de Claude comprises (son « ok » du 2026-10-29). Au
+moment d'écrire ces lignes, la version publiée n'existait pas encore :
+vérifier `count(*[_id=="journalMap"].nodes)` sur l'API publique avant la
+phase 4, et lui rappeler Publish si c'est 0.
+
+### À exécuter ensuite : phase 4, la page `/concept-map`
+
+Avant d'écrire : `git fetch` et partir d'`origin/main` ; lire
+`~/Documents/FREELANCE/RESOURCES/animation-principles.md` ; charger la skill
+`design-system` (cadre de page, typographie, couleurs d'état).
+
+1. **Données au build** : `lib/journal/conceptMapData.ts` (serveur).
+   - Lire `JOURNAL_MAP_QUERY` et `MAP_POSTS_QUERY` (lib/journal/conceptMap.ts),
+     puis passer le résultat à `checkConceptMap`. Écrire la dérive en
+     `console.warn` dans le log de build, sans jamais lever d'erreur.
+   - Ressortir un modèle de vue : chaque nœud avec son `href`.
+   - Thèse ou mécanisme `paragraph` : `/<slug>/#p-<clé>`.
+   - Repli `section` : l'`id` du H2, calculé par `articleSections`
+     (lib/journal/sections.ts) sur l'article converti. On ne peut pas
+     utiliser la clé de bloc, parce que les H2 ont des ids tirés du texte.
+   - Repli `article` : `/<slug>/`.
+   - Couleurs : la thématique vient du vault (nom) ; la rapprocher de
+     `journalTag` (titre → `color`), et la série de `journalSeries`.
+   - Sans carte publiée, la page affiche un état vide propre.
+2. **Route** : `app/(blog)/concept-map/page.blog.tsx`, sur le modèle de
+   `app/(blog)/a-propos/page.blog.tsx`, avec métadonnées et OG dans
+   `components/journal/pages.tsx`. FR seulement : `/en` et `/ru` attendent
+   la phase 5.
+3. **Le graphe** : `components/journal/concept-map/`, en composant client
+   chargé dynamiquement (`ssr: false`).
+   - Ajouter `sigma` en version exacte, au moins deux semaines d'ancienneté.
+     graphology@0.26.0 est déjà là.
+   - Les positions sont celles du document, aucune mise en page dans le
+     navigateur.
+   - Hiérarchie visuelle : article gros, thèse en satellite, mécanisme
+     coloré par thématique, rime en lien fin. Les libellés n'apparaissent
+     qu'au zoom.
+   - Au survol, les voisins restent nets et le reste s'estompe ; au clic,
+     un panneau s'ouvre.
+4. **Panneau latéral** :
+   - thèse : verdict, citation, « Lire le passage → » vers son `href` ;
+   - mécanisme : définition, articles qui l'emploient, et leurs passages ;
+   - article : chapô, série, ses thèses dans l'ordre.
+5. **Filtres** : série, thématique, « structures communes seulement »
+   (mécanismes présents dans au moins deux articles).
+6. **Liste filtrable** (mécanisme → articles → passages) : c'est la vue sous
+   768 px, avec le graphe derrière un bouton ; c'est aussi le chemin clavier
+   et lecteur d'écran sur grand écran.
+7. **Raccords** : lien discret dans la navigation du blog, entrée dans
+   `app/sitemap.ts` et image OG.
+8. **Vérification** :
+   - `SITE_TARGET=blog npx next dev -p 3021`, puis Playwright (`fr-FR`) sur
+     ordinateur, mobile et en mouvement réduit ;
+   - un clic sur une thèse doit arriver sur le bon paragraphe, avec le filet
+     orange ;
+   - `npx tsc --noEmit` et `npm run check-map-anchors` ;
+   - repasser la grille de relecture d'`animation-principles.md`.
+   Puis la mise en ligne habituelle (fusion dans am-blog-translate, push,
+   rebuild VPS, vérification en ligne).
+
+### Ensuite
+
+1. **Phase 4 bis** : le panneau Concept Map dans l'article.
+   - La thèse courante au centre ; `covers` dit où l'on est.
+   - Touche `M`, marque de marge, pastille sur mobile.
+   - Coexistence avec le surligneur.
+   - Le nom de cette vue reste à donner par Alexandre.
+2. **Skill `journal-writing`**
+   (am-photo/.claude/skills/journal-writing) : ajouter l'étape Concept Map.
+   - Décomposer l'article dans le vault, puis faire relire Alexandre.
+   - Lancer `npm run map:build -- --write` depuis `am-blog`, puis Publish de
+     « Journal ▸ Concept Map ».
+   - Surveiller la pastille de dérive après chaque retouche d'un article.
+3. **Phase 5** : libellés EN/RU, `/en/concept-map` et `/ru/concept-map`.
+
+### En attente d'Alexandre
+
+- Publish de « Journal ▸ Concept Map », s'il n'est pas déjà fait.
+- Relire dans Obsidian les 49 rimes `proposée` (passer en `validée` ou
+  supprimer) et, à loisir, les 91 citations ancrées. Après chaque
+  correction : `map:build -- --write`, puis Publish.
+- Nommer la vue centrée dans l'article (phase 4 bis).
+- **Bug en ligne** : *Hot chats make hot charts* affiche « ## L'argent : les
+  commus paient déjà pour… » en texte brut dans un paragraphe. À convertir
+  en vrai H2 dans le Studio, par lui ou par Claude avec son accord. Une fois
+  le H2 en place, la pastille dira si une ancre a bougé.
+- Toujours ouverts depuis le 2026-10-28 :
+  - « 50 000 euros de dettes à confirmer » visible dans *Le plancher et le
+    multiplicateur* ;
+  - bloc « à trancher » et citation en exergue divergente dans *Hot chats* ;
+  - liste des directions pour l'« À propos » court.
