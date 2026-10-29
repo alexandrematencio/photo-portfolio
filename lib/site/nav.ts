@@ -14,7 +14,7 @@
  * en chargement à froid ET au rechargement.
  */
 
-import { CONCEPT_MAP_PATH } from '@/lib/journal/i18n';
+import { LANGS, conceptMapPath, type Lang } from '@/lib/journal/i18n';
 import { ABOUT_URL, HUB_URL, IS_BLOG, blogHref, photoHref } from './sites';
 
 export type NavLink = {
@@ -32,7 +32,12 @@ export type NavLink = {
    * le journal, quelle que soit la page.
    */
   menu?: 'sites' | 'journal';
+  /** L'adresse dans la langue de la page, quand elle en a une par langue (la Concept Map). */
+  localized?: (lang: Lang) => string;
 };
+
+/** L'adresse d'une entrée dans la langue de la page. */
+export const navHref = (link: NavLink, lang: Lang) => link.localized?.(lang) ?? link.href;
 
 /**
  * Navigation principale, identique sur toutes les pages publiques.
@@ -60,10 +65,10 @@ export const NAV_LINKS: NavLink[] = IS_BLOG
       // un menu, surligné comme page active —, puis la page About du
       // portfolio, qui porte le contact (ordre demandé par Alexandre le
       // 2026-10-18). La Concept Map entre entre les deux (2026-10-29,
-      // demande Alexandre) ; en français seulement jusqu'à la phase 5.
+      // demande Alexandre), dans la langue de la page (phase 5).
       { href: HUB_URL, label: 'All sites', menu: 'sites' },
       { href: '/', label: 'Journal', menu: 'journal' },
-      { href: CONCEPT_MAP_PATH, label: 'Concept Map' },
+      { href: conceptMapPath('fr'), label: 'Concept Map', localized: conceptMapPath },
       { href: ABOUT_URL, label: 'About' },
     ]
   : [
@@ -145,7 +150,7 @@ function stripSlash(path: string): string {
  * sa propre entrée, et deux pages actives ne disent plus où l'on est.
  */
 export function journalIsActive(pathname: string): boolean {
-  return !isSamePage(CONCEPT_MAP_PATH, pathname);
+  return !LANGS.some((l) => isSamePage(conceptMapPath(l), pathname));
 }
 
 export function isSamePage(href: string, pathname: string): boolean {

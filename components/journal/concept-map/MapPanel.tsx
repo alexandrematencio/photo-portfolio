@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { TagSwatch } from '@/components/journal/TagSwatch';
 import { frenchSpaces } from '@/lib/journal/french';
+import { DICT, quoteMarks, type Lang } from '@/lib/journal/i18n';
 import { EDITORIAL_H3, JOURNAL_LINK_DECORATION, MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import type { MapViewNode } from '@/lib/journal/conceptMapData';
@@ -22,7 +23,7 @@ const QUOTE = 'font-[family-name:var(--font-quote)] text-[18px] font-medium lead
 const TEXT = 'text-[15px] font-medium leading-[1.5] text-[var(--color-fg)]';
 const SUBHEAD = cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]');
 
-export function ReadLink({ href, children = 'Lire le passage' }: { href: string; children?: ReactNode }) {
+export function ReadLink({ href, children }: { href: string; children: ReactNode }) {
   return (
     <Link href={href} className={cn(JOURNAL_LINK_DECORATION, 'group w-fit text-[15px] font-bold')}>
       {children}{' '}
@@ -54,12 +55,17 @@ function Block({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
+function Quote({ text, lang }: { text: string; lang: Lang }) {
+  const [open, close] = quoteMarks(lang);
+  return <blockquote className={QUOTE}>{frenchSpaces(`${open}${text}${close}`)}</blockquote>;
+}
 
 export function MapPanel({ ix, id, onSelect, onClose }: { ix: MapIndex; id: string; onSelect: (id: string) => void; onClose?: () => void }) {
   const node = ix.byId.get(id);
   if (!node) return null;
   const article = (aid: string) => ix.byId.get(aid);
+  const lang = ix.view.lang;
+  const t = DICT[lang].map;
 
   let kicker: ReactNode;
   let body: ReactNode;
@@ -67,18 +73,18 @@ export function MapPanel({ ix, id, onSelect, onClose }: { ix: MapIndex; id: stri
     const a = article(node.articles[0]);
     const siblings = ix.thesesOfArticle.get(node.articles[0]) ?? [];
     const mechs = (ix.mechsOfThesis.get(id) ?? []).map((m) => ix.byId.get(m)!).filter(Boolean);
-    kicker = `Thèse ${siblings.indexOf(id) + 1} sur ${siblings.length}`;
+    kicker = t.thesisOf(siblings.indexOf(id) + 1, siblings.length);
     body = (
       <>
-        {node.quote && <blockquote className={QUOTE}>« {frenchSpaces(node.quote)} »</blockquote>}
-        <ReadLink href={node.href} />
+        {node.quote && <Quote text={node.quote} lang={lang} />}
+        <ReadLink href={node.href}>{t.readPassage}</ReadLink>
         {a && (
-          <Block title="Dans l’article">
+          <Block title={t.inArticle}>
             <NodeButton node={a} onSelect={onSelect} />
           </Block>
         )}
         {mechs.length > 0 && (
-          <Block title={plural(mechs.length, 'Mécanisme employé', 'Mécanismes employés')}>
+          <Block title={t.mechanismsUsed(mechs.length)}>
             <ul className="flex flex-col gap-2">
               {mechs.map((m) => (
                 <li key={m.id} className="flex items-baseline gap-2">
@@ -96,7 +102,7 @@ export function MapPanel({ ix, id, onSelect, onClose }: { ix: MapIndex; id: stri
     const rhymes = ix.rhymes.get(id) ?? [];
     kicker = (
       <span className="flex items-center gap-2">
-        Mécanisme
+        {t.mechanism}
         {node.theme && (
           <>
             <span aria-hidden>·</span>
@@ -109,9 +115,9 @@ export function MapPanel({ ix, id, onSelect, onClose }: { ix: MapIndex; id: stri
     body = (
       <>
         {node.definition && <p className={TEXT}>{frenchSpaces(node.definition)}</p>}
-        {node.quote && <blockquote className={QUOTE}>« {frenchSpaces(node.quote)} »</blockquote>}
-        {node.quote && <ReadLink href={node.href} />}
-        <Block title={`Employé dans ${plural(node.articles.length, 'article', 'articles')}`}>
+        {node.quote && <Quote text={node.quote} lang={lang} />}
+        {node.quote && node.href && <ReadLink href={node.href}>{t.readPassage}</ReadLink>}
+        <Block title={t.usedIn(node.articles.length)}>
           <ul className="flex flex-col gap-4">
             {node.articles.map((aid) => {
               const a = article(aid);
@@ -121,14 +127,14 @@ export function MapPanel({ ix, id, onSelect, onClose }: { ix: MapIndex; id: stri
                   <NodeButton node={a} onSelect={onSelect} />
                   <ul className="flex flex-col gap-1.5" style={{ paddingLeft: 14 }}>
                     {theses
-                      .filter((t) => t.articles[0] === aid)
-                      .map((t) => (
-                        <li key={t.id} className="flex flex-col gap-0.5">
-                          <NodeButton node={t} onSelect={onSelect}>
-                            <span className="font-medium">{frenchSpaces(t.label)}</span>
+                      .filter((th) => th.articles[0] === aid)
+                      .map((th) => (
+                        <li key={th.id} className="flex flex-col gap-0.5">
+                          <NodeButton node={th} onSelect={onSelect}>
+                            <span className="font-medium">{frenchSpaces(th.label)}</span>
                           </NodeButton>
-                          <Link href={t.href} className={cn(JOURNAL_LINK_DECORATION, 'w-fit text-[13px] font-bold')}>
-                            Lire le passage →
+                          <Link href={th.href} className={cn(JOURNAL_LINK_DECORATION, 'w-fit text-[13px] font-bold')}>
+                            {t.readPassage} →
                           </Link>
                         </li>
                       ))}
@@ -139,7 +145,7 @@ export function MapPanel({ ix, id, onSelect, onClose }: { ix: MapIndex; id: stri
           </ul>
         </Block>
         {rhymes.length > 0 && (
-          <Block title={plural(rhymes.length, 'Rime', 'Rimes')}>
+          <Block title={t.rhymes(rhymes.length)}>
             <ul className="flex flex-col gap-3">
               {rhymes.map((r) => {
                 const m = ix.byId.get(r.id);
@@ -158,12 +164,12 @@ export function MapPanel({ ix, id, onSelect, onClose }: { ix: MapIndex; id: stri
     );
   } else {
     const theses = (ix.thesesOfArticle.get(id) ?? []).map((t) => ix.byId.get(t)!).filter(Boolean);
-    kicker = node.series ? `${node.series}${node.part ? ` · partie ${node.part}` : ''}` : 'Article';
+    kicker = node.series ? `${node.series}${node.part ? ` · ${t.part(node.part)}` : ''}` : t.article;
     body = (
       <>
         {node.dek && <p className={TEXT}>{frenchSpaces(node.dek)}</p>}
-        <ReadLink href={node.href}>Lire l’article</ReadLink>
-        <Block title={plural(theses.length, 'Thèse', 'Thèses')}>
+        <ReadLink href={node.href}>{t.readArticle}</ReadLink>
+        <Block title={t.thesesHeading(theses.length)}>
           <ol className="flex flex-col gap-2">
             {theses.map((t, i) => (
               <li key={t.id} className="flex items-baseline gap-3">
@@ -186,7 +192,7 @@ export function MapPanel({ ix, id, onSelect, onClose }: { ix: MapIndex; id: stri
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={DICT[lang].close}
             className={cn(MICRO_LABEL, '-mt-1 text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)] motion-reduce:transition-none')}
             style={{ padding: 4 }}
           >

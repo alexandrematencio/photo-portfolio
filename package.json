@@ -29,6 +29,7 @@
     "check-map-anchors": "node --import tsx scripts/check-map-anchors.ts",
     "map:build": "node --env-file-if-exists=.env.local --import tsx scripts/map-build.ts",
     "map:check": "node --import tsx scripts/map-check.ts",
+    "map:translate": "node --env-file-if-exists=.env.local --import tsx scripts/map-translate.ts",
     "align-translation-keys": "node --env-file=.env.local --import tsx scripts/align-translation-keys.ts",
     "check-jsonld": "node --env-file=.env.local --import tsx scripts/check-jsonld.ts",
     "wipe-photos": "node --env-file=.env.local --import tsx scripts/wipe-photos.ts",

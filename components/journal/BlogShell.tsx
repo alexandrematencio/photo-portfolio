@@ -15,7 +15,7 @@ import { EmailHoneypot } from '@/components/site/EmailHoneypot';
 import { NavMemory } from '@/components/journal/BackLink';
 import { HomeReturn } from '@/components/journal/HomeReturn';
 import { getAllSeries, getArticles } from '@/lib/journal/articles';
-import { CONCEPT_MAP_PATH, DICT, LOCALE, homePath, languageScript, seriesPath, type Lang } from '@/lib/journal/i18n';
+import { DICT, LOCALE, conceptMapPath, homePath, languageScript, seriesPath, type Lang } from '@/lib/journal/i18n';
 import type { MenuEntry } from '@/components/site/SitesMenu';
 
 /**
@@ -48,18 +48,14 @@ export const blogViewport: Viewport = {
   initialScale: 1,
 };
 
-/**
- * Le menu « Journal » : tous les articles, puis chaque série de cette langue,
- * puis la Concept Map — en français seulement tant qu'elle n'existe pas en
- * EN/RU (phase 5).
- */
+/** Le menu « Journal » : tous les articles, puis chaque série de cette langue, puis la Concept Map. */
 async function journalMenu(lang: Lang): Promise<MenuEntry[]> {
   const t = DICT[lang];
   const [articles, series] = await Promise.all([getArticles(lang), getAllSeries(lang)]);
   return [
     { label: t.allArticles, detail: t.articles(articles.length), href: homePath(lang) },
     ...series.map((s) => ({ label: s.title, detail: t.articles(s.articles.length), href: seriesPath(s.slug, lang) })),
-    ...(lang === 'fr' ? [{ label: 'Concept Map', detail: 'thèses et mécanismes', href: CONCEPT_MAP_PATH }] : []),
+    { label: 'Concept Map', detail: t.map.menuDetail, href: conceptMapPath(lang) },
   ];
 }
 

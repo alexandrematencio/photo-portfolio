@@ -16,7 +16,7 @@ import {
 import { StateDot } from '@/components/site/StateDot';
 import { CONTROL_RADIUS } from '@/lib/site/controls';
 import { frenchSpaces } from '@/lib/journal/french';
-import { CONCEPT_MAP_PATH } from '@/lib/journal/i18n';
+import { conceptMapPath, DICT, type Lang } from '@/lib/journal/i18n';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import type { MapView } from '@/lib/journal/conceptMapData';
@@ -57,15 +57,17 @@ const GRAPH_LABEL_ROOM = 200;
 /** Nom provisoire de la vue — à Alexandre de le choisir. */
 export const ARTICLE_MAP_LABEL = 'Concept Map';
 
-type Ctx = { openAt: (id: string) => void; reading: string | null };
+type Ctx = { openAt: (id: string) => void; reading: string | null; lang: Lang };
 const ArticleMapContext = createContext<Ctx | null>(null);
 
 const editable = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
 
-export function ArticleMap({ view, slug, children }: { view: MapView; slug: string; children: ReactNode }) {
+export function ArticleMap({ view, children }: { view: MapView; children: ReactNode }) {
   const ix = useMemo(() => indexMap(view), [view]);
-  const articleId = `a:${slug}`;
+  // L'article est nommé dans la carte par son adresse française, quelle que soit la langue de la page.
+  const articleId = view.article ?? '';
+  const t = DICT[view.lang];
   const theses = useMemo(() => ix.thesesOfArticle.get(articleId) ?? [], [ix, articleId]);
   const thesisOf = useMemo(() => {
     const m = new Map<string, string>();
@@ -137,12 +139,13 @@ export function ArticleMap({ view, slug, children }: { view: MapView; slug: stri
   const ctx = useMemo<Ctx>(
     () => ({
       reading,
+      lang: view.lang,
       openAt: (id) => {
         pick(id);
         show(true);
       },
     }),
-    [reading, pick, show],
+    [reading, pick, show, view.lang],
   );
 
   // `M` ouvre et ferme, Échap ferme.
@@ -244,7 +247,7 @@ export function ArticleMap({ view, slug, children }: { view: MapView; slug: stri
           <button
             type="button"
             onClick={() => show(false)}
-            aria-label="Fermer"
+            aria-label={t.close}
             className="text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)] motion-reduce:transition-none"
             style={{ padding: 4 }}
           >
@@ -263,34 +266,34 @@ export function ArticleMap({ view, slug, children }: { view: MapView; slug: stri
         <div className="flex flex-col gap-5" style={{ padding: 20 }}>
           {at >= 0 && (
             <div className="flex items-center justify-between gap-3">
-              <StepButton disabled={at === 0} onClick={() => step(-1)} label="Thèse précédente">
+              <StepButton disabled={at === 0} onClick={() => step(-1)} label={t.map.previous}>
                 ←
               </StepButton>
               {picked ? (
                 <button type="button" onClick={() => setPicked(null)} className={cn(MICRO_LABEL, 'flex items-center gap-2 text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')}>
                   <StateDot on={false} />
-                  Revenir au passage lu
+                  {t.map.backToReading}
                 </button>
               ) : (
                 <span className={cn(MICRO_LABEL, 'flex items-center gap-2 text-[var(--color-fg)]')}>
                   <StateDot on />
-                  Suit la lecture
+                  {t.map.following}
                 </span>
               )}
-              <StepButton disabled={at === theses.length - 1} onClick={() => step(1)} label="Thèse suivante">
+              <StepButton disabled={at === theses.length - 1} onClick={() => step(1)} label={t.map.next}>
                 →
               </StepButton>
             </div>
           )}
           {at < 0 && picked && (
             <button type="button" onClick={() => setPicked(null)} className={cn(MICRO_LABEL, 'flex w-fit items-center gap-2 text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')}>
-              ← Revenir au passage lu
+              ← {t.map.backToReading}
             </button>
           )}
           {shown && <MapPanel ix={ix} id={shown} onSelect={pick} />}
           {shown && (
             <div className="border-t border-[var(--color-line)]" style={{ paddingTop: 16 }}>
-              <ReadLink href={`${CONCEPT_MAP_PATH}#${HASH_KEY}=${encodeURIComponent(shown)}`}>Voir dans la Concept Map</ReadLink>
+              <ReadLink href={`${conceptMapPath(view.lang)}#${HASH_KEY}=${encodeURIComponent(shown)}`}>{t.map.openFull}</ReadLink>
             </div>
           )}
         </div>
@@ -343,7 +346,7 @@ export function MapMark({ id, label, anchor }: { id: string; label: string; anch
       type="button"
       onClick={() => ctx.openAt(id)}
       data-current={anchor && ctx.reading === id ? '' : undefined}
-      aria-label={anchor ? `${ARTICLE_MAP_LABEL} : ${label}` : undefined}
+      aria-label={anchor ? DICT[ctx.lang].map.mark(label) : undefined}
       aria-hidden={anchor ? undefined : true}
       tabIndex={anchor ? undefined : -1}
       title={label}

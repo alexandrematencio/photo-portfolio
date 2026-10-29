@@ -78,6 +78,26 @@ const journalMapEdge = defineType({
   },
 });
 
+/** Un libellé traduit (EN/RU), écrit par `npm run map:translate` (lib/journal/conceptMapI18n.ts). */
+const journalMapText = defineType({
+  name: 'journalMapText',
+  title: 'Traduction',
+  type: 'object',
+  readOnly: true,
+  fields: [
+    defineField({ name: 'lang', title: 'Langue', type: 'string' }),
+    defineField({ name: 'id', title: 'Nœud ou rime', type: 'string' }),
+    defineField({ name: 'field', title: 'Texte', type: 'string' }),
+    defineField({ name: 'text', title: 'Traduction', type: 'text', rows: 2 }),
+    defineField({ name: 'src', title: 'Empreinte du français', type: 'string' }),
+    defineField({ name: 'auto', title: 'Citation reprise de l’article traduit', type: 'boolean' }),
+  ],
+  preview: {
+    select: { lang: 'lang', field: 'field', text: 'text', id: 'id' },
+    prepare: ({ lang, field, text, id }) => ({ title: text, subtitle: `${String(lang).toUpperCase()} · ${field} · ${id}` }),
+  },
+});
+
 export const journalMap = defineType({
   name: 'journalMap',
   title: 'Concept Map',
@@ -93,6 +113,14 @@ export const journalMap = defineType({
     }),
     defineField({ name: 'nodes', title: 'Nœuds', type: 'array', fieldset: 'data', of: [defineArrayMember({ type: 'journalMapNode' })] }),
     defineField({ name: 'edges', title: 'Liens', type: 'array', fieldset: 'data', of: [defineArrayMember({ type: 'journalMapEdge' })] }),
+    defineField({
+      name: 'translations',
+      title: 'Libellés en anglais et en russe',
+      description: 'Écrits par `npm run map:translate`, publiés avec la carte.',
+      type: 'array',
+      fieldset: 'data',
+      of: [defineArrayMember({ type: 'journalMapText' })],
+    }),
   ],
   preview: {
     select: { exportedAt: 'exportedAt', nodes: 'nodes' },
@@ -103,4 +131,4 @@ export const journalMap = defineType({
   },
 });
 
-export const journalMapSchemas = [journalMapNode, journalMapEdge, journalMap];
+export const journalMapSchemas = [journalMapNode, journalMapEdge, journalMapText, journalMap];

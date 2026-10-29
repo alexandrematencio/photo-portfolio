@@ -6,6 +6,7 @@ import { StateDot } from '@/components/site/StateDot';
 import { TagSwatch } from '@/components/journal/TagSwatch';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
+import { DICT } from '@/lib/journal/i18n';
 import type { MapView } from '@/lib/journal/conceptMapData';
 import { HASH_KEY, indexMap, isCommon, NO_FILTER, visibleIds, type Filters } from './model';
 import { MapPanel } from './MapPanel';
@@ -72,6 +73,8 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const [center, setCenter] = useState(0);
   const [view, setView] = useState<View>('auto');
   const [wide, setWide] = useState<boolean | null>(null);
+  const dict = DICT[data.lang];
+  const t = dict.map;
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px)');
@@ -116,16 +119,16 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
 
   return (
     <div className="flex flex-col gap-8 md:grid md:gap-x-12" style={{ gridTemplateColumns: `${FILTER_COL}px minmax(0, 1fr)` }}>
-      <aside className="flex flex-col gap-6 self-start md:sticky md:top-6" aria-label="Filtres de la carte">
-        <Group label="Vue">
+      <aside className="flex flex-col gap-6 self-start md:sticky md:top-6" aria-label={t.filters}>
+        <Group label={t.view}>
           <Choice on={current === 'map'} onClick={() => setView('map')}>
-            Carte
+            {t.mapView}
           </Choice>
           <Choice on={current === 'list'} onClick={() => setView('list')}>
-            Liste
+            {t.listView}
           </Choice>
         </Group>
-        <Group label="Séries">
+        <Group label={t.series}>
           {data.series.map((s) => (
             <Choice key={s.title} on={filters.series === s.title} onClick={() => toggle('series', s.title)}>
               <span>
@@ -134,7 +137,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
             </Choice>
           ))}
         </Group>
-        <Group label="Thématiques">
+        <Group label={t.themes}>
           {data.themes.map((t) => (
             <Choice key={t.title} on={filters.theme === t.title} onClick={() => toggle('theme', t.title)}>
               <TagSwatch color={t.color} />
@@ -144,20 +147,20 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
             </Choice>
           ))}
         </Group>
-        <Group label="Structures">
+        <Group label={t.structures}>
           <Choice on={filters.common} onClick={() => toggle('common', true)}>
             <span>
-              Communes à plusieurs articles <span className="font-normal">({counts.common})</span>
+              {t.common} <span className="font-normal">({counts.common})</span>
             </span>
           </Choice>
         </Group>
         <div className="flex flex-col gap-2 border-t border-[var(--color-line)]" style={{ paddingTop: 12 }}>
           <p aria-live="polite" className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
-            {n('article')} articles · {n('thesis')} thèses · {n('mechanism')} mécanismes
+            {dict.articles(n('article'))} · {t.theses(n('thesis'))} · {t.mechanisms(n('mechanism'))}
           </p>
           {filtered && (
             <button type="button" onClick={() => setFilters(NO_FILTER)} className={cn(MICRO_LABEL, 'w-fit text-[var(--color-fg)] underline underline-offset-4')}>
-              Tout montrer
+              {t.showAll}
             </button>
           )}
         </div>
@@ -165,7 +168,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
 
       <section aria-label="Concept Map" className="min-w-0">
         <div className={cn(view === 'auto' ? 'hidden md:block' : current === 'map' ? 'block' : 'hidden')}>
-          <p className="sr-only">Le dessin de la carte ne se parcourt qu’à la souris ; la vue Liste donne les mêmes liens au clavier.</p>
+          <p className="sr-only">{t.drawingNote}</p>
           <div className="flex flex-col gap-6 md:relative">
             <div
               aria-hidden
@@ -174,8 +177,8 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
             >
               {current === 'map' && <Graph ix={ix} visible={visible} selected={shown} center={center} inset={wide && shown ? PANEL_WIDTH + 12 : 0} onSelect={(id) => select(id)} />}
               <p className={cn(MICRO_LABEL, 'pointer-events-none absolute bottom-3 left-3 text-[var(--color-fg-faint)]')}>
-                <span className="md:hidden">Pincer pour zoomer · les noms apparaissent en zoomant</span>
-                <span className="hidden md:inline">Molette pour zoomer · les noms apparaissent en zoomant</span>
+                <span className="md:hidden">{t.zoomTouch}</span>
+                <span className="hidden md:inline">{t.zoomWheel}</span>
               </p>
             </div>
             {shown && (

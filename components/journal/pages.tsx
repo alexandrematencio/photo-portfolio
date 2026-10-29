@@ -10,7 +10,7 @@ import { LanguageSwitch } from '@/components/journal/LanguageSwitch';
 import { SeriesArticleList } from '@/components/journal/SeriesArticleList';
 import { AboutLink } from '@/components/journal/AboutLink';
 import { ConceptMapExplorer } from '@/components/journal/concept-map/ConceptMapExplorer';
-import { articleMapView, getConceptMapView } from '@/lib/journal/conceptMapData';
+import { articleMapView, conceptMapAlternates, getConceptMapView } from '@/lib/journal/conceptMapData';
 import { PortableBody } from '@/components/site/PortableBody';
 import {
   getAllSeries,
@@ -23,7 +23,7 @@ import {
   summarize,
 } from '@/lib/journal/articles';
 import { frenchSpaces } from '@/lib/journal/french';
-import { CONCEPT_MAP_PATH, DICT, LANGS, aboutPath, articlePath, homePath, seriesPath, type Lang } from '@/lib/journal/i18n';
+import { DICT, LANGS, aboutPath, articlePath, conceptMapPath, homePath, seriesPath, type Lang } from '@/lib/journal/i18n';
 import type { JournalSeries } from '@/lib/journal/types';
 import { SITE_INFO, buildMetadata } from '@/lib/seo/metadata';
 import { JsonLd } from '@/components/seo/JsonLd';
@@ -165,47 +165,50 @@ export async function JournalAbout({ lang }: { lang: Lang }) {
 
 // ── Concept Map ───────────────────────────────────────────────────────────
 
-export async function conceptMapMetadata(): Promise<Metadata> {
-  return buildMetadata({
+export async function conceptMapMetadata(lang: Lang): Promise<Metadata> {
+  const meta = buildMetadata({
     title: 'Concept Map',
-    description:
-      'Les articles du journal décomposés en thèses, et les mécanismes qu’ils partagent d’un texte à l’autre. Chaque point mène au passage qui le dit.',
-    path: CONCEPT_MAP_PATH,
+    description: DICT[lang].map.intro,
+    path: conceptMapPath(lang),
+    // La vignette porte du français ; elle sert aux trois langues jusqu'à ce qu'elle soit déclinée.
     image: `${SITE_INFO.url}/og-concept-map.png`,
-    lang: 'fr',
-    alternates: { fr: CONCEPT_MAP_PATH },
+    lang,
+    alternates: await conceptMapAlternates(),
   });
+  // Pas encore traduite : la page n'affiche qu'un avis, elle n'a rien à faire dans un index.
+  return (await getConceptMapView(lang)) ? meta : { ...meta, robots: { ...(meta.robots as object), index: false } };
 }
 
 /**
  * La Concept Map du journal (docs/superpowers/plans/2026-10-28-journal-map.md,
- * phase 4) : la carte publiée dans le Studio, lue au build.
+ * phases 4 et 5) : la carte publiée dans le Studio, lue au build, dans la
+ * langue de la page.
  */
-export async function JournalConceptMap() {
-  const view = await getConceptMapView();
+export async function JournalConceptMap({ lang }: { lang: Lang }) {
+  const t = DICT[lang];
+  const [view, alternates] = await Promise.all([getConceptMapView(lang), conceptMapAlternates()]);
   const count = (kind: string) => view?.nodes.filter((n) => n.kind === kind).length ?? 0;
   return (
     <PageShell
       title="Concept Map"
-      back={<BackLink lang="fr" href={homePath('fr')} />}
+      back={<BackLink lang={lang} href={homePath(lang)} />}
+      language={<LanguageSwitch lang={lang} alternates={alternates} />}
       centered
       width={1280}
       subtitle={
         <div className="flex flex-col gap-5" style={{ marginTop: 12 }}>
-          <p className={cn(EDITORIAL_H3, 'max-w-[var(--editorial-measure)]')}>
-            {frenchSpaces('Les articles du journal décomposés en thèses, et les mécanismes qu’ils partagent d’un texte à l’autre. Chaque point mène au passage qui le dit.')}
-          </p>
+          <p className={cn(EDITORIAL_H3, 'max-w-[var(--editorial-measure)]')}>{frenchSpaces(t.map.intro)}</p>
           {view && (
             <p className={cn(MICRO_LABEL, 'flex flex-wrap gap-x-4 gap-y-1 text-[var(--color-fg-muted)]')}>
-              <span>{count('article')} articles</span>
-              <span>{count('thesis')} thèses</span>
-              <span>{count('mechanism')} mécanismes</span>
+              <span>{t.articles(count('article'))}</span>
+              <span>{t.map.theses(count('thesis'))}</span>
+              <span>{t.map.mechanisms(count('mechanism'))}</span>
             </p>
           )}
         </div>
       }
     >
-      {view ? <ConceptMapExplorer view={view} /> : <p className={EDITORIAL_BODY}>La carte n’est pas encore publiée.</p>}
+      {view ? <ConceptMapExplorer view={view} /> : <p className={EDITORIAL_BODY}>{t.map.unavailable}</p>}
     </PageShell>
   );
 }
@@ -240,13 +243,10 @@ export async function JournalArticle({ lang, params }: SlugParams & { lang: Lang
   const { slug } = await params;
   const article = await getArticle(slug, lang);
   if (!article) notFound();
-  const [series, signature, view] = await Promise.all([
-    getSeries(article.seriesSlug, lang),
-    getSignature(lang),
-    // Français seulement tant que les libellés de la carte n'existent pas en EN/RU (phase 5).
-    lang === 'fr' ? getConceptMapView() : null,
-  ]);
-  const map = view && articleMapView(view, slug);
+  const [series, signature, view] = await Promise.all([getSeries(article.seriesSlug, lang), getSignature(lang), getConceptMapView(lang)]);
+  // La carte nomme l'article par son adresse française ; les clés de paragraphe sont les mêmes partout.
+  const frSlug = article.alternates.fr?.split('/').filter(Boolean)[0];
+  const map = view && frSlug ? articleMapView(view, frSlug) : null;
 
   return (
     <>

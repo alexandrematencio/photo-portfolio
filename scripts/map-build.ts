@@ -302,14 +302,22 @@ async function main() {
     // Lecture seule dans le Studio — on la corrige dans le vault.
     const key = (s: string) => createHash('sha1').update(s).digest('hex').slice(0, 12);
     const clean = <T extends object>(o: T) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null && v !== '' && !(Array.isArray(v) && !v.length)));
+    // Les traductions EN/RU suivent la carte : `map:translate` saura, à leur
+    // empreinte, lesquelles le nouvel export a rendues périmées.
+    const previous = await client.fetch<{ _id: string; translations?: unknown[] }[]>(
+      `*[_id in ["drafts.${JOURNAL_MAP_ID}", "${JOURNAL_MAP_ID}"]]{ _id, translations }`,
+    );
+    const translations = (previous.find((d) => d._id.startsWith('drafts.')) ?? previous[0])?.translations;
     await client.createOrReplace({
       _id: `drafts.${JOURNAL_MAP_ID}`,
       _type: 'journalMap',
       exportedAt,
+      ...(translations?.length ? { translations } : {}),
       nodes: nodes.map(({ id, ...n }) => ({ _key: key(id), _type: 'journalMapNode', nodeId: id, ...clean(n) })),
       edges: edges.map((e) => ({ _key: key(`${e.kind}|${e.source}|${e.target}`), _type: 'journalMapEdge', ...clean(e) })),
     });
     console.log(`\n✓ Brouillon drafts.${JOURNAL_MAP_ID} écrit : à relire et publier dans le Studio (Journal ▸ Concept Map).`);
+    console.log('  Puis npm run map:translate : les libellés EN/RU des textes changés sont à refaire.');
   }
 }
 

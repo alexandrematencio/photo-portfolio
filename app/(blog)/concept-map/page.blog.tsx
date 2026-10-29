@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import { JournalConceptMap, conceptMapMetadata } from '@/components/journal/pages';
 
-/** La Concept Map du journal — fr seulement (components/journal/pages.tsx). */
+/** La Concept Map du journal (components/journal/pages.tsx). */
 export async function generateMetadata(): Promise<Metadata> {
-  return conceptMapMetadata();
+  return conceptMapMetadata('fr');
 }
 
 export default function Page() {
-  return <JournalConceptMap />;
+  return <JournalConceptMap lang="fr" />;
 }
