@@ -52,7 +52,7 @@ export function ArticleView({
   // Une marque par paragraphe couvert ; celui de la citation est le premier.
   const marks: MapMarks = {};
   for (const n of map?.nodes ?? [])
-    if (n.kind === 'thesis' && n.articles[0] === `a:${article.slug}`)
+    if (n.kind === 'thesis' && n.articles[0] === map?.article)
       (n.covers ?? []).forEach((k, i) => (marks[k] = { id: n.id, label: n.label, anchor: i === 0 }));
   const body = <ArticleBody article={article} series={series} signature={signature} marks={map ? marks : undefined} />;
 
@@ -113,7 +113,7 @@ export function ArticleView({
       }
     >
       {map ? (
-        <ArticleMap view={map} slug={article.slug}>
+        <ArticleMap view={map}>
           {body}
         </ArticleMap>
       ) : (

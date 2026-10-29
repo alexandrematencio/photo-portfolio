@@ -4,6 +4,7 @@
  * Studio) font leurs propres requêtes avec les GROQ ci-dessous.
  */
 import { DRIFT, missingKeys, resolveAnchor, resolveArticleTheses, type AnchorStatus, type MapBlock, type Resolved } from './mapAnchors';
+import type { StoredMapText } from './conceptMapI18n';
 
 export const JOURNAL_MAP_ID = 'journalMap';
 
@@ -35,9 +36,10 @@ export type StoredMapNode = {
 
 export type StoredMapEdge = { source: string; target: string; kind: 'part' | 'next' | 'uses' | 'rhyme'; why?: string };
 
-export type JournalMapDoc = { exportedAt?: string; nodes?: StoredMapNode[]; edges?: StoredMapEdge[] };
+/** `translations` : les libellés EN/RU, écrits par `map:translate` (conceptMapI18n.ts). */
+export type JournalMapDoc = { exportedAt?: string; nodes?: StoredMapNode[]; edges?: StoredMapEdge[]; translations?: StoredMapText[] };
 
-export const JOURNAL_MAP_QUERY = `*[_id == "${JOURNAL_MAP_ID}"][0]{ exportedAt, nodes, edges }`;
+export const JOURNAL_MAP_QUERY = `*[_id == "${JOURNAL_MAP_ID}"][0]{ exportedAt, nodes, edges, translations }`;
 
 /** Articles français publiés et leurs traductions publiées, avec l'adresse de l'original. */
 export const MAP_POSTS_QUERY = `{

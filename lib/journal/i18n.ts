@@ -68,8 +68,11 @@ export function aboutPath(lang: Lang = DEFAULT_LANG): string {
   return `${langPrefix(lang)}/${ABOUT_SEGMENT[lang]}/`;
 }
 
-/** La Concept Map : même adresse dans les trois langues ; français seulement jusqu'à la phase 5. */
-export const CONCEPT_MAP_PATH = '/concept-map/';
+/** La Concept Map, dans chaque langue (phase 5) : `/concept-map/`, `/en/concept-map/`, `/ru/concept-map/`. */
+export function conceptMapPath(lang: Lang = DEFAULT_LANG): string {
+  return `${langPrefix(lang)}/concept-map/`;
+}
+export const CONCEPT_MAP_PATH = conceptMapPath(DEFAULT_LANG);
 
 /** La langue d'une adresse du journal, lue sur son premier segment. */
 export function langOfPath(pathname: string | null): Lang {
@@ -286,6 +289,49 @@ type Dict = {
   };
   journalHome: string;
   dateLocale: string;
+  /**
+   * La Concept Map : sa page, son panneau, sa liste et son tiroir dans
+   * l'article. Le nom « Concept Map » ne se traduit pas (choix d'Alexandre).
+   */
+  map: {
+    intro: string;
+    menuDetail: string;
+    unavailable: string;
+    theses: (n: number) => string;
+    mechanisms: (n: number) => string;
+    filters: string;
+    view: string;
+    mapView: string;
+    listView: string;
+    series: string;
+    themes: string;
+    structures: string;
+    common: string;
+    showAll: string;
+    drawingNote: string;
+    zoomTouch: string;
+    zoomWheel: string;
+    readPassage: string;
+    readArticle: string;
+    thesisOf: (i: number, n: number) => string;
+    inArticle: string;
+    mechanismsUsed: (n: number) => string;
+    mechanism: string;
+    usedIn: (n: number) => string;
+    rhymes: (n: number) => string;
+    part: (n: number) => string;
+    article: string;
+    thesesHeading: (n: number) => string;
+    noMechanism: string;
+    showOnMap: string;
+    previous: string;
+    next: string;
+    backToReading: string;
+    following: string;
+    openFull: string;
+    /** Le bouton de marge d'un paragraphe, pour le lecteur d'écran. */
+    mark: (label: string) => string;
+  };
 };
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
@@ -470,6 +516,44 @@ export const DICT: Record<Lang, Dict> = {
       },
     },
     journalHome: 'Journal — accueil',
+    map: {
+      intro: 'Les articles du journal décomposés en thèses, et les mécanismes qu’ils partagent d’un texte à l’autre. Chaque point mène au passage qui le dit.',
+      menuDetail: 'thèses et mécanismes',
+      unavailable: 'La carte n’est pas encore publiée.',
+      theses: (n) => `${n} ${plural(n, 'thèse', 'thèses')}`,
+      mechanisms: (n) => `${n} ${plural(n, 'mécanisme', 'mécanismes')}`,
+      filters: 'Filtres de la carte',
+      view: 'Vue',
+      mapView: 'Carte',
+      listView: 'Liste',
+      series: 'Séries',
+      themes: 'Thématiques',
+      structures: 'Structures',
+      common: 'Communes à plusieurs articles',
+      showAll: 'Tout montrer',
+      drawingNote: 'Le dessin de la carte ne se parcourt qu’à la souris ; la vue Liste donne les mêmes liens au clavier.',
+      zoomTouch: 'Pincer pour zoomer · les noms apparaissent en zoomant',
+      zoomWheel: 'Molette pour zoomer · les noms apparaissent en zoomant',
+      readPassage: 'Lire le passage',
+      readArticle: 'Lire l’article',
+      thesisOf: (i, n) => `Thèse ${i} sur ${n}`,
+      inArticle: 'Dans l’article',
+      mechanismsUsed: (n) => plural(n, 'Mécanisme employé', 'Mécanismes employés'),
+      mechanism: 'Mécanisme',
+      usedIn: (n) => `Employé dans ${n} ${plural(n, 'article', 'articles')}`,
+      rhymes: (n) => plural(n, 'Rime', 'Rimes'),
+      part: (n) => `partie ${n}`,
+      article: 'Article',
+      thesesHeading: (n) => plural(n, 'Thèse', 'Thèses'),
+      noMechanism: 'Aucun mécanisme pour ces filtres.',
+      showOnMap: 'Voir sur la carte',
+      previous: 'Thèse précédente',
+      next: 'Thèse suivante',
+      backToReading: 'Revenir au passage lu',
+      following: 'Suit la lecture',
+      openFull: 'Voir dans la Concept Map',
+      mark: (label) => `Concept Map : ${label}`,
+    },
     dateLocale: 'fr-FR',
   },
   en: {
@@ -642,6 +726,44 @@ export const DICT: Record<Lang, Dict> = {
       },
     },
     journalHome: 'Journal — home',
+    map: {
+      intro: 'The journal’s articles broken down into theses, and the mechanisms they share from one text to the next. Every point leads to the passage that says it.',
+      menuDetail: 'theses and mechanisms',
+      unavailable: 'The map is not available in English yet.',
+      theses: (n) => `${n} ${plural(n, 'thesis', 'theses')}`,
+      mechanisms: (n) => `${n} ${plural(n, 'mechanism', 'mechanisms')}`,
+      filters: 'Map filters',
+      view: 'View',
+      mapView: 'Map',
+      listView: 'List',
+      series: 'Series',
+      themes: 'Themes',
+      structures: 'Structures',
+      common: 'Shared by several articles',
+      showAll: 'Show all',
+      drawingNote: 'The drawing can only be explored with a mouse; the List view gives the same links by keyboard.',
+      zoomTouch: 'Pinch to zoom · names appear as you zoom in',
+      zoomWheel: 'Scroll to zoom · names appear as you zoom in',
+      readPassage: 'Read the passage',
+      readArticle: 'Read the article',
+      thesisOf: (i, n) => `Thesis ${i} of ${n}`,
+      inArticle: 'In the article',
+      mechanismsUsed: (n) => plural(n, 'Mechanism used', 'Mechanisms used'),
+      mechanism: 'Mechanism',
+      usedIn: (n) => `Used in ${n} ${plural(n, 'article', 'articles')}`,
+      rhymes: (n) => plural(n, 'Rhyme', 'Rhymes'),
+      part: (n) => `part ${n}`,
+      article: 'Article',
+      thesesHeading: (n) => plural(n, 'Thesis', 'Theses'),
+      noMechanism: 'No mechanism for these filters.',
+      showOnMap: 'Show on the map',
+      previous: 'Previous thesis',
+      next: 'Next thesis',
+      backToReading: 'Back to the passage I’m reading',
+      following: 'Following your reading',
+      openFull: 'See it in the Concept Map',
+      mark: (label) => `Concept Map: ${label}`,
+    },
     dateLocale: 'en-GB',
   },
   ru: {
@@ -819,6 +941,45 @@ export const DICT: Record<Lang, Dict> = {
       },
     },
     journalHome: 'Журнал — главная',
+    map: {
+      intro: 'Статьи журнала, разобранные на тезисы, и механизмы, которые переходят из текста в текст. Каждая точка ведёт к отрывку, где это сказано.',
+      menuDetail: 'тезисы и механизмы',
+      unavailable: 'Карта пока не переведена на русский.',
+      theses: (n) => `${n} ${ru(n, 'тезис', 'тезиса', 'тезисов')}`,
+      mechanisms: (n) => `${n} ${ru(n, 'механизм', 'механизма', 'механизмов')}`,
+      filters: 'Фильтры карты',
+      view: 'Вид',
+      mapView: 'Карта',
+      listView: 'Список',
+      series: 'Серии',
+      themes: 'Темы',
+      structures: 'Структура',
+      common: 'Общие для нескольких статей',
+      showAll: 'Показать всё',
+      drawingNote: 'Схему можно исследовать только мышью; вид «Список» даёт те же ссылки с клавиатуры.',
+      zoomTouch: 'Сведите пальцы, чтобы приблизить · названия появляются при приближении',
+      zoomWheel: 'Колесо мыши — масштаб · названия появляются при приближении',
+      readPassage: 'Читать отрывок',
+      readArticle: 'Читать статью',
+      thesisOf: (i, n) => `Тезис ${i} из ${n}`,
+      inArticle: 'В статье',
+      mechanismsUsed: (n) => (n === 1 ? 'Задействованный механизм' : 'Задействованные механизмы'),
+      mechanism: 'Механизм',
+      // Предложный падеж : в 1 статье, в 2 / 5 / 21 статьях.
+      usedIn: (n) => `Встречается в ${n} ${n % 10 === 1 && n % 100 !== 11 ? 'статье' : 'статьях'}`,
+      rhymes: (n) => (n === 1 ? 'Рифма' : 'Рифмы'),
+      part: (n) => `часть ${n}`,
+      article: 'Статья',
+      thesesHeading: (n) => (n === 1 ? 'Тезис' : 'Тезисы'),
+      noMechanism: 'Для этих фильтров механизмов нет.',
+      showOnMap: 'Показать на карте',
+      previous: 'Предыдущий тезис',
+      next: 'Следующий тезис',
+      backToReading: 'Вернуться к читаемому отрывку',
+      following: 'Следует за чтением',
+      openFull: 'Открыть в Concept Map',
+      mark: (label) => `Concept Map: ${label}`,
+    },
     dateLocale: 'ru-RU',
   },
 };

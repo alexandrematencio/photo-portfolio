@@ -11,6 +11,7 @@ import { HUB_URL, IS_BLOG, isExternal, isHubPage, isPhotoHome } from '@/lib/site
 import {
   HUB_NAV_LINKS,
   NAV_LINKS,
+  navHref,
   journalIsActive,
   isSamePage,
   notifySamePageNav,
@@ -40,7 +41,8 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
   const lang = langOfPath(pathname);
   // About vit sur le hub : son menu est celui d'amatencio.com (lib/site/nav.ts).
   const onHub = isHubPage(pathname);
-  const LINKS = onHub ? HUB_NAV_LINKS : NAV_LINKS;
+  // Chaque entrée dans la langue de la page (la Concept Map en a une par langue).
+  const LINKS = (onHub ? HUB_NAV_LINKS : NAV_LINKS).map((link) => ({ ...link, href: navHref(link, lang) }));
   // Une rangée calée à gauche quand la nav-bar n'est pas l'arrivée du morph.
   const leftAligned = IS_BLOG || onHub;
   const glyphLabel = IS_BLOG ? DICT[lang].journalHome : 'A. Matencio — home';

@@ -19,6 +19,7 @@ import {
   MOBILE_NAV_LINKS,
   isSamePage,
   journalIsActive,
+  navHref,
   notifySamePageNav,
 } from '@/lib/site/nav';
 
@@ -49,7 +50,7 @@ export function MobileMenu({ journalMenu }: { journalMenu?: MenuEntry[] }) {
   const lang = langOfPath(pathname);
   // About vit sur le hub : son menu est celui d'amatencio.com (lib/site/nav.ts).
   const onHub = isHubPage(pathname);
-  const MOBILE_LINKS = onHub ? HUB_NAV_LINKS : MOBILE_NAV_LINKS;
+  const MOBILE_LINKS = (onHub ? HUB_NAV_LINKS : MOBILE_NAV_LINKS).map((link) => ({ ...link, href: navHref(link, lang) }));
 
   // Close on route change so navigating from inside the menu dismisses it.
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { getAllArticles, getAllSeries } from '@/lib/journal/articles';
 import { SITE_INFO, withSlash } from '@/lib/seo/metadata';
-import { CONCEPT_MAP_PATH, LANGS, LOCALE, aboutPath, homePath } from '@/lib/journal/i18n';
+import { conceptMapAlternates } from '@/lib/journal/conceptMapData';
+import { LANGS, LOCALE, aboutPath, homePath } from '@/lib/journal/i18n';
 import type { Alternates } from '@/lib/journal/types';
 
 /**
@@ -22,7 +23,7 @@ function links(alternates: Alternates): string {
 }
 
 export async function GET() {
-  const [articles, ...seriesByLang] = await Promise.all([getAllArticles(), ...LANGS.map((l) => getAllSeries(l))]);
+  const [articles, mapAlternates, ...seriesByLang] = await Promise.all([getAllArticles(), conceptMapAlternates(), ...LANGS.map((l) => getAllSeries(l))]);
   const series = seriesByLang.flat();
   const touched = new Map(articles.map((a) => [`${a.lang}/${a.slug}`, a.updatedAt ?? a.date]));
   const homes = Object.fromEntries(
@@ -40,8 +41,8 @@ export async function GET() {
       lastmod: undefined as string | undefined,
       alternates: Object.fromEntries(LANGS.map((x) => [x, aboutPath(x)])) as Alternates,
     })),
-    // La Concept Map : français seulement (phase 5 pour EN/RU).
-    { loc: abs(CONCEPT_MAP_PATH), lastmod: undefined as string | undefined, alternates: { fr: CONCEPT_MAP_PATH } as Alternates },
+    // La Concept Map : dans chaque langue où ses libellés existent.
+    ...Object.values(mapAlternates).map((path) => ({ loc: abs(path!), lastmod: undefined as string | undefined, alternates: mapAlternates })),
     // Une série a changé quand l'un de ses articles a changé.
     ...series.map((s) => ({
       loc: abs(s.alternates[s.lang]!),

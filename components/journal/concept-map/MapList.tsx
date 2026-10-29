@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { TagSwatch } from '@/components/journal/TagSwatch';
 import { frenchSpaces } from '@/lib/journal/french';
+import { DICT } from '@/lib/journal/i18n';
 import { JOURNAL_LINK_DECORATION, MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import { listedMechanisms, type MapIndex } from './model';
@@ -18,7 +19,8 @@ import { listedMechanisms, type MapIndex } from './model';
  */
 export function MapList({ ix, visible, onShow }: { ix: MapIndex; visible: Set<string>; onShow?: (id: string) => void }) {
   const mechs = listedMechanisms(ix, visible);
-  if (!mechs.length) return <p className="text-[15px] text-[var(--color-fg-muted)]">Aucun mécanisme pour ces filtres.</p>;
+  const dict = DICT[ix.view.lang];
+  if (!mechs.length) return <p className="text-[15px] text-[var(--color-fg-muted)]">{dict.map.noMechanism}</p>;
   return (
     <ol className="flex flex-col border-t border-[var(--color-line)]">
       {mechs.map((m) => {
@@ -48,7 +50,7 @@ export function MapList({ ix, visible, onShow }: { ix: MapIndex; visible: Set<st
                   <span>{frenchSpaces(m.label)}</span>
                 </span>
                 <span className={cn(MICRO_LABEL, 'flex-none text-[var(--color-fg-muted)]')}>
-                  {articles.length} article{articles.length > 1 ? 's' : ''}
+                  {dict.articles(articles.length)}
                 </span>
               </summary>
               <div className="flex flex-col gap-4" style={{ paddingBottom: 20, paddingLeft: 22 }}>
@@ -79,7 +81,7 @@ export function MapList({ ix, visible, onShow }: { ix: MapIndex; visible: Set<st
                     onClick={() => onShow(m.id)}
                     className={cn(MICRO_LABEL, 'w-fit text-[var(--color-fg)] underline underline-offset-4')}
                   >
-                    Voir sur la carte
+                    {dict.map.showOnMap}
                   </button>
                 )}
               </div>
