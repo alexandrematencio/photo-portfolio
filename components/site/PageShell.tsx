@@ -54,7 +54,15 @@ const EDITORIAL_WIDTH = 1107;
  * sans écraser la colonne de notes (seuil 1100, Notes.tsx). Le rail
  * redevient alors une rangée au-dessus du titre, dans le flux.
  */
-const RAIL_WIDTH = 176;
+const RAIL_WIDTH = 208;
+/**
+ * Air entre le rail et le texte, EN PLUS de la gouttière de l'article
+ * (2026-10-29, demande Alexandre) : l'écart double, 32 → 64 à `xl`. Le corps
+ * respire, et la marque de la Concept Map (`.map-mark`, dans la gouttière)
+ * ne touche plus le sommaire. Pris sur `RAIL_WIDTH` (176 → 208) : le
+ * sommaire garde sa largeur.
+ */
+const RAIL_TEXT_GAP = 32;
 /** Sous le menu : le conteneur de défilement commence déjà sous la nav-bar (FramedScroll). */
 const RAIL_STICKY_TOP = 24;
 /**
@@ -64,7 +72,7 @@ const RAIL_STICKY_TOP = 24;
  * et un seul bord droit. Les 28 px laissés à gauche logent le voyant du
  * sommaire, suspendu dans la marge.
  */
-const RAIL_CONTENTS_WIDTH = RAIL_WIDTH - 28;
+const RAIL_CONTENTS_WIDTH = RAIL_WIDTH - RAIL_TEXT_GAP - 28;
 /** De part et d'autre de chaque filet du rail : le même air partout, aucun bloc ne colle à son voisin. */
 const RAIL_SECTION_GAP = 16;
 /** Écart drapeau → chevron (4) + chevron (14) dans `LanguageSwitch` : ce qui dépasse sous les drapeaux. */
@@ -251,7 +259,7 @@ export function PageShell({
               dans sa propre boîte au lieu de passer sous le bas de l'écran. */}
           <div
             className="sticky flex flex-col items-end"
-            style={{ top: RAIL_STICKY_TOP, maxHeight: contents ? `calc(100dvh - 4rem - ${RAIL_STICKY_TOP * 2}px)` : undefined }}
+            style={{ top: RAIL_STICKY_TOP, paddingRight: RAIL_TEXT_GAP, maxHeight: contents ? `calc(100dvh - 4rem - ${RAIL_STICKY_TOP * 2}px)` : undefined }}
           >
             {/* Un bloc par fonction — retour, langue, avancement, sommaire —
                 séparés d'un filet CLAIR à égale distance des deux voisins
