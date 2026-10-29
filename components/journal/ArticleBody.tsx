@@ -24,10 +24,63 @@ import { Highlight } from './Highlight';
 import { PassageArrival } from './PassageArrival';
 import { VerdictTable } from './VerdictTable';
 import { DataTable } from './DataTable';
-import { MapMark } from './concept-map/ArticleMap';
+import { ConceptQuote, MapMark } from './concept-map/ArticleMap';
+import { normalizeQuote } from '@/lib/journal/mapAnchors';
 
 /** Les marques de la Concept Map, par clé de paragraphe (`ArticleView`). */
 export type MapMarks = Record<string, { id: string; label: string; anchor: boolean }>;
+/** Les citations de la Concept Map, par clé de paragraphe, thèses d'abord (`ArticleView`). */
+export type MapQuotes = Record<string, { id: string; quote: string }[]>;
+
+/** Un nœud du paragraphe, et la citation de la carte qu'il porte (`ConceptQuote`). */
+type Piece = Inline & { concept?: string };
+
+/**
+ * Découpe les nœuds texte d'un paragraphe aux bornes des citations de la
+ * carte. La citation se cherche comme la garde des ancres la cherche
+ * (`normalizeQuote` : espaces fines, apostrophes, casse, point final) ; une
+ * table ramène chaque caractère normalisé à sa place dans le texte brut.
+ * Introuvable (citation reprise, traduction libre) : rien n'est souligné.
+ * Deux citations qui se chevauchent : la première servie garde le passage.
+ * Les appels de note gardent leur identité — la numérotation y est accrochée.
+ */
+function markQuotes(nodes: Inline[], quotes: { id: string; quote: string }[] | undefined): Piece[] {
+  if (!quotes?.length) return nodes;
+  const raw = nodes.map((n) => (n.t === 'text' ? n.text : '')).join('');
+  let norm = '';
+  const at: number[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const c = normalizeQuote(`x${raw[i]}x`).slice(1, -1) || ' ';
+    if (c === ' ' && (norm === '' || norm.endsWith(' '))) continue;
+    for (const ch of c) {
+      norm += ch;
+      at.push(i);
+    }
+  }
+  const owner: (string | undefined)[] = new Array(raw.length);
+  for (const { id, quote } of quotes) {
+    const q = normalizeQuote(quote);
+    const k = q ? norm.indexOf(q) : -1;
+    if (k < 0) continue;
+    for (let i = at[k]; i <= at[k + q.length - 1]; i++) owner[i] ??= id;
+  }
+  const out: Piece[] = [];
+  let o = 0;
+  for (const node of nodes) {
+    if (node.t !== 'text') {
+      out.push(node);
+      continue;
+    }
+    let start = 0;
+    for (let i = 1; i <= node.text.length; i++) {
+      if (i < node.text.length && owner[o + i] === owner[o + start]) continue;
+      out.push({ ...node, text: node.text.slice(start, i), concept: owner[o + start] });
+      start = i;
+    }
+    o += node.text.length;
+  }
+  return out;
+}
 
 /**
  * Corps d'un article du journal (brand book §14). Rythme vertical repris de
@@ -43,21 +96,24 @@ const RHYTHM = { lead: 40, body: 24, h2Top: 64, h2Bottom: 24, object: 64 } as co
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
 
 /**
- * Numérotation : références en chiffres dans l'ordre de leur premier appel,
- * notes à trancher en lettres dans l'ordre du texte. Les deux suites ne se
- * mélangent pas — une question de l'auteur n'est pas une source. Une note à
- * trancher est identifiée par sa POSITION (bloc, rang), pas par son texte :
- * deux questions identiques restent deux notes.
+ * Numérotation : références en chiffres, notes à trancher en lettres, chacune
+ * dans l'ordre du texte. Les deux suites ne se mélangent pas — une question
+ * de l'auteur n'est pas une source. Chaque APPEL a son numéro, identifié par
+ * sa position (bloc, rang) : une source citée deux fois reçoit deux numéros
+ * (2026-10-29, demande Alexandre — un « 10 » après le 16 se lisait comme une
+ * erreur, et deux appels au même numéro partageaient un seul `sn-10` : la
+ * mise au point allumait la première note, hors de l'écran). La
+ * bibliographie liste une seule fois la source, avec tous ses renvois.
  */
-type Numbering = { refs: Map<string, string>; drafts: Map<Inline, string> };
+type Numbering = { refs: Map<Inline, string>; drafts: Map<Inline, string> };
 
 function numberNotes(article: Article): Numbering {
-  const refs = new Map<string, string>();
+  const refs = new Map<Inline, string>();
   const drafts = new Map<Inline, string>();
   for (const block of article.blocks) {
     if (block.type !== 'p') continue;
     for (const node of block.inline) {
-      if (node.t === 'ref' && !refs.has(node.key)) refs.set(node.key, String(refs.size + 1));
+      if (node.t === 'ref') refs.set(node, String(refs.size + 1));
       if (node.t === 'draft') drafts.set(node, LETTERS[drafts.size] ?? `z${drafts.size}`);
     }
   }
@@ -95,7 +151,29 @@ const lit = (node: Inline | undefined) => node?.t === 'text' && node.marks.inclu
  * et autant de `<mark>` partiraient ensemble au lieu de courir d'un bout à
  * l'autre. Un appel de note pris entre deux passages surlignés reste dans le trait.
  */
-function renderInline(nodes: Inline[], numbering?: Numbering): ReactNode[] {
+function renderInline(nodes: Piece[], numbering?: Numbering): ReactNode[] {
+  // Les citations de la carte d'abord : un souligné par citation, d'un bout à
+  // l'autre, un appel de note pris dedans y reste — comme le surligné.
+  if (!nodes.some((n) => n.concept)) return renderLit(nodes, numbering);
+  const groups: { concept?: string; nodes: Piece[] }[] = [];
+  nodes.forEach((node, i) => {
+    const last = groups.at(-1);
+    const concept = node.t === 'text' ? node.concept : last?.concept && nodes.slice(i + 1).find((n) => n.t === 'text')?.concept === last.concept ? last.concept : undefined;
+    if (last && last.concept === concept) last.nodes.push(node);
+    else groups.push({ concept, nodes: [node] });
+  });
+  return groups.map((g, i) =>
+    g.concept ? (
+      <ConceptQuote key={`cq${i}`} id={g.concept}>
+        {renderLit(g.nodes, numbering)}
+      </ConceptQuote>
+    ) : (
+      <Fragment key={`cq${i}`}>{renderLit(g.nodes, numbering)}</Fragment>
+    ),
+  );
+}
+
+function renderLit(nodes: Inline[], numbering?: Numbering): ReactNode[] {
   const out: ReactNode[] = [];
   let run: ReactNode[] = [];
   const flush = (i: number) => {
@@ -123,7 +201,7 @@ function renderNodes(nodes: Inline[], numbering?: Numbering): ReactNode[] {
     }
     if (!numbering) return null;
     if (node.t === 'ref') {
-      const id = numbering.refs.get(node.key);
+      const id = numbering.refs.get(node);
       return id ? <NoteCall key={i} id={id} kind="ref" href={`#ref-${node.key}`} /> : null;
     }
     const id = numbering.drafts.get(node)!;
@@ -136,14 +214,13 @@ function notesOf(nodes: Inline[], article: Article, numbering: Numbering): RowNo
   for (const node of nodes) {
     if (node.t === 'ref') {
       const ref = article.references.find((r) => r.key === node.key);
-      const id = numbering.refs.get(node.key);
+      const id = numbering.refs.get(node);
       if (ref && id) notes.push({ id, kind: 'ref', body: renderInline(ref.citation) });
     } else if (node.t === 'draft') {
       notes.push({ id: numbering.drafts.get(node)!, kind: 'draft', body: frenchSpaces(node.text) });
     }
   }
-  // Une référence appelée deux fois dans le même paragraphe n'a qu'une note.
-  return notes.filter((n, i) => notes.findIndex((m) => m.id === n.id) === i);
+  return notes;
 }
 
 /**
@@ -238,11 +315,13 @@ export function ArticleBody({
   series,
   signature,
   marks,
+  quotes,
 }: {
   article: Article;
   series: ArticleSummary[];
   signature: string;
   marks?: MapMarks;
+  quotes?: MapQuotes;
 }) {
   const lang = article.lang;
   const t = DICT[lang];
@@ -250,7 +329,8 @@ export function ArticleBody({
   const numbering = numberNotes(article);
   const { idByBlock } = articleSections(article);
   const callsOf = new Map<string, string[]>();
-  for (const [key, id] of numbering.refs) callsOf.set(key, [...(callsOf.get(key) ?? []), id]);
+  for (const [node, id] of numbering.refs)
+    if (node.t === 'ref') callsOf.set(node.key, [...(callsOf.get(node.key) ?? []), id]);
   const blocks = article.blocks;
   const leadIndex = blocks.findIndex((b) => b.type === 'p');
   // Les figures sont numérotées dans l'ordre de l'article : la boucle est Fig. 1
@@ -262,7 +342,7 @@ export function ArticleBody({
     <NotesProvider lang={lang}>
       <div className="flex flex-col">
         <noscript>
-          <style>{'.journal-hl{background-size:100% 100%!important}'}</style>
+          <style>{'.journal-hl{background-size:100% 100%!important}.journal-concept{background-size:100% 1px!important}'}</style>
         </noscript>
         <PassageArrival />
         {blocks.map((block, i) => {
@@ -281,11 +361,12 @@ export function ArticleBody({
               const after = prev?.type === 'h2' ? RHYTHM.h2Bottom : i - 1 === leadIndex ? RHYTHM.lead : RHYTHM.body;
               const m = block.key ? marks?.[block.key] : undefined;
               const mark = m && <MapMark {...m} />;
+              const inline = markQuotes(block.inline, block.key ? quotes?.[block.key] : undefined);
               if (isLead && notes.length === 0) {
                 return (
                   <p key={i} {...passage} className={cn(EDITORIAL_LEAD, passage.className)} style={{ marginTop: top(0) }}>
                     {mark}
-                    {renderInline(block.inline, numbering)}
+                    {renderInline(inline, numbering)}
                   </p>
                 );
               }
@@ -293,7 +374,7 @@ export function ArticleBody({
                 <NoteRow key={i} notes={notes} style={{ marginTop: top(isLead ? 0 : after) }}>
                   <p {...passage} className={cn(isLead ? EDITORIAL_LEAD : EDITORIAL_BODY, passage.className)}>
                     {mark}
-                    {renderInline(block.inline, numbering)}
+                    {renderInline(inline, numbering)}
                   </p>
                 </NoteRow>
               );

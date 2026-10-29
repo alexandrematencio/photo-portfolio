@@ -44,13 +44,23 @@ function observe(el: Element) {
   return () => observer?.unobserve(el);
 }
 
-export function Highlight({ children }: { children: ReactNode }) {
-  const ref = useRef<HTMLElement>(null);
+/**
+ * Pose `data-on` sur l'élément quand le lecteur y arrive, une seule fois. Le
+ * souligné des citations de la Concept Map (`ConceptQuote`) s'y accroche
+ * aussi : même déclencheur, même geste.
+ */
+export function useDrawOnArrival<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el || el.dataset.on !== undefined) return;
     return observe(el);
   }, []);
+  return ref;
+}
+
+export function Highlight({ children }: { children: ReactNode }) {
+  const ref = useDrawOnArrival<HTMLElement>();
   return (
     <mark ref={ref} className="journal-hl">
       {children}

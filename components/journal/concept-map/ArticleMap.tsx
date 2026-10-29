@@ -17,6 +17,7 @@ import { StateDot } from '@/components/site/StateDot';
 import { CONTROL_RADIUS } from '@/lib/site/controls';
 import { frenchSpaces } from '@/lib/journal/french';
 import { conceptMapPath, DICT, type Lang } from '@/lib/journal/i18n';
+import { useDrawOnArrival } from '@/components/journal/Highlight';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import type { MapView } from '@/lib/journal/conceptMapData';
@@ -354,5 +355,24 @@ export function MapMark({ id, label, anchor }: { id: string; label: string; anch
     >
       <MapGlyph />
     </button>
+  );
+}
+
+/**
+ * LE SOULIGNÉ D'UNE CITATION (2026-10-29, demande Alexandre) — la phrase du
+ * texte qu'une thèse ou un mécanisme de la carte cite (`quote`). La pastille
+ * dit « thèse 3/7 : … » ; le pointillé montre DANS le texte d'où elle vient.
+ * Même geste que le surligné jaune (`Highlight`, même déclencheur, même
+ * courbe) mais en retrait : un pointillé gris clair, qui ne concurrence ni
+ * le jaune ni les liens. La citation de la thèse en cours — celle de la
+ * pastille — fonce d'un cran (`data-current`). CSS : `.journal-concept`.
+ */
+export function ConceptQuote({ id, children }: { id: string; children: ReactNode }) {
+  const ctx = useContext(ArticleMapContext);
+  const ref = useDrawOnArrival<HTMLSpanElement>();
+  return (
+    <span ref={ref} className="journal-concept" data-current={ctx?.reading === id ? '' : undefined}>
+      {children}
+    </span>
   );
 }
