@@ -26,6 +26,8 @@
     "check-image-prep": "node --import tsx scripts/check-image-prep.ts",
     "check-search": "node --import tsx scripts/check-search.ts",
     "check-translate-markup": "node --import tsx scripts/check-translate-markup.ts",
+    "check-map-anchors": "node --import tsx scripts/check-map-anchors.ts",
+    "align-translation-keys": "node --env-file=.env.local --import tsx scripts/align-translation-keys.ts",
     "check-jsonld": "node --env-file=.env.local --import tsx scripts/check-jsonld.ts",
     "wipe-photos": "node --env-file=.env.local --import tsx scripts/wipe-photos.ts",
     "set-hero": "node --env-file=.env.production --env-file=.env.local --import tsx scripts/set-hero.ts",

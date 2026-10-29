@@ -51,7 +51,12 @@ export type Inline =
   | { t: 'draft'; text: string };
 
 export type ArticleBlock =
-  | { type: 'p'; inline: Inline[] }
+  /**
+   * `key` : le `_key` du bloc dans le Studio, stable d'une édition à l'autre et
+   * identique dans les traductions. Il devient l'ancre `#p-<key>` du
+   * paragraphe (liens vers un passage, Concept Map).
+   */
+  | { type: 'p'; inline: Inline[]; key?: string }
   | { type: 'h2'; text: string }
   | { type: 'quote'; text: string }
   | { type: 'figure'; name: FigureName }

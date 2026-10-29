@@ -7,7 +7,9 @@
  *   npm run import-journal -- --yes --publish     → écrit les articles publiés
  *
  * Idempotent : `_id` déterministes (`post-<fichier>`, `journalSeries-<slug>`),
- * `createOrReplace`, en UNE transaction.
+ * `createOrReplace`, en UNE transaction. Les blocs d'un article déjà présent
+ * gardent leur `_key`, qui est l'ancre publique de leur paragraphe
+ * (`lib/journal/stableKeys.ts`).
  *
  * **Brouillons par défaut** (décision Alexandre, 2026-10-17) : le dataset est
  * en lecture publique, un article publié est donc lisible par l'API, notes
@@ -29,8 +31,10 @@
  * (note à trancher ; seule sur sa ligne = paragraphe à trancher).
  */
 import { createClient } from '@sanity/client';
+import { randomBytes } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { reuseKeys, type KeyedBlock } from '../lib/journal/stableKeys';
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
 const DATASET = process.env.NEXT_PUBLIC_SANITY_DATASET ?? 'production';
@@ -49,8 +53,10 @@ type Span = { _type: 'span'; _key: string; text: string; marks: string[] };
 type Child = Span | { _type: 'journalNoteRef'; _key: string; refKey: string } | { _type: 'journalDraftNote'; _key: string; text: string };
 type Doc = Record<string, unknown> & { _id: string; _type: string };
 
-let seq = 0;
-const key = () => `k${(seq++).toString(36)}`;
+// Clés aléatoires, plus positionnelles (2026-10-29) : la clé d'un bloc est
+// l'ancre publique de son paragraphe. Un réimport reprend les clés de
+// l'article existant (`reuseKeys`) ; seuls les blocs neufs gardent celle-ci.
+const key = () => `k${randomBytes(5).toString('hex')}`;
 
 function slugify(s: string) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -151,6 +157,16 @@ async function main() {
       series = { _type: 'reference', _ref: id };
     }
 
+    // L'article existe déjà (brouillon d'abord, sinon publié) : ses blocs
+    // gardent leur clé, donc leurs ancres `#p-<clé>`.
+    const existing = await client.fetch<{ body?: KeyedBlock[] } | null>(
+      `coalesce(*[_id == $draft][0], *[_id == $id][0]){ body }`,
+      { id: `post-${slug}`, draft: `drafts.post-${slug}` },
+    );
+    const kept = reuseKeys(body as KeyedBlock[], existing?.body ?? []);
+    const reused = kept.filter((b) => (existing?.body ?? []).some((e) => e._key === b._key)).length;
+    if (existing) report.push(`  ${slug.padEnd(34)} clés reprises : ${reused}/${kept.length}`);
+
     docs.push({
       _id: `${PUBLISH ? '' : 'drafts.'}post-${slug}`,
       _type: 'post',
@@ -159,7 +175,7 @@ async function main() {
       slug: { _type: 'slug', current: slug },
       date: meta.date,
       ...(series ? { series, part: Number(meta.part) } : {}),
-      body,
+      body: kept,
       references,
       ...(meta.referencesNote ? { referencesNote: meta.referencesNote } : {}),
     });

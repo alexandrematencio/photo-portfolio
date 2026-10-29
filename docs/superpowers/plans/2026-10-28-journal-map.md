@@ -1,8 +1,9 @@
-# /map — la mindmap du journal
+# /concept-map — la Concept Map du journal
 
-Nom : URL `/map` dans les trois langues ; libellé de menu traduit
-(FR « Mindmap », EN « Mindmap », RU « Карта мыслей »). Dans ce plan, « carte »
-désigne la même chose.
+Nom verrouillé par Alexandre le 2026-10-29 : URL `/concept-map` dans les trois
+langues, « Concept Map » partout ailleurs (menus, titres). La vue centrée
+dans l'article reste à nommer. Dans ce plan, « carte » et « /map » désignent
+la même chose.
 
 Plan du 2026-10-28. Demande d'Alexandre : publier le graphe du vault Obsidian
 sur blog.amatencio.com, pour qu'un lecteur s'y oriente et qu'un nœud l'envoie
@@ -25,6 +26,10 @@ avant de la publier.
 - La traduction EN/RU (`lib/journal/translate/units.ts`) reconstruit la structure
   depuis le français et recopie les `_key`. Le paragraphe `k2j` du français est
   donc aussi `k2j` en anglais et en russe. Une même ancre sert les trois langues.
+  ⚠️ Corrigé le 2026-10-29 : c'est vrai du code actuel, pas des 8 traductions
+  écrites le 2026-10-18, avant la traduction incrémentale (clés `b0001`…).
+  `npm run align-translation-keys` les réaligne (dry-run vérifié : même
+  structure bloc pour bloc, seules les clés changent).
 - **Le piège :** `import-journal.ts` numérote les clés par position (`k0`, `k1`…).
   Si on réimporte un article après y avoir inséré un paragraphe, toutes les
   clés suivantes glissent d'un cran et chaque ancre pointe vers le paragraphe
@@ -50,6 +55,13 @@ Trois règles :
    signalée, et on la répare au passage suivant.
 
 ## Phase 1 : des ancres stables (environ 1 jour)
+
+**Livrée le 2026-10-29** : `id="p-<clé>"` sur les paragraphes (`ArticleBody`,
+pas `PortableBody` : c'est lui qui rend les articles), filet d'arrivée
+(`PassageArrival` + `.journal-passage`), `import-journal` à clés stables
+(`lib/journal/stableKeys.ts`), `npm run check-map-anchors`. Reste : lancer
+`npm run align-translation-keys -- --yes` (écriture en production, à faire
+par Alexandre ou avec son accord), après quoi `check-map-anchors` passe au vert.
 
 1. **`PortableBody.tsx`** rend `id="p-<_key>"` sur les paragraphes, les
    intertitres et les citations mises en avant. L'`id` déjà posé par
