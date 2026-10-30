@@ -561,8 +561,14 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
 
   return (
     // Le dashboard (2026-10-30, Alexandre) : d'un bord à l'autre de l'écran et,
-    // dès 768 px, de la hauteur visible sous la barre de navigation.
-    <div ref={board} className="relative flex flex-col gap-3 md:h-[calc(100dvh-4rem)] md:flex-row md:gap-0 md:border-y md:border-[var(--color-line)]">
+    // dès 768 px, de la hauteur visible sous la barre de navigation. À droite,
+    // la carte s'arrête à la gouttière de la page, fermée par un filet (marge
+    // en style inline : le reset `* { margin: 0 }` hors @layer bat l'utility).
+    <div
+      ref={board}
+      className="relative flex flex-col gap-3 md:h-[calc(100dvh-4rem)] md:flex-row md:gap-0 md:border-y md:border-r md:border-[var(--color-line)]"
+      style={wide ? { marginRight: 'var(--page-gutter)' } : undefined}
+    >
       <MapMenu
         open={menu}
         onOpen={toggleMenu}
