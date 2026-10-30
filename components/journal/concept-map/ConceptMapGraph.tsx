@@ -28,12 +28,32 @@ import { colorOf, LABEL_STEPS, neighbourhood, type LabelKind, type LabelReach, t
  * Estompage : au survol, ce qui n'est pas voisin glisse vers la couleur du
  * papier en 180 ms (ease-out), et revient en 140 ms (la sortie est plus
  * courte que l'entrée). Rien sous `prefers-reduced-motion` : la bascule est
- * immédiate, la caméra ne voyage pas.
+ * immédiate, la caméra ne voyage pas. Une entrée du menu survolée estompe à
+ * moitié (`PREVIEW`) ; choisie, l'estompage va au bout et la caméra cadre le
+ * système (`fit`).
  */
 
 const PAPER = '#fafaf8';
 const FADE_IN = 180;
 const FADE_OUT = 140;
+/** Une entrée du menu survolée : son système s'allume à moitié ; le clic achève l'estompage (2026-10-30, Alexandre). */
+const PREVIEW = 0.45;
+/**
+ * Le cadrage d'un système choisi : le plus près possible sans qu'aucun nœud ni
+ * nom ne sorte du cadre. Les noms sont MESURÉS (ils se dessinent à droite du
+ * nœud, à taille fixe) et entrent dans le calcul : pas de nom rogné. Marge de
+ * 48 px — la pratique courante des « fit to selection » est d'environ 50 px —
+ * et 80 en haut, où se posent l'indication de zoom et « Désélectionner ».
+ * Un nom ne compte que jusqu'à 60 % de la largeur utile : au-delà (un titre
+ * d'article sur téléphone), aucun zoom ne le ferait tenir, et le reste du
+ * système deviendrait illisible pour lui. Sur petit écran, la marge tombe à 20.
+ */
+const FIT_PAD = 48;
+const FIT_PAD_SMALL = 20;
+const FIT_LABEL_SHARE = 0.6;
+const FIT_TOP = 80;
+/** Un déplacement de caméra sur place : ease-in-out, entre 0,5 et 0,75 s (Alexandre). */
+const FIT_MS = 620;
 /** Au-delà, les voisins d'un nœud gardent leur pastille mais pas leur libellé : on ne lirait plus rien. */
 const MAX_FORCED_LABELS = 14;
 
@@ -62,6 +82,8 @@ const MIN_RATIO = 0.12;
 const MAX_RATIO = 1.6;
 
 export type MapGestures = { held: () => boolean; refused: (gesture: 'wheel' | 'touch') => void };
+/** Le système d'une entrée du menu survolée ; `key` : l'id du nœud quand l'entrée en est un. */
+export type MapPreview = { key: string; ids: Set<string> } | null;
 
 const NODE_SIZE = { article: 13, thesis: 3.5 } as const;
 const EDGE_STYLE = {
@@ -75,30 +97,32 @@ export default function ConceptMapGraph({
   ix,
   visible,
   selected,
-  center,
+  center = 0,
   inset = 0,
   zoom = 0.7,
   sticky = false,
   labels,
   nav,
   gestures,
+  preview = null,
+  fit = 0,
   onSelect,
 }: {
   ix: MapIndex;
   visible: Set<string>;
   selected: string | null;
   /** Change quand la sélection vient d'ailleurs (panneau, adresse) : la caméra va la chercher. */
-  center: number;
+  center?: number;
   /** Pixels masqués à droite par le panneau : le nœud cherché se pose au milieu de ce qui reste visible. */
   inset?: number;
   /** Zoom maximal quand la caméra va chercher un nœud (plus petit = plus près). */
   zoom?: number;
   /**
    * La sélection TIENT (`/concept-map`, 2026-10-30, Alexandre) : tant qu'un
-   * nœud est choisi, survoler un nœud estompé ne rallume rien, et cliquer hors
-   * de son voisinage — dans le vide comme sur un autre nœud — la lâche. Seul
-   * un voisin allumé se choisit directement. Sans elle (la carte d'un
-   * article), tout nœud survolé s'allume et tout nœud cliqué se choisit.
+   * nœud est choisi, survoler un nœud voilé ne rallume pas son système — il
+   * montre seulement son nom — et cliquer dans le vide la lâche. Un nœud voilé
+   * reste cliquable : il devient la sélection. Sans elle (la carte d'un
+   * article), tout nœud survolé s'allume.
    */
   sticky?: boolean;
   /** Jusqu'où chaque rang garde son nom ; sans, le seuil de taille de Sigma (la carte d'un article). */
@@ -113,16 +137,26 @@ export default function ConceptMapGraph({
    * elle (la petite carte d'un article), la carte prend tous les gestes.
    */
   gestures?: MapGestures;
+  /** Survolé dans le menu : allumé à moitié, par-dessus la sélection. */
+  preview?: MapPreview;
+  /**
+   * Change quand un système est choisi (`/concept-map`) : la caméra le cadre au
+   * plus près — le voisinage du nœud choisi, sinon tout ce que les filtres
+   * laissent voir.
+   */
+  fit?: number;
   onSelect: (id: string | null) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const sigma = useRef<Sigma | null>(null);
   // L'état que lisent les reducers : des refs, pour ne pas reconstruire Sigma.
-  const state = useRef({ visible, selected, hovered: null as string | null, shown: null as string | null, around: new Set<string>(), fade: 0, kept: new Set<string>(), reach: null as Record<LabelKind, number> | null, ratio: 1 });
+  const state = useRef({ visible, selected, hovered: null as string | null, peek: null as string | null, preview: null as MapPreview, shown: null as string | null, lit: false, around: new Set<string>(), fade: 0, kept: new Set<string>(), reach: null as Record<LabelKind, number> | null, ratio: 1 });
   const select = useRef(onSelect);
   select.current = onSelect;
   const gest = useRef(gestures);
   gest.current = gestures;
+  const insetNow = useRef(inset);
+  insetNow.current = inset;
 
   useEffect(() => {
     const container = box.current;
@@ -163,14 +197,16 @@ export default function ConceptMapGraph({
         if (!s.visible.has(node)) return { ...data, hidden: true };
         const far = !!s.reach && !(s.ratio <= s.reach[data.kind as LabelKind]);
         const out = { ...data, highlighted: node === s.selected, label: far ? null : data.label };
-        if (!s.shown || s.fade === 0) return out;
+        if (!s.lit || s.fade === 0) return out;
         if (s.around.has(node)) return { ...out, label: data.label, zIndex: (data.zIndex ?? 0) + 4, forceLabel: node === s.shown || s.around.size <= MAX_FORCED_LABELS };
+        // Un nœud voilé sous le pointeur : il garde son voile, mais dit son nom.
+        if (node === s.peek) return { ...out, color: mix(data.color, PAPER, 0.4 * s.fade), label: data.label, forceLabel: true, zIndex: 5 };
         return { ...out, color: mix(data.color, PAPER, 0.82 * s.fade), label: s.fade > 0.5 ? null : data.label, zIndex: 0 };
       },
       edgeReducer: (edge, data) => {
         const [a, b] = graph.extremities(edge);
         if (!s.visible.has(a) || !s.visible.has(b)) return { ...data, hidden: true };
-        if (!s.shown || s.fade === 0) return data;
+        if (!s.lit || s.fade === 0) return data;
         if (s.around.has(a) && s.around.has(b))
           return { ...data, color: data.color === EDGE_STYLE.rhyme.color ? data.color : mix(data.color, EDGE_FOCUS, s.fade), zIndex: 2 };
         return { ...data, color: mix(data.color, PAPER, 0.85 * s.fade) };
@@ -178,33 +214,42 @@ export default function ConceptMapGraph({
     });
     sigma.current = renderer;
 
+    // L'estompage glisse vers sa profondeur : 1 pour un nœud survolé ou choisi,
+    // `PREVIEW` pour une entrée du menu survolée. De l'aperçu au clic, il ne
+    // fait que s'approfondir — le focus « s'intensifie ».
     let raf = 0;
-    const focusOn = (id: string | null) => {
+    const lightUp = (around: Set<string> | null, depth = 1, key: string | null = null) => {
       cancelAnimationFrame(raf);
       const from = s.fade;
-      const to = id ? 1 : 0;
-      if (id) {
-        s.shown = id;
-        s.around = neighbourhood(ix, id);
-      }
+      const to = around ? depth : 0;
+      if (around) Object.assign(s, { around, shown: key, lit: true });
+      const end = () => !around && Object.assign(s, { shown: null, lit: false });
       if (reduced() || from === to) {
         s.fade = to;
-        if (!id) s.shown = null;
+        end();
         renderer.refresh({ skipIndexation: true });
         return;
       }
       const start = performance.now();
-      const duration = to ? FADE_IN : FADE_OUT;
+      const duration = to > from ? FADE_IN : FADE_OUT;
       const step = (now: number) => {
         const t = Math.min(1, (now - start) / duration);
         s.fade = from + (to - from) * easeOut(t);
-        if (t === 1 && !id) s.shown = null;
+        if (t === 1) end();
         renderer.refresh({ skipIndexation: true });
         if (t < 1) raf = requestAnimationFrame(step);
       };
       raf = requestAnimationFrame(step);
     };
-    (renderer as Sigma & { focusOn?: typeof focusOn }).focusOn = focusOn;
+    // Qui s'allume : le nœud survolé, sinon l'entrée survolée du menu, sinon la sélection.
+    const settle = () => {
+      const p = s.preview;
+      if (s.hovered) lightUp(neighbourhood(ix, s.hovered), 1, s.hovered);
+      else if (p && p.key !== s.selected && [...p.ids].some((id) => s.visible.has(id))) lightUp(p.ids, PREVIEW);
+      else if (s.selected) lightUp(s.kept, 1, s.selected);
+      else lightUp(null);
+    };
+    (renderer as Sigma & { settle?: typeof settle }).settle = settle;
 
     const camera = renderer.getCamera();
     const middle = () => {
@@ -356,22 +401,91 @@ export default function ConceptMapGraph({
       renderer.refresh({ skipIndexation: true });
     };
 
-    // Avec `sticky`, ce qui est hors du voisinage choisi ne répond pas au survol.
+    // Avec `sticky`, un nœud hors du voisinage choisi dit son nom au survol, sans rallumer son système.
     const outside = (node: string) => sticky && !!s.selected && !s.kept.has(node);
     renderer.on('enterNode', ({ node }) => {
-      if (outside(node)) return;
       container.style.cursor = 'pointer';
+      if (outside(node)) {
+        s.peek = node;
+        return renderer.refresh({ skipIndexation: true });
+      }
       s.hovered = node;
-      focusOn(node);
+      settle();
     });
     renderer.on('leaveNode', () => {
       container.style.cursor = '';
+      if (s.peek) {
+        s.peek = null;
+        renderer.refresh({ skipIndexation: true });
+      }
       if (!s.hovered) return;
       s.hovered = null;
-      focusOn(s.selected);
+      settle();
     });
-    renderer.on('clickNode', ({ node }) => select.current(outside(node) ? null : node));
+    renderer.on('clickNode', ({ node }) => {
+      s.peek = null;
+      select.current(node);
+    });
     renderer.on('clickStage', () => select.current(null));
+
+    // Cadrer un système : on cherche le rapport le plus serré où nœuds ET noms
+    // tiennent dans le cadre (moins le panneau, à droite), par dichotomie —
+    // la taille rendue des nœuds suit le zoom, celle des noms non.
+    const measure = document.createElement('canvas').getContext('2d');
+    const frameOn = (ids: Set<string>) => {
+      const pts = [...ids].flatMap((id) => {
+        const d = s.visible.has(id) ? renderer.getNodeDisplayData(id) : undefined;
+        return d ? [{ id, d }] : [];
+      });
+      const { width: W, height: H } = renderer.getDimensions();
+      const pad = W < 600 ? FIT_PAD_SMALL : FIT_PAD;
+      const room = { w: W - insetNow.current - 2 * pad, h: H - FIT_TOP - pad };
+      if (!pts.length || room.w < 80 || room.h < 80) return;
+      // Les noms qui se liront : tous pour un petit système (ils sont forcés), ceux des articles sinon.
+      const named = ids.size <= MAX_FORCED_LABELS;
+      if (measure) measure.font = `600 12px ${font}`;
+      const tail = pts.map(({ id }) => {
+        const n = graph.getNodeAttributes(id);
+        return (named || n.kind === 'article') && measure ? Math.min(measure.measureText(n.label).width + 3, room.w * FIT_LABEL_SHARE) : 0;
+      });
+      const xs = pts.map((p) => p.d.x);
+      const ys = pts.map((p) => p.d.y);
+      const mid = { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
+      const extent = (ratio: number) => {
+        const cam = { ...mid, ratio, angle: 0 };
+        const e = { l: Infinity, r: -Infinity, t: Infinity, b: -Infinity, cam };
+        pts.forEach(({ d }, i) => {
+          const v = renderer.framedGraphToViewport(d, { cameraState: cam });
+          const rad = renderer.scaleSize(d.size, ratio);
+          e.l = Math.min(e.l, v.x - rad);
+          e.r = Math.max(e.r, v.x + rad + tail[i]);
+          e.t = Math.min(e.t, v.y - Math.max(rad, 8));
+          e.b = Math.max(e.b, v.y + Math.max(rad, 8));
+        });
+        return e;
+      };
+      const fits = (e: ReturnType<typeof extent>) => e.r - e.l <= room.w && e.b - e.t <= room.h;
+      let lo = Math.log(MIN_RATIO);
+      let hi = Math.log(MAX_RATIO);
+      if (!fits(extent(Math.exp(lo))))
+        for (let i = 0; i < 24; i++) {
+          const m = (lo + hi) / 2;
+          if (fits(extent(Math.exp(m)))) hi = m;
+          else lo = m;
+        }
+      else hi = lo;
+      const e = extent(Math.exp(hi));
+      // Le dessin se pose au milieu de la place libre : la caméra part à l'opposé du décalage.
+      const dx = pad + room.w / 2 - (e.l + e.r) / 2;
+      const dy = FIT_TOP + room.h / 2 - (e.t + e.b) / 2;
+      const to = renderer.viewportToFramedGraph({ x: W / 2 - dx, y: H / 2 - dy }, { cameraState: e.cam });
+      cancelAnimationFrame(z.raf);
+      z.raf = 0;
+      const target = { x: to.x, y: to.y, ratio: Math.exp(hi) };
+      if (reduced()) camera.setState(target);
+      else camera.animate(target, { duration: FIT_MS, easing: 'cubicInOut' });
+    };
+    (renderer as Sigma & { frameOn?: typeof frameOn }).frameOn = frameOn;
 
     // Sigma ne suit que la fenêtre : un cadre qui change de largeur sans elle (le
     // menu de gauche qui se replie, 2026-10-30) redessine à chaque image du geste.
@@ -409,11 +523,25 @@ export default function ConceptMapGraph({
     s.visible = visible;
     s.selected = selected && visible.has(selected) ? selected : null;
     s.kept = s.selected ? neighbourhood(ix, s.selected) : new Set();
-    const r = sigma.current as (Sigma & { focusOn?: (id: string | null) => void }) | null;
+    const r = sigma.current as (Sigma & { settle?: () => void }) | null;
     if (!r) return;
-    if (!s.hovered) r.focusOn?.(s.selected);
+    if (!s.hovered) r.settle?.();
     else r.refresh({ skipIndexation: true });
   }, [ix, visible, selected]);
+
+  // Une entrée du menu survolée, puis quittée.
+  useEffect(() => {
+    state.current.preview = preview;
+    (sigma.current as (Sigma & { settle?: () => void }) | null)?.settle?.();
+  }, [preview]);
+
+  // Cadrer le système choisi (après les filtres et la sélection, que l'effet du dessus vient de relire).
+  useEffect(() => {
+    const s = state.current;
+    const r = sigma.current as (Sigma & { frameOn?: (ids: Set<string>) => void }) | null;
+    if (!fit || !r) return;
+    r.frameOn?.(s.selected ? s.kept : s.visible);
+  }, [fit]);
 
   // Aller chercher un nœud choisi hors du dessin.
   useEffect(() => {

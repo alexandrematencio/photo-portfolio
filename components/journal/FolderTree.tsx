@@ -171,6 +171,7 @@ function LsEntry({
   onChange,
   dash = false,
   type = 'ls',
+  onPreview,
 }: {
   filter: Filter;
   on: boolean;
@@ -178,12 +179,18 @@ function LsEntry({
   /** Tiret de tête, pour les entrées mises à la suite sur téléphone. */
   dash?: boolean;
   type?: EntryType;
+  /** Survol ou focus clavier de l'entrée (la Concept Map allume son système) ; `null` en sortant. */
+  onPreview?: (key: string | null) => void;
 }) {
   return (
     <button
       type="button"
       aria-pressed={on}
       onClick={() => onChange(f.key)}
+      onPointerEnter={onPreview && ((e) => e.pointerType !== 'touch' && onPreview(f.key))}
+      onPointerLeave={onPreview && (() => onPreview(null))}
+      onFocus={onPreview && (() => onPreview(f.key))}
+      onBlur={onPreview && (() => onPreview(null))}
       className={cn(
         'flex items-center gap-[8px] text-left transition-colors duration-200 motion-reduce:transition-none',
         // L'interligne APRÈS la taille : tailwind-merge efface un `leading-*` placé avant un `text-[…px]`.
@@ -221,12 +228,14 @@ export function FolderList({
   isOn,
   onChange,
   type = 'ls',
+  onPreview,
   children,
 }: {
   items: Filter[];
   isOn: (key: string) => boolean;
   onChange: (key: string) => void;
   type?: EntryType;
+  onPreview?: (key: string | null) => void;
   children?: ReactNode;
 }) {
   return (
@@ -235,7 +244,7 @@ export function FolderList({
         {items.map((f, i) => (
           <li key={f.key} className="relative" style={{ paddingLeft: TREE_INDENT }}>
             <Branch y={branchY(type)} last={i === items.length - 1} />
-            <LsEntry filter={f} on={isOn(f.key)} onChange={onChange} type={type} />
+            <LsEntry filter={f} on={isOn(f.key)} onChange={onChange} type={type} onPreview={onPreview} />
           </li>
         ))}
       </ul>
