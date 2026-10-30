@@ -10,6 +10,7 @@ import { CursorInvert } from '@/components/site/CursorInvert';
 import { EmailHoneypot } from '@/components/site/EmailHoneypot';
 import { SiteSessionMarker } from '@/components/site/SiteSessionMarker';
 import { PhotoGuard } from '@/components/site/PhotoGuard';
+import { SwipeBackGuard } from '@/components/site/SwipeBackGuard';
 import { getSiteSettings } from '@/lib/sanity/queries';
 import { resolveHeroImages } from '@/lib/site/hero';
 
@@ -33,6 +34,8 @@ export default async function SiteLayout({
           (jamais dans /studio, hors de ce groupe de routes). Ralentisseur et
           signal, PAS une protection — cf. le commentaire du composant. */}
       <PhotoGuard />
+      {/* Pas de « page précédente » au glissé à deux doigts (cf. le composant). */}
+      <SwipeBackGuard />
       <SiteHeader heroSrc={heroSrc} />
       {/* Mobile menu rendered once for the whole (site) group — works on home and editorial pages alike. */}
       <MobileMenu />

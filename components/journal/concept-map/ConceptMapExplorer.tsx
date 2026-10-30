@@ -278,28 +278,33 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
               {current === 'map' && (
                 <Graph ix={ix} visible={visible} selected={shown} center={center} inset={wide && shown && panel ? PANEL_WIDTH + 12 : 0} sticky onSelect={(id) => select(id)} />
               )}
-              <p className={cn(MICRO_LABEL, 'pointer-events-none absolute bottom-3 left-3 text-[var(--color-fg-faint)]')}>
+            </div>
+            {/* Coin haut gauche : l'indication de zoom, puis « Désélectionner » dessous.
+                Hors du dessin (`aria-hidden`) pour que le bouton reste atteignable au
+                clavier ; une seule colonne pour qu'une indication sur deux lignes
+                (téléphone, russe) pousse le bouton au lieu de le chevaucher. */}
+            <div className="pointer-events-none absolute inset-x-3 top-3 flex flex-col items-start gap-2">
+              <p aria-hidden className={cn(MICRO_LABEL, 'font-medium text-[var(--color-fg)]')}>
                 <span className="md:hidden">{t.zoomTouch}</span>
                 <span className="hidden md:inline">{t.zoomWheel}</span>
               </p>
+              {shown && (
+                <button
+                  type="button"
+                  onClick={() => select(null)}
+                  className={cn(
+                    MICRO_LABEL,
+                    'pointer-events-auto flex items-center gap-2 border border-[var(--color-line)] bg-[var(--color-bg)] text-[var(--color-fg-muted)] transition-colors duration-200 hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)] motion-reduce:transition-none',
+                  )}
+                  style={{ padding: '6px 10px' }}
+                >
+                  {t.deselect}
+                  <svg aria-hidden width={10} height={10} viewBox="0 0 12 12" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round">
+                    <path d="M2 2l8 8M10 2l-8 8" />
+                  </svg>
+                </button>
+              )}
             </div>
-            {/* Hors du dessin (`aria-hidden`) : le bouton reste atteignable au clavier. */}
-            {shown && (
-              <button
-                type="button"
-                onClick={() => select(null)}
-                className={cn(
-                  MICRO_LABEL,
-                  'absolute left-3 top-3 flex items-center gap-2 border border-[var(--color-line)] bg-[var(--color-bg)] text-[var(--color-fg-muted)] transition-colors duration-200 hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)] motion-reduce:transition-none',
-                )}
-                style={{ padding: '6px 10px' }}
-              >
-                {t.deselect}
-                <svg aria-hidden width={10} height={10} viewBox="0 0 12 12" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round">
-                  <path d="M2 2l8 8M10 2l-8 8" />
-                </svg>
-              </button>
-            )}
             {shown && panel && (
               <div
                 className="bg-[var(--color-bg-raised)] md:absolute md:bottom-3 md:right-3 md:top-3 md:w-[var(--concept-panel)] md:overflow-y-auto md:shadow-[0_1px_3px_rgba(0,0,0,0.08)]"

@@ -625,6 +625,15 @@ html {
      explicitly. Keeping it could desync the morph/refresh on cold loads. */
 }
 
+/* Pas de « page précédente » au glissé à deux doigts : le débordement
+   horizontal s'arrête à la racine (Chrome, Edge, Firefox). Safari passe par
+   <SwipeBackGuard />. */
+html,
+body,
+[data-scroll-container] {
+  overscroll-behavior-x: none;
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-fg);

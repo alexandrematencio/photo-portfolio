@@ -13,6 +13,7 @@ import { ScrollThumb } from '@/components/site/ScrollThumb';
 import { TopBarAutoHide } from '@/components/site/TopBarAutoHide';
 import { CursorInvert } from '@/components/site/CursorInvert';
 import { EmailHoneypot } from '@/components/site/EmailHoneypot';
+import { SwipeBackGuard } from '@/components/site/SwipeBackGuard';
 import { NavMemory } from '@/components/journal/BackLink';
 import { HomeReturn } from '@/components/journal/HomeReturn';
 import { getAllSeries, getArticles } from '@/lib/journal/articles';
@@ -72,6 +73,7 @@ export async function BlogShell({ lang, children }: { lang: Lang; children: Reac
         <TopBarAutoHide />
         <CursorInvert />
         <EmailHoneypot />
+        <SwipeBackGuard />
         <FramedScroll footer={<SiteFooter />}>
           <MainPadding>{children}</MainPadding>
         </FramedScroll>
