@@ -95,3 +95,25 @@ export function listedMechanisms(ix: MapIndex, visible: Set<string>): MapViewNod
 
 /** `#n=<id>` : la sélection se partage et survit au retour arrière. */
 export const HASH_KEY = 'n';
+
+/**
+ * Jusqu'où les noms se lisent, par rang (2026-10-30, Alexandre, à la manière
+ * d'Obsidian) : de 0 (jamais, sauf autour du nœud survolé ou choisi) à
+ * `LABEL_STEPS` (toujours). Entre les deux, un cran recule le zoom à partir
+ * duquel le nom paraît.
+ */
+export type LabelKind = 'article' | 'mechanism' | 'thesis';
+export type LabelReach = Record<LabelKind, number>;
+export const LABEL_STEPS = 10;
+/** Les crans qui reproduisent l'ancien seuil de taille : articles toujours, mécanismes de près, thèses tout près. */
+export const LABEL_DEFAULT: LabelReach = { article: 10, mechanism: 4, thesis: 1 };
+
+/** Ce que les commandes hors du dessin (clavier, faux clavier) demandent à la caméra. */
+export type MapNav = {
+  /** La direction tenue, en écran (−1 à 1 par axe) ; 0, 0 freine jusqu'à l'arrêt. */
+  drive: (x: number, y: number) => void;
+  /** Un cran de zoom au centre : positif rapproche. */
+  zoom: (step: number) => void;
+  /** Toute la carte dans le cadre. */
+  reset: () => void;
+};
