@@ -44,25 +44,41 @@ export function BackLink({ href, lang }: { href: string; lang: Lang }) {
     }
   };
 
+  // Le bouton et, dans la même case, son double français invisible et sans
+  // hauteur (2026-10-30, demande Alexandre) : la case prend la largeur de
+  // « Retour », la plus longue des trois langues, et le rail de PageShell, qui
+  // se règle sur elle, garde la même largeur en anglais et en russe. Le bouton
+  // s'y cale à gauche, comme dans le rail d'un article.
   return (
-    <Link
-      href={href}
-      onClick={onClick}
-      data-back-link
-      // Bouton encadré (maquette d'Alexandre, 2026-10-18). Padding en style
-      // inline : le reset `* { padding: 0 }` avalerait une utility Tailwind.
-      // Au survol comme au focus clavier, texte et cadre s'éclaircissent
-      // (2026-10-19 : le cadre qui se remplissait d'encre faisait disparaître
-      // le texte) — le cadre suit `currentColor`.
-      // Fond papier : dans le rail collant (PageShell), le bouton reste
-      // lisible quoi qu'il survole.
-      style={{ padding: '6px 12px', border: '1px solid currentColor', gap: 10, backgroundColor: 'var(--color-bg)' }}
-      className="flex w-fit items-center text-[20px] leading-none uppercase font-bold text-[var(--color-fg)] transition-colors duration-200 hover:text-[var(--color-fg-muted)] focus-visible:text-[var(--color-fg-muted)] motion-reduce:transition-none"
-    >
-      {/* Le demi-tour de « Back to All Series » (/series) : il dit « on
-          revient d'où l'on vient », pas « à gauche ». */}
-      <Undo2 size={18} strokeWidth={2.25} aria-hidden />
-      {label}
-    </Link>
+    <div className="grid">
+      <Link
+        href={href}
+        onClick={onClick}
+        data-back-link
+        // Bouton encadré (maquette d'Alexandre, 2026-10-18). Padding en style
+        // inline : le reset `* { padding: 0 }` avalerait une utility Tailwind.
+        // Au survol comme au focus clavier, texte et cadre s'éclaircissent
+        // (2026-10-19 : le cadre qui se remplissait d'encre faisait disparaître
+        // le texte) — le cadre suit `currentColor`.
+        // Fond papier : dans le rail collant (PageShell), le bouton reste
+        // lisible quoi qu'il survole.
+        style={FRAME}
+        className={`${FACE} col-start-1 row-start-1 transition-colors duration-200 hover:text-[var(--color-fg-muted)] focus-visible:text-[var(--color-fg-muted)] motion-reduce:transition-none`}
+      >
+        {/* Le demi-tour de « Back to All Series » (/series) : il dit « on
+            revient d'où l'on vient », pas « à gauche ». */}
+        <Undo2 size={18} strokeWidth={2.25} aria-hidden />
+        {label}
+      </Link>
+      {lang !== 'fr' && (
+        <span aria-hidden className={`${FACE} invisible col-start-1 row-start-1 h-0 overflow-hidden`} style={{ ...FRAME, paddingBlock: 0, borderBlockWidth: 0 }}>
+          <Undo2 size={18} strokeWidth={2.25} />
+          {DICT.fr.back}
+        </span>
+      )}
+    </div>
   );
 }
+
+const FRAME = { padding: '6px 12px', border: '1px solid currentColor', gap: 10, backgroundColor: 'var(--color-bg)' };
+const FACE = 'flex w-fit items-center text-[20px] leading-none uppercase font-bold text-[var(--color-fg)]';

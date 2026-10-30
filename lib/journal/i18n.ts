@@ -338,7 +338,7 @@ export type Dict = {
     mechanismsFolder: string;
     index: string;
     /** Le dossier qui règle à quelle distance chaque rang affiche ses noms. */
-    labelsFolder: string;
+    settings: string;
     labelsNote: string;
     labelKinds: { article: string; mechanism: string; thesis: string };
     /** Le cran du réglage, de 0 (jamais) à 10 (toujours). */
@@ -580,8 +580,8 @@ export const DICT: Record<Lang, Dict> = {
       thesesFolder: 'Thèses',
       mechanismsFolder: 'Mécanismes',
       index: 'Index',
-      labelsFolder: 'Noms',
-      labelsNote: 'À quelle distance chaque rang affiche ses noms.',
+      settings: 'Réglages',
+      labelsNote: 'Distance d’affichage des noms',
       labelKinds: { article: 'Articles', mechanism: 'Mécanismes', thesis: 'Thèses' },
       reach: (v) => (v <= 0 ? 'jamais' : v >= 10 ? 'toujours' : v <= 3 ? 'de près' : v <= 6 ? 'à mi-distance' : 'de loin'),
       help: 'Aide ?',
@@ -602,7 +602,7 @@ export const DICT: Record<Lang, Dict> = {
         ['Échap', 'désélectionner, puis rendre la main'],
         ['?', 'ouvrir ou fermer cette aide'],
       ],
-      helpLabels: 'Les noms apparaissent en zoomant. Le dossier « noms/ », à gauche, règle à quelle distance pour les articles, les mécanismes et les thèses.',
+      helpLabels: 'Les noms apparaissent en zoomant. Les réglages, en bas de la colonne de gauche, règlent à quelle distance pour les articles, les mécanismes et les thèses.',
       close: 'Fermer',
       keys: { group: 'Clavier de navigation', up: 'Monter', down: 'Descendre', left: 'Aller à gauche', right: 'Aller à droite', in: 'Zoomer', out: 'Dézoomer', reset: 'Recadrer', on: 'Les flèches du clavier déplacent la carte.' },
     },
@@ -819,8 +819,8 @@ export const DICT: Record<Lang, Dict> = {
       thesesFolder: 'Theses',
       mechanismsFolder: 'Mechanisms',
       index: 'Index',
-      labelsFolder: 'Names',
-      labelsNote: 'How far away each rank shows its names.',
+      settings: 'Settings',
+      labelsNote: 'How far away names show',
       labelKinds: { article: 'Articles', mechanism: 'Mechanisms', thesis: 'Theses' },
       reach: (v) => (v <= 0 ? 'never' : v >= 10 ? 'always' : v <= 3 ? 'up close' : v <= 6 ? 'mid-range' : 'from afar'),
       help: 'Help?',
@@ -841,7 +841,7 @@ export const DICT: Record<Lang, Dict> = {
         ['Esc', 'clear the selection, then release'],
         ['?', 'open or close this help'],
       ],
-      helpLabels: 'Names appear as you zoom in. The “names/” folder on the left sets how far away for articles, mechanisms and theses.',
+      helpLabels: 'Names appear as you zoom in. The settings, at the foot of the left column, set how far away for articles, mechanisms and theses.',
       close: 'Close',
       keys: { group: 'Navigation keys', up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right', in: 'Zoom in', out: 'Zoom out', reset: 'Fit the map', on: 'The arrow keys now move the map.' },
     },
@@ -1064,8 +1064,8 @@ export const DICT: Record<Lang, Dict> = {
       thesesFolder: 'Тезисы',
       mechanismsFolder: 'Механизмы',
       index: 'Указатель',
-      labelsFolder: 'Названия',
-      labelsNote: 'С какого расстояния видны названия каждого уровня.',
+      settings: 'Настройки',
+      labelsNote: 'С какого расстояния видны названия',
       labelKinds: { article: 'Статьи', mechanism: 'Механизмы', thesis: 'Тезисы' },
       reach: (v) => (v <= 0 ? 'никогда' : v >= 10 ? 'всегда' : v <= 3 ? 'вблизи' : v <= 6 ? 'на среднем' : 'издалека'),
       help: 'Помощь?',
@@ -1086,7 +1086,7 @@ export const DICT: Record<Lang, Dict> = {
         ['Esc', 'снять выделение, затем отпустить'],
         ['?', 'открыть или закрыть справку'],
       ],
-      helpLabels: 'Названия появляются при приближении. Папка «названия/» слева задаёт расстояние для статей, механизмов и тезисов.',
+      helpLabels: 'Названия появляются при приближении. Настройки внизу левой колонки задают расстояние для статей, механизмов и тезисов.',
       close: 'Закрыть',
       keys: { group: 'Клавиши навигации', up: 'Вверх', down: 'Вниз', left: 'Влево', right: 'Вправо', in: 'Приблизить', out: 'Отдалить', reset: 'Показать всю карту', on: 'Стрелки клавиатуры теперь двигают карту.' },
     },
