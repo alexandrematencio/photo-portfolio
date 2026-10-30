@@ -17,7 +17,7 @@
 import { createClient } from '@sanity/client';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { mapParagraphs, normalizeQuote, type MapBlock } from '../lib/journal/mapAnchors';
+import { MAP_BODY_GROQ, mapParagraphs, normalizeQuote, type MapBlock } from '../lib/journal/mapAnchors';
 import { ask, JEV_DIR, jevConfigured, noulOf, spendLine, type Question } from './jev/client';
 import { link, readVault, setProperties, str, target } from './jev/vault';
 
@@ -50,7 +50,7 @@ async function main() {
     perspective: 'raw',
   });
   const posts = await client.fetch<{ _id: string; title: string; body?: MapBlock[] }[]>(
-    `*[_type == "post" && !defined(translationOf) && slug.current == $slug]{ _id, title, "body": coalesce(body, []) + coalesce(aiNote, []) }`,
+    `*[_type == "post" && !defined(translationOf) && slug.current == $slug]{ _id, title, "body": ${MAP_BODY_GROQ} }`,
     { slug: SLUG },
   );
   const post = posts.find((p) => p._id.startsWith('drafts.')) ?? posts[0];

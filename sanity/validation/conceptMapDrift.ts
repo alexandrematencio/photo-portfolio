@@ -1,6 +1,6 @@
 import type { Path, ValidationContext, ValidationError } from 'sanity';
 import { articleSlugOf, checkConceptMap, JOURNAL_MAP_ID, type StoredMapNode } from '@/lib/journal/conceptMap';
-import type { MapBlock } from '@/lib/journal/mapAnchors';
+import { mapBody, type MapBlock } from '@/lib/journal/mapAnchors';
 
 /**
  * La dérive de la Concept Map, dite DANS le formulaire de l'article
@@ -41,7 +41,7 @@ export async function conceptMapDrift(body: unknown, context: ValidationContext)
   }
   if (!nodes.length) return true;
 
-  const text = [...((Array.isArray(body) ? body : []) as MapBlock[]), ...(doc?.aiNote ?? [])];
+  const text = mapBody((Array.isArray(body) ? body : []) as MapBlock[], doc?.aiNote);
   const { issues, nodes: checked } = checkConceptMap({ nodes }, { fr: [{ _id: '', slug, body: text }], tr: [] });
   const inBody = new Set(((Array.isArray(body) ? body : []) as MapBlock[]).map((b) => b._key));
 
