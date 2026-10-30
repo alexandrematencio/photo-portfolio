@@ -70,7 +70,7 @@ type Post = { _id: string; language?: string; slug?: string; src?: string; body?
 async function realPosts() {
   const client = createClient({ projectId: 'yh5i5diw', dataset: 'production', apiVersion: '2026-01-01', useCdn: false });
   const posts = await client.fetch<Post[]>(
-    `*[_type == "post" && !(_id in path("drafts.**"))]{ _id, language, "slug": slug.current, "src": translationOf._ref, body }`,
+    `*[_type == "post" && !(_id in path("drafts.**"))]{ _id, language, "slug": slug.current, "src": translationOf._ref, "body": coalesce(body, []) + coalesce(aiNote, []) }`,
   );
   const fr = posts.filter((x) => !x.src);
   console.log(`\nDataset : ${fr.length} articles français, ${posts.length - fr.length} traductions`);

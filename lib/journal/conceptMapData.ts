@@ -169,6 +169,8 @@ async function fetchConceptMapView(lang: Lang): Promise<MapView | null> {
       if (b.type === 'h2' && b.key && idByBlock.has(i)) sections.set(b.key, idByBlock.get(i)!);
       if (b.type === 'p' && b.key) paragraphs.add(b.key);
     });
+    // Les paragraphes de la note sur l'IA portent aussi leur ancre `#p-<clé>`.
+    for (const { key } of a.aiNote) if (key) paragraphs.add(key);
     anchors.set(slug, { sections, paragraphs });
   }
   // Une thématique s'appelle dans la carte par son nom français : les articles donnent sa traduction.
