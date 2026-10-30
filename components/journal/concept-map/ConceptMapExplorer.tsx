@@ -9,8 +9,9 @@ import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import { DICT } from '@/lib/journal/i18n';
 import type { MapView } from '@/lib/journal/conceptMapData';
-import { HASH_KEY, indexMap, isCommon, NO_FILTER, visibleIds, type Filters } from './model';
+import { HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, NO_FILTER, visibleIds, type Filters, type LabelKind, type LabelReach, type MapNav } from './model';
 import { MapPanel } from './MapPanel';
+import { KEY_OF, MapHelp, MapKeys, type NavKey } from './MapControls';
 import { MapList } from './MapList';
 
 /**
@@ -28,6 +29,13 @@ import { MapList } from './MapList';
  * Sélection et panneau sont deux choses (2026-10-30, Alexandre) : fermer le
  * panneau laisse le nœud allumé sur la carte. On le lâche avec
  * « Désélectionner », ou en cliquant hors de son voisinage (`sticky`).
+ *
+ * Commandes (2026-10-30, Alexandre) : « Aide ? » en haut à droite du cadre,
+ * le faux clavier en bas à droite, et « noms/ » à gauche, qui règle à quelle
+ * distance chaque rang affiche ses noms (mémorisé dans ce navigateur). Un clic
+ * dans la carte, dans la colonne de gauche ou sur le faux clavier « arme » la
+ * carte : les flèches, + − 0 et Échap la pilotent au lieu de faire défiler la
+ * page, jusqu'au prochain clic ailleurs.
  *
  * Sous les filtres, « thèses/ » et « mécanismes/ » (2026-10-29, Alexandre) :
  * l'index complet de la carte, dans les dossiers de l'accueil du journal
@@ -90,6 +98,33 @@ function ArticleHeading({ children }: { children: ReactNode }) {
   );
 }
 
+const LABELS_KEY = 'concept-map:labels';
+const LABEL_KINDS: LabelKind[] = ['article', 'mechanism', 'thesis'];
+
+/** Une ligne de « noms/ » : le rang, le cran en clair, la glissière. */
+function ReachRow({ label, value, text, onChange }: { label: string; value: number; text: string; onChange: (v: number) => void }) {
+  const id = useId();
+  return (
+    <div className="flex flex-col gap-1" style={{ paddingBottom: 10 }}>
+      <label htmlFor={id} className="flex items-baseline justify-between gap-3 font-mono text-[12px] leading-[16px]">
+        <span className="text-[var(--color-fg)]">{label.toLocaleLowerCase()}</span>
+        <span className="text-[var(--color-fg-faint)]">{text}</span>
+      </label>
+      <input
+        id={id}
+        type="range"
+        min={0}
+        max={LABEL_STEPS}
+        step={1}
+        value={value}
+        aria-valuetext={text}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="map-range w-full"
+      />
+    </div>
+  );
+}
+
 const readHash = () => {
   const m = window.location.hash.match(new RegExp(`^#${HASH_KEY}=(.+)$`));
   return m ? decodeURIComponent(m[1]) : null;
@@ -103,7 +138,15 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const [center, setCenter] = useState(0);
   const [view, setView] = useState<View>('auto');
   const [wide, setWide] = useState<boolean | null>(null);
-  const [folder, setFolder] = useState<'theses' | 'mechanisms' | null>(null);
+  const [folder, setFolder] = useState<'theses' | 'mechanisms' | 'labels' | null>(null);
+  const [labels, setLabels] = useState<LabelReach>(LABEL_DEFAULT);
+  const [help, setHelp] = useState(false);
+  const [armed, setArmed] = useState(false);
+  const [lit, setLit] = useState<ReadonlySet<NavKey>>(() => new Set());
+  const nav = useRef<MapNav | null>(null);
+  const held = useRef(new Set<NavKey>());
+  const frame = useRef<HTMLDivElement>(null);
+  const aside = useRef<HTMLElement>(null);
   const [settled, setSettled] = useState(false);
   const folderId = useId();
   const dict = DICT[data.lang];
@@ -122,6 +165,21 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     }
     return () => mq.removeEventListener('change', sync);
   }, [ix]);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LABELS_KEY) ?? 'null');
+      if (saved && LABEL_KINDS.every((k) => Number.isInteger(saved[k]))) setLabels(saved);
+    } catch {}
+  }, []);
+  const reach = (k: LabelKind, v: number) =>
+    setLabels((l) => {
+      const next = { ...l, [k]: v };
+      try {
+        localStorage.setItem(LABELS_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
 
   const visible = useMemo(() => visibleIds(ix, filters), [ix, filters]);
   const current = view === 'auto' ? (wide ? 'map' : 'list') : view;
@@ -176,13 +234,79 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     const smooth = window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
     window.setTimeout(() => stage.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' }), smooth ? FOLDER_MS : 0);
   };
-  const toggleFolder = (name: 'theses' | 'mechanisms') => setFolder((f) => (f === name ? null : name));
+  const toggleFolder = (name: 'theses' | 'mechanisms' | 'labels') => setFolder((f) => (f === name ? null : name));
+
+  // Une touche enfoncée (vraie ou fausse) : les flèches tiennent une direction, le reste agit à l'appui.
+  const press = useCallback((k: NavKey, on: boolean) => {
+    const h = held.current;
+    if (on === h.has(k)) return;
+    if (on) h.add(k);
+    else h.delete(k);
+    setLit(new Set(h));
+    if (k === 'in' || k === 'out') return void (on && nav.current?.zoom(k === 'in' ? 1 : -1));
+    if (k === 'reset') return void (on && nav.current?.reset());
+    const x = +h.has('right') - +h.has('left');
+    const y = +h.has('down') - +h.has('up');
+    const len = Math.hypot(x, y) || 1;
+    nav.current?.drive(x / len, y / len);
+  }, []);
+  const live = armed && current === 'map';
+
+  // Armer : un appui dans le cadre de la carte ou dans la colonne de gauche ; ailleurs, désarmer.
+  useEffect(() => {
+    const down = (e: PointerEvent) => {
+      const at = e.target as Node;
+      setArmed(!!(frame.current?.contains(at) || aside.current?.contains(at)));
+    };
+    document.addEventListener('pointerdown', down, true);
+    return () => document.removeEventListener('pointerdown', down, true);
+  }, []);
+
+  useEffect(() => {
+    const releaseAll = () => [...held.current].forEach((k) => press(k, false));
+    if (!live) return releaseAll();
+    const down = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if ((e.target as Element).closest?.('input, textarea, select, [contenteditable="true"]')) return;
+      if (e.key === '?') {
+        e.preventDefault();
+        return setHelp((h) => !h);
+      }
+      if (e.key === 'Escape') {
+        if (shown) select(null);
+        else setArmed(false);
+        return;
+      }
+      const k = KEY_OF[e.key];
+      if (!k) return;
+      e.preventDefault();
+      if (e.repeat) return void ((k === 'in' || k === 'out') && nav.current?.zoom(k === 'in' ? 1 : -1));
+      press(k, true);
+    };
+    const up = (e: KeyboardEvent) => {
+      const k = KEY_OF[e.key];
+      if (k) press(k, false);
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    window.addEventListener('blur', releaseAll);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', releaseAll);
+      releaseAll();
+    };
+  }, [live, shown, select, press]);
+
+  // Le panneau couvre la droite du cadre (dès 768 px) : les commandes de ce côté se posent à sa gauche.
+  const beside = wide && shown && panel ? PANEL_WIDTH + 12 : 0;
 
   const n = (kind: string) => [...visible].filter((id) => ix.byId.get(id)?.kind === kind).length;
 
   return (
     <div className="flex flex-col gap-8 md:grid md:gap-x-12" style={{ gridTemplateColumns: `${FILTER_COL}px minmax(0, 1fr)` }}>
       <aside
+        ref={aside}
         className="flex flex-col gap-6 self-start md:sticky md:top-6 md:max-h-[var(--aside-max)] md:overflow-y-auto md:overscroll-contain"
         style={{ ['--aside-max' as string]: ASIDE_MAX }}
         aria-label={t.filters}
@@ -253,6 +377,27 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
           >
             <FolderList items={index.mechanisms} isOn={(key) => key === shown} onChange={show} type="index" />
           </Folder>
+          {current === 'map' && (
+            <Folder
+              id={`${folderId}-labels`}
+              name={t.labelsFolder}
+              state={folder === 'labels' ? 'open' : 'closed'}
+              settled={settled}
+              onToggle={() => toggleFolder('labels')}
+              lit={false}
+              entries={LABEL_KINDS.length}
+              peek={null}
+            >
+              <div style={{ paddingTop: 6 }}>
+                <p className="text-[12px] leading-[17px] text-[var(--color-fg-muted)]" style={{ paddingBottom: 12 }}>
+                  {t.labelsNote}
+                </p>
+                {LABEL_KINDS.map((k) => (
+                  <ReachRow key={k} label={t.labelKinds[k]} value={labels[k]} text={t.reach(labels[k])} onChange={(v) => reach(k, v)} />
+                ))}
+              </div>
+            </Folder>
+          )}
         </div>
         <div className="flex flex-col gap-2 border-t border-[var(--color-line)]" style={{ paddingTop: 12 }}>
           <p aria-live="polite" className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
@@ -269,42 +414,56 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       <section ref={stage} aria-label="Concept Map" className="min-w-0" style={{ scrollMarginTop: 16 }}>
         <div className={cn(view === 'auto' ? 'hidden md:block' : current === 'map' ? 'block' : 'hidden')}>
           <p className="sr-only">{t.drawingNote}</p>
-          <div className="relative flex flex-col gap-6">
-            <div
-              aria-hidden
-              className="concept-stage relative overflow-hidden border border-[var(--color-line)] bg-[var(--color-bg)]"
-              style={{ height: 'clamp(420px, calc(100dvh - 12rem), 860px)' }}
-            >
-              {current === 'map' && (
-                <Graph ix={ix} visible={visible} selected={shown} center={center} inset={wide && shown && panel ? PANEL_WIDTH + 12 : 0} sticky onSelect={(id) => select(id)} />
-              )}
-            </div>
-            {/* Coin haut gauche : l'indication de zoom, puis « Désélectionner » dessous.
-                Hors du dessin (`aria-hidden`) pour que le bouton reste atteignable au
-                clavier ; une seule colonne pour qu'une indication sur deux lignes
-                (téléphone, russe) pousse le bouton au lieu de le chevaucher. */}
-            <div className="pointer-events-none absolute inset-x-3 top-3 flex flex-col items-start gap-2">
-              <p aria-hidden className={cn(MICRO_LABEL, 'font-medium text-[var(--color-fg)]')}>
-                <span className="md:hidden">{t.zoomTouch}</span>
-                <span className="hidden md:inline">{t.zoomWheel}</span>
-              </p>
-              {shown && (
-                <button
-                  type="button"
-                  onClick={() => select(null)}
-                  className={cn(
-                    MICRO_LABEL,
-                    'pointer-events-auto flex items-center gap-2 border border-[var(--color-line)] bg-[var(--color-bg)] text-[var(--color-fg-muted)] transition-colors duration-200 hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)] motion-reduce:transition-none',
+          <div ref={frame} className="relative flex flex-col gap-6">
+            {/* Le cadre et ce qui se pose dessus : les coins se mesurent au cadre seul,
+                pas au panneau qui passe dessous sur téléphone. */}
+            <div className="relative">
+              <div
+                aria-hidden
+                className="concept-stage relative overflow-hidden border border-[var(--color-line)] bg-[var(--color-bg)]"
+                style={{ height: 'clamp(420px, calc(100dvh - 12rem), 860px)' }}
+              >
+                {current === 'map' && (
+                  <Graph ix={ix} visible={visible} selected={shown} center={center} inset={beside} sticky labels={labels} nav={nav} onSelect={(id) => select(id)} />
+                )}
+              </div>
+              {/* Rangée du haut. À gauche, l'indication de zoom puis « Désélectionner »
+                  dessous, en colonne pour qu'une indication sur deux lignes (téléphone,
+                  russe) pousse le bouton au lieu de le chevaucher. À droite, « Aide ? ».
+                  Hors du dessin (`aria-hidden`) pour rester atteignables au clavier ; à
+                  gauche du panneau quand il est ouvert. */}
+              <div className="pointer-events-none absolute top-3 flex items-start justify-between gap-4" style={{ left: 12, right: 12 + beside }}>
+                <div className="flex min-w-0 flex-col items-start gap-2">
+                  <p aria-hidden className={cn(MICRO_LABEL, 'font-medium text-[var(--color-fg)]')}>
+                    <span className="md:hidden">{t.zoomTouch}</span>
+                    <span className="hidden md:inline">{t.zoomWheel}</span>
+                  </p>
+                  {shown && (
+                    <button
+                      type="button"
+                      onClick={() => select(null)}
+                      className={cn(
+                        MICRO_LABEL,
+                        'pointer-events-auto flex items-center gap-2 border border-[var(--color-line)] bg-[var(--color-bg)] text-[var(--color-fg-muted)] transition-colors duration-200 hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)] motion-reduce:transition-none',
+                      )}
+                      style={{ padding: '6px 10px' }}
+                    >
+                      {t.deselect}
+                      <svg aria-hidden width={10} height={10} viewBox="0 0 12 12" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round">
+                        <path d="M2 2l8 8M10 2l-8 8" />
+                      </svg>
+                    </button>
                   )}
-                  style={{ padding: '6px 10px' }}
-                >
-                  {t.deselect}
-                  <svg aria-hidden width={10} height={10} viewBox="0 0 12 12" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round">
-                    <path d="M2 2l8 8M10 2l-8 8" />
-                  </svg>
-                </button>
-              )}
+                </div>
+                <MapHelp t={t} open={help} onOpen={setHelp} />
+              </div>
+              <div className="absolute bottom-3" style={{ right: 12 + beside }}>
+                <MapKeys t={t} armed={live} lit={lit} onPress={press} />
+              </div>
             </div>
+            <p aria-live="polite" className="sr-only">
+              {live ? t.keys.on : ''}
+            </p>
             {shown && panel && (
               <div
                 className="bg-[var(--color-bg-raised)] md:absolute md:bottom-3 md:right-3 md:top-3 md:w-[var(--concept-panel)] md:overflow-y-auto md:shadow-[0_1px_3px_rgba(0,0,0,0.08)]"

@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type MutableRefObject } from 'react';
 import Graph from 'graphology';
 import Sigma from 'sigma';
-import { colorOf, neighbourhood, type MapIndex } from './model';
+import { colorOf, LABEL_STEPS, neighbourhood, type LabelKind, type LabelReach, type MapIndex, type MapNav } from './model';
 
 /**
  * Le dessin de la Concept Map (Sigma, WebGL). Chargé en `ssr: false` par
@@ -18,6 +18,12 @@ import { colorOf, neighbourhood, type MapIndex } from './model';
  * couleur de sa thématique, la thèse est un satellite gris. Les libellés
  * n'apparaissent qu'au zoom (`labelRenderedSizeThreshold`), sauf autour du
  * nœud survolé ou choisi.
+ *
+ * Zoom (2026-10-30, Alexandre : « trop sensible ») : on reprend la molette à
+ * Sigma, qui multipliait le zoom par 1,7 à CHAQUE évènement — un pavé tactile
+ * en envoie des dizaines par geste. Ici le défilement s'additionne en
+ * exponentielle (un cran de molette ≈ ×1,2), et la caméra rejoint la cible en
+ * glissant (constante de temps `ZOOM_TAU`), toujours vers le pointeur.
  *
  * Estompage : au survol, ce qui n'est pas voisin glisse vers la couleur du
  * papier en 180 ms (ease-out), et revient en 140 ms (la sortie est plus
@@ -40,6 +46,21 @@ function mix(hex: string, into: string, t: number) {
   return `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 }
 
+/** Zoom : par pixel de défilement, molette ou pavé, puis par pixel de pincement (`ctrlKey`, deltas bien plus courts). */
+const WHEEL_K = 0.0018;
+const PINCH_K = 0.012;
+/** Un évènement ne pèse jamais plus qu'un cran franc : une molette « libre » ne fait pas sauter la carte. */
+const WHEEL_CAP = 120;
+/** Le glissé vers la cible : 63 % du chemin en 90 ms, le reste en freinant. */
+const ZOOM_TAU = 90;
+/** Un cran du clavier ou du faux clavier. */
+const KEY_ZOOM = 1.35;
+/** Déplacement au clavier, en pixels d'écran par seconde, et le temps pour prendre (ou perdre) son allure. */
+const PAN_SPEED = 620;
+const PAN_TAU = 110;
+const MIN_RATIO = 0.12;
+const MAX_RATIO = 1.6;
+
 const NODE_SIZE = { article: 13, thesis: 3.5 } as const;
 const EDGE_STYLE = {
   part: { color: '#d9d5cd', size: 0.8 },
@@ -56,6 +77,8 @@ export default function ConceptMapGraph({
   inset = 0,
   zoom = 0.7,
   sticky = false,
+  labels,
+  nav,
   onSelect,
 }: {
   ix: MapIndex;
@@ -75,12 +98,16 @@ export default function ConceptMapGraph({
    * article), tout nœud survolé s'allume et tout nœud cliqué se choisit.
    */
   sticky?: boolean;
+  /** Jusqu'où chaque rang garde son nom ; sans, le seuil de taille de Sigma (la carte d'un article). */
+  labels?: LabelReach;
+  /** Rempli au montage : les commandes du clavier et du faux clavier passent par là. */
+  nav?: MutableRefObject<MapNav | null>;
   onSelect: (id: string | null) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const sigma = useRef<Sigma | null>(null);
   // L'état que lisent les reducers : des refs, pour ne pas reconstruire Sigma.
-  const state = useRef({ visible, selected, hovered: null as string | null, shown: null as string | null, around: new Set<string>(), fade: 0, kept: new Set<string>() });
+  const state = useRef({ visible, selected, hovered: null as string | null, shown: null as string | null, around: new Set<string>(), fade: 0, kept: new Set<string>(), reach: null as Record<LabelKind, number> | null, ratio: 1 });
   const select = useRef(onSelect);
   select.current = onSelect;
 
@@ -93,6 +120,7 @@ export default function ConceptMapGraph({
         x: n.x,
         y: n.y,
         label: n.label,
+        kind: n.kind,
         color: colorOf(ix, n),
         size: n.kind === 'mechanism' ? 5 + 1.5 * (n.articles.length - 1) : NODE_SIZE[n.kind],
         zIndex: n.kind === 'article' ? 3 : n.kind === 'mechanism' ? 2 : 1,
@@ -110,18 +138,20 @@ export default function ConceptMapGraph({
       labelSize: 12,
       labelWeight: '600',
       labelColor: { color: '#0a0a0a' },
-      labelRenderedSizeThreshold: 9,
+      // Avec `labels`, c'est le réducteur qui décide, rang par rang.
+      labelRenderedSizeThreshold: labels ? 0 : 9,
       labelDensity: 0.5,
       labelGridCellSize: 140,
       zIndex: true,
       stagePadding: 48,
-      minCameraRatio: 0.12,
-      maxCameraRatio: 1.6,
+      minCameraRatio: MIN_RATIO,
+      maxCameraRatio: MAX_RATIO,
       nodeReducer: (node, data) => {
         if (!s.visible.has(node)) return { ...data, hidden: true };
-        const out = { ...data, highlighted: node === s.selected };
+        const far = !!s.reach && !(s.ratio <= s.reach[data.kind as LabelKind]);
+        const out = { ...data, highlighted: node === s.selected, label: far ? null : data.label };
         if (!s.shown || s.fade === 0) return out;
-        if (s.around.has(node)) return { ...out, zIndex: (data.zIndex ?? 0) + 4, forceLabel: node === s.shown || s.around.size <= MAX_FORCED_LABELS };
+        if (s.around.has(node)) return { ...out, label: data.label, zIndex: (data.zIndex ?? 0) + 4, forceLabel: node === s.shown || s.around.size <= MAX_FORCED_LABELS };
         return { ...out, color: mix(data.color, PAPER, 0.82 * s.fade), label: s.fade > 0.5 ? null : data.label, zIndex: 0 };
       },
       edgeReducer: (edge, data) => {
@@ -163,6 +193,91 @@ export default function ConceptMapGraph({
     };
     (renderer as Sigma & { focusOn?: typeof focusOn }).focusOn = focusOn;
 
+    const camera = renderer.getCamera();
+    const middle = () => {
+      const { width, height } = renderer.getDimensions();
+      return { x: width / 2, y: height / 2 };
+    };
+
+    // Le zoom : une cible, que la caméra rejoint en glissant (log du rapport, pour une vitesse égale en rapprochant et en reculant).
+    const z = { target: 1, anchor: { x: 0, y: 0 }, raf: 0, last: 0 };
+    const zoomStep = (now: number) => {
+      const dt = Math.min(64, now - z.last);
+      z.last = now;
+      const r = camera.ratio;
+      const next = Math.exp(Math.log(r) + Math.log(z.target / r) * (1 - Math.exp(-dt / ZOOM_TAU)));
+      const done = Math.abs(Math.log(z.target / next)) < 0.002;
+      camera.setState(renderer.getViewportZoomedState(z.anchor, done ? z.target : next));
+      z.raf = done ? 0 : requestAnimationFrame(zoomStep);
+    };
+    const zoomBy = (factor: number, anchor: { x: number; y: number }) => {
+      if (!z.raf) z.target = camera.ratio;
+      z.target = camera.getBoundedRatio(z.target * factor);
+      z.anchor = anchor;
+      if (reduced()) return camera.setState(renderer.getViewportZoomedState(anchor, z.target));
+      if (!z.raf) {
+        z.last = performance.now();
+        z.raf = requestAnimationFrame(zoomStep);
+      }
+    };
+    renderer.getMouseCaptor().on('wheel', (c) => {
+      c.preventSigmaDefault();
+      const e = c.original as WheelEvent;
+      const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
+      zoomBy(Math.exp(Math.max(-WHEEL_CAP, Math.min(WHEEL_CAP, dy)) * (e.ctrlKey ? PINCH_K : WHEEL_K)), { x: c.x, y: c.y });
+    });
+
+    // Le déplacement tenu : l'allure rejoint la direction demandée (départ qui accélère, arrêt qui freine).
+    const p = { dir: { x: 0, y: 0 }, v: { x: 0, y: 0 }, raf: 0, last: 0 };
+    const panStep = (now: number) => {
+      const dt = Math.min(64, now - p.last);
+      p.last = now;
+      const k = reduced() ? 1 : 1 - Math.exp(-dt / PAN_TAU);
+      p.v.x += (p.dir.x * PAN_SPEED - p.v.x) * k;
+      p.v.y += (p.dir.y * PAN_SPEED - p.v.y) * k;
+      const c = middle();
+      const a = renderer.viewportToFramedGraph(c);
+      const b = renderer.viewportToFramedGraph({ x: c.x + (p.v.x * dt) / 1000, y: c.y + (p.v.y * dt) / 1000 });
+      const { x, y } = camera.getState();
+      camera.setState({ x: x + b.x - a.x, y: y + b.y - a.y });
+      const moving = p.dir.x || p.dir.y || Math.hypot(p.v.x, p.v.y) > 4;
+      p.raf = moving ? requestAnimationFrame(panStep) : 0;
+      if (!moving) p.v = { x: 0, y: 0 };
+    };
+    if (nav)
+      nav.current = {
+        drive: (x, y) => {
+          p.dir = { x, y };
+          if (!p.raf && (x || y)) {
+            p.last = performance.now();
+            p.raf = requestAnimationFrame(panStep);
+          }
+        },
+        zoom: (step) => zoomBy(KEY_ZOOM ** -step, middle()),
+        reset: () => {
+          cancelAnimationFrame(z.raf);
+          z.raf = 0;
+          const home = { x: 0.5, y: 0.5, ratio: 1, angle: 0 };
+          if (reduced()) camera.setState(home);
+          else camera.animate(home, { duration: 450, easing: 'quadraticInOut' });
+        },
+      };
+
+    // Les noms par rang : on ne relit les réducteurs que quand un rang franchit son seuil.
+    const band = () => (s.reach ? (Object.keys(s.reach) as LabelKind[]).map((k) => +(s.ratio <= s.reach![k])).join('') : '');
+    let lastBand = band();
+    camera.on('updated', ({ ratio }) => {
+      s.ratio = ratio;
+      const b = band();
+      if (b === lastBand) return;
+      lastBand = b;
+      renderer.refresh({ skipIndexation: true });
+    });
+    (renderer as Sigma & { relabel?: () => void }).relabel = () => {
+      lastBand = band();
+      renderer.refresh({ skipIndexation: true });
+    };
+
     // Avec `sticky`, ce qui est hors du voisinage choisi ne répond pas au survol.
     const outside = (node: string) => sticky && !!s.selected && !s.kept.has(node);
     renderer.on('enterNode', ({ node }) => {
@@ -182,11 +297,24 @@ export default function ConceptMapGraph({
 
     return () => {
       cancelAnimationFrame(raf);
+      cancelAnimationFrame(z.raf);
+      cancelAnimationFrame(p.raf);
+      if (nav) nav.current = null;
       renderer.kill();
       sigma.current = null;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- `sticky` ne change pas d'une vie à l'autre du dessin
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `sticky`, `nav` et la présence de `labels` ne changent pas d'une vie à l'autre du dessin
   }, [ix]);
+
+  // Les crans de `labels` → le zoom (rapport de caméra) en deçà duquel chaque rang garde son nom.
+  useEffect(() => {
+    const s = state.current;
+    if (!labels) return;
+    const span = MAX_RATIO / MIN_RATIO;
+    const at = (v: number) => (v <= 0 ? 0 : v >= LABEL_STEPS ? Infinity : MIN_RATIO * span ** (v / LABEL_STEPS));
+    s.reach = { article: at(labels.article), mechanism: at(labels.mechanism), thesis: at(labels.thesis) };
+    (sigma.current as (Sigma & { relabel?: () => void }) | null)?.relabel?.();
+  }, [labels]);
 
   // Filtres et sélection : on relit les refs, Sigma ne se reconstruit pas.
   useEffect(() => {

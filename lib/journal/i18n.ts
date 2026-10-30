@@ -132,7 +132,7 @@ export function rememberLang(lang: Lang): void {
 /** Titre et description lus par les machines (<title>, <desc>), légende lue par tous. */
 type FigureText = { title: string; desc: string; legend: string };
 
-type Dict = {
+export type Dict = {
   siteName: string;
   siteDescription: string;
   feedTitle: string;
@@ -337,6 +337,23 @@ type Dict = {
     thesesFolder: string;
     mechanismsFolder: string;
     index: string;
+    /** Le dossier qui règle à quelle distance chaque rang affiche ses noms. */
+    labelsFolder: string;
+    labelsNote: string;
+    labelKinds: { article: string; mechanism: string; thesis: string };
+    /** Le cran du réglage, de 0 (jamais) à 10 (toujours). */
+    reach: (v: number) => string;
+    help: string;
+    helpTitle: string;
+    helpMouseTitle: string;
+    helpMouse: readonly (readonly [string, string])[];
+    helpKeysTitle: string;
+    helpKeysArm: string;
+    /** Touches séparées par une espace : chacune devient une touche dessinée. */
+    helpKeys: readonly (readonly [string, string])[];
+    helpLabels: string;
+    close: string;
+    keys: { group: string; up: string; down: string; left: string; right: string; in: string; out: string; reset: string; on: string };
   };
 };
 
@@ -538,7 +555,7 @@ export const DICT: Record<Lang, Dict> = {
       common: 'Communes à plusieurs articles',
       showAll: 'Tout montrer',
       deselect: 'Désélectionner',
-      drawingNote: 'Le dessin de la carte ne se parcourt qu’à la souris ; la vue Liste donne les mêmes liens au clavier.',
+      drawingNote: 'Le dessin se déplace à la souris ou aux flèches du clavier, mais ses points ne se choisissent qu’à la souris ; la vue Liste donne les mêmes liens au clavier.',
       zoomTouch: 'Pincer pour zoomer · les noms apparaissent en zoomant',
       zoomWheel: 'Molette pour zoomer · les noms apparaissent en zoomant',
       readPassage: 'Lire le passage',
@@ -563,6 +580,31 @@ export const DICT: Record<Lang, Dict> = {
       thesesFolder: 'Thèses',
       mechanismsFolder: 'Mécanismes',
       index: 'Index',
+      labelsFolder: 'Noms',
+      labelsNote: 'À quelle distance chaque rang affiche ses noms.',
+      labelKinds: { article: 'Articles', mechanism: 'Mécanismes', thesis: 'Thèses' },
+      reach: (v) => (v <= 0 ? 'jamais' : v >= 10 ? 'toujours' : v <= 3 ? 'de près' : v <= 6 ? 'à mi-distance' : 'de loin'),
+      help: 'Aide ?',
+      helpTitle: 'Naviguer dans la carte',
+      helpMouseTitle: 'Souris et pavé tactile',
+      helpMouse: [
+        ['Glisser', 'déplace la carte'],
+        ['Molette, pincer', 'zoome vers le pointeur'],
+        ['Clic sur un point', 'ouvre son passage'],
+        ['Clic dans le vide', 'désélectionne'],
+      ],
+      helpKeysTitle: 'Clavier',
+      helpKeysArm: 'Un clic sur la carte, dans le menu de gauche ou sur le petit clavier en bas à droite donne la main aux touches : son voyant s’allume. Un clic ailleurs la rend à la page.',
+      helpKeys: [
+        ['← ↑ → ↓', 'déplacer (en maintenant)'],
+        ['+ −', 'zoomer, dézoomer'],
+        ['0', 'recadrer toute la carte'],
+        ['Échap', 'désélectionner, puis rendre la main'],
+        ['?', 'ouvrir ou fermer cette aide'],
+      ],
+      helpLabels: 'Les noms apparaissent en zoomant. Le dossier « noms/ », à gauche, règle à quelle distance pour les articles, les mécanismes et les thèses.',
+      close: 'Fermer',
+      keys: { group: 'Clavier de navigation', up: 'Monter', down: 'Descendre', left: 'Aller à gauche', right: 'Aller à droite', in: 'Zoomer', out: 'Dézoomer', reset: 'Recadrer', on: 'Les flèches du clavier déplacent la carte.' },
     },
     dateLocale: 'fr-FR',
   },
@@ -752,7 +794,7 @@ export const DICT: Record<Lang, Dict> = {
       common: 'Shared by several articles',
       showAll: 'Show all',
       deselect: 'Clear selection',
-      drawingNote: 'The drawing can only be explored with a mouse; the List view gives the same links by keyboard.',
+      drawingNote: 'The drawing moves with the mouse or the arrow keys, but its points can only be picked with a mouse; the List view gives the same links by keyboard.',
       zoomTouch: 'Pinch to zoom · names appear as you zoom in',
       zoomWheel: 'Scroll to zoom · names appear as you zoom in',
       readPassage: 'Read the passage',
@@ -777,6 +819,31 @@ export const DICT: Record<Lang, Dict> = {
       thesesFolder: 'Theses',
       mechanismsFolder: 'Mechanisms',
       index: 'Index',
+      labelsFolder: 'Names',
+      labelsNote: 'How far away each rank shows its names.',
+      labelKinds: { article: 'Articles', mechanism: 'Mechanisms', thesis: 'Theses' },
+      reach: (v) => (v <= 0 ? 'never' : v >= 10 ? 'always' : v <= 3 ? 'up close' : v <= 6 ? 'mid-range' : 'from afar'),
+      help: 'Help?',
+      helpTitle: 'Getting around the map',
+      helpMouseTitle: 'Mouse and trackpad',
+      helpMouse: [
+        ['Drag', 'moves the map'],
+        ['Scroll, pinch', 'zooms toward the pointer'],
+        ['Click a point', 'opens its passage'],
+        ['Click empty space', 'clears the selection'],
+      ],
+      helpKeysTitle: 'Keyboard',
+      helpKeysArm: 'A click on the map, in the left menu or on the small keyboard at the bottom right hands control to the keys: its light comes on. A click elsewhere gives it back to the page.',
+      helpKeys: [
+        ['← ↑ → ↓', 'move (hold)'],
+        ['+ −', 'zoom in, zoom out'],
+        ['0', 'fit the whole map'],
+        ['Esc', 'clear the selection, then release'],
+        ['?', 'open or close this help'],
+      ],
+      helpLabels: 'Names appear as you zoom in. The “names/” folder on the left sets how far away for articles, mechanisms and theses.',
+      close: 'Close',
+      keys: { group: 'Navigation keys', up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right', in: 'Zoom in', out: 'Zoom out', reset: 'Fit the map', on: 'The arrow keys now move the map.' },
     },
     dateLocale: 'en-GB',
   },
@@ -971,7 +1038,7 @@ export const DICT: Record<Lang, Dict> = {
       common: 'Общие для нескольких статей',
       showAll: 'Показать всё',
       deselect: 'Снять выделение',
-      drawingNote: 'Схему можно исследовать только мышью; вид «Список» даёт те же ссылки с клавиатуры.',
+      drawingNote: 'Схема двигается мышью или стрелками клавиатуры, но точки выбираются только мышью; вид «Список» даёт те же ссылки с клавиатуры.',
       zoomTouch: 'Сведите пальцы, чтобы приблизить · названия появляются при приближении',
       zoomWheel: 'Колесо мыши — масштаб · названия появляются при приближении',
       readPassage: 'Читать отрывок',
@@ -997,6 +1064,31 @@ export const DICT: Record<Lang, Dict> = {
       thesesFolder: 'Тезисы',
       mechanismsFolder: 'Механизмы',
       index: 'Указатель',
+      labelsFolder: 'Названия',
+      labelsNote: 'С какого расстояния видны названия каждого уровня.',
+      labelKinds: { article: 'Статьи', mechanism: 'Механизмы', thesis: 'Тезисы' },
+      reach: (v) => (v <= 0 ? 'никогда' : v >= 10 ? 'всегда' : v <= 3 ? 'вблизи' : v <= 6 ? 'на среднем' : 'издалека'),
+      help: 'Помощь?',
+      helpTitle: 'Как перемещаться по карте',
+      helpMouseTitle: 'Мышь и тачпад',
+      helpMouse: [
+        ['Перетаскивание', 'двигает карту'],
+        ['Колесо, щипок', 'масштаб к указателю'],
+        ['Клик по точке', 'открывает её фрагмент'],
+        ['Клик в пустоту', 'снимает выделение'],
+      ],
+      helpKeysTitle: 'Клавиатура',
+      helpKeysArm: 'Клик по карте, в левом меню или по маленькой клавиатуре внизу справа передаёт управление клавишам: загорается индикатор. Клик в другом месте возвращает его странице.',
+      helpKeys: [
+        ['← ↑ → ↓', 'двигать (удерживая)'],
+        ['+ −', 'приблизить, отдалить'],
+        ['0', 'показать всю карту'],
+        ['Esc', 'снять выделение, затем отпустить'],
+        ['?', 'открыть или закрыть справку'],
+      ],
+      helpLabels: 'Названия появляются при приближении. Папка «названия/» слева задаёт расстояние для статей, механизмов и тезисов.',
+      close: 'Закрыть',
+      keys: { group: 'Клавиши навигации', up: 'Вверх', down: 'Вниз', left: 'Влево', right: 'Вправо', in: 'Приблизить', out: 'Отдалить', reset: 'Показать всю карту', on: 'Стрелки клавиатуры теперь двигают карту.' },
     },
     dateLocale: 'ru-RU',
   },

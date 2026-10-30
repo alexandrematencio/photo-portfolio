@@ -1712,3 +1712,50 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
     transition: color 160ms ease-out;
   }
 }
+
+/* COMMANDES DE LA CONCEPT MAP (2026-10-30, Alexandre).
+   - Glissière de « noms/ » : un trait d'un pixel et un disque de 11 px à
+     l'encre, rien de plus — elle vit dans la colonne de filtres, elle ne doit
+     pas peser plus qu'une entrée de dossier. Le focus clavier garde son anneau.
+   - Fiche « Aide ? » : elle descend de 4 px en apparaissant, 180 ms ease-out
+     (un petit objet qui arrive et freine). Sa sortie est immédiate : on la
+     ferme pour revenir à la carte, rien ne doit traîner. Mouvement réduit :
+     elle paraît, c'est tout. */
+.map-range {
+  appearance: none;
+  height: 16px;
+  background: linear-gradient(var(--color-line), var(--color-line)) center / 100% 1px no-repeat;
+  cursor: pointer;
+}
+.map-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--color-fg);
+  border: 2px solid var(--color-bg);
+  box-shadow: 0 0 0 1px var(--color-fg);
+}
+.map-range::-moz-range-thumb {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-fg);
+  border: 2px solid var(--color-bg);
+  box-shadow: 0 0 0 1px var(--color-fg);
+}
+.map-range:focus-visible {
+  outline: 2px solid var(--color-fg);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .map-help {
+    animation: map-help-in 180ms ease-out both;
+  }
+}
+@keyframes map-help-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
