@@ -28,16 +28,20 @@ import { colorOf, LABEL_STEPS, neighbourhood, type LabelKind, type LabelReach, t
  * Estompage : au survol, ce qui n'est pas voisin glisse vers la couleur du
  * papier en 180 ms (ease-out), et revient en 140 ms (la sortie est plus
  * courte que l'entrée). Rien sous `prefers-reduced-motion` : la bascule est
- * immédiate, la caméra ne voyage pas. Une entrée du menu survolée estompe à
- * moitié (`PREVIEW`) ; choisie, l'estompage va au bout et la caméra cadre le
+ * immédiate, la caméra ne voyage pas. Une entrée du menu survolée estompe
+ * presque tout (`PREVIEW`) ; choisie, l'estompage va au bout et la caméra cadre le
  * système (`fit`).
  */
 
 const PAPER = '#fafaf8';
 const FADE_IN = 180;
 const FADE_OUT = 140;
-/** Une entrée du menu survolée : son système s'allume à moitié ; le clic achève l'estompage (2026-10-30, Alexandre). */
-const PREVIEW = 0.45;
+/**
+ * Une entrée du menu survolée : son système s'isole, le reste se voile presque
+ * entièrement ; le clic achève l'estompage. À 0,45, le reste se lisait encore
+ * (« des nœuds de toutes les thématiques se dévoilent », Alexandre, 2026-10-30).
+ */
+const PREVIEW = 0.85;
 /**
  * Le cadrage d'un système choisi : le plus près possible sans qu'aucun nœud ni
  * nom ne sorte du cadre. Les noms sont MESURÉS (ils se dessinent à droite du
@@ -201,7 +205,9 @@ export default function ConceptMapGraph({
         if (s.around.has(node)) return { ...out, label: data.label, zIndex: (data.zIndex ?? 0) + 4, forceLabel: node === s.shown || s.around.size <= MAX_FORCED_LABELS };
         // Un nœud voilé sous le pointeur : il garde son voile, mais dit son nom.
         if (node === s.peek) return { ...out, color: mix(data.color, PAPER, 0.4 * s.fade), label: data.label, forceLabel: true, zIndex: 5 };
-        return { ...out, color: mix(data.color, PAPER, 0.82 * s.fade), label: s.fade > 0.5 ? null : data.label, zIndex: 0 };
+        // `out.label`, pas `data.label` : le temps du fondu, un nom que le zoom
+        // tait ne doit pas reparaître (le « flash » au survol, 2026-10-30).
+        return { ...out, color: mix(data.color, PAPER, 0.82 * s.fade), label: s.fade > 0.5 ? null : out.label, zIndex: 0 };
       },
       edgeReducer: (edge, data) => {
         const [a, b] = graph.extremities(edge);

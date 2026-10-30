@@ -59,6 +59,27 @@ export function visibleIds(ix: MapIndex, f: Filters): Set<string> {
 }
 
 /**
+ * Le système d'une thématique, pour l'aperçu du menu (2026-10-30, Alexandre :
+ * « une isolation du système visé, au sein du système global ») : ses
+ * mécanismes, les thèses qui les emploient et les articles de ces thèses.
+ * Un article qui n'y touche par aucune thèse reste voilé, même s'il porte la
+ * thématique ; un mécanisme d'une autre couleur aussi.
+ */
+export function themeSystem(ix: MapIndex, theme: string, within: Set<string>): Set<string> {
+  const out = new Set<string>();
+  for (const m of ix.view.nodes) {
+    if (m.kind !== 'mechanism' || m.theme !== theme || !within.has(m.id)) continue;
+    out.add(m.id);
+    for (const t of ix.thesesOfMech.get(m.id) ?? []) {
+      if (!within.has(t)) continue;
+      out.add(t);
+      ix.byId.get(t)?.articles.forEach((a) => within.has(a) && out.add(a));
+    }
+  }
+  return out;
+}
+
+/**
  * Ce qui reste net autour d'un nœud survolé ou choisi. Un article garde ses
  * thèses ET les mécanismes qu'elles emploient ; un mécanisme, les thèses qui
  * l'emploient, leurs articles et ses rimes ; une thèse, son article et ses

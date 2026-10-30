@@ -10,7 +10,7 @@ import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import { DICT } from '@/lib/journal/i18n';
 import type { MapView } from '@/lib/journal/conceptMapData';
-import { HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, neighbourhood, NO_FILTER, visibleIds, type Filters, type LabelKind, type LabelReach, type MapNav } from './model';
+import { HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, neighbourhood, NO_FILTER, themeSystem, visibleIds, type Filters, type LabelKind, type LabelReach, type MapNav } from './model';
 import { MapPanel } from './MapPanel';
 import { KEY_OF, MapHelp, MapKeys, type NavKey } from './MapControls';
 import { MapList } from './MapList';
@@ -315,8 +315,13 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     centerBoard();
     setFit((c) => c + 1);
   };
+  // Une thématique s'isole par ses mécanismes (`themeSystem`) ; une série ou « communs », par ce que le filtre laisserait voir.
   const previewFilter = <K extends keyof Filters>(key: K, value: Filters[K]) => (on: boolean) =>
-    setPreview(on && wide && current === 'map' ? { key: `${key}:${value}`, ids: visibleIds(ix, { ...filters, [key]: value }) } : null);
+    setPreview(
+      on && wide && current === 'map'
+        ? { key: `${key}:${value}`, ids: key === 'theme' ? themeSystem(ix, value as string, visible) : visibleIds(ix, { ...filters, [key]: value }) }
+        : null,
+    );
   const previewNode = (id: string | null) => setPreview(id && wide && current === 'map' ? { key: id, ids: neighbourhood(ix, id) } : null);
 
   const show = (id: string) => {
