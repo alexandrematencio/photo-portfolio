@@ -55,6 +55,7 @@ export default function ConceptMapGraph({
   center,
   inset = 0,
   zoom = 0.7,
+  sticky = false,
   onSelect,
 }: {
   ix: MapIndex;
@@ -66,12 +67,20 @@ export default function ConceptMapGraph({
   inset?: number;
   /** Zoom maximal quand la caméra va chercher un nœud (plus petit = plus près). */
   zoom?: number;
+  /**
+   * La sélection TIENT (`/concept-map`, 2026-10-30, Alexandre) : tant qu'un
+   * nœud est choisi, survoler un nœud estompé ne rallume rien, et cliquer hors
+   * de son voisinage — dans le vide comme sur un autre nœud — la lâche. Seul
+   * un voisin allumé se choisit directement. Sans elle (la carte d'un
+   * article), tout nœud survolé s'allume et tout nœud cliqué se choisit.
+   */
+  sticky?: boolean;
   onSelect: (id: string | null) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const sigma = useRef<Sigma | null>(null);
   // L'état que lisent les reducers : des refs, pour ne pas reconstruire Sigma.
-  const state = useRef({ visible, selected, hovered: null as string | null, shown: null as string | null, around: new Set<string>(), fade: 0 });
+  const state = useRef({ visible, selected, hovered: null as string | null, shown: null as string | null, around: new Set<string>(), fade: 0, kept: new Set<string>() });
   const select = useRef(onSelect);
   select.current = onSelect;
 
@@ -154,17 +163,21 @@ export default function ConceptMapGraph({
     };
     (renderer as Sigma & { focusOn?: typeof focusOn }).focusOn = focusOn;
 
+    // Avec `sticky`, ce qui est hors du voisinage choisi ne répond pas au survol.
+    const outside = (node: string) => sticky && !!s.selected && !s.kept.has(node);
     renderer.on('enterNode', ({ node }) => {
+      if (outside(node)) return;
       container.style.cursor = 'pointer';
       s.hovered = node;
       focusOn(node);
     });
     renderer.on('leaveNode', () => {
       container.style.cursor = '';
+      if (!s.hovered) return;
       s.hovered = null;
       focusOn(s.selected);
     });
-    renderer.on('clickNode', ({ node }) => select.current(node));
+    renderer.on('clickNode', ({ node }) => select.current(outside(node) ? null : node));
     renderer.on('clickStage', () => select.current(null));
 
     return () => {
@@ -172,6 +185,7 @@ export default function ConceptMapGraph({
       renderer.kill();
       sigma.current = null;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `sticky` ne change pas d'une vie à l'autre du dessin
   }, [ix]);
 
   // Filtres et sélection : on relit les refs, Sigma ne se reconstruit pas.
@@ -179,11 +193,12 @@ export default function ConceptMapGraph({
     const s = state.current;
     s.visible = visible;
     s.selected = selected && visible.has(selected) ? selected : null;
+    s.kept = s.selected ? neighbourhood(ix, s.selected) : new Set();
     const r = sigma.current as (Sigma & { focusOn?: (id: string | null) => void }) | null;
     if (!r) return;
     if (!s.hovered) r.focusOn?.(s.selected);
     else r.refresh({ skipIndexation: true });
-  }, [visible, selected]);
+  }, [ix, visible, selected]);
 
   // Aller chercher un nœud choisi hors du dessin.
   useEffect(() => {

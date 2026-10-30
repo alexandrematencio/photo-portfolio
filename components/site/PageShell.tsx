@@ -71,6 +71,15 @@ const RAIL_STICKY_TOP = 24;
  * sommaire, suspendu dans la marge.
  */
 const RAIL_CONTENTS_WIDTH = RAIL_WIDTH - RAIL_TEXT_GAP - 28;
+/**
+ * Le haut des CAPITALES du titre, sous le haut de sa boîte, en fraction du
+ * corps (2026-10-30, demande Alexandre) : le cadre du bouton Back s'aligne
+ * sur ce que l'œil voit du titre, pas sur sa boîte. `leading-none` plus
+ * Helvetica Neue Black : mesuré dans Chrome à 0,166 (96 px) et 0,161 (72 px),
+ * soit 16 et 11,6 px. Une fraction du corps, pas des pixels : elle suit
+ * `titleSize`.
+ */
+const TITLE_CAP_OFFSET = 0.163;
 /** De part et d'autre de chaque filet du rail : le même air partout, aucun bloc ne colle à son voisin. */
 const RAIL_SECTION_GAP = 16;
 /** Écart drapeau → chevron (4) + chevron (14) dans `LanguageSwitch` : ce qui dépasse sous les drapeaux. */
@@ -251,7 +260,7 @@ export function PageShell({
             gouttière de l'article. Le bloc prend la largeur de son élément le
             plus large — le bouton Back — et tout le reste s'y justifie, bord à
             bord (2026-10-22) : drapeaux répartis, barre d'avancement étirée. */}
-        <div className="hidden xl:block">
+        <div className="hidden xl:block" style={{ paddingTop: `calc(${titleSize ?? 'var(--page-title-size)'} * ${TITLE_CAP_OFFSET})` }}>
           {/* Plafonné à la hauteur du conteneur de défilement (sous la
               nav-bar, `top-16` de FramedScroll) : un long sommaire défile
               dans sa propre boîte au lieu de passer sous le bas de l'écran. */}

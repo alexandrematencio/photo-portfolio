@@ -308,6 +308,8 @@ type Dict = {
     structures: string;
     common: string;
     showAll: string;
+    /** Lâche le nœud allumé sur la carte (le panneau, lui, se ferme à part). */
+    deselect: string;
     drawingNote: string;
     zoomTouch: string;
     zoomWheel: string;
@@ -521,7 +523,7 @@ export const DICT: Record<Lang, Dict> = {
     },
     journalHome: 'Journal — accueil',
     map: {
-      intro: 'Les articles du journal décomposés en thèses, et les mécanismes qu’ils partagent d’un texte à l’autre. Chaque point mène au passage qui le dit.',
+      intro: 'Les articles du journal décomposés en thèses, et les mécanismes qu’ils partagent d’un texte à l’autre. Chaque point mène au passage qui en parle.',
       menuDetail: 'thèses et mécanismes',
       unavailable: 'La carte n’est pas encore publiée.',
       theses: (n) => `${n} ${plural(n, 'thèse', 'thèses')}`,
@@ -535,6 +537,7 @@ export const DICT: Record<Lang, Dict> = {
       structures: 'Structures',
       common: 'Communes à plusieurs articles',
       showAll: 'Tout montrer',
+      deselect: 'Désélectionner',
       drawingNote: 'Le dessin de la carte ne se parcourt qu’à la souris ; la vue Liste donne les mêmes liens au clavier.',
       zoomTouch: 'Pincer pour zoomer · les noms apparaissent en zoomant',
       zoomWheel: 'Molette pour zoomer · les noms apparaissent en zoomant',
@@ -734,7 +737,7 @@ export const DICT: Record<Lang, Dict> = {
     },
     journalHome: 'Journal — home',
     map: {
-      intro: 'The journal’s articles broken down into theses, and the mechanisms they share from one text to the next. Every point leads to the passage that says it.',
+      intro: 'The journal’s articles broken down into theses, and the mechanisms they share from one text to the next. Every point leads to the passage that talks about it.',
       menuDetail: 'theses and mechanisms',
       unavailable: 'The map is not available in English yet.',
       theses: (n) => `${n} ${plural(n, 'thesis', 'theses')}`,
@@ -748,6 +751,7 @@ export const DICT: Record<Lang, Dict> = {
       structures: 'Structures',
       common: 'Shared by several articles',
       showAll: 'Show all',
+      deselect: 'Clear selection',
       drawingNote: 'The drawing can only be explored with a mouse; the List view gives the same links by keyboard.',
       zoomTouch: 'Pinch to zoom · names appear as you zoom in',
       zoomWheel: 'Scroll to zoom · names appear as you zoom in',
@@ -952,7 +956,7 @@ export const DICT: Record<Lang, Dict> = {
     },
     journalHome: 'Журнал — главная',
     map: {
-      intro: 'Статьи журнала, разобранные на тезисы, и механизмы, которые переходят из текста в текст. Каждая точка ведёт к отрывку, где это сказано.',
+      intro: 'Статьи журнала, разобранные на тезисы, и механизмы, которые переходят из текста в текст. Каждая точка ведёт к отрывку, где о ней говорится.',
       menuDetail: 'тезисы и механизмы',
       unavailable: 'Карта пока не переведена на русский.',
       theses: (n) => `${n} ${ru(n, 'тезис', 'тезиса', 'тезисов')}`,
@@ -966,6 +970,7 @@ export const DICT: Record<Lang, Dict> = {
       structures: 'Структура',
       common: 'Общие для нескольких статей',
       showAll: 'Показать всё',
+      deselect: 'Снять выделение',
       drawingNote: 'Схему можно исследовать только мышью; вид «Список» даёт те же ссылки с клавиатуры.',
       zoomTouch: 'Сведите пальцы, чтобы приблизить · названия появляются при приближении',
       zoomWheel: 'Колесо мыши — масштаб · названия появляются при приближении',
