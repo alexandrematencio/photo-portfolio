@@ -2,9 +2,10 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Cog, GitMerge, Library, List, MessageSquareQuote, Network, Tags } from 'lucide-react';
 import { StateDot } from '@/components/site/StateDot';
 import { TagSwatch } from '@/components/journal/TagSwatch';
-import { Folder, FOLDER_MS, FolderList, type Filter } from '@/components/journal/FolderTree';
+import { FolderList, type Filter } from '@/components/journal/FolderTree';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import { DICT } from '@/lib/journal/i18n';
@@ -13,10 +14,13 @@ import { HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, NO_FILTER, vi
 import { MapPanel } from './MapPanel';
 import { KEY_OF, MapHelp, MapKeys, type NavKey } from './MapControls';
 import { MapList } from './MapList';
+import { CLOSE_MS, MapMenu, SHEET_OUT, type MenuSection } from './MapMenu';
 
 /**
- * La page `/concept-map` côté navigateur : filtres à gauche (comme l'index
- * du journal), puis la carte OU la liste.
+ * La page `/concept-map` côté navigateur, en dashboard (2026-10-30,
+ * Alexandre) : le menu à gauche (`MapMenu`, repliable en bande d'icônes,
+ * rangée d'icônes et tiroir sur téléphone), puis la carte OU la liste, d'un
+ * bord à l'autre de l'écran.
  *
  * Vue par défaut : la carte dès 768 px, la liste en dessous. Tant que la page
  * n'a pas tourné, c'est le CSS qui choisit (`auto`) : la liste est dans le
@@ -31,23 +35,20 @@ import { MapList } from './MapList';
  * « Désélectionner », ou en cliquant hors de son voisinage (`sticky`).
  *
  * Commandes (2026-10-30, Alexandre) : « Aide ? » en haut à droite du cadre,
- * le faux clavier en bas à droite, et « Réglages » au pied de la colonne de
- * gauche — un module à part, pas un dossier de l'index (2026-10-30, Alexandre) —
- * qui règle à quelle distance chaque rang affiche ses noms (mémorisé dans ce
- * navigateur). Un clic
- * dans la carte, dans la colonne de gauche ou sur le faux clavier « arme » la
- * carte : les flèches, + − 0 et Échap la pilotent au lieu de faire défiler la
- * page, jusqu'au prochain clic ailleurs.
+ * le faux clavier en bas à droite, et « Réglages » au pied du menu — un module
+ * à part, pas une catégorie — qui règle à quelle distance chaque rang affiche
+ * ses noms (mémorisé dans ce navigateur). Un clic dans la carte, dans le menu
+ * ou sur le faux clavier « arme » la carte : les flèches, + − 0, [ et Échap la
+ * pilotent au lieu de faire défiler la page, jusqu'au prochain clic ailleurs.
  *
- * Sous les filtres, « thèses/ » et « mécanismes/ » (2026-10-29, Alexandre) :
- * l'index complet de la carte, dans les dossiers de l'accueil du journal
- * (`FolderTree`), un seul ouvert à la fois, fermés au départ. Ils suivent les
- * filtres ; une entrée ouvre son nœud sur la carte, comme la liste.
+ * Sous les filtres, « Thèses » et « Mécanismes » (2026-10-29, Alexandre) :
+ * l'index complet de la carte, une catégorie dépliée à la fois, fermées au
+ * départ. Elles suivent les filtres ; une entrée allume son nœud sur la carte,
+ * puis le menu se replie et la carte, élargie, le recadre.
  */
 
 const Graph = dynamic(() => import('./ConceptMapGraph'), { ssr: false });
 
-const FILTER_COL = 220;
 /** Le panneau posé sur le dessin, à droite (dès 768 px). */
 const PANEL_WIDTH = 360;
 
@@ -72,21 +73,18 @@ function Choice({ on, onClick, children }: { on: boolean; onClick: () => void; c
   );
 }
 
+/** Les choix d'une catégorie : son titre est dans l'en-tête de `MapMenu`. */
 function Group({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div role="group" aria-label={label} className="flex flex-col gap-2">
-      <p className={cn(MICRO_LABEL, 'text-[var(--color-fg-faint)]')}>{label}</p>
-      <div className="flex flex-wrap gap-x-5 gap-y-1 md:flex-col md:gap-y-0.5">{children}</div>
+    <div role="group" aria-label={label} className="flex flex-col gap-y-0.5">
+      {children}
     </div>
   );
 }
 
-/**
- * Dès 768 px, la colonne collante ne dépasse jamais la hauteur visible
- * (barre de navigation, 64 px, et 24 px d'air dessus et dessous) : un dossier
- * ouvert la fait défiler, elle, au lieu de pousser la carte hors de l'écran.
- */
-const ASIDE_MAX = 'calc(100dvh - 7rem)';
+const MENU_KEY = 'concept-map:menu';
+/** Le nœud s'allume, on le voit, PUIS le menu part : une chose bouge à la fois. */
+const COLLAPSE_AFTER = 150;
 
 /** Une ligne de rubrique dans « thèses/ » : le titre de l'article, en Switzer (Alexandre, 2026-10-29), au ras du dossier. */
 function ArticleHeading({ children }: { children: ReactNode }) {
@@ -143,14 +141,15 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const [folder, setFolder] = useState<'theses' | 'mechanisms' | null>(null);
   const [labels, setLabels] = useState<LabelReach>(LABEL_DEFAULT);
   const [help, setHelp] = useState(false);
+  const [menu, setMenu] = useState(true);
+  const [sheet, setSheet] = useState<string | null>(null);
+  const later = useRef<number[]>([]);
   const [armed, setArmed] = useState(false);
   const [lit, setLit] = useState<ReadonlySet<NavKey>>(() => new Set());
   const nav = useRef<MapNav | null>(null);
   const held = useRef(new Set<NavKey>());
   const frame = useRef<HTMLDivElement>(null);
   const aside = useRef<HTMLElement>(null);
-  const [settled, setSettled] = useState(false);
-  const folderId = useId();
   const dict = DICT[data.lang];
   const t = dict.map;
 
@@ -158,7 +157,6 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     const mq = window.matchMedia('(min-width: 768px)');
     const sync = () => setWide(mq.matches);
     sync();
-    setSettled(true);
     mq.addEventListener('change', sync);
     const fromHash = readHash();
     if (fromHash && ix.byId.has(fromHash)) {
@@ -172,6 +170,17 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     try {
       const saved = JSON.parse(localStorage.getItem(LABELS_KEY) ?? 'null');
       if (saved && LABEL_KINDS.every((k) => Number.isInteger(saved[k]))) setLabels(saved);
+      if (localStorage.getItem(MENU_KEY) === 'shut') setMenu(false);
+    } catch {}
+    const timers = later.current;
+    return () => timers.forEach((id) => window.clearTimeout(id));
+  }, []);
+  // Seul un geste du lecteur (bouton, icône, touche [) est retenu d'une visite à
+  // l'autre : le repli automatique après un choix ne l'est pas.
+  const toggleMenu = useCallback((open: boolean) => {
+    setMenu(open);
+    try {
+      localStorage.setItem(MENU_KEY, open ? 'open' : 'shut');
     } catch {}
   }, []);
   const reach = (k: LabelKind, v: number) =>
@@ -228,13 +237,31 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const stage = useRef<HTMLElement>(null);
   const show = (id: string) => {
     if (current === 'list') setView('map');
-    select(id === shown && panel ? null : id, true);
-    // Téléphone : la carte est sous la colonne. On replie le dossier, puis on y
-    // descend une fois le repli fini (avant, la cible bouge encore sous le défilement).
-    if (wide) return;
-    setFolder(null);
+    const next = id === shown && panel ? null : id;
     const smooth = window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
-    window.setTimeout(() => stage.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' }), smooth ? FOLDER_MS : 0);
+    later.current.forEach((t) => window.clearTimeout(t));
+    later.current = [];
+    // Téléphone : la carte est sous le menu. Le tiroir redescend, puis on y
+    // descend une fois qu'il est parti.
+    if (!wide) {
+      select(next, true);
+      setSheet(null);
+      later.current.push(window.setTimeout(() => stage.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' }), smooth ? SHEET_OUT : 0));
+      return;
+    }
+    if (!next || !menu) return select(next, true);
+    // Le nœud s'allume tout de suite ; le menu se replie ensuite, et la carte
+    // ne le recadre qu'une fois élargie (avant, la cible glisserait sous la caméra).
+    select(next);
+    if (!smooth) {
+      setMenu(false);
+      later.current.push(window.setTimeout(() => setCenter((c) => c + 1), 50));
+      return;
+    }
+    later.current.push(
+      window.setTimeout(() => setMenu(false), COLLAPSE_AFTER),
+      window.setTimeout(() => setCenter((c) => c + 1), COLLAPSE_AFTER + CLOSE_MS + 100),
+    );
   };
   const toggleFolder = (name: 'theses' | 'mechanisms') => setFolder((f) => (f === name ? null : name));
 
@@ -286,6 +313,10 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
         e.preventDefault();
         return setHelp((h) => !h);
       }
+      if (e.key === '[') {
+        e.preventDefault();
+        return toggleMenu(!menu);
+      }
       if (e.key === 'Escape') {
         if (shown) select(null);
         else setArmed(false);
@@ -310,21 +341,20 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       window.removeEventListener('blur', releaseAll);
       releaseAll();
     };
-  }, [live, shown, select, press]);
+  }, [live, shown, select, press, menu, toggleMenu]);
 
   // Le panneau couvre la droite du cadre (dès 768 px) : les commandes de ce côté se posent à sa gauche.
   const beside = wide && shown && panel ? PANEL_WIDTH + 12 : 0;
 
   const n = (kind: string) => [...visible].filter((id) => ix.byId.get(id)?.kind === kind).length;
 
-  return (
-    <div className="flex flex-col gap-8 md:grid md:gap-x-12" style={{ gridTemplateColumns: `${FILTER_COL}px minmax(0, 1fr)` }}>
-      <aside
-        ref={aside}
-        className="flex flex-col gap-6 self-start md:sticky md:top-6 md:max-h-[var(--aside-max)] md:overflow-y-auto md:overscroll-contain"
-        style={{ ['--aside-max' as string]: ASIDE_MAX }}
-        aria-label={t.filters}
-      >
+  const kindOfShown = shown ? ix.byId.get(shown)?.kind : null;
+  const sections: MenuSection[] = [
+    {
+      id: 'view',
+      icon: current === 'list' ? List : Network,
+      label: t.view,
+      body: (
         <Group label={t.view}>
           <Choice on={current === 'map'} onClick={() => setView('map')}>
             {t.mapView}
@@ -333,6 +363,14 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
             {t.listView}
           </Choice>
         </Group>
+      ),
+    },
+    {
+      id: 'series',
+      icon: Library,
+      label: t.series,
+      lit: !!filters.series,
+      body: (
         <Group label={t.series}>
           {data.series.map((s) => (
             <Choice key={s.title} on={filters.series === s.title} onClick={() => toggle('series', s.title)}>
@@ -342,6 +380,14 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
             </Choice>
           ))}
         </Group>
+      ),
+    },
+    {
+      id: 'themes',
+      icon: Tags,
+      label: t.themes,
+      lit: !!filters.theme,
+      body: (
         <Group label={t.themes}>
           {data.themes.map((t) => (
             <Choice key={t.title} on={filters.theme === t.title} onClick={() => toggle('theme', t.title)}>
@@ -352,6 +398,14 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
             </Choice>
           ))}
         </Group>
+      ),
+    },
+    {
+      id: 'structures',
+      icon: GitMerge,
+      label: t.structures,
+      lit: filters.common,
+      body: (
         <Group label={t.structures}>
           <Choice on={filters.common} onClick={() => toggle('common', true)}>
             <span>
@@ -359,52 +413,61 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
             </span>
           </Choice>
         </Group>
-        <div role="group" aria-label={t.index} className="flex flex-col">
-          <Folder
-            id={`${folderId}-theses`}
-            name={t.thesesFolder}
-            state={folder === 'theses' ? 'open' : 'closed'}
-            settled={settled}
-            onToggle={() => toggleFolder('theses')}
-            lit={!!shown && ix.byId.get(shown)?.kind === 'thesis'}
-            entries={index.thesisCount}
-            peek={null}
-          >
-            <div>
-              {index.theses.map((g) => (
-                <div key={g.article.id}>
-                  <ArticleHeading>{g.article.label}</ArticleHeading>
-                  <FolderList items={g.items} isOn={(key) => key === shown} onChange={show} type="index" />
-                </div>
-              ))}
+      ),
+    },
+    {
+      id: 'theses',
+      icon: MessageSquareQuote,
+      label: t.thesesFolder,
+      lit: kindOfShown === 'thesis',
+      fold: { open: folder === 'theses', onToggle: () => toggleFolder('theses'), count: index.thesisCount },
+      body: (
+        <div>
+          {index.theses.map((g) => (
+            <div key={g.article.id}>
+              <ArticleHeading>{g.article.label}</ArticleHeading>
+              <FolderList items={g.items} isOn={(key) => key === shown} onChange={show} type="index" />
             </div>
-          </Folder>
-          <Folder
-            id={`${folderId}-mechanisms`}
-            name={t.mechanismsFolder}
-            state={folder === 'mechanisms' ? 'open' : 'closed'}
-            settled={settled}
-            onToggle={() => toggleFolder('mechanisms')}
-            lit={!!shown && ix.byId.get(shown)?.kind === 'mechanism'}
-            entries={index.mechanisms.length}
-            peek={null}
-          >
-            <FolderList items={index.mechanisms} isOn={(key) => key === shown} onChange={show} type="index" />
-          </Folder>
+          ))}
         </div>
-        <div className="flex flex-col gap-2 border-t border-[var(--color-line)]" style={{ paddingTop: 12 }}>
-          <p aria-live="polite" className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
-            {dict.articles(n('article'))} · {t.theses(n('thesis'))} · {t.mechanisms(n('mechanism'))}
-          </p>
-          {filtered && (
-            <button type="button" onClick={() => setFilters(NO_FILTER)} className={cn(MICRO_LABEL, 'w-fit text-[var(--color-fg)] underline underline-offset-4')}>
-              {t.showAll}
-            </button>
-          )}
-        </div>
-        {current === 'map' && (
-          <section aria-label={t.settings} className="flex flex-col gap-2 border-t border-[var(--color-line)]" style={{ paddingTop: 12 }}>
-            <p className={cn(MICRO_LABEL, 'text-[var(--color-fg-faint)]')}>{t.settings}</p>
+      ),
+    },
+    {
+      id: 'mechanisms',
+      icon: Cog,
+      label: t.mechanismsFolder,
+      lit: kindOfShown === 'mechanism',
+      fold: { open: folder === 'mechanisms', onToggle: () => toggleFolder('mechanisms'), count: index.mechanisms.length },
+      body: <FolderList items={index.mechanisms} isOn={(key) => key === shown} onChange={show} type="index" />,
+    },
+  ];
+
+  return (
+    // Le dashboard (2026-10-30, Alexandre) : d'un bord à l'autre de l'écran et,
+    // dès 768 px, de la hauteur visible sous la barre de navigation.
+    <div className="flex flex-col gap-3 md:h-[calc(100dvh-4rem)] md:flex-row md:gap-0 md:border-y md:border-[var(--color-line)]">
+      <MapMenu
+        open={menu}
+        onOpen={toggleMenu}
+        sheet={sheet}
+        onSheet={setSheet}
+        sections={sections}
+        asideRef={aside}
+        labels={{ menu: t.filters, collapse: t.menuCollapse, expand: t.menuExpand, settings: t.settings, close: t.close }}
+        counts={
+          <>
+            <p aria-live="polite" className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
+              {dict.articles(n('article'))} · {t.theses(n('thesis'))} · {t.mechanisms(n('mechanism'))}
+            </p>
+            {filtered && (
+              <button type="button" onClick={() => setFilters(NO_FILTER)} className={cn(MICRO_LABEL, 'w-fit text-[var(--color-fg)] underline underline-offset-4')}>
+                {t.showAll}
+              </button>
+            )}
+          </>
+        }
+        settings={
+          current === 'map' ? (
             <div role="group" aria-label={t.labelsNote} className="flex flex-col">
               <p className="text-[12px] leading-[17px] text-[var(--color-fg-muted)]" style={{ paddingBottom: 8 }}>
                 {t.labelsNote}
@@ -413,22 +476,19 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
                 <ReachRow key={k} label={t.labelKinds[k]} value={labels[k]} text={t.reach(labels[k])} onChange={(v) => reach(k, v)} />
               ))}
             </div>
-          </section>
-        )}
-      </aside>
+          ) : null
+        }
+      />
 
-      <section ref={stage} aria-label="Concept Map" className="min-w-0" style={{ scrollMarginTop: 16 }}>
-        <div className={cn(view === 'auto' ? 'hidden md:block' : current === 'map' ? 'block' : 'hidden')}>
+      <section ref={stage} aria-label="Concept Map" className="min-w-0 md:flex-1" style={{ scrollMarginTop: 16 }}>
+        <div className={cn(view === 'auto' ? 'hidden md:block' : current === 'map' ? 'block' : 'hidden', 'md:h-full')}>
           <p className="sr-only">{t.drawingNote}</p>
-          <div ref={frame} className="relative flex flex-col gap-6">
+          <div ref={frame} className="relative flex flex-col gap-6 md:h-full">
             {/* Le cadre et ce qui se pose dessus : les coins se mesurent au cadre seul,
-                pas au panneau qui passe dessous sur téléphone. */}
-            <div className="relative">
-              <div
-                aria-hidden
-                className="concept-stage relative overflow-hidden border border-[var(--color-line)] bg-[var(--color-bg)]"
-                style={{ height: 'clamp(420px, calc(100dvh - 12rem), 860px)' }}
-              >
+                pas au panneau qui passe dessous sur téléphone. Dès 768 px, il remplit
+                le dashboard ; ses filets sont ceux du dashboard. */}
+            <div className="relative h-[clamp(420px,calc(100dvh-12rem),860px)] md:h-full">
+              <div aria-hidden className="concept-stage absolute inset-0 overflow-hidden border-y border-[var(--color-line)] bg-[var(--color-bg)] md:border-y-0">
                 {current === 'map' && (
                   <Graph ix={ix} visible={visible} selected={shown} center={center} inset={beside} sticky labels={labels} nav={nav} onSelect={(id) => select(id)} />
                 )}
@@ -480,7 +540,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
             )}
           </div>
         </div>
-        <div className={cn(view === 'auto' ? 'md:hidden' : current === 'list' ? 'block' : 'hidden')}>
+        <div className={cn(view === 'auto' ? 'md:hidden' : current === 'list' ? 'block' : 'hidden', 'md:h-full md:overflow-y-auto')} style={{ padding: '24px var(--page-gutter)' }}>
           <MapList
             ix={ix}
             visible={visible}

@@ -337,7 +337,7 @@ export type Dict = {
     thesesFolder: string;
     mechanismsFolder: string;
     index: string;
-    /** Le dossier qui règle à quelle distance chaque rang affiche ses noms. */
+    /** Le module au pied du menu qui règle à quelle distance chaque rang affiche ses noms. */
     settings: string;
     labelsNote: string;
     labelKinds: { article: string; mechanism: string; thesis: string };
@@ -353,6 +353,9 @@ export type Dict = {
     helpKeys: readonly (readonly [string, string])[];
     helpLabels: string;
     close: string;
+    /** Le menu de gauche replié en bande d'icônes, puis rouvert (2026-10-30, Alexandre). */
+    menuCollapse: string;
+    menuExpand: string;
     keys: { group: string; up: string; down: string; left: string; right: string; in: string; out: string; reset: string; on: string };
   };
 };
@@ -600,10 +603,13 @@ export const DICT: Record<Lang, Dict> = {
         ['+ −', 'zoomer, dézoomer (aussi avec ⌘ ou Ctrl)'],
         ['0', 'recadrer toute la carte'],
         ['Échap', 'désélectionner, puis rendre la main'],
+        ['[', 'replier ou ouvrir le menu'],
         ['?', 'ouvrir ou fermer cette aide'],
       ],
-      helpLabels: 'Les noms apparaissent en zoomant. Les réglages, en bas de la colonne de gauche, règlent à quelle distance pour les articles, les mécanismes et les thèses.',
+      helpLabels: 'Les noms apparaissent en zoomant. Les réglages, au pied du menu de gauche, règlent à quelle distance pour les articles, les mécanismes et les thèses.',
       close: 'Fermer',
+      menuCollapse: 'Replier le menu',
+      menuExpand: 'Ouvrir le menu',
       keys: { group: 'Clavier de navigation', up: 'Monter', down: 'Descendre', left: 'Aller à gauche', right: 'Aller à droite', in: 'Zoomer', out: 'Dézoomer', reset: 'Recadrer', on: 'Les flèches du clavier déplacent la carte.' },
     },
     dateLocale: 'fr-FR',
@@ -839,10 +845,13 @@ export const DICT: Record<Lang, Dict> = {
         ['+ −', 'zoom in, zoom out (also with ⌘ or Ctrl)'],
         ['0', 'fit the whole map'],
         ['Esc', 'clear the selection, then release'],
+        ['[', 'collapse or open the menu'],
         ['?', 'open or close this help'],
       ],
-      helpLabels: 'Names appear as you zoom in. The settings, at the foot of the left column, set how far away for articles, mechanisms and theses.',
+      helpLabels: 'Names appear as you zoom in. The settings, at the foot of the left menu, set how far away for articles, mechanisms and theses.',
       close: 'Close',
+      menuCollapse: 'Collapse the menu',
+      menuExpand: 'Open the menu',
       keys: { group: 'Navigation keys', up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right', in: 'Zoom in', out: 'Zoom out', reset: 'Fit the map', on: 'The arrow keys now move the map.' },
     },
     dateLocale: 'en-GB',
@@ -1084,10 +1093,13 @@ export const DICT: Record<Lang, Dict> = {
         ['+ −', 'приблизить, отдалить (также с ⌘ или Ctrl)'],
         ['0', 'показать всю карту'],
         ['Esc', 'снять выделение, затем отпустить'],
+        ['[', 'свернуть или открыть меню'],
         ['?', 'открыть или закрыть справку'],
       ],
-      helpLabels: 'Названия появляются при приближении. Настройки внизу левой колонки задают расстояние для статей, механизмов и тезисов.',
+      helpLabels: 'Названия появляются при приближении. Настройки внизу левого меню задают расстояние для статей, механизмов и тезисов.',
       close: 'Закрыть',
+      menuCollapse: 'Свернуть меню',
+      menuExpand: 'Открыть меню',
       keys: { group: 'Клавиши навигации', up: 'Вверх', down: 'Вниз', left: 'Влево', right: 'Вправо', in: 'Приблизить', out: 'Отдалить', reset: 'Показать всю карту', on: 'Стрелки клавиатуры теперь двигают карту.' },
     },
     dateLocale: 'ru-RU',
