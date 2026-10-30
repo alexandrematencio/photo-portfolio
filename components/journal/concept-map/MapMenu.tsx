@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react';
-import { ChevronsLeft, ChevronsRight, SlidersHorizontal, X, type LucideIcon } from 'lucide-react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react';
+import { ChevronLeft, ChevronRight, SlidersHorizontal, X, type LucideIcon } from 'lucide-react';
 import { StateDot } from '@/components/site/StateDot';
 import { FOLDER_MS } from '@/components/journal/FolderTree';
 import { MICRO_LABEL } from '@/lib/site/typography';
@@ -15,26 +15,34 @@ import { cn } from '@/lib/utils/cn';
  *   papier, filet à droite, filets entre les catégories. Elle se replie en une
  *   bande d'icônes et la carte prend la place (elle POUSSE la carte, elle ne
  *   passe pas dessus) ;
+ * - chaque catégorie s'enroule sur son en-tête, indépendamment des autres : on
+ *   ne garde dépliées que celles dont on se sert (mémorisé dans ce navigateur) ;
+ * - le repli se commande par une languette posée sur le bord du menu, à
+ *   mi-hauteur — la poignée de panneau de Google Maps : on la trouve sans la
+ *   chercher, et elle ne partage sa ligne avec rien ;
  * - au pied, un bloc à part, un ton plus bas encore : les compteurs, « Tout
- *   montrer », « Réglages » qui déplie ses glissières vers le haut, et le
- *   bouton qui replie ;
+ *   montrer », puis « Réglages », seul sur sa ligne, qui déplie ses
+ *   glissières vers le haut ;
  * - sur téléphone, pas de colonne : une rangée d'icônes au-dessus de la carte,
  *   chacune ouvre sa catégorie dans un tiroir qui monte du bas.
  *
- * Un clic sur une icône de la bande rouvre le menu À cette catégorie. Le menu
- * se replie de lui-même quand une thèse ou un mécanisme choisi dans la liste
- * s'allume sur la carte — c'est `ConceptMapExplorer` qui le décide.
+ * La liste du menu défile seule ; à ses bouts, le défilement passe à la page
+ * (pas d'`overscroll-behavior: contain`) : on sort du menu sans lâcher le geste.
+ *
+ * Un clic sur une icône de la bande rouvre le menu À cette catégorie, dépliée.
+ * Le menu se replie de lui-même quand une thèse ou un mécanisme choisi dans la
+ * liste s'allume sur la carte — c'est `ConceptMapExplorer` qui le décide.
  */
 
 export type MenuSection = {
   id: string;
   icon: LucideIcon;
   label: string;
-  /** Un filtre de la catégorie trie la carte, ou son nœud est allumé : un voyant sur l'icône. */
+  /** Un filtre de la catégorie trie la carte, ou son nœud est allumé : un voyant. */
   lit?: boolean;
+  /** Affiché dans l'en-tête : le nombre d'entrées. */
+  count?: number;
   body: ReactNode;
-  /** Catégorie repliable (thèses, mécanismes) : fermée, seul son en-tête reste. */
-  fold?: { open: boolean; onToggle: () => void; count: number };
 };
 
 /** Ouvert : la colonne de filtres d'avant (220) plus l'icône et son retrait. */
@@ -55,13 +63,11 @@ const EASE_INOUT = 'cubic-bezier(0.65, 0, 0.35, 1)';
 const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const EASE_IN = 'cubic-bezier(0.55, 0, 1, 0.45)';
 
-type Labels = {
-  menu: string;
-  collapse: string;
-  expand: string;
-  settings: string;
-  close: string;
-};
+const OPEN_KEY = 'concept-map:sections';
+/** Dépliées au premier passage : les filtres. L'index (thèses, mécanismes) est long, il attend qu'on le demande. */
+const OPEN_DEFAULT = ['view', 'series', 'themes', 'structures'];
+
+type Labels = { menu: string; collapse: string; expand: string; settings: string; close: string };
 
 export function MapMenu({
   open,
@@ -89,8 +95,29 @@ export function MapMenu({
 }) {
   const [tuning, setTuning] = useState(false);
   const [target, setTarget] = useState<string | null>(null);
+  const [unrolled, setUnrolled] = useState<ReadonlySet<string>>(() => new Set(OPEN_DEFAULT));
   const full = useRef<HTMLDivElement>(null);
   const tuneId = useId();
+  const asideId = useId();
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(OPEN_KEY) ?? 'null');
+      if (Array.isArray(saved) && saved.every((x) => typeof x === 'string')) setUnrolled(new Set(saved));
+    } catch {}
+  }, []);
+  const roll = useCallback((id: string, on: boolean) => {
+    setUnrolled((u) => {
+      if (u.has(id) === on) return u;
+      const next = new Set(u);
+      if (on) next.add(id);
+      else next.delete(id);
+      try {
+        localStorage.setItem(OPEN_KEY, JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+  }, []);
 
   // Pas de transition avant que le menu ait relu sa mémoire : un menu laissé
   // replié ne doit pas se replier sous les yeux au chargement.
@@ -104,80 +131,67 @@ export function MapMenu({
     };
   }, []);
 
-  // Rouvert depuis une icône : on descend jusqu'à sa catégorie, une fois le contenu revenu.
+  // Rouvert depuis une icône : on descend jusqu'à sa catégorie, une fois le contenu revenu et déplié.
   useEffect(() => {
     if (!open || !target) return;
-    const id = window.setTimeout(
-      () => {
-        full.current?.querySelector(`[data-section="${target}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        setTarget(null);
-      },
-      OPEN_MS + (sections.find((s) => s.id === target)?.fold ? FOLDER_MS : 0),
-    );
+    const id = window.setTimeout(() => {
+      full.current?.querySelector(`[data-section="${target}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      setTarget(null);
+    }, OPEN_MS + FOLDER_MS);
     return () => window.clearTimeout(id);
-  }, [open, target, sections]);
+  }, [open, target]);
 
   const reveal = (id: string) => {
-    const s = sections.find((x) => x.id === id);
-    if (s?.fold && !s.fold.open) s.fold.onToggle();
     if (id === 'settings') setTuning(true);
+    else roll(id, true);
     setTarget(id);
     onOpen(true);
   };
 
   const t = (ms: number, ease: string, delay = 0) => (motion ? `${ms}ms ${ease} ${delay}ms` : '0ms');
   const settingsOpen = tuning && !!settings;
+  const edge = open ? MENU_OPEN : MENU_SHUT;
+  const slide = open ? t(OPEN_MS, EASE_OUT) : t(CLOSE_MS, EASE_INOUT, FADE_MS / 2);
 
   return (
     <>
       <aside
+        id={asideId}
         ref={asideRef}
         aria-label={labels.menu}
         className="relative hidden shrink-0 overflow-hidden border-r border-[var(--color-line)] bg-[var(--color-bg-raised)] motion-reduce:!transition-none md:block"
-        style={{
-          width: open ? MENU_OPEN : MENU_SHUT,
-          transition: `width ${open ? t(OPEN_MS, EASE_OUT) : t(CLOSE_MS, EASE_INOUT, FADE_MS / 2)}`,
-        }}
+        style={{ width: edge, transition: `width ${slide}` }}
       >
         {/* Le menu ouvert, à largeur fixe : la colonne qui se resserre le rogne, le texte ne se recompose pas. */}
         <div
           ref={full}
           inert={!open}
           className="absolute inset-y-0 left-0 flex flex-col motion-reduce:!transition-none"
-          style={{
-            width: MENU_OPEN,
-            opacity: open ? 1 : 0,
-            transition: `opacity ${open ? t(160, EASE_OUT, OPEN_MS / 2) : t(FADE_MS, EASE_IN)}`,
-          }}
+          style={{ width: MENU_OPEN, opacity: open ? 1 : 0, transition: `opacity ${open ? t(160, EASE_OUT, OPEN_MS / 2) : t(FADE_MS, EASE_IN)}` }}
         >
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {sections.map((s) => (
-              <Section key={s.id} section={s} />
+              <Section key={s.id} section={s} open={unrolled.has(s.id)} onToggle={() => roll(s.id, !unrolled.has(s.id))} />
             ))}
           </div>
           <div className="flex flex-col border-t border-[var(--color-line)] bg-[var(--color-bg-elev)]">
-            {settings && (
-              <div
-                id={tuneId}
-                inert={!settingsOpen}
-                className="grid transition-[grid-template-rows] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
-                style={{
-                  gridTemplateRows: settingsOpen ? '1fr' : '0fr',
-                  transitionDuration: `${FOLDER_MS}ms`,
-                }}
-              >
-                <div className="min-h-0 overflow-hidden">
-                  <div data-section="settings" className="border-b border-[var(--color-line)]" style={{ padding: `14px 16px 4px ${PAD_LEFT + INDENT}px` }}>
-                    {settings}
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="flex flex-col gap-2" style={{ padding: `14px 16px 12px ${PAD_LEFT + INDENT}px` }}>
+            <div className="flex flex-col gap-2" style={{ padding: `14px 16px 14px ${PAD_LEFT + INDENT}px` }}>
               {counts}
             </div>
-            <div className="flex items-center justify-between border-t border-[var(--color-line)]" style={{ paddingLeft: PAD_LEFT, paddingRight: 8 }}>
-              {settings ? (
+            {settings && (
+              <>
+                <div
+                  id={tuneId}
+                  inert={!settingsOpen}
+                  className="grid transition-[grid-template-rows] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+                  style={{ gridTemplateRows: settingsOpen ? '1fr' : '0fr', transitionDuration: `${FOLDER_MS}ms` }}
+                >
+                  <div className="min-h-0 overflow-hidden">
+                    <div data-section="settings" className="border-t border-[var(--color-line)]" style={{ padding: `14px 16px 4px ${PAD_LEFT + INDENT}px` }}>
+                      {settings}
+                    </div>
+                  </div>
+                </div>
                 <button
                   type="button"
                   aria-expanded={settingsOpen}
@@ -185,21 +199,19 @@ export function MapMenu({
                   onClick={() => setTuning((v) => !v)}
                   className={cn(
                     MICRO_LABEL,
-                    'flex items-center gap-[10px] transition-colors duration-200 motion-reduce:transition-none',
+                    'flex w-full items-center gap-[10px] border-t border-[var(--color-line)] text-left transition-colors duration-200 motion-reduce:transition-none',
                     settingsOpen ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
                   )}
-                  style={{ height: 44 }}
+                  style={{ height: 46, paddingLeft: PAD_LEFT, paddingRight: 16 }}
                 >
-                  <SlidersHorizontal aria-hidden size={ICON} strokeWidth={1.75} />
+                  <SlidersHorizontal aria-hidden size={ICON} strokeWidth={1.75} className="flex-none" />
                   {labels.settings}
+                  <span aria-hidden className="flex-1" />
+                  {/* Les glissières montent : le chevron pointe vers elles. */}
+                  <Chevron turned={settingsOpen ? 90 : -90} />
                 </button>
-              ) : (
-                <span />
-              )}
-              <IconButton label={labels.collapse} onClick={() => onOpen(false)}>
-                <ChevronsLeft aria-hidden size={ICON} strokeWidth={1.75} />
-              </IconButton>
-            </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -207,92 +219,95 @@ export function MapMenu({
         <div
           inert={open}
           className="absolute inset-y-0 left-0 flex flex-col motion-reduce:!transition-none"
-          style={{
-            width: MENU_SHUT,
-            opacity: open ? 0 : 1,
-            transition: `opacity ${open ? t(80, EASE_IN) : t(140, EASE_OUT, CLOSE_MS)}`,
-          }}
+          style={{ width: MENU_SHUT, opacity: open ? 0 : 1, transition: `opacity ${open ? t(80, EASE_IN) : t(140, EASE_OUT, CLOSE_MS)}` }}
         >
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
             {sections.map((s) => (
               <StripButton key={s.id} icon={s.icon} label={s.label} lit={s.lit} onClick={() => reveal(s.id)} />
             ))}
           </div>
-          <div className="flex flex-col border-t border-[var(--color-line)] bg-[var(--color-bg-elev)]">
-            {settings && <StripButton icon={SlidersHorizontal} label={labels.settings} onClick={() => reveal('settings')} />}
-            <StripButton icon={ChevronsRight} label={labels.expand} onClick={() => onOpen(true)} />
-          </div>
+          {settings && (
+            <div className="border-t border-[var(--color-line)] bg-[var(--color-bg-elev)]">
+              <StripButton icon={SlidersHorizontal} label={labels.settings} onClick={() => reveal('settings')} />
+            </div>
+          )}
         </div>
       </aside>
+
+      {/* La languette : sur le bord du menu, à mi-hauteur, elle suit la colonne qui se resserre. */}
+      <button
+        type="button"
+        aria-controls={asideId}
+        aria-expanded={open}
+        aria-label={open ? labels.collapse : labels.expand}
+        title={`${open ? labels.collapse : labels.expand} ( [ )`}
+        onClick={() => onOpen(!open)}
+        className="absolute top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-r-[6px] border border-l-0 border-[color-mix(in_srgb,var(--color-fg)_22%,transparent)] bg-[var(--color-bg-raised)] text-[var(--color-fg)] shadow-[2px_1px_6px_rgba(10,10,10,0.12)] hover:bg-[var(--color-bg-elev)] focus-visible:bg-[var(--color-bg-elev)] motion-reduce:!transition-none md:flex"
+        style={{ left: edge - 1, width: 24, height: 64, transition: `left ${slide}, background-color 200ms` }}
+      >
+        {/* Encre pleine et trait appuyé (2026-10-30, Alexandre : « bien plus évident, sans être flashy »). */}
+        {open ? <ChevronLeft aria-hidden size={18} strokeWidth={2.5} /> : <ChevronRight aria-hidden size={18} strokeWidth={2.5} />}
+      </button>
 
       <PhoneBar sections={sections} counts={counts} settings={settings} labels={labels} sheet={sheet} onSheet={onSheet} />
     </>
   );
 }
 
-function Section({ section: s }: { section: MenuSection }) {
+function Chevron({ turned }: { turned: number }) {
+  return (
+    <svg
+      aria-hidden
+      width={8}
+      height={8}
+      viewBox="0 0 8 8"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="flex-none transition-[rotate] duration-200 ease-out motion-reduce:transition-none"
+      style={{ rotate: `${turned}deg` }}
+    >
+      <path d="M2.75 1.25 5.5 4 2.75 6.75" />
+    </svg>
+  );
+}
+
+function Section({ section: s, open, onToggle }: { section: MenuSection; open: boolean; onToggle: () => void }) {
   const Icon = s.icon;
   const bodyId = useId();
-  const head = (
-    <>
-      <Icon aria-hidden size={ICON} strokeWidth={1.75} className="flex-none" />
-      <span className="min-w-0 truncate">{s.label}</span>
-    </>
-  );
   return (
-    <section data-section={s.id} aria-label={s.label} className="border-b border-[var(--color-line)]" style={{ padding: `14px 16px 14px ${PAD_LEFT}px` }}>
-      {s.fold ? (
-        <>
-          <button
-            type="button"
-            aria-expanded={s.fold.open}
-            aria-controls={bodyId}
-            onClick={s.fold.onToggle}
-            className={cn(
-              MICRO_LABEL,
-              'flex w-full items-center gap-[10px] text-left transition-colors duration-200 motion-reduce:transition-none',
-              s.fold.open ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
-            )}
-          >
-            {head}
-            <StateDot on={!s.fold.open && !!s.lit} />
-            <span aria-hidden className="flex-1" />
-            <span className="tabular-nums font-normal">{s.fold.count}</span>
-            <svg
-              aria-hidden
-              width={8}
-              height={8}
-              viewBox="0 0 8 8"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={cn('flex-none transition-[rotate] duration-200 ease-out motion-reduce:transition-none', s.fold.open && 'rotate-90')}
-            >
-              <path d="M2.75 1.25 5.5 4 2.75 6.75" />
-            </svg>
-          </button>
-          <div
-            id={bodyId}
-            inert={!s.fold.open}
-            className="grid transition-[grid-template-rows] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
-            style={{
-              gridTemplateRows: s.fold.open ? '1fr' : '0fr',
-              transitionDuration: `${FOLDER_MS}ms`,
-            }}
-          >
-            <div className="min-h-0 overflow-hidden" style={{ paddingLeft: INDENT }}>
-              {s.body}
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
-          <p className={cn(MICRO_LABEL, 'flex items-center gap-[10px] text-[var(--color-fg-faint)]')}>{head}</p>
-          <div style={{ paddingLeft: INDENT, paddingTop: 8 }}>{s.body}</div>
-        </>
-      )}
+    <section data-section={s.id} aria-label={s.label} className="border-b border-[var(--color-line)]">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={bodyId}
+        onClick={onToggle}
+        className={cn(
+          MICRO_LABEL,
+          'flex w-full items-center gap-[10px] text-left transition-colors duration-200 motion-reduce:transition-none',
+          open ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
+        )}
+        style={{ height: 46, paddingLeft: PAD_LEFT, paddingRight: 16 }}
+      >
+        <Icon aria-hidden size={ICON} strokeWidth={1.75} className="flex-none" />
+        <span className="min-w-0 truncate">{s.label}</span>
+        <StateDot on={!open && !!s.lit} />
+        <span aria-hidden className="flex-1" />
+        {s.count != null && <span className="tabular-nums font-normal">{s.count}</span>}
+        <Chevron turned={open ? 90 : 0} />
+      </button>
+      <div
+        id={bodyId}
+        inert={!open}
+        className="grid transition-[grid-template-rows] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+        style={{ gridTemplateRows: open ? '1fr' : '0fr', transitionDuration: `${FOLDER_MS}ms` }}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div style={{ padding: `0 16px 14px ${PAD_LEFT + INDENT}px` }}>{s.body}</div>
+        </div>
+      </div>
     </section>
   );
 }
@@ -309,21 +324,6 @@ function StripButton({ icon: Icon, label, lit = false, onClick }: { icon: Lucide
     >
       <Icon aria-hidden size={ICON} strokeWidth={1.75} />
       {lit && <span aria-hidden className="absolute rounded-full bg-[var(--color-link)]" style={{ width: 5, height: 5, top: 11, right: 11 }} />}
-    </button>
-  );
-}
-
-function IconButton({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      className="flex items-center justify-center text-[var(--color-fg-muted)] transition-colors duration-200 hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)] motion-reduce:transition-none"
-      style={{ width: 36, height: 44 }}
-    >
-      {children}
     </button>
   );
 }
@@ -365,24 +365,8 @@ function PhoneBar({
   }, [sheet, onSheet]);
 
   const items = [
-    ...sections.map((s) => ({
-      id: s.id,
-      icon: s.icon,
-      label: s.label,
-      lit: s.lit,
-      body: s.body,
-    })),
-    ...(settings
-      ? [
-          {
-            id: 'settings',
-            icon: SlidersHorizontal,
-            label: labels.settings,
-            lit: false,
-            body: settings,
-          },
-        ]
-      : []),
+    ...sections.map((s) => ({ id: s.id, icon: s.icon, label: s.label, lit: s.lit, body: s.body })),
+    ...(settings ? [{ id: 'settings', icon: SlidersHorizontal, label: labels.settings, lit: false, body: settings }] : []),
   ];
   const current = items.find((i) => i.id === shown);
   const up = !!sheet && !!current;
@@ -398,24 +382,13 @@ function PhoneBar({
             aria-expanded={sheet === id}
             onClick={() => onSheet(sheet === id ? null : id)}
             className={cn(
-              'relative flex flex-1 items-center justify-center border-r border-[var(--color-line)] last:border-r-0 transition-colors duration-200 motion-reduce:transition-none',
+              'relative flex flex-1 items-center justify-center border-r border-[var(--color-line)] transition-colors duration-200 last:border-r-0 motion-reduce:transition-none',
               sheet === id ? 'bg-[var(--color-bg-elev)] text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)]',
             )}
             style={{ height: 48 }}
           >
             <Icon aria-hidden size={ICON} strokeWidth={1.75} />
-            {lit && (
-              <span
-                aria-hidden
-                className="absolute rounded-full bg-[var(--color-link)]"
-                style={{
-                  width: 5,
-                  height: 5,
-                  top: 10,
-                  right: 'calc(50% - 15px)',
-                }}
-              />
-            )}
+            {lit && <span aria-hidden className="absolute rounded-full bg-[var(--color-link)]" style={{ width: 5, height: 5, top: 10, right: 'calc(50% - 15px)' }} />}
           </button>
         ))}
       </div>

@@ -312,7 +312,13 @@ export type Dict = {
     deselect: string;
     drawingNote: string;
     zoomTouch: string;
+    /** La molette laisse défiler la page tant qu'on n'a pas cliqué dans la carte (2026-10-30, Alexandre). */
     zoomWheel: string;
+    /** La carte tient la molette : on dit comment la rendre à la page. */
+    zoomHeld: string;
+    /** L'avis posé sur la carte quand elle refuse un geste ; `mod` : ⌘ sur Mac, Ctrl ailleurs. */
+    refusedWheel: (mod: string) => string;
+    refusedTouch: string;
     readPassage: string;
     readArticle: string;
     thesisOf: (i: number, n: number) => string;
@@ -559,8 +565,11 @@ export const DICT: Record<Lang, Dict> = {
       showAll: 'Tout montrer',
       deselect: 'Désélectionner',
       drawingNote: 'Le dessin se déplace à la souris ou aux flèches du clavier, mais ses points ne se choisissent qu’à la souris ; la vue Liste donne les mêmes liens au clavier.',
-      zoomTouch: 'Pincer pour zoomer · les noms apparaissent en zoomant',
-      zoomWheel: 'Molette pour zoomer · les noms apparaissent en zoomant',
+      zoomTouch: 'Deux doigts pour déplacer · pincer pour zoomer',
+      zoomWheel: 'Cliquez sur la carte pour zoomer à la molette · ou pincez',
+      zoomHeld: 'Molette pour zoomer · sortez de la carte pour faire défiler la page',
+      refusedWheel: (mod) => `Cliquez sur la carte pour zoomer à la molette, ou ${mod} + molette`,
+      refusedTouch: 'Deux doigts pour déplacer la carte',
       readPassage: 'Lire le passage',
       readArticle: 'Lire l’article',
       thesisOf: (i, n) => `Thèse ${i} sur ${n}`,
@@ -592,7 +601,9 @@ export const DICT: Record<Lang, Dict> = {
       helpMouseTitle: 'Souris et pavé tactile',
       helpMouse: [
         ['Glisser', 'déplace la carte'],
-        ['Molette, pincer', 'zoome vers le pointeur'],
+        ['Molette', 'zoome, une fois la carte cliquée (avant, la page défile)'],
+        ['Pincer, ⌘ ou Ctrl + molette', 'zoome tout de suite'],
+        ['Deux doigts (écran tactile)', 'déplacent la carte ; un seul fait défiler la page'],
         ['Clic sur un point', 'ouvre son passage'],
         ['Clic dans le vide', 'désélectionne'],
       ],
@@ -801,8 +812,11 @@ export const DICT: Record<Lang, Dict> = {
       showAll: 'Show all',
       deselect: 'Clear selection',
       drawingNote: 'The drawing moves with the mouse or the arrow keys, but its points can only be picked with a mouse; the List view gives the same links by keyboard.',
-      zoomTouch: 'Pinch to zoom · names appear as you zoom in',
-      zoomWheel: 'Scroll to zoom · names appear as you zoom in',
+      zoomTouch: 'Two fingers to move · pinch to zoom',
+      zoomWheel: 'Click the map to zoom with the wheel · or pinch',
+      zoomHeld: 'Scroll to zoom · move off the map to scroll the page',
+      refusedWheel: (mod) => `Click the map to zoom with the wheel, or use ${mod} + scroll`,
+      refusedTouch: 'Use two fingers to move the map',
       readPassage: 'Read the passage',
       readArticle: 'Read the article',
       thesisOf: (i, n) => `Thesis ${i} of ${n}`,
@@ -834,7 +848,9 @@ export const DICT: Record<Lang, Dict> = {
       helpMouseTitle: 'Mouse and trackpad',
       helpMouse: [
         ['Drag', 'moves the map'],
-        ['Scroll, pinch', 'zooms toward the pointer'],
+        ['Scroll', 'zooms once you have clicked the map (before that, the page scrolls)'],
+        ['Pinch, ⌘ or Ctrl + scroll', 'zooms right away'],
+        ['Two fingers (touch screen)', 'move the map; one finger scrolls the page'],
         ['Click a point', 'opens its passage'],
         ['Click empty space', 'clears the selection'],
       ],
@@ -1048,8 +1064,11 @@ export const DICT: Record<Lang, Dict> = {
       showAll: 'Показать всё',
       deselect: 'Снять выделение',
       drawingNote: 'Схема двигается мышью или стрелками клавиатуры, но точки выбираются только мышью; вид «Список» даёт те же ссылки с клавиатуры.',
-      zoomTouch: 'Сведите пальцы, чтобы приблизить · названия появляются при приближении',
-      zoomWheel: 'Колесо мыши — масштаб · названия появляются при приближении',
+      zoomTouch: 'Двумя пальцами — двигать · щипком — масштаб',
+      zoomWheel: 'Нажмите на карту, чтобы масштабировать колесом · или сведите пальцы',
+      zoomHeld: 'Колесо — масштаб · уведите курсор с карты, чтобы прокрутить страницу',
+      refusedWheel: (mod) => `Нажмите на карту, чтобы масштабировать колесом, или ${mod} + колесо`,
+      refusedTouch: 'Двигайте карту двумя пальцами',
       readPassage: 'Читать отрывок',
       readArticle: 'Читать статью',
       thesisOf: (i, n) => `Тезис ${i} из ${n}`,
@@ -1082,7 +1101,9 @@ export const DICT: Record<Lang, Dict> = {
       helpMouseTitle: 'Мышь и тачпад',
       helpMouse: [
         ['Перетаскивание', 'двигает карту'],
-        ['Колесо, щипок', 'масштаб к указателю'],
+        ['Колесо', 'масштаб после клика по карте (до этого прокручивается страница)'],
+        ['Щипок, ⌘ или Ctrl + колесо', 'масштаб сразу'],
+        ['Два пальца (сенсорный экран)', 'двигают карту; один палец прокручивает страницу'],
         ['Клик по точке', 'открывает её фрагмент'],
         ['Клик в пустоту', 'снимает выделение'],
       ],

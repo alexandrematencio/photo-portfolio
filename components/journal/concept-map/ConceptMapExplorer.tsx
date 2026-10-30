@@ -15,6 +15,7 @@ import { MapPanel } from './MapPanel';
 import { KEY_OF, MapHelp, MapKeys, type NavKey } from './MapControls';
 import { MapList } from './MapList';
 import { CLOSE_MS, MapMenu, SHEET_OUT, type MenuSection } from './MapMenu';
+import type { MapGestures } from './ConceptMapGraph';
 
 /**
  * La page `/concept-map` côté navigateur, en dashboard (2026-10-30,
@@ -41,13 +42,26 @@ import { CLOSE_MS, MapMenu, SHEET_OUT, type MenuSection } from './MapMenu';
  * ou sur le faux clavier « arme » la carte : les flèches, + − 0, [ et Échap la
  * pilotent au lieu de faire défiler la page, jusqu'au prochain clic ailleurs.
  *
+ * Carte COOPÉRATIVE (2026-10-30, Alexandre — la page ne défilait plus) : la
+ * règle de Google Maps et de MapLibre, ajustée à un dashboard qui remplit
+ * l'écran. La molette fait défiler la page tant qu'on n'a pas cliqué dans la
+ * carte ; après, elle zoome, jusqu'à ce que le pointeur sorte de la carte
+ * (Leaflet.Sleep) ou qu'on presse Échap — un filet d'encre cerne alors la
+ * carte. ⌘/Ctrl + molette et le pincement zooment toujours : l'intention est
+ * sans ambiguïté. Sur écran tactile, un doigt fait défiler la page, deux
+ * doigts déplacent la carte. Un geste refusé affiche comment faire — pour la
+ * molette, seulement quand le dashboard remplit l'écran.
+ *
  * Sous les filtres, « Thèses » et « Mécanismes » (2026-10-29, Alexandre) :
- * l'index complet de la carte, une catégorie dépliée à la fois, fermées au
- * départ. Elles suivent les filtres ; une entrée allume son nœud sur la carte,
+ * l'index complet de la carte, repliés au départ comme toute catégorie qu'on
+ * n'a pas dépliée. Elles suivent les filtres ; une entrée allume son nœud sur la carte,
  * puis le menu se replie et la carte, élargie, le recadre.
  */
 
 const Graph = dynamic(() => import('./ConceptMapGraph'), { ssr: false });
+
+/** L'avis « cliquez sur la carte pour zoomer » reste ce temps après le dernier geste refusé. */
+const REFUSAL_MS = 1600;
 
 /** Le panneau posé sur le dessin, à droite (dès 768 px). */
 const PANEL_WIDTH = 360;
@@ -138,13 +152,22 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const [center, setCenter] = useState(0);
   const [view, setView] = useState<View>('auto');
   const [wide, setWide] = useState<boolean | null>(null);
-  const [folder, setFolder] = useState<'theses' | 'mechanisms' | null>(null);
   const [labels, setLabels] = useState<LabelReach>(LABEL_DEFAULT);
   const [help, setHelp] = useState(false);
   const [menu, setMenu] = useState(true);
   const [sheet, setSheet] = useState<string | null>(null);
   const later = useRef<number[]>([]);
   const [armed, setArmed] = useState(false);
+  // La carte TIENT la molette (2026-10-30, Alexandre : la page ne défilait plus) :
+  // seulement après un appui dans la carte, et jusqu'à ce que le pointeur en
+  // sorte. Avant, la molette fait défiler la page — sauf ⌘/Ctrl ou pincement.
+  const [grip, setGrip] = useState(false);
+  const heldNow = useRef(false);
+  heldNow.current = grip;
+  const [refusal, setRefusal] = useState<{ gesture: 'wheel' | 'touch'; on: boolean }>({ gesture: 'wheel', on: false });
+  const refusalTimer = useRef(0);
+  const board = useRef<HTMLDivElement>(null);
+  const [mod, setMod] = useState('Ctrl');
   const [lit, setLit] = useState<ReadonlySet<NavKey>>(() => new Set());
   const nav = useRef<MapNav | null>(null);
   const held = useRef(new Set<NavKey>());
@@ -263,7 +286,6 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       window.setTimeout(() => setCenter((c) => c + 1), COLLAPSE_AFTER + CLOSE_MS + 100),
     );
   };
-  const toggleFolder = (name: 'theses' | 'mechanisms') => setFolder((f) => (f === name ? null : name));
 
   // Une touche enfoncée (vraie ou fausse) : les flèches tiennent une direction, le reste agit à l'appui.
   const press = useCallback((k: NavKey, on: boolean) => {
@@ -282,14 +304,38 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const live = armed && current === 'map';
 
   // Armer : un appui dans le cadre de la carte ou dans la colonne de gauche ; ailleurs, désarmer.
+  // La molette, elle, ne se tient qu'après un appui dans la carte (souris ou stylet).
   useEffect(() => {
     const down = (e: PointerEvent) => {
       const at = e.target as Node;
-      setArmed(!!(frame.current?.contains(at) || aside.current?.contains(at)));
+      const inMap = !!frame.current?.contains(at);
+      setArmed(inMap || !!aside.current?.contains(at));
+      setGrip(inMap && e.pointerType !== 'touch');
     };
     document.addEventListener('pointerdown', down, true);
-    return () => document.removeEventListener('pointerdown', down, true);
+    setMod(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘' : 'Ctrl');
+    return () => {
+      document.removeEventListener('pointerdown', down, true);
+      window.clearTimeout(refusalTimer.current);
+    };
   }, []);
+
+  // Un geste laissé à la page : on dit comment le donner à la carte. Pour la
+  // molette, seulement quand le dashboard remplit l'écran — c'est là qu'on
+  // voulait zoomer ; à moitié visible, on traversait la page, rien à dire.
+  const gestures = useMemo<MapGestures>(
+    () => ({
+      held: () => heldNow.current,
+      refused: (gesture) => {
+        const r = board.current?.getBoundingClientRect();
+        if (gesture === 'wheel' && r && (r.top < -4 || r.bottom > window.innerHeight + 4)) return;
+        setRefusal({ gesture, on: true });
+        window.clearTimeout(refusalTimer.current);
+        refusalTimer.current = window.setTimeout(() => setRefusal((x) => ({ ...x, on: false })), REFUSAL_MS);
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
     const releaseAll = () => [...held.current].forEach((k) => press(k, false));
@@ -319,7 +365,10 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       }
       if (e.key === 'Escape') {
         if (shown) select(null);
-        else setArmed(false);
+        else {
+          setArmed(false);
+          setGrip(false);
+        }
         return;
       }
       const k = KEY_OF[e.key];
@@ -349,6 +398,12 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const n = (kind: string) => [...visible].filter((id) => ix.byId.get(id)?.kind === kind).length;
 
   const kindOfShown = shown ? ix.byId.get(shown)?.kind : null;
+  // Téléphone : la vue choisie se joue derrière le tiroir, et son voile
+  // retiendrait la page tant qu'on ne l'a pas touché. Le tiroir redescend.
+  const pickView = (v: View) => {
+    setView(v);
+    if (!wide) setSheet(null);
+  };
   const sections: MenuSection[] = [
     {
       id: 'view',
@@ -356,10 +411,10 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       label: t.view,
       body: (
         <Group label={t.view}>
-          <Choice on={current === 'map'} onClick={() => setView('map')}>
+          <Choice on={current === 'map'} onClick={() => pickView('map')}>
             {t.mapView}
           </Choice>
-          <Choice on={current === 'list'} onClick={() => setView('list')}>
+          <Choice on={current === 'list'} onClick={() => pickView('list')}>
             {t.listView}
           </Choice>
         </Group>
@@ -420,7 +475,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       icon: MessageSquareQuote,
       label: t.thesesFolder,
       lit: kindOfShown === 'thesis',
-      fold: { open: folder === 'theses', onToggle: () => toggleFolder('theses'), count: index.thesisCount },
+      count: index.thesisCount,
       body: (
         <div>
           {index.theses.map((g) => (
@@ -437,7 +492,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       icon: Cog,
       label: t.mechanismsFolder,
       lit: kindOfShown === 'mechanism',
-      fold: { open: folder === 'mechanisms', onToggle: () => toggleFolder('mechanisms'), count: index.mechanisms.length },
+      count: index.mechanisms.length,
       body: <FolderList items={index.mechanisms} isOn={(key) => key === shown} onChange={show} type="index" />,
     },
   ];
@@ -445,7 +500,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   return (
     // Le dashboard (2026-10-30, Alexandre) : d'un bord à l'autre de l'écran et,
     // dès 768 px, de la hauteur visible sous la barre de navigation.
-    <div className="flex flex-col gap-3 md:h-[calc(100dvh-4rem)] md:flex-row md:gap-0 md:border-y md:border-[var(--color-line)]">
+    <div ref={board} className="relative flex flex-col gap-3 md:h-[calc(100dvh-4rem)] md:flex-row md:gap-0 md:border-y md:border-[var(--color-line)]">
       <MapMenu
         open={menu}
         onOpen={toggleMenu}
@@ -483,15 +538,47 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       <section ref={stage} aria-label="Concept Map" className="min-w-0 md:flex-1" style={{ scrollMarginTop: 16 }}>
         <div className={cn(view === 'auto' ? 'hidden md:block' : current === 'map' ? 'block' : 'hidden', 'md:h-full')}>
           <p className="sr-only">{t.drawingNote}</p>
-          <div ref={frame} className="relative flex flex-col gap-6 md:h-full">
+          <div ref={frame} onPointerLeave={(e) => e.pointerType !== 'touch' && setGrip(false)} className="relative flex flex-col gap-6 md:h-full">
             {/* Le cadre et ce qui se pose dessus : les coins se mesurent au cadre seul,
                 pas au panneau qui passe dessous sur téléphone. Dès 768 px, il remplit
                 le dashboard ; ses filets sont ceux du dashboard. */}
             <div className="relative h-[clamp(420px,calc(100dvh-12rem),860px)] md:h-full">
               <div aria-hidden className="concept-stage absolute inset-0 overflow-hidden border-y border-[var(--color-line)] bg-[var(--color-bg)] md:border-y-0">
                 {current === 'map' && (
-                  <Graph ix={ix} visible={visible} selected={shown} center={center} inset={beside} sticky labels={labels} nav={nav} onSelect={(id) => select(id)} />
+                  <Graph
+                    ix={ix}
+                    visible={visible}
+                    selected={shown}
+                    center={center}
+                    inset={beside}
+                    sticky
+                    labels={labels}
+                    nav={nav}
+                    gestures={gestures}
+                    onSelect={(id) => select(id)}
+                  />
                 )}
+              </div>
+              {/* La carte tient la molette : un filet d'encre la cerne, on sait à qui parle le geste. */}
+              <div
+                aria-hidden
+                className={cn(
+                  'pointer-events-none absolute inset-0 shadow-[inset_0_0_0_1px_var(--color-fg-muted)] transition-opacity duration-200 motion-reduce:transition-none',
+                  grip ? 'opacity-100' : 'opacity-0',
+                )}
+              />
+              {/* L'avis d'un geste laissé à la page (la règle des cartes coopératives). */}
+              <div aria-hidden className="pointer-events-none absolute inset-0 flex items-center justify-center" style={{ paddingInline: 24 }}>
+                <p
+                  className={cn(
+                    MICRO_LABEL,
+                    'max-w-[360px] bg-[var(--color-fg)] text-center text-[var(--color-bg)] transition-opacity motion-reduce:transition-none',
+                    refusal.on ? 'opacity-100 duration-150 ease-out' : 'opacity-0 duration-300 ease-in',
+                  )}
+                  style={{ padding: '10px 14px' }}
+                >
+                  {refusal.gesture === 'touch' ? t.refusedTouch : t.refusedWheel(mod)}
+                </p>
               </div>
               {/* Rangée du haut. À gauche, l'indication de zoom puis « Désélectionner »
                   dessous, en colonne pour qu'une indication sur deux lignes (téléphone,
@@ -502,7 +589,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
                 <div className="flex min-w-0 flex-col items-start gap-2">
                   <p aria-hidden className={cn(MICRO_LABEL, 'font-medium text-[var(--color-fg)]')}>
                     <span className="md:hidden">{t.zoomTouch}</span>
-                    <span className="hidden md:inline">{t.zoomWheel}</span>
+                    <span className="hidden md:inline">{grip ? t.zoomHeld : t.zoomWheel}</span>
                   </p>
                   {shown && (
                     <button

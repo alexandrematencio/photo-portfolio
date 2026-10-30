@@ -51,8 +51,8 @@ const WHEEL_K = 0.0018;
 const PINCH_K = 0.012;
 /** Un évènement ne pèse jamais plus qu'un cran franc : une molette « libre » ne fait pas sauter la carte. */
 const WHEEL_CAP = 120;
-/** Le glissé vers la cible : 63 % du chemin en 90 ms, le reste en freinant. */
-const ZOOM_TAU = 90;
+/** Le glissé vers la cible : 63 % du chemin en 70 ms, le reste en freinant — sans jamais la dépasser. */
+const ZOOM_TAU = 70;
 /** Un cran du clavier ou du faux clavier. */
 const KEY_ZOOM = 1.35;
 /** Déplacement au clavier, en pixels d'écran par seconde, et le temps pour prendre (ou perdre) son allure. */
@@ -60,6 +60,8 @@ const PAN_SPEED = 620;
 const PAN_TAU = 110;
 const MIN_RATIO = 0.12;
 const MAX_RATIO = 1.6;
+
+export type MapGestures = { held: () => boolean; refused: (gesture: 'wheel' | 'touch') => void };
 
 const NODE_SIZE = { article: 13, thesis: 3.5 } as const;
 const EDGE_STYLE = {
@@ -79,6 +81,7 @@ export default function ConceptMapGraph({
   sticky = false,
   labels,
   nav,
+  gestures,
   onSelect,
 }: {
   ix: MapIndex;
@@ -102,6 +105,14 @@ export default function ConceptMapGraph({
   labels?: LabelReach;
   /** Rempli au montage : les commandes du clavier et du faux clavier passent par là. */
   nav?: MutableRefObject<MapNav | null>;
+  /**
+   * Carte COOPÉRATIVE (`/concept-map`, 2026-10-30, Alexandre) : la molette ne
+   * zoome qu'une fois la carte tenue (`held`) — ou avec ⌘/Ctrl, ou au
+   * pincement — et un doigt seul fait défiler la page. `refused` : un geste
+   * laissé à la page, pour qu'on dise comment s'en servir sur la carte. Sans
+   * elle (la petite carte d'un article), la carte prend tous les gestes.
+   */
+  gestures?: MapGestures;
   onSelect: (id: string | null) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -110,6 +121,8 @@ export default function ConceptMapGraph({
   const state = useRef({ visible, selected, hovered: null as string | null, shown: null as string | null, around: new Set<string>(), fade: 0, kept: new Set<string>(), reach: null as Record<LabelKind, number> | null, ratio: 1 });
   const select = useRef(onSelect);
   select.current = onSelect;
+  const gest = useRef(gestures);
+  gest.current = gestures;
 
   useEffect(() => {
     const container = box.current;
@@ -220,12 +233,77 @@ export default function ConceptMapGraph({
         z.raf = requestAnimationFrame(zoomStep);
       }
     };
-    renderer.getMouseCaptor().on('wheel', (c) => {
-      c.preventSigmaDefault();
-      const e = c.original as WheelEvent;
+    const local = (e: { clientX: number; clientY: number }) => {
+      const r = container.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+
+    // La molette est entièrement à nous, prise AVANT Sigma (capture). Sigma 3.0.3
+    // ne sait pas s'en abstenir : `preventSigmaDefault()` coche une copie de
+    // l'évènement (`getWheelCoords`), et son propre zoom (×1,7, animé 250 ms)
+    // courait en même temps que le nôtre. Sa course dépassait la cible, la
+    // nôtre y ramenait la caméra : le « rebond » (2026-10-30, Alexandre).
+    let pinchedAt = 0;
+    const onWheel = (e: WheelEvent) => {
+      e.stopPropagation();
       const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
-      zoomBy(Math.exp(Math.max(-WHEEL_CAP, Math.min(WHEEL_CAP, dy)) * (e.ctrlKey ? PINCH_K : WHEEL_K)), { x: c.x, y: c.y });
-    });
+      // Le pincement d'un pavé tactile arrive en molette, `ctrlKey` levé, à petits pas ; Ctrl + vraie molette, à grands pas.
+      const pinch = e.ctrlKey && e.deltaMode === 0 && Math.abs(dy) < 50;
+      // Carte coopérative : sans clic préalable ni ⌘/Ctrl, la molette fait défiler la page.
+      if (gest.current && !e.ctrlKey && !e.metaKey && !gest.current.held()) {
+        // En largeur, il n'y a rien à faire défiler : on coupe le glissé « page
+        // précédente », que `SwipeBackGuard` ne voit plus passer.
+        if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) e.preventDefault();
+        else gest.current.refused('wheel');
+        return;
+      }
+      e.preventDefault();
+      if (pinch) pinchedAt = performance.now();
+      zoomBy(Math.exp(Math.max(-WHEEL_CAP, Math.min(WHEEL_CAP, dy)) * (pinch ? PINCH_K : WHEEL_K)), local(e));
+    };
+    container.addEventListener('wheel', onWheel, { capture: true, passive: false });
+
+    // Safari ne donne pas le pincement du pavé en molette mais en `gesture*` —
+    // sans ça, il agrandissait la PAGE. Sur écran tactile, ce sont les doigts
+    // (Sigma) qui zooment : on ne compte pas deux fois.
+    type Gesture = Event & { scale: number; clientX: number; clientY: number };
+    let scale = 1;
+    let fingers = 0;
+    const onGesture = (e: Event) => {
+      e.preventDefault();
+      const g = e as Gesture;
+      if (e.type === 'gesturechange' && !fingers && performance.now() - pinchedAt > 200) zoomBy(scale / g.scale, local(g));
+      scale = e.type === 'gestureend' ? 1 : g.scale;
+    };
+    for (const type of ['gesturestart', 'gesturechange', 'gestureend']) container.addEventListener(type, onGesture, { passive: false });
+
+    // Toucher coopératif (la règle de Google Maps) : un doigt fait défiler la
+    // page, deux doigts déplacent et zooment la carte. Le doigt seul n'atteint
+    // pas Sigma, qui bloquerait le défilement dès qu'il touche l'écran ; un
+    // simple appui choisit toujours un point (le clic que le navigateur en tire).
+    const solo = { on: false, x: 0, y: 0, told: false };
+    const onTouch = (e: TouchEvent) => {
+      fingers = e.touches.length;
+      if (!gest.current) return;
+      if (e.type === 'touchstart') {
+        solo.on = e.touches.length === 1;
+        if (!solo.on) return;
+        e.stopPropagation();
+        Object.assign(solo, { x: e.touches[0].clientX, y: e.touches[0].clientY, told: false });
+        return;
+      }
+      if (!solo.on) return;
+      e.stopPropagation();
+      if (e.type !== 'touchmove' || solo.told) return;
+      const t = e.touches[0];
+      if (t && Math.hypot(t.clientX - solo.x, t.clientY - solo.y) > 12) {
+        solo.told = true;
+        gest.current.refused('touch');
+      }
+    };
+    for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) container.addEventListener(type, onTouch as EventListener, { capture: true, passive: true });
+    // Sigma interdit au navigateur tout geste sur la carte (`touch-action: none`) : on lui rend le défilement vertical.
+    if (gest.current) container.querySelectorAll('canvas').forEach((c) => (c.style.touchAction = 'pan-y'));
 
     // Le déplacement tenu : l'allure rejoint la direction demandée (départ qui accélère, arrêt qui freine).
     const p = { dir: { x: 0, y: 0 }, v: { x: 0, y: 0 }, raf: 0, last: 0 };
@@ -302,6 +380,9 @@ export default function ConceptMapGraph({
 
     return () => {
       resized.disconnect();
+      container.removeEventListener('wheel', onWheel, { capture: true });
+      for (const type of ['gesturestart', 'gesturechange', 'gestureend']) container.removeEventListener(type, onGesture);
+      for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) container.removeEventListener(type, onTouch as EventListener, { capture: true });
       cancelAnimationFrame(raf);
       cancelAnimationFrame(z.raf);
       cancelAnimationFrame(p.raf);
