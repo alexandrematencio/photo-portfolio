@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { LayoutProps } from 'sanity';
+import { StudioUpdateNotice } from './StudioUpdateNotice';
 
 /**
  * Habillage des en-têtes de colonnes de Structure (skill sanity-studio §11.22).
@@ -213,6 +214,7 @@ export function StudioLayout(props: LayoutProps) {
   return (
     <>
       <style>{STUDIO_CSS}</style>
+      <StudioUpdateNotice />
       {props.renderDefault(props)}
     </>
   );
