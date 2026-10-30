@@ -43,18 +43,43 @@ export const normalizeQuote = (s: string) =>
 export const blockText = (b: MapBlock) =>
   (b.children ?? []).filter((c) => c._type === 'span').map((c) => c.text ?? '').join('');
 
+/**
+ * Le texte d'un article pour la carte : le corps, puis la note sur l'IA
+ * (2026-10-30). Une borne les sépare : la note n'est sous aucun intertitre,
+ * et une thèse du corps ne la couvre pas.
+ */
+export const MAP_BODY_GROQ = `coalesce(body, []) + [{"_type": "aiNoteStart", "_key": "note-ia"}] + coalesce(aiNote, [])`;
+const NOTE_START: MapBlock = { _type: 'aiNoteStart', _key: 'note-ia' };
+const isNoteStart = (b: MapBlock) => b._type === NOTE_START._type;
+/** La même chose, côté Studio, à partir du document ouvert. */
+export const mapBody = (body: MapBlock[] | undefined, aiNote: MapBlock[] | undefined) => [...(body ?? []), NOTE_START, ...(aiNote ?? [])];
+
 const isParagraph = (b: MapBlock) => b._type === 'block' && (b.style ?? 'normal') === 'normal' && blockText(b).trim() !== '';
 const isSection = (b: MapBlock) => b._type === 'block' && b.style === 'h2';
 
-/** Les paragraphes d'un article dans l'ordre (ceux qui portent une ancre `#p-<clé>`), avec leur intertitre. */
+/**
+ * Les paragraphes d'un article dans l'ordre (ceux qui portent une ancre `#p-<clé>`),
+ * avec leur intertitre et leur région (0 le corps, 1 la note sur l'IA).
+ */
 export function mapParagraphs(body: MapBlock[] | undefined) {
-  const out: { key: string; text: string; section: string | null }[] = [];
+  const out: { key: string; text: string; section: string | null; region: number }[] = [];
   let section: string | null = null;
+  let region = 0;
   for (const b of body ?? []) {
-    if (isSection(b)) section = b._key;
-    else if (isParagraph(b)) out.push({ key: b._key, text: blockText(b), section });
+    if (isNoteStart(b)) {
+      section = null;
+      region++;
+    } else if (isSection(b)) section = b._key;
+    else if (isParagraph(b)) out.push({ key: b._key, text: blockText(b), section, region });
   }
   return out;
+}
+
+/** Fin de ce que couvre une thèse ancrée au paragraphe `i` : la thèse suivante, ou la fin de sa région. */
+export function coverEnd(paras: { region: number }[], i: number, laterStarts: number[]) {
+  const regionEnd = paras.findIndex((p, j) => j > i && p.region !== paras[i].region);
+  const limit = regionEnd === -1 ? paras.length : regionEnd;
+  return laterStarts.find((x) => x > i && x < limit) ?? limit;
 }
 
 export type AnchorStatus = 'ok' | 'moved' | 'reworded' | 'section' | 'article';
@@ -96,7 +121,7 @@ export function resolveArticleTheses<T extends StoredAnchor>(theses: T[], body: 
   const starts = resolved.map((r) => (r.target.kind === 'paragraph' ? index.get(r.target.key)! : -1));
   return theses.map((t, k) => {
     const i = starts[k];
-    const end = starts.slice(k + 1).find((x) => x > i) ?? paras.length;
+    const end = i >= 0 ? coverEnd(paras, i, starts.slice(k + 1)) : i;
     return { node: t, ...resolved[k], covers: i >= 0 ? paras.slice(i, end).map((p) => p.key) : [] };
   });
 }

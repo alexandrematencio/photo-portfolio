@@ -37,7 +37,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import Graph from 'graphology';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
-import { mapParagraphs, normalizeQuote as normalize, type MapBlock } from '../lib/journal/mapAnchors';
+import { coverEnd, MAP_BODY_GROQ, mapParagraphs, normalizeQuote as normalize, type MapBlock } from '../lib/journal/mapAnchors';
 import { JOURNAL_MAP_ID, JOURNAL_MAP_QUERY, type JournalMapDoc } from '../lib/journal/conceptMap';
 import { isPublic, readVault, str, target, VAULT, type Note } from './jev/vault';
 
@@ -89,7 +89,7 @@ async function main() {
   if (WRITE && !token) throw new Error('SANITY_API_WRITE_TOKEN manquant (.env.local) pour --write');
   const client = createClient({ projectId: 'yh5i5diw', dataset: 'production', apiVersion: '2026-01-01', useCdn: false, token, perspective: 'raw' });
   const posts = await client.fetch<Post[]>(
-    `*[_type == "post" && !defined(translationOf) && !(_id in path("drafts.**"))]{ "slug": slug.current, title, "body": coalesce(body, []) + coalesce(aiNote, []) }`,
+    `*[_type == "post" && !defined(translationOf) && !(_id in path("drafts.**"))]{ "slug": slug.current, title, "body": ${MAP_BODY_GROQ} }`,
   );
   const postBy = new Map(posts.map((p) => [p.slug, p]));
 
@@ -146,12 +146,11 @@ async function main() {
     // Ordre du texte : une thèse ancrée avant la précédente signale une citation mal choisie.
     anchors.forEach((i, k) => {
       const prev = anchors.slice(0, k).filter((x) => x >= 0).pop();
-      if (i >= 0 && prev !== undefined && i < prev) problems.push(`${list[k].file} : ancrée avant la thèse précédente (vérifier la citation)`);
+      if (i >= 0 && prev !== undefined && i < prev && paras[i].region === paras[prev].region) problems.push(`${list[k].file} : ancrée avant la thèse précédente (vérifier la citation)`);
     });
 
     list.forEach((t, k) => {
       const i = anchors[k];
-      const nextAnchor = anchors.slice(k + 1).find((x) => x > i) ?? paras.length;
       const id = `t:${slug}:${Number(t.meta.ordre)}`;
       nodes.push({
         id,
@@ -161,7 +160,7 @@ async function main() {
         order: Number(t.meta.ordre),
         quote: str(t.meta.citation),
         anchor: i >= 0 ? paras[i].key : null,
-        covers: i >= 0 ? paras.slice(i, nextAnchor).map((p) => p.key) : [],
+        covers: i >= 0 ? paras.slice(i, coverEnd(paras, i, anchors.slice(k + 1))).map((p) => p.key) : [],
         print: i >= 0 ? fingerprint(paras[i].text) : null,
         section: i >= 0 ? paras[i].section : null,
         x: 0,

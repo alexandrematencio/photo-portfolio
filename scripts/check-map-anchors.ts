@@ -19,7 +19,7 @@
 import { createClient } from '@sanity/client';
 import assert from 'node:assert/strict';
 import { reuseKeys, type KeyedBlock } from '../lib/journal/stableKeys';
-import { missingKeys, resolveAnchor, resolveArticleTheses, type MapBlock } from '../lib/journal/mapAnchors';
+import { MAP_BODY_GROQ, mapBody, missingKeys, resolveAnchor, resolveArticleTheses, type MapBlock } from '../lib/journal/mapAnchors';
 
 let passed = 0;
 const ok = (label: string, fn: () => void) => {
@@ -70,7 +70,7 @@ type Post = { _id: string; language?: string; slug?: string; src?: string; body?
 async function realPosts() {
   const client = createClient({ projectId: 'yh5i5diw', dataset: 'production', apiVersion: '2026-01-01', useCdn: false });
   const posts = await client.fetch<Post[]>(
-    `*[_type == "post" && !(_id in path("drafts.**"))]{ _id, language, "slug": slug.current, "src": translationOf._ref, "body": coalesce(body, []) + coalesce(aiNote, []) }`,
+    `*[_type == "post" && !(_id in path("drafts.**"))]{ _id, language, "slug": slug.current, "src": translationOf._ref, "body": ${MAP_BODY_GROQ} }`,
   );
   const fr = posts.filter((x) => !x.src);
   console.log(`\nDataset : ${fr.length} articles français, ${posts.length - fr.length} traductions`);
@@ -122,6 +122,14 @@ function guard() {
   ok('une thèse en dérive ne couvre rien, la précédente s’étend', () => {
     const r = resolveArticleTheses([t1, t2], b(p('a', 'Intro. Le chat chaud fait le chart chaud.'), p('c', 'Le reste suit.')));
     assert.deepEqual(r.map((x) => [x.status, x.covers]), [['ok', ['a', 'c']], ['article', []]]);
+  });
+  ok('la note sur l’IA est une région à part : pas d’intertitre, pas couverte par le corps', () => {
+    const withNote = [...b(p('a', 'Intro. Le chat chaud fait le chart chaud.'), h2('s1', 'Argent'), p('c', 'Le reste suit.')), ...mapBody([], b(p('b', 'Les commus paient déjà.')))];
+    const r = resolveArticleTheses([t1, t2], withNote);
+    assert.deepEqual(r.map((x) => x.covers), [['a', 'c'], ['b']]);
+    assert.equal(resolveAnchor({ ...t2, anchor: 'zz' }, withNote).status, 'moved');
+    const t3 = { quote: 'Le reste suit', anchor: 'c', section: 's1' };
+    assert.deepEqual(resolveArticleTheses([t1, t2, t3], withNote).map((x) => x.covers), [['a'], ['b'], ['c']]);
   });
   ok('clés absentes d’une traduction', () => assert.deepEqual(missingKeys(['a', 'b', 'b'], b(p('a', 'x'))), ['b']));
 }

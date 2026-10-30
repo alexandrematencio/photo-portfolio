@@ -3,7 +3,7 @@
  * les articles du moment. Pur : les appelants (build du site, `map:check`,
  * Studio) font leurs propres requêtes avec les GROQ ci-dessous.
  */
-import { DRIFT, missingKeys, resolveAnchor, resolveArticleTheses, type AnchorStatus, type MapBlock, type Resolved } from './mapAnchors';
+import { DRIFT, MAP_BODY_GROQ, missingKeys, resolveAnchor, resolveArticleTheses, type AnchorStatus, type MapBlock, type Resolved } from './mapAnchors';
 import type { StoredMapText } from './conceptMapI18n';
 
 export const JOURNAL_MAP_ID = 'journalMap';
@@ -47,8 +47,8 @@ export const JOURNAL_MAP_QUERY = `*[_id == "${JOURNAL_MAP_ID}"][0]{ exportedAt, 
  * (`aiNote`, 2026-10-30) : ses paragraphes portent aussi une ancre `#p-<clé>`.
  */
 export const MAP_POSTS_QUERY = `{
-  "fr": *[_type == "post" && !defined(translationOf) && !(_id in path("drafts.**"))]{ _id, title, "slug": slug.current, "body": coalesce(body, []) + coalesce(aiNote, []) },
-  "tr": *[_type == "post" && defined(translationOf) && !(_id in path("drafts.**"))]{ _id, language, "source": translationOf->slug.current, "body": coalesce(body, []) + coalesce(aiNote, []) }
+  "fr": *[_type == "post" && !defined(translationOf) && !(_id in path("drafts.**"))]{ _id, title, "slug": slug.current, "body": ${MAP_BODY_GROQ} },
+  "tr": *[_type == "post" && defined(translationOf) && !(_id in path("drafts.**"))]{ _id, language, "source": translationOf->slug.current, "body": ${MAP_BODY_GROQ} }
 }`;
 
 export type MapPosts = {
