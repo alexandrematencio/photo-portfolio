@@ -45,8 +45,12 @@ export type MenuSection = {
   body: ReactNode;
 };
 
-/** Ouvert : la colonne de filtres d'avant (220) plus l'icône et son retrait. */
-export const MENU_OPEN = 272;
+/**
+ * Ouvert : la verticale du titre de la page (`--map-menu-open`, cf. `.map-frame`
+ * dans globals.css) — 272 px, la colonne de filtres d'avant (220) plus l'icône
+ * et son retrait, là où le titre n'est pas calé par le rail.
+ */
+const MENU_OPEN = 'var(--map-menu-open, 272px)';
 const MENU_SHUT = 52;
 const ICON = 18;
 /** L'icône centrée dans la bande : elle ne bouge pas d'un pixel quand le menu se replie. */
@@ -150,7 +154,7 @@ export function MapMenu({
 
   const t = (ms: number, ease: string, delay = 0) => (motion ? `${ms}ms ${ease} ${delay}ms` : '0ms');
   const settingsOpen = tuning && !!settings;
-  const edge = open ? MENU_OPEN : MENU_SHUT;
+  const edge = open ? MENU_OPEN : `${MENU_SHUT}px`;
   const slide = open ? t(OPEN_MS, EASE_OUT) : t(CLOSE_MS, EASE_INOUT, FADE_MS / 2);
 
   return (
@@ -243,7 +247,7 @@ export function MapMenu({
         title={`${open ? labels.collapse : labels.expand} ( [ )`}
         onClick={() => onOpen(!open)}
         className="absolute top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-r-[6px] border border-l-0 border-[color-mix(in_srgb,var(--color-fg)_22%,transparent)] bg-[var(--color-bg-raised)] text-[var(--color-fg)] shadow-[2px_1px_6px_rgba(10,10,10,0.12)] hover:bg-[var(--color-bg-elev)] focus-visible:bg-[var(--color-bg-elev)] motion-reduce:!transition-none md:flex"
-        style={{ left: edge - 1, width: 24, height: 64, transition: `left ${slide}, background-color 200ms` }}
+        style={{ left: `calc(${edge} - 1px)`, width: 24, height: 64, transition: `left ${slide}, background-color 200ms` }}
       >
         {/* Encre pleine et trait appuyé (2026-10-30, Alexandre : « bien plus évident, sans être flashy »). */}
         {open ? <ChevronLeft aria-hidden size={18} strokeWidth={2.5} /> : <ChevronRight aria-hidden size={18} strokeWidth={2.5} />}
