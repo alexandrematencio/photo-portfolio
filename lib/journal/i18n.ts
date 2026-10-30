@@ -179,6 +179,8 @@ export type Dict = {
   /** Libellé du « + » de l'index, qui déplie le chapeau. */
   preview: string;
   referencesTitle: string;
+  /** Titre de l'encadré de fin sur l'usage de l'IA (`ArticleBody`). */
+  aiNoteTitle: string;
   backToCall: (n: string) => string;
   note: (n: string) => string;
   workshopNote: (n: string) => string;
@@ -418,6 +420,7 @@ export const DICT: Record<Lang, Dict> = {
     longRead: 'Long read',
     preview: 'Aperçu',
     referencesTitle: 'Références',
+    aiNoteTitle: 'Comment ce texte a été fait',
     backToCall: (n) => `Retour à l’appel de note ${n}`,
     note: (n) => `Note ${n}`,
     workshopNote: (n) => `Note d’atelier ${n}`,
@@ -665,6 +668,7 @@ export const DICT: Record<Lang, Dict> = {
     longRead: 'Long read',
     preview: 'Preview',
     referencesTitle: 'References',
+    aiNoteTitle: 'How this text was made',
     backToCall: (n) => `Back to note call ${n}`,
     note: (n) => `Note ${n}`,
     workshopNote: (n) => `Workshop note ${n}`,
@@ -913,6 +917,7 @@ export const DICT: Record<Lang, Dict> = {
     longRead: 'Лонгрид',
     preview: 'Анонс',
     referencesTitle: 'Источники',
+    aiNoteTitle: 'Как сделан этот текст',
     backToCall: (n) => `Вернуться к сноске ${n}`,
     note: (n) => `Сноска ${n}`,
     workshopNote: (n) => `Рабочая заметка ${n}`,

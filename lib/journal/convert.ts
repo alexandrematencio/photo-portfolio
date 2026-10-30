@@ -93,6 +93,7 @@ export type RawPost = {
   seriesId: string | null;
   part: number | null;
   referencesNote: string | null;
+  aiNote?: { _type: string; _key?: string; children?: PTChild[]; markDefs?: PTMarkDef[] }[] | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
   updatedAt?: string;
@@ -237,6 +238,7 @@ export function toArticle(raw: RawPost & { date: string; lang: Lang }, series: R
     part: raw.part ?? 0,
     tags: tagsIn(raw.tags, raw.lang),
     referencesNote: raw.referencesNote ?? undefined,
+    aiNote: (raw.aiNote ?? []).map((b) => ({ key: b._key, inline: inlineOf(b.children, b.markDefs) })).filter((p) => p.inline.length > 0),
     minutes: Math.max(1, Math.round(wordCount / WORDS_PER_MINUTE)),
     words: wordCount,
     updatedAt: raw.updatedAt,

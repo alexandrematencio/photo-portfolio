@@ -33,6 +33,7 @@ export const postsQuery = /* groq */ `
     // Une traduction porte les thématiques de son original.
     "tags": select(defined(translationOf) => translationOf->tags, tags)[]->{ "slug": slug.current, title, "color": color.hex, translations },
     referencesNote,
+    aiNote,
     seoTitle,
     seoDescription,
     // Une traduction montre la couverture de son original.
@@ -78,9 +79,9 @@ async function fetchCorpus(): Promise<Corpus> {
   // Un lien vers un article pointe sa version dans la langue de l'article qui
   // le cite, à défaut l'original. Un article non publié : lien retiré.
   for (const { article } of articles) {
-    for (const block of article.blocks) {
-      if (block.type !== 'p') continue;
-      for (const node of block.inline) {
+    const paragraphs = [...article.blocks.flatMap((b) => (b.type === 'p' ? [b.inline] : [])), ...article.aiNote.map((p) => p.inline)];
+    for (const inline of paragraphs) {
+      for (const node of inline) {
         if (node.t !== 'text' || !node.link || !('article' in node.link)) continue;
         const versions = groups.get(node.link.article) ?? [];
         const target = versions.find((v) => v.lang === article.lang) ?? versions.find((v) => v.lang === DEFAULT_LANG);

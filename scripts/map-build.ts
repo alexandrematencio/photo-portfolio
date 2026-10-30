@@ -89,7 +89,7 @@ async function main() {
   if (WRITE && !token) throw new Error('SANITY_API_WRITE_TOKEN manquant (.env.local) pour --write');
   const client = createClient({ projectId: 'yh5i5diw', dataset: 'production', apiVersion: '2026-01-01', useCdn: false, token, perspective: 'raw' });
   const posts = await client.fetch<Post[]>(
-    `*[_type == "post" && !defined(translationOf) && !(_id in path("drafts.**"))]{ "slug": slug.current, title, body }`,
+    `*[_type == "post" && !defined(translationOf) && !(_id in path("drafts.**"))]{ "slug": slug.current, title, "body": coalesce(body, []) + coalesce(aiNote, []) }`,
   );
   const postBy = new Map(posts.map((p) => [p.slug, p]));
 
