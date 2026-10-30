@@ -68,8 +68,12 @@ const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const EASE_IN = 'cubic-bezier(0.55, 0, 1, 0.45)';
 
 const OPEN_KEY = 'concept-map:sections';
-/** Dépliées au premier passage : les filtres. L'index (thèses, mécanismes) est long, il attend qu'on le demande. */
-const OPEN_DEFAULT = ['view', 'series', 'themes', 'structures'];
+/**
+ * Dépliées au premier passage (2026-10-30, Alexandre) : séries et thématiques,
+ * les deux filtres dont on se sert. La vue, les structures et l'index (thèses,
+ * mécanismes, longs) attendent qu'on les demande.
+ */
+const OPEN_DEFAULT = ['series', 'themes'];
 
 type Labels = { menu: string; collapse: string; expand: string; settings: string; close: string };
 
