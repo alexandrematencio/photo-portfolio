@@ -33,6 +33,10 @@ if (isBlog && process.env.NEXT_PUBLIC_BLOG_URL) {
 }
 // Source unique du basePath, partagée avec `lib/utils/asset.ts`.
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+// Empreinte du build, lue par le Studio pour savoir s'il est périmé
+// (`app/studio/version.json`, `StudioUpdateNotice`). Une seule par chargement
+// de la config : le bundle et le fichier portent la même.
+process.env.NEXT_PUBLIC_BUILD_STAMP ??= String(Date.now());
 
 const nextConfig: NextConfig = {
   ...(isProd ? { output: 'export' as const } : {}),
@@ -42,6 +46,7 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_SITE_ID: process.env.NEXT_PUBLIC_SITE_ID,
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+    NEXT_PUBLIC_BUILD_STAMP: process.env.NEXT_PUBLIC_BUILD_STAMP,
   },
   poweredByHeader: false,
   trailingSlash: true,

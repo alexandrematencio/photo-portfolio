@@ -41,8 +41,9 @@ export const ConceptMapBadge: DocumentBadgeComponent = (props) => {
 
   if (!issues.length) return null;
   return {
-    label: `Concept Map : ${issues.length} à reprendre`,
-    title: issues.map((i) => `${i.label} — ${STATUS_LABEL[i.status]}`).join('\n'),
+    // Le détail et la marche à suivre sont dans le résumé en tête du formulaire (`conceptMapDrift`).
+    label: `Concept Map : ${issues.length > 1 ? `${issues.length} citations perdues` : '1 citation perdue'}`,
+    title: [...issues.map((i) => `${i.label} — ${STATUS_LABEL[i.status]}`), 'Détail et solution : encadré jaune en tête du formulaire.'].join('\n'),
     color: 'warning',
   };
 };

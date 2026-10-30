@@ -3,6 +3,7 @@ import { createElement, type ReactNode } from 'react';
 import { defineArrayMember, defineField, defineType } from 'sanity';
 import { NoteRefInput } from '../inputs/NoteRefInput';
 import { assetWithinCap } from '../validation/assetWithinCap';
+import { conceptMapDrift } from '../validation/conceptMapDrift';
 import { editorialBlockType, editorialBodyDescription } from './pageFields';
 import type { FigureName } from '@/lib/journal/types';
 
@@ -480,7 +481,10 @@ const journalLink = defineArrayMember({
       title: 'Ou adresse',
       description: 'Une adresse extérieure, ou « #note-ia » pour renvoyer à la note sur l’IA en fin d’article.',
       type: 'url',
-      validation: (Rule) => Rule.uri({ scheme: ['http', 'https', 'mailto'], allowRelative: true }),
+      validation: (Rule) =>
+        Rule.uri({ scheme: ['http', 'https', 'mailto'], allowRelative: true }).error(
+          'Adresse non reconnue. Mettre une adresse complète (https://…), ou « #note-ia » pour renvoyer à la note sur l’IA.',
+        ),
     }),
   ],
   validation: (Rule) =>
@@ -654,7 +658,7 @@ export const post = defineType({
         defineArrayMember({ type: 'journalVerdicts' }),
         defineArrayMember({ type: 'journalDraftBlock' }),
       ],
-      validation: (Rule) => Rule.required(),
+      validation: (Rule) => [Rule.required(), Rule.custom(conceptMapDrift).warning()],
     }),
     // La note sur l'IA (2026-10-30) : hors du corps, pour qu'elle tombe
     // toujours au même endroit — l'encadré de fin, avant la signature.
