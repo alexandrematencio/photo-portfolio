@@ -10,12 +10,12 @@ import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import { DICT } from '@/lib/journal/i18n';
 import type { MapView } from '@/lib/journal/conceptMapData';
-import { HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, NO_FILTER, visibleIds, type Filters, type LabelKind, type LabelReach, type MapNav } from './model';
+import { HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, neighbourhood, NO_FILTER, visibleIds, type Filters, type LabelKind, type LabelReach, type MapNav } from './model';
 import { MapPanel } from './MapPanel';
 import { KEY_OF, MapHelp, MapKeys, type NavKey } from './MapControls';
 import { MapList } from './MapList';
 import { CLOSE_MS, MapMenu, SHEET_OUT, type MenuSection } from './MapMenu';
-import type { MapGestures } from './ConceptMapGraph';
+import type { MapGestures, MapPreview } from './ConceptMapGraph';
 
 /**
  * La page `/concept-map` côté navigateur, en dashboard (2026-10-30,
@@ -56,6 +56,13 @@ import type { MapGestures } from './ConceptMapGraph';
  * l'index complet de la carte, repliés au départ comme toute catégorie qu'on
  * n'a pas dépliée. Elles suivent les filtres ; une entrée allume son nœud sur la carte,
  * puis le menu se replie et la carte, élargie, le recadre.
+ *
+ * Aperçu et cadrage (2026-10-30, Alexandre) : survoler une entrée du menu —
+ * série, thématique, structure, thèse, mécanisme — allume son système à moitié
+ * sur la carte ; le clic achève l'estompage, puis la caméra cadre ce système
+ * au plus près (noms compris). Un nœud choisi sur la carte, voilé ou non, est
+ * cadré de même. Si le dashboard dépasse de l'écran, la page glisse d'abord
+ * pour le centrer.
  */
 
 const Graph = dynamic(() => import('./ConceptMapGraph'), { ssr: false });
@@ -68,12 +75,16 @@ const PANEL_WIDTH = 360;
 
 type View = 'auto' | 'map' | 'list';
 
-function Choice({ on, onClick, children }: { on: boolean; onClick: () => void; children: ReactNode }) {
+function Choice({ on, onClick, onPreview, children }: { on: boolean; onClick: () => void; onPreview?: (on: boolean) => void; children: ReactNode }) {
   return (
     <button
       type="button"
       aria-pressed={on}
       onClick={onClick}
+      onPointerEnter={onPreview && ((e) => e.pointerType !== 'touch' && onPreview(true))}
+      onPointerLeave={onPreview && (() => onPreview(false))}
+      onFocus={onPreview && (() => onPreview(true))}
+      onBlur={onPreview && (() => onPreview(false))}
       className={cn(
         MICRO_LABEL,
         'flex items-center gap-[8px] text-left transition-colors duration-200 motion-reduce:transition-none',
@@ -97,6 +108,8 @@ function Group({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const MENU_KEY = 'concept-map:menu';
+/** Le dashboard recentré dans l'écran : un glissé court, qui ne fait pas attendre la carte. */
+const GLIDE_MS = 380;
 /** Le nœud s'allume, on le voit, PUIS le menu part : une chose bouge à la fois. */
 const COLLAPSE_AFTER = 150;
 
@@ -149,7 +162,8 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const [filters, setFilters] = useState<Filters>(NO_FILTER);
   const [selected, setSelected] = useState<string | null>(null);
   const [panel, setPanel] = useState(true);
-  const [center, setCenter] = useState(0);
+  const [fit, setFit] = useState(0);
+  const [preview, setPreview] = useState<MapPreview>(null);
   const [view, setView] = useState<View>('auto');
   const [wide, setWide] = useState<boolean | null>(null);
   const [labels, setLabels] = useState<LabelReach>(LABEL_DEFAULT);
@@ -184,7 +198,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     const fromHash = readHash();
     if (fromHash && ix.byId.has(fromHash)) {
       setSelected(fromHash);
-      setCenter((c) => c + 1);
+      setFit((c) => c + 1);
     }
     return () => mq.removeEventListener('change', sync);
   }, [ix]);
@@ -221,7 +235,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const select = useCallback((id: string | null, recenter = false) => {
     setSelected(id);
     setPanel(true);
-    if (recenter) setCenter((c) => c + 1);
+    if (recenter) setFit((c) => c + 1);
     const url = new URL(window.location.href);
     url.hash = id ? `${HASH_KEY}=${encodeURIComponent(id)}` : '';
     history.replaceState(history.state, '', url);
@@ -258,6 +272,46 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     return { theses, mechanisms, thesisCount: theses.reduce((k, g) => k + g.items.length, 0) };
   }, [data, ix, visible]);
   const stage = useRef<HTMLElement>(null);
+  // Le dashboard dépasse de l'écran (on est encore sous le titre, ou plus bas) :
+  // la page glisse pour le centrer, en même temps que la carte s'anime. Le
+  // journal défile dans un conteneur sous la barre de navigation (`FramedScroll`).
+  const glide = useRef(0);
+  const centerBoard = () => {
+    const r = board.current?.getBoundingClientRect();
+    const scroller = board.current?.closest<HTMLElement>('[data-scroll-container]') ?? (document.scrollingElement as HTMLElement | null);
+    if (!r || !scroller || !wide) return;
+    const box = scroller === document.scrollingElement ? { top: 0, height: window.innerHeight } : scroller.getBoundingClientRect();
+    if (r.top >= box.top - 4 && r.bottom <= box.top + box.height + 4) return;
+    const from = scroller.scrollTop;
+    const to = from + r.top - box.top - Math.max(0, (box.height - r.height) / 2);
+    cancelAnimationFrame(glide.current);
+    if (!window.matchMedia('(prefers-reduced-motion: no-preference)').matches) return void (scroller.scrollTop = to);
+    const start = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / GLIDE_MS);
+      const k = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
+      scroller.scrollTop = from + (to - from) * k;
+      if (t < 1) glide.current = requestAnimationFrame(step);
+    };
+    glide.current = requestAnimationFrame(step);
+  };
+  useEffect(() => () => cancelAnimationFrame(glide.current), []);
+  // Le menu replié ou la liste affichée : plus rien n'est survolé.
+  useEffect(() => {
+    if (!menu || current !== 'map') setPreview(null);
+  }, [menu, current]);
+
+  // Un filtre choisi : la carte cadre ce qui reste (ou le nœud choisi, s'il reste).
+  const filterBy = <K extends keyof Filters>(key: K, value: Filters[K]) => {
+    toggle(key, value);
+    if (current !== 'map') return;
+    centerBoard();
+    setFit((c) => c + 1);
+  };
+  const previewFilter = <K extends keyof Filters>(key: K, value: Filters[K]) => (on: boolean) =>
+    setPreview(on && wide && current === 'map' ? { key: `${key}:${value}`, ids: visibleIds(ix, { ...filters, [key]: value }) } : null);
+  const previewNode = (id: string | null) => setPreview(id && wide && current === 'map' ? { key: id, ids: neighbourhood(ix, id) } : null);
+
   const show = (id: string) => {
     if (current === 'list') setView('map');
     const next = id === shown && panel ? null : id;
@@ -272,18 +326,19 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       later.current.push(window.setTimeout(() => stage.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' }), smooth ? SHEET_OUT : 0));
       return;
     }
-    if (!next || !menu) return select(next, true);
+    if (next) centerBoard();
+    if (!next || !menu) return select(next, !!next);
     // Le nœud s'allume tout de suite ; le menu se replie ensuite, et la carte
-    // ne le recadre qu'une fois élargie (avant, la cible glisserait sous la caméra).
+    // ne le cadre qu'une fois élargie (avant, la cible glisserait sous la caméra).
     select(next);
     if (!smooth) {
       setMenu(false);
-      later.current.push(window.setTimeout(() => setCenter((c) => c + 1), 50));
+      later.current.push(window.setTimeout(() => setFit((c) => c + 1), 50));
       return;
     }
     later.current.push(
       window.setTimeout(() => setMenu(false), COLLAPSE_AFTER),
-      window.setTimeout(() => setCenter((c) => c + 1), COLLAPSE_AFTER + CLOSE_MS + 100),
+      window.setTimeout(() => setFit((c) => c + 1), COLLAPSE_AFTER + CLOSE_MS + 100),
     );
   };
 
@@ -428,7 +483,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       body: (
         <Group label={t.series}>
           {data.series.map((s) => (
-            <Choice key={s.title} on={filters.series === s.title} onClick={() => toggle('series', s.title)}>
+            <Choice key={s.title} on={filters.series === s.title} onClick={() => filterBy('series', s.title)} onPreview={previewFilter('series', s.title)}>
               <span>
                 {s.title} <span className="font-normal">({counts.series.get(s.title)})</span>
               </span>
@@ -445,7 +500,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       body: (
         <Group label={t.themes}>
           {data.themes.map((t) => (
-            <Choice key={t.title} on={filters.theme === t.title} onClick={() => toggle('theme', t.title)}>
+            <Choice key={t.title} on={filters.theme === t.title} onClick={() => filterBy('theme', t.title)} onPreview={previewFilter('theme', t.title)}>
               <TagSwatch color={t.color} />
               <span>
                 {t.title} <span className="font-normal">({counts.themes.get(t.title)})</span>
@@ -462,7 +517,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       lit: filters.common,
       body: (
         <Group label={t.structures}>
-          <Choice on={filters.common} onClick={() => toggle('common', true)}>
+          <Choice on={filters.common} onClick={() => filterBy('common', true)} onPreview={previewFilter('common', true)}>
             <span>
               {t.common} <span className="font-normal">({counts.common})</span>
             </span>
@@ -481,7 +536,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
           {index.theses.map((g) => (
             <div key={g.article.id}>
               <ArticleHeading>{g.article.label}</ArticleHeading>
-              <FolderList items={g.items} isOn={(key) => key === shown} onChange={show} type="index" />
+              <FolderList items={g.items} isOn={(key) => key === shown} onChange={show} onPreview={previewNode} type="index" />
             </div>
           ))}
         </div>
@@ -493,7 +548,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       label: t.mechanismsFolder,
       lit: kindOfShown === 'mechanism',
       count: index.mechanisms.length,
-      body: <FolderList items={index.mechanisms} isOn={(key) => key === shown} onChange={show} type="index" />,
+      body: <FolderList items={index.mechanisms} isOn={(key) => key === shown} onChange={show} onPreview={previewNode} type="index" />,
     },
   ];
 
@@ -549,13 +604,14 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
                     ix={ix}
                     visible={visible}
                     selected={shown}
-                    center={center}
+                    fit={fit}
+                    preview={preview}
                     inset={beside}
                     sticky
                     labels={labels}
                     nav={nav}
                     gestures={gestures}
-                    onSelect={(id) => select(id)}
+                    onSelect={(id) => select(id, !!id)}
                   />
                 )}
               </div>
