@@ -597,7 +597,7 @@ export const DICT: Record<Lang, Dict> = {
       helpKeysArm: 'Un clic sur la carte, dans le menu de gauche ou sur le petit clavier en bas à droite donne la main aux touches : son voyant s’allume. Un clic ailleurs la rend à la page.',
       helpKeys: [
         ['← ↑ → ↓', 'déplacer (en maintenant)'],
-        ['+ −', 'zoomer, dézoomer'],
+        ['+ −', 'zoomer, dézoomer (aussi avec ⌘ ou Ctrl)'],
         ['0', 'recadrer toute la carte'],
         ['Échap', 'désélectionner, puis rendre la main'],
         ['?', 'ouvrir ou fermer cette aide'],
@@ -836,7 +836,7 @@ export const DICT: Record<Lang, Dict> = {
       helpKeysArm: 'A click on the map, in the left menu or on the small keyboard at the bottom right hands control to the keys: its light comes on. A click elsewhere gives it back to the page.',
       helpKeys: [
         ['← ↑ → ↓', 'move (hold)'],
-        ['+ −', 'zoom in, zoom out'],
+        ['+ −', 'zoom in, zoom out (also with ⌘ or Ctrl)'],
         ['0', 'fit the whole map'],
         ['Esc', 'clear the selection, then release'],
         ['?', 'open or close this help'],
@@ -1081,7 +1081,7 @@ export const DICT: Record<Lang, Dict> = {
       helpKeysArm: 'Клик по карте, в левом меню или по маленькой клавиатуре внизу справа передаёт управление клавишам: загорается индикатор. Клик в другом месте возвращает его странице.',
       helpKeys: [
         ['← ↑ → ↓', 'двигать (удерживая)'],
-        ['+ −', 'приблизить, отдалить'],
+        ['+ −', 'приблизить, отдалить (также с ⌘ или Ctrl)'],
         ['0', 'показать всю карту'],
         ['Esc', 'снять выделение, затем отпустить'],
         ['?', 'открыть или закрыть справку'],
