@@ -14,7 +14,7 @@ import { HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, neighbourhood
 import { MapPanel } from './MapPanel';
 import { KEY_OF, MapHelp, MapKeys, type NavKey } from './MapControls';
 import { MapList } from './MapList';
-import { CLOSE_MS, MapMenu, SHEET_OUT, type MenuSection } from './MapMenu';
+import { CLOSE_MS, MapMenu, SHEET_OUT, type MenuFocus, type MenuSection } from './MapMenu';
 import type { MapGestures, MapPreview } from './ConceptMapGraph';
 
 /**
@@ -175,6 +175,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const [help, setHelp] = useState(false);
   const [menu, setMenu] = useState(true);
   const [sheet, setSheet] = useState<string | null>(null);
+  const [menuFocus, setMenuFocus] = useState<MenuFocus | null>(null);
   const later = useRef<number[]>([]);
   const [armed, setArmed] = useState(false);
   // La carte TIENT la molette (2026-10-30, Alexandre : la page ne défilait plus) :
@@ -581,6 +582,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
         onSheet={setSheet}
         sections={sections}
         asideRef={aside}
+        focus={menuFocus}
         labels={{ menu: t.filters, title: t.menuTitle, collapse: t.menuCollapse, expand: t.menuExpand, settings: t.settings, close: t.close }}
         counts={
           <>
@@ -629,7 +631,11 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
                     labels={labels}
                     nav={nav}
                     gestures={gestures}
-                    onSelect={(id) => select(id, !!id)}
+                    onSelect={(id) => {
+                      select(id, !!id);
+                      // Une thèse choisie sur la carte se retrouve dans le menu (2026-10-30, Alexandre).
+                      if (id && ix.byId.get(id)?.kind === 'thesis') setMenuFocus({ section: 'theses', key: id, at: Date.now() });
+                    }}
                   />
                 )}
               </div>

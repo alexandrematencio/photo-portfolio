@@ -33,6 +33,8 @@ import { cn } from '@/lib/utils/cn';
  * (pas d'`overscroll-behavior: contain`) : on sort du menu sans lâcher le geste.
  *
  * Un clic sur une icône de la bande rouvre le menu À cette catégorie, dépliée.
+ * Une thèse choisie sur la carte (`focus`) déplie sa catégorie au besoin, puis
+ * la liste glisse pour la poser vers le milieu de la colonne visible.
  * Le menu se replie de lui-même quand une thèse ou un mécanisme choisi dans la
  * liste s'allume sur la carte — c'est `ConceptMapExplorer` qui le décide.
  */
@@ -78,6 +80,9 @@ const OPEN_KEY = 'concept-map:sections';
  */
 const OPEN_DEFAULT = ['series', 'themes'];
 
+/** Une entrée à montrer dans le menu ; `at` distingue deux demandes de suite pour la même. */
+export type MenuFocus = { section: string; key: string; at: number };
+
 type Labels = { menu: string; title: string; collapse: string; expand: string; settings: string; close: string };
 
 export function MapMenu({
@@ -90,6 +95,7 @@ export function MapMenu({
   settings,
   labels,
   asideRef,
+  focus,
 }: {
   open: boolean;
   onOpen: (open: boolean) => void;
@@ -103,11 +109,14 @@ export function MapMenu({
   settings: ReactNode | null;
   labels: Labels;
   asideRef: Ref<HTMLElement>;
+  /** Une entrée choisie ailleurs que dans le menu, à y montrer. */
+  focus?: MenuFocus | null;
 }) {
   const [tuning, setTuning] = useState(false);
   const [target, setTarget] = useState<string | null>(null);
   const [unrolled, setUnrolled] = useState<ReadonlySet<string>>(() => new Set(OPEN_DEFAULT));
   const full = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLDivElement>(null);
   const head = useRef<HTMLDivElement>(null);
   // La bande garde une cale de la hauteur de l'en-tête : ses icônes restent en face de leurs catégories.
   const [headHeight, setHeadHeight] = useState(0);
@@ -161,6 +170,31 @@ export function MapMenu({
     return () => window.clearTimeout(id);
   }, [open, target]);
 
+  // L'entrée choisie sur la carte : sa catégorie se déplie d'abord (on attend
+  // qu'elle ait fini), puis la liste glisse pour la poser vers le milieu de ce
+  // qu'on voit de la colonne — la colonne peut dépasser de l'écran.
+  const unrolledNow = useRef(unrolled);
+  unrolledNow.current = unrolled;
+  useEffect(() => {
+    if (!focus || !open) return;
+    const box = list.current;
+    if (!box || !box.clientHeight) return;
+    const wait = unrolledNow.current.has(focus.section) ? 0 : FOLDER_MS;
+    roll(focus.section, true);
+    const id = window.setTimeout(() => {
+      const el = box.querySelector<HTMLElement>(`[data-section="${focus.section}"] [data-key="${CSS.escape(focus.key)}"]`);
+      if (!el) return;
+      const r = box.getBoundingClientRect();
+      const top = Math.max(r.top, 0);
+      const bottom = Math.min(r.bottom, window.innerHeight);
+      const e = el.getBoundingClientRect();
+      const smooth = window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
+      box.scrollTo({ top: box.scrollTop + e.top - (top + bottom) / 2 + e.height / 2, behavior: smooth ? 'smooth' : 'auto' });
+    }, wait);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seule une nouvelle demande déclenche le glissé
+  }, [focus]);
+
   const reveal = (id: string) => {
     if (id === 'settings') setTuning(true);
     else roll(id, true);
@@ -193,7 +227,7 @@ export function MapMenu({
             <p className={cn(MICRO_LABEL, 'text-[var(--color-fg)]')}>{labels.title}</p>
             {counts}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div ref={list} className="min-h-0 flex-1 overflow-y-auto">
             {settings && (
               <Section
                 section={{ id: 'settings', icon: SlidersHorizontal, label: labels.settings, body: settings }}

@@ -242,7 +242,7 @@ export function FolderList({
     <>
       <ul className="flex flex-col" style={{ paddingBottom: 10 }}>
         {items.map((f, i) => (
-          <li key={f.key} className="relative" style={{ paddingLeft: TREE_INDENT }}>
+          <li key={f.key} data-key={f.key} className="relative" style={{ paddingLeft: TREE_INDENT }}>
             <Branch y={branchY(type)} last={i === items.length - 1} />
             <LsEntry filter={f} on={isOn(f.key)} onChange={onChange} type={type} onPreview={onPreview} />
           </li>
