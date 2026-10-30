@@ -36,8 +36,8 @@ import type { MapGestures, MapPreview } from './ConceptMapGraph';
  * « Désélectionner », ou en cliquant hors de son voisinage (`sticky`).
  *
  * Commandes (2026-10-30, Alexandre) : « Aide ? » en haut à droite du cadre,
- * le faux clavier en bas à droite, et « Réglages » au pied du menu — un module
- * à part, pas une catégorie — qui règle à quelle distance chaque rang affiche
+ * le faux clavier en bas à droite, et « Réglages » en tête du menu, sous son
+ * en-tête et avant les catégories, qui règle à quelle distance chaque rang affiche
  * ses noms (mémorisé dans ce navigateur). Un clic dans la carte, dans le menu
  * ou sur le faux clavier « arme » la carte : les flèches, + − 0, [ et Échap la
  * pilotent au lieu de faire défiler la page, jusqu'au prochain clic ailleurs.
@@ -576,7 +576,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
         onSheet={setSheet}
         sections={sections}
         asideRef={aside}
-        labels={{ menu: t.filters, collapse: t.menuCollapse, expand: t.menuExpand, settings: t.settings, close: t.close }}
+        labels={{ menu: t.filters, title: t.menuTitle, collapse: t.menuCollapse, expand: t.menuExpand, settings: t.settings, close: t.close }}
         counts={
           <>
             <p aria-live="polite" className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>

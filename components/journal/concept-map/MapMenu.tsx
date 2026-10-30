@@ -20,9 +20,12 @@ import { cn } from '@/lib/utils/cn';
  * - le repli se commande par une languette posée sur le bord du menu, à
  *   mi-hauteur — la poignée de panneau de Google Maps : on la trouve sans la
  *   chercher, et elle ne partage sa ligne avec rien ;
- * - au pied, un bloc à part, un ton plus bas encore : les compteurs, « Tout
- *   montrer », puis « Réglages », seul sur sa ligne, qui déplie ses
- *   glissières vers le haut ;
+ * - en tête, un bloc fixe un ton plus bas : ce que fait la barre (« Explorer
+ *   la carte »), les compteurs, « Tout montrer » — l'en-tête des panneaux de
+ *   filtres. Dessous, « Réglages » ouvre la liste, fermé, séparé des
+ *   catégories par un filet plus appuyé : les glissières règlent ce qu'on voit,
+ *   elles vont avec les filtres (le panneau du graphe d'Obsidian). Au pied, le
+ *   menu était passé inaperçu (2026-10-30, Alexandre) ;
  * - sur téléphone, pas de colonne : une rangée d'icônes au-dessus de la carte,
  *   chacune ouvre sa catégorie dans un tiroir qui monte du bas.
  *
@@ -75,7 +78,7 @@ const OPEN_KEY = 'concept-map:sections';
  */
 const OPEN_DEFAULT = ['series', 'themes'];
 
-type Labels = { menu: string; collapse: string; expand: string; settings: string; close: string };
+type Labels = { menu: string; title: string; collapse: string; expand: string; settings: string; close: string };
 
 export function MapMenu({
   open,
@@ -105,7 +108,16 @@ export function MapMenu({
   const [target, setTarget] = useState<string | null>(null);
   const [unrolled, setUnrolled] = useState<ReadonlySet<string>>(() => new Set(OPEN_DEFAULT));
   const full = useRef<HTMLDivElement>(null);
-  const tuneId = useId();
+  const head = useRef<HTMLDivElement>(null);
+  // La bande garde une cale de la hauteur de l'en-tête : ses icônes restent en face de leurs catégories.
+  const [headHeight, setHeadHeight] = useState(0);
+  useEffect(() => {
+    const el = head.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setHeadHeight(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const asideId = useId();
 
   useEffect(() => {
@@ -177,49 +189,22 @@ export function MapMenu({
           className="absolute inset-y-0 left-0 flex flex-col motion-reduce:!transition-none"
           style={{ width: MENU_OPEN, opacity: open ? 1 : 0, transition: `opacity ${open ? t(160, EASE_OUT, OPEN_MS / 2) : t(FADE_MS, EASE_IN)}` }}
         >
+          <div ref={head} className="flex flex-col gap-2 border-b border-[var(--color-line)] bg-[var(--color-bg-elev)]" style={{ padding: `16px 16px 14px ${PAD_LEFT}px` }}>
+            <p className={cn(MICRO_LABEL, 'text-[var(--color-fg)]')}>{labels.title}</p>
+            {counts}
+          </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
+            {settings && (
+              <Section
+                section={{ id: 'settings', icon: SlidersHorizontal, label: labels.settings, body: settings }}
+                open={settingsOpen}
+                onToggle={() => setTuning((v) => !v)}
+                apart
+              />
+            )}
             {sections.map((s) => (
               <Section key={s.id} section={s} open={unrolled.has(s.id)} onToggle={() => roll(s.id, !unrolled.has(s.id))} />
             ))}
-          </div>
-          <div className="flex flex-col border-t border-[var(--color-line)] bg-[var(--color-bg-elev)]">
-            <div className="flex flex-col gap-2" style={{ padding: `14px 16px 14px ${PAD_LEFT + INDENT}px` }}>
-              {counts}
-            </div>
-            {settings && (
-              <>
-                <div
-                  id={tuneId}
-                  inert={!settingsOpen}
-                  className="grid transition-[grid-template-rows] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
-                  style={{ gridTemplateRows: settingsOpen ? '1fr' : '0fr', transitionDuration: `${FOLDER_MS}ms` }}
-                >
-                  <div className="min-h-0 overflow-hidden">
-                    <div data-section="settings" className="border-t border-[var(--color-line)]" style={{ padding: `14px 16px 4px ${PAD_LEFT + INDENT}px` }}>
-                      {settings}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  aria-expanded={settingsOpen}
-                  aria-controls={tuneId}
-                  onClick={() => setTuning((v) => !v)}
-                  className={cn(
-                    MICRO_LABEL,
-                    'flex w-full items-center gap-[10px] border-t border-[var(--color-line)] text-left transition-colors duration-200 motion-reduce:transition-none',
-                    settingsOpen ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
-                  )}
-                  style={{ height: 46, paddingLeft: PAD_LEFT, paddingRight: 16 }}
-                >
-                  <SlidersHorizontal aria-hidden size={ICON} strokeWidth={1.75} className="flex-none" />
-                  {labels.settings}
-                  <span aria-hidden className="flex-1" />
-                  {/* Les glissières montent : le chevron pointe vers elles. */}
-                  <Chevron turned={settingsOpen ? 90 : -90} />
-                </button>
-              </>
-            )}
           </div>
         </div>
 
@@ -229,16 +214,13 @@ export function MapMenu({
           className="absolute inset-y-0 left-0 flex flex-col motion-reduce:!transition-none"
           style={{ width: MENU_SHUT, opacity: open ? 0 : 1, transition: `opacity ${open ? t(80, EASE_IN) : t(140, EASE_OUT, CLOSE_MS)}` }}
         >
+          <div aria-hidden className="flex-none border-b border-[var(--color-line)] bg-[var(--color-bg-elev)]" style={{ height: headHeight }} />
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+            {settings && <StripButton icon={SlidersHorizontal} label={labels.settings} onClick={() => reveal('settings')} apart />}
             {sections.map((s) => (
               <StripButton key={s.id} icon={s.icon} label={s.label} lit={s.lit} onClick={() => reveal(s.id)} />
             ))}
           </div>
-          {settings && (
-            <div className="border-t border-[var(--color-line)] bg-[var(--color-bg-elev)]">
-              <StripButton icon={SlidersHorizontal} label={labels.settings} onClick={() => reveal('settings')} />
-            </div>
-          )}
         </div>
       </aside>
 
@@ -282,11 +264,14 @@ function Chevron({ turned }: { turned: number }) {
   );
 }
 
-function Section({ section: s, open, onToggle }: { section: MenuSection; open: boolean; onToggle: () => void }) {
+/** Le filet qui sépare « Réglages » des catégories : appuyé, celui de la languette. */
+const APART = 'border-b-[color-mix(in_srgb,var(--color-fg)_22%,transparent)]';
+
+function Section({ section: s, open, onToggle, apart = false }: { section: MenuSection; open: boolean; onToggle: () => void; apart?: boolean }) {
   const Icon = s.icon;
   const bodyId = useId();
   return (
-    <section data-section={s.id} aria-label={s.label} className="border-b border-[var(--color-line)]">
+    <section data-section={s.id} aria-label={s.label} className={cn('border-b border-[var(--color-line)]', apart && APART)}>
       <button
         type="button"
         aria-expanded={open}
@@ -320,14 +305,29 @@ function Section({ section: s, open, onToggle }: { section: MenuSection; open: b
   );
 }
 
-function StripButton({ icon: Icon, label, lit = false, onClick }: { icon: LucideIcon; label: string; lit?: boolean; onClick: () => void }) {
+function StripButton({
+  icon: Icon,
+  label,
+  lit = false,
+  apart = false,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  lit?: boolean;
+  apart?: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="relative flex w-full flex-none items-center justify-center border-b border-[var(--color-line)] text-[var(--color-fg-muted)] transition-colors duration-200 last:border-b-0 hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)] motion-reduce:transition-none"
+      className={cn(
+        'relative flex w-full flex-none items-center justify-center border-b border-[var(--color-line)] text-[var(--color-fg-muted)] transition-colors duration-200 last:border-b-0 hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)] motion-reduce:transition-none',
+        apart && APART,
+      )}
       style={{ height: 46 }}
     >
       <Icon aria-hidden size={ICON} strokeWidth={1.75} />
@@ -373,8 +373,8 @@ function PhoneBar({
   }, [sheet, onSheet]);
 
   const items = [
-    ...sections.map((s) => ({ id: s.id, icon: s.icon, label: s.label, lit: s.lit, body: s.body })),
     ...(settings ? [{ id: 'settings', icon: SlidersHorizontal, label: labels.settings, lit: false, body: settings }] : []),
+    ...sections.map((s) => ({ id: s.id, icon: s.icon, label: s.label, lit: s.lit, body: s.body })),
   ];
   const current = items.find((i) => i.id === shown);
   const up = !!sheet && !!current;
