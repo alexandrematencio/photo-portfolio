@@ -25,6 +25,10 @@ import { MapList } from './MapList';
  * La sélection vit dans l'adresse (`#n=<id>`) : elle se partage, et le retour
  * arrière depuis un passage retrouve le nœud ouvert.
  *
+ * Sélection et panneau sont deux choses (2026-10-30, Alexandre) : fermer le
+ * panneau laisse le nœud allumé sur la carte. On le lâche avec
+ * « Désélectionner », ou en cliquant hors de son voisinage (`sticky`).
+ *
  * Sous les filtres, « thèses/ » et « mécanismes/ » (2026-10-29, Alexandre) :
  * l'index complet de la carte, dans les dossiers de l'accueil du journal
  * (`FolderTree`), un seul ouvert à la fois, fermés au départ. Ils suivent les
@@ -95,6 +99,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const ix = useMemo(() => indexMap(data), [data]);
   const [filters, setFilters] = useState<Filters>(NO_FILTER);
   const [selected, setSelected] = useState<string | null>(null);
+  const [panel, setPanel] = useState(true);
   const [center, setCenter] = useState(0);
   const [view, setView] = useState<View>('auto');
   const [wide, setWide] = useState<boolean | null>(null);
@@ -123,6 +128,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
 
   const select = useCallback((id: string | null, recenter = false) => {
     setSelected(id);
+    setPanel(true);
     if (recenter) setCenter((c) => c + 1);
     const url = new URL(window.location.href);
     url.hash = id ? `${HASH_KEY}=${encodeURIComponent(id)}` : '';
@@ -162,7 +168,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const stage = useRef<HTMLElement>(null);
   const show = (id: string) => {
     if (current === 'list') setView('map');
-    select(id === shown ? null : id, true);
+    select(id === shown && panel ? null : id, true);
     // Téléphone : la carte est sous la colonne. On replie le dossier, puis on y
     // descend une fois le repli fini (avant, la cible bouge encore sous le défilement).
     if (wide) return;
@@ -263,24 +269,43 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       <section ref={stage} aria-label="Concept Map" className="min-w-0" style={{ scrollMarginTop: 16 }}>
         <div className={cn(view === 'auto' ? 'hidden md:block' : current === 'map' ? 'block' : 'hidden')}>
           <p className="sr-only">{t.drawingNote}</p>
-          <div className="flex flex-col gap-6 md:relative">
+          <div className="relative flex flex-col gap-6">
             <div
               aria-hidden
               className="concept-stage relative overflow-hidden border border-[var(--color-line)] bg-[var(--color-bg)]"
               style={{ height: 'clamp(420px, calc(100dvh - 12rem), 860px)' }}
             >
-              {current === 'map' && <Graph ix={ix} visible={visible} selected={shown} center={center} inset={wide && shown ? PANEL_WIDTH + 12 : 0} onSelect={(id) => select(id)} />}
+              {current === 'map' && (
+                <Graph ix={ix} visible={visible} selected={shown} center={center} inset={wide && shown && panel ? PANEL_WIDTH + 12 : 0} sticky onSelect={(id) => select(id)} />
+              )}
               <p className={cn(MICRO_LABEL, 'pointer-events-none absolute bottom-3 left-3 text-[var(--color-fg-faint)]')}>
                 <span className="md:hidden">{t.zoomTouch}</span>
                 <span className="hidden md:inline">{t.zoomWheel}</span>
               </p>
             </div>
+            {/* Hors du dessin (`aria-hidden`) : le bouton reste atteignable au clavier. */}
             {shown && (
+              <button
+                type="button"
+                onClick={() => select(null)}
+                className={cn(
+                  MICRO_LABEL,
+                  'absolute left-3 top-3 flex items-center gap-2 border border-[var(--color-line)] bg-[var(--color-bg)] text-[var(--color-fg-muted)] transition-colors duration-200 hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)] motion-reduce:transition-none',
+                )}
+                style={{ padding: '6px 10px' }}
+              >
+                {t.deselect}
+                <svg aria-hidden width={10} height={10} viewBox="0 0 12 12" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round">
+                  <path d="M2 2l8 8M10 2l-8 8" />
+                </svg>
+              </button>
+            )}
+            {shown && panel && (
               <div
                 className="bg-[var(--color-bg-raised)] md:absolute md:bottom-3 md:right-3 md:top-3 md:w-[var(--concept-panel)] md:overflow-y-auto md:shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
                 style={{ padding: 20, ['--concept-panel' as string]: `${PANEL_WIDTH}px` }}
               >
-                <MapPanel ix={ix} id={shown} onSelect={(id) => select(id, true)} onClose={() => select(null)} />
+                <MapPanel ix={ix} id={shown} onSelect={(id) => select(id, true)} onClose={() => setPanel(false)} />
               </div>
             )}
           </div>
