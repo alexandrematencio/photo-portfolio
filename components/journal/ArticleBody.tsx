@@ -474,12 +474,19 @@ export function ArticleBody({
             <h2 id={`${AI_NOTE_ID}-titre`} className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
               {t.aiNoteTitle}
             </h2>
-            {article.aiNote.map(({ key, inline }, i) => (
-              // L'ancre `#p-<clé>` : la Concept Map peut pointer un passage de la note.
-              <p key={i} id={key ? `p-${key}` : undefined} className={cn(EDITORIAL_ANNEX, key && 'journal-passage')}>
-                {renderInline(inline)}
-              </p>
-            ))}
+            {article.aiNote.map(({ key, inline }, i) => {
+              // La Concept Map peut citer la note comme le corps : même ancre
+              // `#p-<clé>`, même pointillé, même marque de marge.
+              const cited = key ? quotes?.[key] : undefined;
+              const pieces = markQuotes(inline, cited);
+              const found = cited?.filter((q) => pieces.some((n) => n.concept === q.id));
+              return (
+                <p key={i} id={key ? `p-${key}` : undefined} className={cn(EDITORIAL_ANNEX, key && 'journal-passage')}>
+                  {found?.length ? <ConceptMarks items={found} /> : null}
+                  {renderInline(pieces)}
+                </p>
+              );
+            })}
           </aside>
         )}
 
