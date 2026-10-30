@@ -295,7 +295,13 @@ export default function ConceptMapGraph({
     renderer.on('clickNode', ({ node }) => select.current(outside(node) ? null : node));
     renderer.on('clickStage', () => select.current(null));
 
+    // Sigma ne suit que la fenêtre : un cadre qui change de largeur sans elle (le
+    // menu de gauche qui se replie, 2026-10-30) redessine à chaque image du geste.
+    const resized = new ResizeObserver(() => renderer.refresh({ skipIndexation: true }));
+    resized.observe(container);
+
     return () => {
+      resized.disconnect();
       cancelAnimationFrame(raf);
       cancelAnimationFrame(z.raf);
       cancelAnimationFrame(p.raf);

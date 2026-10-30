@@ -36,7 +36,7 @@ import {
   seriesJsonLd,
 } from '@/lib/seo/journal-jsonld';
 import { AUTHOR_NAME } from '@/lib/site/author';
-import { EDITORIAL_BODY, EDITORIAL_H3, MICRO_LABEL } from '@/lib/site/typography';
+import { EDITORIAL_BODY, EDITORIAL_H3, MICRO_LABEL, PAGE_TITLE_GAP } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 
 /**
@@ -188,7 +188,7 @@ export async function JournalConceptMap({ lang }: { lang: Lang }) {
   const t = DICT[lang];
   const [view, alternates] = await Promise.all([getConceptMapView(lang), conceptMapAlternates()]);
   const count = (kind: string) => view?.nodes.filter((n) => n.kind === kind).length ?? 0;
-  return (
+  const shell = (
     <PageShell
       title="Concept Map"
       back={<BackLink lang={lang} href={homePath(lang)} />}
@@ -208,8 +208,19 @@ export async function JournalConceptMap({ lang }: { lang: Lang }) {
         </div>
       }
     >
-      {view ? <ConceptMapExplorer view={view} /> : <p className={EDITORIAL_BODY}>{t.map.unavailable}</p>}
+      {view ? null : <p className={EDITORIAL_BODY}>{t.map.unavailable}</p>}
     </PageShell>
+  );
+  if (!view) return shell;
+  // Le titre garde le cadre du journal ; la carte en sort, d'un bord à l'autre
+  // de l'écran, comme un dashboard (2026-10-30, Alexandre).
+  return (
+    <>
+      {shell}
+      <div style={{ marginTop: PAGE_TITLE_GAP / 2 }}>
+        <ConceptMapExplorer view={view} />
+      </div>
+    </>
   );
 }
 
