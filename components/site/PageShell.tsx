@@ -56,6 +56,18 @@ const EDITORIAL_WIDTH = 1107;
  */
 const RAIL_WIDTH = 208;
 /**
+ * Le bord gauche du TEXTE de la colonne quand le rail est posé (dès `xl`),
+ * compté depuis le bord du conteneur — la grille du rail réduite à une seule
+ * expression : `max(rail, (conteneur − colonne) / 2) + gouttière`. Pour
+ * qu'un bloc HORS du `PageShell` (le dashboard de la Concept Map,
+ * 2026-10-30) tombe sur la même verticale que le titre sans recopier de
+ * nombre. `100cqw` : le bloc qui s'en sert doit être dans un conteneur
+ * `container-type: inline-size` de la largeur du parent du `PageShell`.
+ */
+export function railColumnStart(width = EDITORIAL_WIDTH) {
+  return `calc(max(${RAIL_WIDTH}px, (100cqw - ${width}px) / 2) + var(--page-gutter))`;
+}
+/**
  * Air entre le rail et le texte, EN PLUS de la gouttière de l'article
  * (2026-10-29, demande Alexandre) : l'écart double, 32 → 64 à `xl`, le corps
  * respire. Pris sur `RAIL_WIDTH` (176 → 208) : le sommaire garde sa largeur.

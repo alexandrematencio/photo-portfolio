@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { PageShell } from '@/components/site/PageShell';
+import { PageShell, railColumnStart } from '@/components/site/PageShell';
 import { JournalIntro } from '@/components/journal/JournalIntro';
 import { JournalIndex } from '@/components/journal/JournalIndex';
 import { ArticleView } from '@/components/journal/ArticleView';
@@ -184,6 +184,9 @@ export async function conceptMapMetadata(lang: Lang): Promise<Metadata> {
  * phases 4 et 5) : la carte publiée dans le Studio, lue au build, dans la
  * langue de la page.
  */
+/** La colonne du titre de la Concept Map : plus large que le texte, la carte en dessous l'est encore plus. */
+const MAP_WIDTH = 1280;
+
 export async function JournalConceptMap({ lang }: { lang: Lang }) {
   const t = DICT[lang];
   const [view, alternates] = await Promise.all([getConceptMapView(lang), conceptMapAlternates()]);
@@ -194,7 +197,7 @@ export async function JournalConceptMap({ lang }: { lang: Lang }) {
       back={<BackLink lang={lang} href={homePath(lang)} />}
       language={<LanguageSwitch lang={lang} alternates={alternates} />}
       centered
-      width={1280}
+      width={MAP_WIDTH}
       subtitle={
         <div className="flex flex-col gap-5" style={{ marginTop: 12 }}>
           <p className={cn(EDITORIAL_H3, 'max-w-[var(--editorial-measure)]')}>{frenchSpaces(t.map.intro)}</p>
@@ -213,11 +216,15 @@ export async function JournalConceptMap({ lang }: { lang: Lang }) {
   );
   if (!view) return shell;
   // Le titre garde le cadre du journal ; la carte en sort, d'un bord à l'autre
-  // de l'écran, comme un dashboard (2026-10-30, Alexandre).
+  // de l'écran, comme un dashboard (2026-10-30, Alexandre). Le menu ouvert
+  // s'arrête sur la verticale du titre (`--column-start`, cf. `.map-frame`).
   return (
     <>
       {shell}
-      <div style={{ marginTop: PAGE_TITLE_GAP / 2 }}>
+      <div
+        className="map-frame"
+        style={{ marginTop: PAGE_TITLE_GAP / 2, containerType: 'inline-size', ['--column-start' as string]: railColumnStart(MAP_WIDTH) }}
+      >
         <ConceptMapExplorer view={view} />
       </div>
     </>

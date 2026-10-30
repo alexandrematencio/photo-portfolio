@@ -1721,6 +1721,19 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
      (un petit objet qui arrive et freine). Sa sortie est immédiate : on la
      ferme pour revenir à la carte, rien ne doit traîner. Mouvement réduit :
      elle paraît, c'est tout. */
+/* Le menu ouvert du dashboard (2026-10-30, Alexandre) : son bord droit — le
+   bord gauche de la carte — tombe sur la verticale du titre. Dès `xl`, où le
+   rail cale le titre, il en prend la mesure (`--column-start`, posé par
+   `railColumnStart`) ; en dessous, le titre est à la gouttière et le menu
+   garde sa largeur propre. */
+.map-frame {
+  --map-menu-open: 272px;
+}
+@media (min-width: 80rem) {
+  .map-frame {
+    --map-menu-open: var(--column-start);
+  }
+}
 .map-range {
   appearance: none;
   height: 16px;
