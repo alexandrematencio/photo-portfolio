@@ -266,7 +266,19 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     const releaseAll = () => [...held.current].forEach((k) => press(k, false));
     if (!live) return releaseAll();
     const down = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.altKey) return;
+      // ⌘ + / ⌘ − (Ctrl ailleurs) : le zoom de la carte plutôt que celui de la page. Sur
+      // macOS, la touche relâchée sous ⌘ n'envoie pas de keyup : la fausse touche s'enfonce
+      // le temps d'un appui, puis remonte seule.
+      if (e.metaKey || e.ctrlKey) {
+        const k = KEY_OF[e.key] ?? (e.code === 'NumpadAdd' ? 'in' : e.code === 'NumpadSubtract' ? 'out' : undefined);
+        if (k !== 'in' && k !== 'out') return;
+        e.preventDefault();
+        if (e.repeat) return void nav.current?.zoom(k === 'in' ? 1 : -1);
+        press(k, true);
+        window.setTimeout(() => press(k, false), 120);
+        return;
+      }
       if ((e.target as Element).closest?.('input, textarea, select, [contenteditable="true"]')) return;
       if (e.key === '?') {
         e.preventDefault();
