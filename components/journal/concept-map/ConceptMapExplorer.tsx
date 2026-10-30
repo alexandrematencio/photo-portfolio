@@ -75,20 +75,25 @@ const PANEL_WIDTH = 360;
 
 type View = 'auto' | 'map' | 'list';
 
-function Choice({ on, onClick, onPreview, children }: { on: boolean; onClick: () => void; onPreview?: (on: boolean) => void; children: ReactNode }) {
+/** `empty` : ce choix, ajouté aux filtres en cours, ne laisserait rien sur la carte — grisé. */
+function Choice({ on, empty = false, onClick, onPreview, children }: { on: boolean; empty?: boolean; onClick: () => void; onPreview?: (on: boolean) => void; children: ReactNode }) {
+  // Le choix actif reste cliquable : c'est par lui qu'on retire le filtre.
+  empty = empty && !on;
+  const peek = empty ? undefined : onPreview;
   return (
     <button
       type="button"
       aria-pressed={on}
+      disabled={empty}
       onClick={onClick}
-      onPointerEnter={onPreview && ((e) => e.pointerType !== 'touch' && onPreview(true))}
-      onPointerLeave={onPreview && (() => onPreview(false))}
-      onFocus={onPreview && (() => onPreview(true))}
-      onBlur={onPreview && (() => onPreview(false))}
+      onPointerEnter={peek && ((e) => e.pointerType !== 'touch' && peek(true))}
+      onPointerLeave={peek && (() => peek(false))}
+      onFocus={peek && (() => peek(true))}
+      onBlur={peek && (() => peek(false))}
       className={cn(
         MICRO_LABEL,
         'flex items-center gap-[8px] text-left transition-colors duration-200 motion-reduce:transition-none',
-        on ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
+        on ? 'text-[var(--color-fg)]' : empty ? 'text-[var(--color-fg-faint)] [&>span[aria-hidden]]:opacity-40' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
       )}
       style={{ paddingBlock: 4 }}
     >
@@ -244,14 +249,16 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   // Un filtre qui cache le nœud ouvert ferme son panneau.
   const shown = selected && visible.has(selected) ? selected : null;
 
+  // Chaque choix compte ce qu'il laisserait, combiné aux autres filtres : une
+  // série sans aucun article de la thématique choisie tombe à 0, et se grise.
   const counts = useMemo(() => {
-    const articles = data.nodes.filter((n) => n.kind === 'article');
+    const articles = (f: Filters) => [...visibleIds(ix, f)].filter((id) => ix.byId.get(id)?.kind === 'article').length;
     return {
-      series: new Map(data.series.map((s) => [s.title, articles.filter((a) => a.series === s.title).length])),
-      themes: new Map(data.themes.map((t) => [t.title, articles.filter((a) => a.themes.includes(t.title)).length])),
-      common: data.nodes.filter(isCommon).length,
+      series: new Map(data.series.map((s) => [s.title, articles({ ...filters, series: s.title })])),
+      themes: new Map(data.themes.map((t) => [t.title, articles({ ...filters, theme: t.title })])),
+      common: [...visibleIds(ix, { ...filters, common: true })].filter((id) => isCommon(ix.byId.get(id)!)).length,
     };
-  }, [data]);
+  }, [data, ix, filters]);
   const filtered = filters.series || filters.theme || filters.common;
   const toggle = <K extends keyof Filters>(key: K, value: Filters[K]) =>
     setFilters((f) => ({ ...f, [key]: f[key] === value ? NO_FILTER[key] : value }));
@@ -483,7 +490,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       body: (
         <Group label={t.series}>
           {data.series.map((s) => (
-            <Choice key={s.title} on={filters.series === s.title} onClick={() => filterBy('series', s.title)} onPreview={previewFilter('series', s.title)}>
+            <Choice key={s.title} on={filters.series === s.title} empty={!counts.series.get(s.title)} onClick={() => filterBy('series', s.title)} onPreview={previewFilter('series', s.title)}>
               <span>
                 {s.title} <span className="font-normal">({counts.series.get(s.title)})</span>
               </span>
@@ -500,7 +507,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       body: (
         <Group label={t.themes}>
           {data.themes.map((t) => (
-            <Choice key={t.title} on={filters.theme === t.title} onClick={() => filterBy('theme', t.title)} onPreview={previewFilter('theme', t.title)}>
+            <Choice key={t.title} on={filters.theme === t.title} empty={!counts.themes.get(t.title)} onClick={() => filterBy('theme', t.title)} onPreview={previewFilter('theme', t.title)}>
               <TagSwatch color={t.color} />
               <span>
                 {t.title} <span className="font-normal">({counts.themes.get(t.title)})</span>
@@ -517,7 +524,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       lit: filters.common,
       body: (
         <Group label={t.structures}>
-          <Choice on={filters.common} onClick={() => filterBy('common', true)} onPreview={previewFilter('common', true)}>
+          <Choice on={filters.common} empty={!counts.common} onClick={() => filterBy('common', true)} onPreview={previewFilter('common', true)}>
             <span>
               {t.common} <span className="font-normal">({counts.common})</span>
             </span>
