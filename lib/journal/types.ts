@@ -98,6 +98,8 @@ export type Article = ArticleSummary & {
   /** L'article dans les autres langues — l'original et ses traductions publiées. */
   alternates: Alternates;
   referencesNote?: string;
+  /** « Comment ce texte a été fait » : la note sur l'IA, un paragraphe par entrée ; vide sans IA. */
+  aiNote: { key?: string; inline: Inline[] }[];
   /** Dernière modification dans Sanity (ISO) — `dateModified`, sitemap. */
   updatedAt?: string;
   words: number;

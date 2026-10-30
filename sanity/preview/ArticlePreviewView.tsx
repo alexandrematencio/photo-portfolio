@@ -35,6 +35,7 @@ type Displayed = {
   part?: number;
   cover?: RawImage;
   referencesNote?: string;
+  aiNote?: RawPost['aiNote'];
   body?: RawPost['body'];
   references?: RawPost['references'];
 };
@@ -121,6 +122,7 @@ export function ArticlePreviewView({ document }: { document: { displayed: Displa
         seriesId: (originalId ? o?.seriesId : ownSeriesId) ?? null,
         part: (originalId ? o?.part : d.part) ?? null,
         referencesNote: d.referencesNote ?? null,
+        aiNote: d.aiNote ?? [],
         cover: originalId ? o?.cover : d.cover,
         body: d.body ?? [],
         references: d.references ?? [],

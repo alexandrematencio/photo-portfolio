@@ -89,6 +89,9 @@ function markQuotes(nodes: Inline[], quotes: MapQuotes[string] | undefined): Pie
  * lisaient comme un changement de partie. Marges en style inline : le reset
  * `* { margin: 0 }` avale les utilities (CLAUDE.md §7.5–7.8).
  */
+/** L'ancre de la note sur l'IA, la même dans les trois langues : un lien du corps y renvoie (`#note-ia`). */
+const AI_NOTE_ID = 'note-ia';
+
 const RHYTHM = { lead: 40, body: 24, h2Top: 64, h2Bottom: 24, object: 64 } as const;
 
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
@@ -134,6 +137,9 @@ function renderLinked(node: ReactNode, link: InlineLink, key: number): ReactNode
   if (!('href' in link)) return <span key={key} className={JOURNAL_LINK_DECORATION}>{node}</span>;
   if (link.href.startsWith('/'))
     return <Link key={key} href={link.href} className={JOURNAL_LINK_DECORATION}>{node}</Link>;
+  // Une ancre de la page (`#note-ia`) : même onglet.
+  if (link.href.startsWith('#'))
+    return <a key={key} href={link.href} className={JOURNAL_LINK_DECORATION}>{node}</a>;
   return (
     <a key={key} href={link.href} target="_blank" rel="noopener noreferrer" className={JOURNAL_LINK_DECORATION}>
       {node}
@@ -446,6 +452,36 @@ export function ArticleBody({
               );
           }
         })}
+
+        {/* La note sur l'IA (2026-10-30, demande Alexandre) : toujours là
+            dès que l'IA a servi, toujours au même endroit — après le dernier
+            mot, avant la signature. Le registre annexe, un cran sous le
+            courant : elle accompagne le texte, elle ne se lit pas au même
+            volume. Le fond la sépare du texte sans la cacher ; c'est une
+            mention due au lecteur, pas une note de bas de page. */}
+        {article.aiNote.length > 0 && (
+          <aside
+            id={AI_NOTE_ID}
+            aria-labelledby={`${AI_NOTE_ID}-titre`}
+            className="scroll-mt-24 flex flex-col gap-3 max-w-[var(--editorial-measure)]"
+            style={{
+              marginTop: RHYTHM.h2Top,
+              padding: '20px 24px 22px',
+              backgroundColor: 'var(--color-bg-raised)',
+              borderRadius: 6,
+            }}
+          >
+            <h2 id={`${AI_NOTE_ID}-titre`} className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
+              {t.aiNoteTitle}
+            </h2>
+            {article.aiNote.map(({ key, inline }, i) => (
+              // L'ancre `#p-<clé>` : la Concept Map peut pointer un passage de la note.
+              <p key={i} id={key ? `p-${key}` : undefined} className={cn(EDITORIAL_ANNEX, key && 'journal-passage')}>
+                {renderInline(inline)}
+              </p>
+            ))}
+          </aside>
+        )}
 
         {/* Qui écrit, à la fin du texte : le lecteur arrivé par un lien
             partagé n'a vu le nom nulle part ailleurs sur la page. */}

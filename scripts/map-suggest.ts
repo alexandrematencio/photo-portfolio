@@ -50,7 +50,7 @@ async function main() {
     perspective: 'raw',
   });
   const posts = await client.fetch<{ _id: string; title: string; body?: MapBlock[] }[]>(
-    `*[_type == "post" && !defined(translationOf) && slug.current == $slug]{ _id, title, body }`,
+    `*[_type == "post" && !defined(translationOf) && slug.current == $slug]{ _id, title, "body": coalesce(body, []) + coalesce(aiNote, []) }`,
     { slug: SLUG },
   );
   const post = posts.find((p) => p._id.startsWith('drafts.')) ?? posts[0];

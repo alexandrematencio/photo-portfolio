@@ -31,6 +31,7 @@ export type SourcePost = {
   referencesNote?: string;
   body?: Obj[];
   references?: { _key: string; _type: string; citation?: PTBlock[] }[];
+  aiNote?: PTBlock[];
 };
 
 const blocks = (v: unknown) => (Array.isArray(v) ? (v as Obj[]) : []);
@@ -76,6 +77,8 @@ export function extractUnits(post: SourcePost): Unit[] {
   for (const ref of post.references ?? [])
     for (const c of ref.citation ?? []) add(`ref.${ref._key}.${c._key}`, blockToMarkup(c));
 
+  for (const c of post.aiNote ?? []) add(`ai.${c._key}`, blockToMarkup(c));
+
   return units;
 }
 
@@ -105,6 +108,7 @@ export type TranslatedFields = {
   referencesNote?: string;
   body: Obj[];
   references?: SourcePost['references'];
+  aiNote?: PTBlock[];
 };
 
 /**
@@ -170,6 +174,11 @@ export function applyUnits(post: SourcePost, translated: Unit[]): TranslatedFiel
     }),
   }));
 
+  const aiNote = post.aiNote?.map((c) => {
+    const markup = map.get(`ai.${c._key}`);
+    return markup === undefined ? c : { ...c, children: parseMarkup(markup, c) };
+  });
+
   return {
     title: t('title'),
     dek: t('dek'),
@@ -178,5 +187,6 @@ export function applyUnits(post: SourcePost, translated: Unit[]): TranslatedFiel
     referencesNote: tIf('referencesNote', post.referencesNote) as string | undefined,
     body,
     references,
+    aiNote,
   };
 }

@@ -41,10 +41,14 @@ export type JournalMapDoc = { exportedAt?: string; nodes?: StoredMapNode[]; edge
 
 export const JOURNAL_MAP_QUERY = `*[_id == "${JOURNAL_MAP_ID}"][0]{ exportedAt, nodes, edges, translations }`;
 
-/** Articles français publiés et leurs traductions publiées, avec l'adresse de l'original. */
+/**
+ * Articles français publiés et leurs traductions publiées, avec l'adresse de
+ * l'original. Le « corps » de la carte est le texte suivi de la note sur l'IA
+ * (`aiNote`, 2026-10-30) : ses paragraphes portent aussi une ancre `#p-<clé>`.
+ */
 export const MAP_POSTS_QUERY = `{
-  "fr": *[_type == "post" && !defined(translationOf) && !(_id in path("drafts.**"))]{ _id, title, "slug": slug.current, body },
-  "tr": *[_type == "post" && defined(translationOf) && !(_id in path("drafts.**"))]{ _id, language, "source": translationOf->slug.current, body }
+  "fr": *[_type == "post" && !defined(translationOf) && !(_id in path("drafts.**"))]{ _id, title, "slug": slug.current, "body": coalesce(body, []) + coalesce(aiNote, []) },
+  "tr": *[_type == "post" && defined(translationOf) && !(_id in path("drafts.**"))]{ _id, language, "source": translationOf->slug.current, "body": coalesce(body, []) + coalesce(aiNote, []) }
 }`;
 
 export type MapPosts = {

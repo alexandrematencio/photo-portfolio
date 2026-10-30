@@ -49,6 +49,7 @@ Unit kinds (from the id)
 - "body.…": the article itself. Units ending in ".note.…" or ".text" of a draft block are the author's own open questions to himself — translate them as his notes.
 - "ref.…": bibliography entries. Keep authors, years, titles of works, journal names, volumes and pages exactly as written; translate only the connecting words ("et", "trad. de", "consulté le", "dir.").
 - "referencesNote": a note about the references, in the author's voice.
+- "ai.…": the end note on how the text was made with AI — what is the author's, what is the AI's, and why he used it. In the author's voice; keep "Claude" and "Anthropic" as they are.
 
 ${
     slug

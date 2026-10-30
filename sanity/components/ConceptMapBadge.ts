@@ -9,7 +9,7 @@ import { useClient, type DocumentBadgeComponent } from 'sanity';
 import { articleSlugOf, checkConceptMap, JOURNAL_MAP_ID, type StoredMapNode } from '@/lib/journal/conceptMap';
 import { STATUS_LABEL, type MapBlock } from '@/lib/journal/mapAnchors';
 
-type PostDoc = { slug?: { current?: string }; translationOf?: unknown; body?: MapBlock[] };
+type PostDoc = { slug?: { current?: string }; translationOf?: unknown; body?: MapBlock[]; aiNote?: MapBlock[] };
 
 export const ConceptMapBadge: DocumentBadgeComponent = (props) => {
   const doc = (props.draft ?? props.published) as PostDoc | null;
@@ -34,8 +34,10 @@ export const ConceptMapBadge: DocumentBadgeComponent = (props) => {
     if (!slug || !nodes?.length) return [];
     // Les mécanismes cités ici mais employés ailleurs : seule leur citation compte.
     const mine = nodes.filter((n) => articleSlugOf(n) === slug);
-    return checkConceptMap({ nodes: mine }, { fr: [{ _id: '', slug, body: doc?.body }], tr: [] }).issues;
-  }, [nodes, slug, doc?.body]);
+    // La note sur l'IA est ancrable comme le corps (MAP_POSTS_QUERY).
+    const body = [...(doc?.body ?? []), ...(doc?.aiNote ?? [])];
+    return checkConceptMap({ nodes: mine }, { fr: [{ _id: '', slug, body }], tr: [] }).issues;
+  }, [nodes, slug, doc?.body, doc?.aiNote]);
 
   if (!issues.length) return null;
   return {

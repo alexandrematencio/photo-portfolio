@@ -456,6 +456,39 @@ export const journalTag = defineType({
   },
 });
 
+/**
+ * Lien dans le texte (2026-10-21) : vers un article du journal — la
+ * traduction pointe alors la version de sa langue (articles.ts) — ou vers une
+ * adresse extérieure. `#note-ia` (2026-10-30) : la note sur l'IA, en fin de
+ * page — l'ancre est la même dans les trois langues.
+ */
+const journalLink = defineArrayMember({
+  name: 'journalLink',
+  title: 'Lien',
+  type: 'object',
+  fields: [
+    defineField({
+      name: 'article',
+      title: 'Article du journal',
+      description: 'La version anglaise ou russe de l’article renverra vers l’article dans sa langue, s’il est traduit.',
+      type: 'reference',
+      to: [{ type: 'post' }],
+      options: { filter: '!defined(translationOf)' },
+    }),
+    defineField({
+      name: 'href',
+      title: 'Ou adresse',
+      description: 'Une adresse extérieure, ou « #note-ia » pour renvoyer à la note sur l’IA en fin d’article.',
+      type: 'url',
+      validation: (Rule) => Rule.uri({ scheme: ['http', 'https', 'mailto'], allowRelative: true }),
+    }),
+  ],
+  validation: (Rule) =>
+    Rule.custom((value: { article?: unknown; href?: string } | undefined) =>
+      value?.article || value?.href ? true : 'Choisir un article ou donner une adresse.',
+    ),
+});
+
 export const post = defineType({
   name: 'post',
   title: 'Article',
@@ -610,36 +643,7 @@ export const post = defineType({
                   createElement('mark', { style: { backgroundColor: 'var(--color-highlight, #f2f20d)', color: 'inherit' } }, children),
               },
             ],
-            // Lien dans le texte (2026-10-21) : vers un article du journal —
-            // la traduction pointe alors la version de sa langue (articles.ts) —
-            // ou vers une adresse extérieure.
-            annotations: [
-              defineArrayMember({
-                name: 'journalLink',
-                title: 'Lien',
-                type: 'object',
-                fields: [
-                  defineField({
-                    name: 'article',
-                    title: 'Article du journal',
-                    description: 'La version anglaise ou russe de l’article renverra vers l’article dans sa langue, s’il est traduit.',
-                    type: 'reference',
-                    to: [{ type: 'post' }],
-                    options: { filter: '!defined(translationOf)' },
-                  }),
-                  defineField({
-                    name: 'href',
-                    title: 'Ou adresse extérieure',
-                    type: 'url',
-                    validation: (Rule) => Rule.uri({ scheme: ['http', 'https', 'mailto'] }),
-                  }),
-                ],
-                validation: (Rule) =>
-                  Rule.custom((value: { article?: unknown; href?: string } | undefined) =>
-                    value?.article || value?.href ? true : 'Choisir un article ou donner une adresse.',
-                  ),
-              }),
-            ],
+            annotations: [journalLink],
           },
           of: [defineArrayMember({ type: 'journalNoteRef' }), defineArrayMember({ type: 'journalDraftNote' })],
         }),
@@ -651,6 +655,30 @@ export const post = defineType({
         defineArrayMember({ type: 'journalDraftBlock' }),
       ],
       validation: (Rule) => Rule.required(),
+    }),
+    // La note sur l'IA (2026-10-30) : hors du corps, pour qu'elle tombe
+    // toujours au même endroit — l'encadré de fin, avant la signature.
+    defineField({
+      name: 'aiNote',
+      title: 'Comment ce texte a été fait',
+      description:
+        'Obligatoire dès que l’IA a servi, à quelque niveau que ce soit : ce qui est de toi, ce qui est de l’IA, pourquoi tu t’en es servi. S’affiche en fin d’article, dans un encadré. Si le texte en parle aussi au début, y garder une phrase courte et la lier à « #note-ia ».',
+      type: 'array',
+      of: [
+        defineArrayMember({
+          type: 'block',
+          styles: [{ title: 'Paragraphe', value: 'normal' }],
+          lists: [],
+          marks: {
+            decorators: [
+              { title: 'Gras', value: 'strong' },
+              { title: 'Emphase', value: 'em' },
+              { title: 'Titre d’œuvre', value: 'cite' },
+            ],
+            annotations: [journalLink],
+          },
+        }),
+      ],
     }),
     defineField({
       name: 'references',
