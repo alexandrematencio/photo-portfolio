@@ -31,8 +31,10 @@ import { MapList } from './MapList';
  * « Désélectionner », ou en cliquant hors de son voisinage (`sticky`).
  *
  * Commandes (2026-10-30, Alexandre) : « Aide ? » en haut à droite du cadre,
- * le faux clavier en bas à droite, et « noms/ » à gauche, qui règle à quelle
- * distance chaque rang affiche ses noms (mémorisé dans ce navigateur). Un clic
+ * le faux clavier en bas à droite, et « Réglages » au pied de la colonne de
+ * gauche — un module à part, pas un dossier de l'index (2026-10-30, Alexandre) —
+ * qui règle à quelle distance chaque rang affiche ses noms (mémorisé dans ce
+ * navigateur). Un clic
  * dans la carte, dans la colonne de gauche ou sur le faux clavier « arme » la
  * carte : les flèches, + − 0 et Échap la pilotent au lieu de faire défiler la
  * page, jusqu'au prochain clic ailleurs.
@@ -101,7 +103,7 @@ function ArticleHeading({ children }: { children: ReactNode }) {
 const LABELS_KEY = 'concept-map:labels';
 const LABEL_KINDS: LabelKind[] = ['article', 'mechanism', 'thesis'];
 
-/** Une ligne de « noms/ » : le rang, le cran en clair, la glissière. */
+/** Une ligne des réglages : le rang, le cran en clair, la glissière. */
 function ReachRow({ label, value, text, onChange }: { label: string; value: number; text: string; onChange: (v: number) => void }) {
   const id = useId();
   return (
@@ -138,7 +140,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const [center, setCenter] = useState(0);
   const [view, setView] = useState<View>('auto');
   const [wide, setWide] = useState<boolean | null>(null);
-  const [folder, setFolder] = useState<'theses' | 'mechanisms' | 'labels' | null>(null);
+  const [folder, setFolder] = useState<'theses' | 'mechanisms' | null>(null);
   const [labels, setLabels] = useState<LabelReach>(LABEL_DEFAULT);
   const [help, setHelp] = useState(false);
   const [armed, setArmed] = useState(false);
@@ -234,7 +236,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     const smooth = window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
     window.setTimeout(() => stage.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' }), smooth ? FOLDER_MS : 0);
   };
-  const toggleFolder = (name: 'theses' | 'mechanisms' | 'labels') => setFolder((f) => (f === name ? null : name));
+  const toggleFolder = (name: 'theses' | 'mechanisms') => setFolder((f) => (f === name ? null : name));
 
   // Une touche enfoncée (vraie ou fausse) : les flèches tiennent une direction, le reste agit à l'appui.
   const press = useCallback((k: NavKey, on: boolean) => {
@@ -389,27 +391,6 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
           >
             <FolderList items={index.mechanisms} isOn={(key) => key === shown} onChange={show} type="index" />
           </Folder>
-          {current === 'map' && (
-            <Folder
-              id={`${folderId}-labels`}
-              name={t.labelsFolder}
-              state={folder === 'labels' ? 'open' : 'closed'}
-              settled={settled}
-              onToggle={() => toggleFolder('labels')}
-              lit={false}
-              entries={LABEL_KINDS.length}
-              peek={null}
-            >
-              <div style={{ paddingTop: 6 }}>
-                <p className="text-[12px] leading-[17px] text-[var(--color-fg-muted)]" style={{ paddingBottom: 12 }}>
-                  {t.labelsNote}
-                </p>
-                {LABEL_KINDS.map((k) => (
-                  <ReachRow key={k} label={t.labelKinds[k]} value={labels[k]} text={t.reach(labels[k])} onChange={(v) => reach(k, v)} />
-                ))}
-              </div>
-            </Folder>
-          )}
         </div>
         <div className="flex flex-col gap-2 border-t border-[var(--color-line)]" style={{ paddingTop: 12 }}>
           <p aria-live="polite" className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
@@ -421,6 +402,19 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
             </button>
           )}
         </div>
+        {current === 'map' && (
+          <section aria-label={t.settings} className="flex flex-col gap-2 border-t border-[var(--color-line)]" style={{ paddingTop: 12 }}>
+            <p className={cn(MICRO_LABEL, 'text-[var(--color-fg-faint)]')}>{t.settings}</p>
+            <div role="group" aria-label={t.labelsNote} className="flex flex-col">
+              <p className="text-[12px] leading-[17px] text-[var(--color-fg-muted)]" style={{ paddingBottom: 8 }}>
+                {t.labelsNote}
+              </p>
+              {LABEL_KINDS.map((k) => (
+                <ReachRow key={k} label={t.labelKinds[k]} value={labels[k]} text={t.reach(labels[k])} onChange={(v) => reach(k, v)} />
+              ))}
+            </div>
+          </section>
+        )}
       </aside>
 
       <section ref={stage} aria-label="Concept Map" className="min-w-0" style={{ scrollMarginTop: 16 }}>
