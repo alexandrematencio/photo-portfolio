@@ -33,47 +33,18 @@
  */
 import { createClient } from '@sanity/client';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import Graph from 'graphology';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
-import { parse as parseYaml } from 'yaml';
 import { mapParagraphs, normalizeQuote as normalize, type MapBlock } from '../lib/journal/mapAnchors';
 import { JOURNAL_MAP_ID, JOURNAL_MAP_QUERY, type JournalMapDoc } from '../lib/journal/conceptMap';
+import { isPublic, readVault, str, target, VAULT, type Note } from './jev/vault';
 
 const STRICT = process.argv.includes('--strict');
 const WRITE = process.argv.includes('--write');
-const VAULT = process.env.JOURNAL_VAULT ?? path.join(homedir(), 'Documents/ALEX-PERSO/BLOG/Graphe-du-journal');
 const OUT_DIR = path.join(process.cwd(), '.concept-map');
 const OUT = path.join(OUT_DIR, 'concept-map.json');
-
-// ---------- le vault ----------
-
-type Note = { file: string; folder: string; meta: Record<string, unknown>; title: string };
-
-function readVault(dir: string, rel = ''): Note[] {
-  const notes: Note[] = [];
-  for (const entry of readdirSync(path.join(dir, rel), { withFileTypes: true })) {
-    if (entry.name.startsWith('.') || entry.name === '_archive') continue;
-    const r = path.join(rel, entry.name);
-    if (entry.isDirectory()) notes.push(...readVault(dir, r));
-    else if (entry.name.endsWith('.md')) {
-      const raw = readFileSync(path.join(dir, r), 'utf8');
-      const m = raw.match(/^---\n([\s\S]*?)\n---\n/);
-      const meta = (m ? parseYaml(m[1]) : {}) ?? {};
-      const h1 = raw.match(/^# (.+)$/m)?.[1]?.trim();
-      const file = entry.name.slice(0, -3);
-      notes.push({ file, folder: rel.split(path.sep)[0], meta, title: h1 ?? file });
-    }
-  }
-  return notes;
-}
-
-/** `[[fichier|alias]]` → `fichier`. */
-const target = (link: unknown) => String(link).replace(/^\[\[|\]\]$/g, '').split('|')[0].trim();
-const str = (v: unknown) => (typeof v === 'string' ? v : v == null ? '' : String(v));
-const isPublic = (n: Note) => n.meta.public !== false;
 
 // ---------- les articles publiés ----------
 

@@ -25,8 +25,13 @@
  * L'ADRESSE d'une traduction existante est conservée : un lien partagé ne
  * casse pas parce que le français a été corrigé.
  *
+ * RELECTURE PAR JEV (`translate-check.ts`) : les unités qui viennent d'être
+ * traduites sont relues contre le français (omis, ajouté, sens déplacé). Sans
+ * `TYPESAFE_API_KEY` (le VPS, par exemple), la relecture est sautée ; une
+ * panne de Jev ne fait jamais échouer une traduction.
+ *
  * Variables : NEXT_PUBLIC_SANITY_PROJECT_ID, NEXT_PUBLIC_SANITY_DATASET,
- * SANITY_API_WRITE_TOKEN, ANTHROPIC_API_KEY.
+ * SANITY_API_WRITE_TOKEN, ANTHROPIC_API_KEY, TYPESAFE_API_KEY (facultative).
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@sanity/client';
@@ -41,7 +46,9 @@ import {
   type TranslationLang,
   type TranslationResult,
 } from '../lib/journal/translate/job';
-import { applyUnits, localizeImages, type SourcePost, type TranslatedFields } from '../lib/journal/translate/units';
+import { applyUnits, extractUnits, localizeImages, type SourcePost, type TranslatedFields } from '../lib/journal/translate/units';
+import { jevConfigured } from './jev/client';
+import { checkTranslation, printCheck } from './translate-check';
 
 const MODEL = 'claude-opus-5-5';
 /** Une réponse invalide (unité manquante, appel de note perdu) est redemandée une fois. */
@@ -210,6 +217,7 @@ async function run(postId: string, langs: TranslationLang[], onLang?: (lang: Tra
         if (DRY_RUN) console.log(JSON.stringify(doc, null, 2));
         else await sanity.createOrReplace(doc);
         console.log(`  ✓ ${lang} : ${DRY_RUN ? '(non écrit) ' : ''}${draftId} — /${lang}/${slug}/`);
+        await review(post, doc, lang, new Set(plan.pending.map((u) => u.id)));
         await onLang?.(lang, { draftId, slug, ...counts });
       } catch (e) {
         console.error(`  ✗ ${(e as Error).message}`);
@@ -220,6 +228,21 @@ async function run(postId: string, langs: TranslationLang[], onLang?: (lang: Tra
   );
   const failed = outcomes.filter((o) => o.status === 'rejected');
   if (failed.length) throw new Error(failed.map((o) => ((o as PromiseRejectedResult).reason as Error).message).join(' · '));
+}
+
+/** Jev relit ce qui vient d'être traduit. Jamais bloquant. */
+async function review(post: SourcePost, translated: SourcePost, lang: TranslationLang, ids: Set<string>) {
+  if (!ids.size) return;
+  if (!jevConfigured()) {
+    console.log(`  (${lang} : relecture Jev sautée — TYPESAFE_API_KEY absente)`);
+    return;
+  }
+  try {
+    const fr = extractUnits(post).filter((u) => ids.has(u.id));
+    printCheck(lang, await checkTranslation(fr, extractUnits(translated), lang));
+  } catch (e) {
+    console.warn(`  ⚠ ${lang} : relecture Jev impossible (${(e as Error).message})`);
+  }
 }
 
 /**
