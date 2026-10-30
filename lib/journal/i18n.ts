@@ -361,6 +361,8 @@ export type Dict = {
     helpKeys: readonly (readonly [string, string])[];
     helpLabels: string;
     close: string;
+    /** L'en-tête du menu de gauche : ce que fait la barre (2026-10-30, Alexandre). */
+    menuTitle: string;
     /** Le menu de gauche replié en bande d'icônes, puis rouvert (2026-10-30, Alexandre). */
     menuCollapse: string;
     menuExpand: string;
@@ -620,8 +622,9 @@ export const DICT: Record<Lang, Dict> = {
         ['[', 'replier ou ouvrir le menu'],
         ['?', 'ouvrir ou fermer cette aide'],
       ],
-      helpLabels: 'Les noms apparaissent en zoomant. Les réglages, au pied du menu de gauche, règlent à quelle distance pour les articles, les mécanismes et les thèses.',
+      helpLabels: 'Les noms apparaissent en zoomant. Les réglages, en tête du menu de gauche, règlent à quelle distance pour les articles, les mécanismes et les thèses.',
       close: 'Fermer',
+      menuTitle: 'Explorer la carte',
       menuCollapse: 'Replier le menu',
       menuExpand: 'Ouvrir le menu',
       keys: { group: 'Clavier de navigation', up: 'Monter', down: 'Descendre', left: 'Aller à gauche', right: 'Aller à droite', in: 'Zoomer', out: 'Dézoomer', reset: 'Recadrer', on: 'Les flèches du clavier déplacent la carte.' },
@@ -868,8 +871,9 @@ export const DICT: Record<Lang, Dict> = {
         ['[', 'collapse or open the menu'],
         ['?', 'open or close this help'],
       ],
-      helpLabels: 'Names appear as you zoom in. The settings, at the foot of the left menu, set how far away for articles, mechanisms and theses.',
+      helpLabels: 'Names appear as you zoom in. The settings, at the top of the left menu, set how far away for articles, mechanisms and theses.',
       close: 'Close',
+      menuTitle: 'Explore the map',
       menuCollapse: 'Collapse the menu',
       menuExpand: 'Open the menu',
       keys: { group: 'Navigation keys', up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right', in: 'Zoom in', out: 'Zoom out', reset: 'Fit the map', on: 'The arrow keys now move the map.' },
@@ -1122,8 +1126,9 @@ export const DICT: Record<Lang, Dict> = {
         ['[', 'свернуть или открыть меню'],
         ['?', 'открыть или закрыть справку'],
       ],
-      helpLabels: 'Названия появляются при приближении. Настройки внизу левого меню задают расстояние для статей, механизмов и тезисов.',
+      helpLabels: 'Названия появляются при приближении. Настройки вверху левого меню задают расстояние для статей, механизмов и тезисов.',
       close: 'Закрыть',
+      menuTitle: 'Исследовать карту',
       menuCollapse: 'Свернуть меню',
       menuExpand: 'Открыть меню',
       keys: { group: 'Клавиши навигации', up: 'Вверх', down: 'Вниз', left: 'Влево', right: 'Вправо', in: 'Приблизить', out: 'Отдалить', reset: 'Показать всю карту', on: 'Стрелки клавиатуры теперь двигают карту.' },
