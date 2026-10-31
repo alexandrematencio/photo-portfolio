@@ -60,7 +60,20 @@ function Quote({ text, lang }: { text: string; lang: Lang }) {
   return <blockquote className={QUOTE}>{frenchSpaces(`${open}${text}${close}`)}</blockquote>;
 }
 
-export function MapPanel({ ix, id, onSelect, onClose }: { ix: MapIndex; id: string; onSelect: (id: string) => void; onClose?: () => void }) {
+export function MapPanel({
+  ix,
+  id,
+  onSelect,
+  onClose,
+  rank,
+}: {
+  ix: MapIndex;
+  id: string;
+  onSelect: (id: string) => void;
+  onClose?: () => void;
+  /** Dans un article : la place du mécanisme parmi ceux du texte. */
+  rank?: [number, number];
+}) {
   const node = ix.byId.get(id);
   if (!node) return null;
   const article = (aid: string) => ix.byId.get(aid);
@@ -102,7 +115,7 @@ export function MapPanel({ ix, id, onSelect, onClose }: { ix: MapIndex; id: stri
     const rhymes = ix.rhymes.get(id) ?? [];
     kicker = (
       <span className="flex items-center gap-2">
-        {t.mechanism}
+        {rank ? t.mechanismOf(...rank) : t.mechanism}
         {node.theme && (
           <>
             <span aria-hidden>·</span>

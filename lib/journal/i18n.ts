@@ -338,6 +338,10 @@ export type Dict = {
     showOnMap: string;
     previous: string;
     next: string;
+    previousMechanism: string;
+    nextMechanism: string;
+    thesis: string;
+    mechanismOf: (i: number, n: number) => string;
     backToReading: string;
     following: string;
     openFull: string;
@@ -593,6 +597,10 @@ export const DICT: Record<Lang, Dict> = {
       showOnMap: 'Voir sur la carte',
       previous: 'Thèse précédente',
       next: 'Thèse suivante',
+      previousMechanism: 'Mécanisme précédent',
+      nextMechanism: 'Mécanisme suivant',
+      thesis: 'Thèse',
+      mechanismOf: (i, n) => `Mécanisme ${i} sur ${n}`,
       backToReading: 'Revenir au passage lu',
       following: 'Suit votre lecture',
       openFull: 'Voir dans la Concept Map',
@@ -843,6 +851,10 @@ export const DICT: Record<Lang, Dict> = {
       showOnMap: 'Show on the map',
       previous: 'Previous thesis',
       next: 'Next thesis',
+      previousMechanism: 'Previous mechanism',
+      nextMechanism: 'Next mechanism',
+      thesis: 'Thesis',
+      mechanismOf: (i, n) => `Mechanism ${i} of ${n}`,
       backToReading: 'Back to the passage I’m reading',
       following: 'Following your reading',
       openFull: 'See it in the Concept Map',
@@ -1099,6 +1111,10 @@ export const DICT: Record<Lang, Dict> = {
       showOnMap: 'Показать на карте',
       previous: 'Предыдущий тезис',
       next: 'Следующий тезис',
+      previousMechanism: 'Предыдущий механизм',
+      nextMechanism: 'Следующий механизм',
+      thesis: 'Тезис',
+      mechanismOf: (i, n) => `Механизм ${i} из ${n}`,
       backToReading: 'Вернуться к читаемому отрывку',
       following: 'Следует за чтением',
       openFull: 'Открыть в Concept Map',

@@ -67,6 +67,8 @@ const PILLS_GAP = 16;
 
 /** Écart entre le texte et la colonne des notes (`NoteRow`, `gap-x-12`). */
 const NOTES_GAP = 48;
+/** La ligne de lecture, en part de la hauteur d'écran : ce qui l'a passée est lu. */
+const READING_LINE = 0.355;
 
 /** Nom provisoire de la vue — à Alexandre de le choisir. */
 export const ARTICLE_MAP_LABEL = 'Concept Map';
@@ -116,8 +118,8 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
 
   const [open, setOpen] = useState(false);
   /**
-   * LE PASSAGE LU (2026-10-31, demande Alexandre). `reading` : la thèse que la
-   * bande de lecture (35 % de l'écran) croise. `anchor` : le point de départ
+   * LE PASSAGE LU (2026-10-31, demande Alexandre). `reading` : la dernière
+   * citation, thèse ou mécanisme, passée la ligne de lecture (35 % de l'écran). `anchor` : le point de départ
    * de la navigation — la citation ou la pastille touchée, sinon la lecture
    * quand c'est le lecteur qui fait défiler. `picked` : un autre nœud montré.
    * « Suit votre lecture » ⇔ le panneau montre le point de départ ; partout
@@ -130,11 +132,14 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
   const leftAt = useRef<number | null>(null);
   /** Un défilement lancé par le panneau : la lecture ne bouge pas avec lui. */
   const driving = useRef(false);
+  /** La souris est sur le panneau : on y lit, la fiche ne change pas sous les yeux. */
+  const held = useRef(false);
   const [center, setCenter] = useState(0);
   const [wide, setWide] = useState(false);
   const [drawn, setDrawn] = useState(false);
   /** Les citations soulignées, dans l'ordre du texte, et celles qui sont à l'écran. */
   const [order, setOrder] = useState<string[]>([]);
+  const mechanisms = useMemo(() => order.filter((id) => ix.byId.get(id)?.kind === 'mechanism'), [order, ix]);
   const [visible, setVisible] = useState<ReadonlySet<string>>(() => new Set());
   const [hot, setHot] = useState<string | null>(null);
   /** La colonne des notes, dès qu'elle existe (1100 px) : les pastilles s'y rangent. */
@@ -148,30 +153,53 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
   const shown = picked ?? here;
   const following = shown === here;
 
-  // Où en est la lecture.
+  // Où en est la lecture : la dernière citation dont le haut a passé la ligne
+  // de lecture, dans l'ordre du texte — thèse ou mécanisme, sans distinction.
+  // Une thèse sans citation compte par le premier paragraphe qu'elle couvre.
   useEffect(() => {
     const fromHash = window.location.hash.match(/^#p-(.+)$/);
     if (fromHash && thesisOf.has(fromHash[1])) setReading(thesisOf.get(fromHash[1])!);
-    const io = new IntersectionObserver(
-      (entries) => {
-        const hit = entries.filter((e) => e.isIntersecting).at(-1);
-        const id = hit && thesisOf.get((hit.target as HTMLElement).id.slice(2));
-        if (!id) return;
-        setReading(id);
-        // Le lecteur fait défiler lui-même : il lit là, le panneau le suit.
-        if (driving.current) return;
-        setAnchor(id);
-        setPicked(null);
-        leftAt.current = null;
-      },
-      { rootMargin: '-35% 0px -64% 0px' },
-    );
-    for (const k of thesisOf.keys()) {
-      const el = document.getElementById(`p-${k}`);
-      if (el) io.observe(el);
+    const marks: [HTMLElement, string][] = [...document.querySelectorAll<HTMLElement>('.journal-concept[data-concept]')].map((el) => [el, el.dataset.concept!]);
+    const cited = new Set(marks.map(([, id]) => id));
+    for (const id of theses) {
+      const k = ix.byId.get(id)?.covers?.[0];
+      const el = !cited.has(id) && k ? document.getElementById(`p-${k}`) : null;
+      if (el) marks.push([el, id]);
     }
-    return () => io.disconnect();
-  }, [thesisOf]);
+    let frame = 0;
+    let last: string | null = null;
+    const measure = () => {
+      frame = 0;
+      const line = window.innerHeight * READING_LINE;
+      let best: string | null = null;
+      let bestTop = -Infinity;
+      for (const [el, id] of marks) {
+        const top = el.getBoundingClientRect().top;
+        if (top <= line && top > bestTop) [best, bestTop] = [id, top];
+      }
+      if (!best || best === last) return;
+      last = best;
+      setReading(best);
+      // Le lecteur fait défiler lui-même : il lit là, le panneau le suit —
+      // sauf s'il a la souris sur le panneau, ou si c'est le panneau qui
+      // fait défiler.
+      if (driving.current || held.current) return;
+      setAnchor(best);
+      setPicked(null);
+      leftAt.current = null;
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
+    measure();
+    document.addEventListener('scroll', schedule, { capture: true, passive: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('scroll', schedule, { capture: true });
+      window.removeEventListener('resize', schedule);
+    };
+  }, [ix, theses, thesisOf, view]);
 
   // Les citations à l'écran. Une citation coupée en plusieurs morceaux est
   // à l'écran dès que l'un d'eux l'est.
@@ -335,7 +363,7 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
       (covers[0] ? document.getElementById(`p-${covers[0]}`) : null);
     if (!el) return;
     const line = Math.min(el.getBoundingClientRect().height, 24);
-    el.style.scrollMarginTop = `${Math.round(window.innerHeight * 0.355 - line / 2)}px`;
+    el.style.scrollMarginTop = `${Math.round(window.innerHeight * READING_LINE - line / 2)}px`;
     drive(() => el.scrollIntoView({ block: 'start', behavior: behavior() }));
     el.style.scrollMarginTop = '';
   };
@@ -356,10 +384,16 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
     setPicked(id);
   };
 
-  /** ← → : la thèse voisine, et l'article défile jusqu'à sa citation. */
-  const at = shown ? theses.indexOf(shown) : -1;
+  /**
+   * ← → : le voisin du même type — de thèse en thèse, de mécanisme en
+   * mécanisme (2026-11-01, Alexandre : « flèches par type ») —, et l'article
+   * défile jusqu'à sa citation.
+   */
+  const isMech = !!shown && ix.byId.get(shown)?.kind === 'mechanism';
+  const series = isMech ? mechanisms : theses;
+  const at = shown ? series.indexOf(shown) : -1;
   const step = (d: number) => {
-    const next = theses[at + d];
+    const next = series[at + d];
     if (!next) return;
     if (next === here) return backToReading();
     pick(next);
@@ -411,7 +445,9 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
           const node = ix.byId.get(id);
           const on = !open && visible.has(id);
           if (!node) return null;
-          const n = theses.indexOf(id);
+          const mech = node.kind === 'mechanism';
+          const list = mech ? mechanisms : theses;
+          const n = list.indexOf(id);
           return (
             <div key={id} className="article-map-slot" data-shown={on ? '' : undefined} data-hot={hot === id ? '' : undefined}>
               <div>
@@ -431,7 +467,8 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
                   </span>
                   <span className="flex min-w-0 flex-col">
                     <span className={cn(MICRO_LABEL, 'article-map-pill-kicker text-[var(--color-fg-muted)]')}>
-                      {ARTICLE_MAP_LABEL} · {n >= 0 ? `${n + 1}/${theses.length}` : t.map.mechanism}
+                      {ARTICLE_MAP_LABEL} · {mech ? t.map.mechanism : t.map.thesis}
+                      {n >= 0 && ` ${n + 1}/${list.length}`}
                     </span>
                     <span className="truncate text-[14px] font-bold leading-[1.3] text-[var(--color-fg)]">{frenchSpaces(node.label)}</span>
                   </span>
@@ -456,6 +493,8 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
         data-open={open ? '' : undefined}
         onKeyDown={onPanelKey}
         onClickCapture={onPanelClick}
+        onPointerEnter={(e) => (held.current = e.pointerType === 'mouse')}
+        onPointerLeave={() => (held.current = false)}
         className="article-map flex flex-col overflow-y-auto border-[var(--color-line)] bg-[var(--color-bg-raised)] shadow-[0_-1px_3px_rgba(0,0,0,0.08)]"
       >
         <div className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-[var(--color-line)] bg-[var(--color-bg-raised)]" style={{ padding: '14px 20px' }}>
@@ -485,7 +524,7 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
         <div className="flex flex-col gap-5" style={{ padding: 20 }}>
           {at >= 0 && (
             <div className="flex items-center justify-between gap-3">
-              <StepButton disabled={at === 0} onClick={() => step(-1)} label={t.map.previous}>
+              <StepButton disabled={at === 0} onClick={() => step(-1)} label={isMech ? t.map.previousMechanism : t.map.previous}>
                 ←
               </StepButton>
               {!following ? (
@@ -499,7 +538,7 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
                   {t.map.following}
                 </span>
               )}
-              <StepButton disabled={at === theses.length - 1} onClick={() => step(1)} label={t.map.next}>
+              <StepButton disabled={at === series.length - 1} onClick={() => step(1)} label={isMech ? t.map.nextMechanism : t.map.next}>
                 →
               </StepButton>
             </div>
@@ -509,7 +548,7 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
               ← {t.map.backToReading}
             </button>
           )}
-          {shown && <MapPanel ix={ix} id={shown} onSelect={pick} />}
+          {shown && <MapPanel ix={ix} id={shown} onSelect={pick} rank={isMech && at >= 0 ? [at + 1, series.length] : undefined} />}
           {shown && (
             <div className="border-t border-[var(--color-line)]" style={{ paddingTop: 16 }}>
               <ReadLink href={`${conceptMapPath(view.lang)}#${HASH_KEY}=${encodeURIComponent(shown)}`}>{t.map.openFull}</ReadLink>
