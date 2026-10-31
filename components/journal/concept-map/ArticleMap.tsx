@@ -115,9 +115,21 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
   const all = useMemo(() => new Set(view.nodes.map((n) => n.id)), [view]);
 
   const [open, setOpen] = useState(false);
+  /**
+   * LE PASSAGE LU (2026-10-31, demande Alexandre). `reading` : la thèse que la
+   * bande de lecture (35 % de l'écran) croise. `anchor` : le point de départ
+   * de la navigation — la citation ou la pastille touchée, sinon la lecture
+   * quand c'est le lecteur qui fait défiler. `picked` : un autre nœud montré.
+   * « Suit votre lecture » ⇔ le panneau montre le point de départ ; partout
+   * ailleurs, « Revenir au passage lu » ramène au point de départ.
+   */
   const [reading, setReading] = useState<string | null>(null);
-  /** Un nœud choisi à la main ; `null` : le panneau suit la lecture. */
+  const [anchor, setAnchor] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
+  /** Où était la page quand on a quitté le passage lu : le retour y ramène. */
+  const leftAt = useRef<number | null>(null);
+  /** Un défilement lancé par le panneau : la lecture ne bouge pas avec lui. */
+  const driving = useRef(false);
   const [center, setCenter] = useState(0);
   const [wide, setWide] = useState(false);
   const [drawn, setDrawn] = useState(false);
@@ -132,7 +144,9 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
   const heading = useRef<HTMLParagraphElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
 
-  const shown = picked ?? reading ?? theses[0] ?? null;
+  const here = anchor ?? reading ?? theses[0] ?? null;
+  const shown = picked ?? here;
+  const following = shown === here;
 
   // Où en est la lecture.
   useEffect(() => {
@@ -142,7 +156,13 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
       (entries) => {
         const hit = entries.filter((e) => e.isIntersecting).at(-1);
         const id = hit && thesisOf.get((hit.target as HTMLElement).id.slice(2));
-        if (id) setReading(id);
+        if (!id) return;
+        setReading(id);
+        // Le lecteur fait défiler lui-même : il lit là, le panneau le suit.
+        if (driving.current) return;
+        setAnchor(id);
+        setPicked(null);
+        leftAt.current = null;
       },
       { rootMargin: '-35% 0px -64% 0px' },
     );
@@ -239,7 +259,12 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
     }
   }, []);
 
-  const pick = useCallback((id: string) => setPicked(id === reading ? null : id), [reading]);
+  /** Le passage lu devient `id` : la navigation repart de là. */
+  const settle = useCallback((id: string | null) => {
+    setAnchor(id);
+    setPicked(null);
+    leftAt.current = null;
+  }, []);
 
   const ctx = useMemo<Ctx>(
     () => ({
@@ -248,68 +273,97 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
       hot,
       setHot,
       openAt: (id) => {
-        pick(id);
+        settle(id);
         show(true);
       },
     }),
-    [visible, pick, show, view.lang, hot],
+    [visible, settle, show, view.lang, hot],
   );
 
-  // `M` ouvre et ferme, Échap ferme.
+  // `M` ouvre sur ce qui se lit, et ferme ; Échap ferme.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey || editable(e.target)) return;
       if (e.key === 'm' || e.key === 'M') {
         e.preventDefault();
+        if (!open) settle(reading);
         show(!open);
       } else if (e.key === 'Escape' && open) show(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, show]);
+  }, [open, show, settle, reading]);
 
-  /**
-   * ← → mènent la lecture elle-même : l'article défile jusqu'à la citation de
-   * la thèse suivante (ou précédente), posée dans la bande où l'observateur de
-   * lecture regarde (35 % de la hauteur). Pendant le trajet, le panneau tient
-   * la thèse visée ; quand la lecture l'atteint, il se raccroche à elle.
-   */
-  const [travel, setTravel] = useState<string | null>(null);
+  // Un défilement du panneau se termine quand la page s'arrête (160 ms sans
+  // défilement), ou dès que le lecteur reprend la main hors du panneau.
+  const stopDriving = useRef<() => void>(() => {});
   useEffect(() => {
-    if (travel && reading === travel) {
-      setTravel(null);
-      setPicked(null);
-    }
-  }, [reading, travel]);
-  // Le lecteur reprend la main en cours de route : le trajet s'abandonne, le
-  // panneau garde la thèse visée et propose de revenir au passage lu.
-  useEffect(() => {
-    if (!travel) return;
-    const cancel = () => setTravel(null);
-    window.addEventListener('wheel', cancel, { passive: true });
-    window.addEventListener('touchstart', cancel, { passive: true });
-    return () => {
-      window.removeEventListener('wheel', cancel);
-      window.removeEventListener('touchstart', cancel);
+    let timer = 0;
+    const quiet = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => (driving.current = false), 160);
     };
-  }, [travel]);
+    stopDriving.current = quiet;
+    const onScroll = () => driving.current && quiet();
+    const takeOver = (e: Event) => {
+      if (driving.current && !panel.current?.contains(e.target as Node)) {
+        window.clearTimeout(timer);
+        driving.current = false;
+      }
+    };
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    for (const t of ['wheel', 'touchstart', 'keydown'] as const) window.addEventListener(t, takeOver, { capture: true, passive: true });
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('scroll', onScroll, { capture: true });
+      for (const t of ['wheel', 'touchstart', 'keydown'] as const) window.removeEventListener(t, takeOver, { capture: true });
+    };
+  }, []);
+  const drive = (go: () => void) => {
+    driving.current = true;
+    go();
+    stopDriving.current();
+  };
+  const scroller = () => document.querySelector<HTMLElement>('[data-scroll-container]') ?? document.scrollingElement;
+  const behavior = (): ScrollBehavior => (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
 
+  /** L'article défile jusqu'à la citation de `id`, posée dans la bande de lecture. */
+  const scrollToNode = (id: string) => {
+    const covers = ix.byId.get(id)?.covers ?? [];
+    const el =
+      document.querySelector<HTMLElement>(`.journal-concept[data-concept="${CSS.escape(id)}"]`) ??
+      (covers[0] ? document.getElementById(`p-${covers[0]}`) : null);
+    if (!el) return;
+    const line = Math.min(el.getBoundingClientRect().height, 24);
+    el.style.scrollMarginTop = `${Math.round(window.innerHeight * 0.355 - line / 2)}px`;
+    drive(() => el.scrollIntoView({ block: 'start', behavior: behavior() }));
+    el.style.scrollMarginTop = '';
+  };
+
+  /** Retour au passage lu : là où la page était quand on l'a quitté. */
+  const backToReading = () => {
+    setPicked(null);
+    const top = leftAt.current;
+    leftAt.current = null;
+    if (top !== null) drive(() => scroller()?.scrollTo({ top, behavior: behavior() }));
+    else if (here) scrollToNode(here);
+  };
+
+  /** Montrer un autre nœud ; le premier pas hors du passage lu retient où était la page. */
+  const pick = (id: string) => {
+    if (id === here) return backToReading();
+    if (following) leftAt.current = scroller()?.scrollTop ?? null;
+    setPicked(id);
+  };
+
+  /** ← → : la thèse voisine, et l'article défile jusqu'à sa citation. */
   const at = shown ? theses.indexOf(shown) : -1;
   const step = (d: number) => {
     const next = theses[at + d];
     if (!next) return;
+    if (next === here) return backToReading();
     pick(next);
-    setTravel(null);
-    const covers = ix.byId.get(next)?.covers ?? [];
-    const el =
-      document.querySelector<HTMLElement>(`.journal-concept[data-concept="${CSS.escape(next)}"]`) ??
-      (covers[0] ? document.getElementById(`p-${covers[0]}`) : null);
-    if (!el) return;
-    setTravel(next);
-    const line = Math.min(el.getBoundingClientRect().height, 24);
-    el.style.scrollMarginTop = `${Math.round(window.innerHeight * 0.355 - line / 2)}px`;
-    el.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-    el.style.scrollMarginTop = '';
+    scrollToNode(next);
   };
   const onPanelKey = (e: ReactKeyboardEvent) => {
     if (editable(e.target) || at < 0) return;
@@ -329,7 +383,10 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
     const a = (e.target as HTMLElement).closest('a');
     if (!a || a.origin !== window.location.origin || a.pathname !== window.location.pathname || !a.hash) return;
     e.preventDefault();
-    setPicked(null);
+    // Le lecteur choisit d'aller lire ce passage : il devient le passage lu.
+    settle(shown);
+    driving.current = true;
+    stopDriving.current();
     if (!window.matchMedia('(min-width: 1280px)').matches) show(false);
     if (window.location.hash === a.hash) {
       document.getElementById(decodeURIComponent(a.hash.slice(1)))?.scrollIntoView({ block: 'start' });
@@ -431,8 +488,8 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
               <StepButton disabled={at === 0} onClick={() => step(-1)} label={t.map.previous}>
                 ←
               </StepButton>
-              {picked && picked !== travel ? (
-                <button type="button" onClick={() => setPicked(null)} className={cn(MICRO_LABEL, 'flex items-center gap-2 text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')}>
+              {!following ? (
+                <button type="button" onClick={backToReading} className={cn(MICRO_LABEL, 'flex items-center gap-2 text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')}>
                   <StateDot on={false} />
                   {t.map.backToReading}
                 </button>
@@ -447,8 +504,8 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
               </StepButton>
             </div>
           )}
-          {at < 0 && picked && (
-            <button type="button" onClick={() => setPicked(null)} className={cn(MICRO_LABEL, 'flex w-fit items-center gap-2 text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')}>
+          {at < 0 && !following && (
+            <button type="button" onClick={backToReading} className={cn(MICRO_LABEL, 'flex w-fit items-center gap-2 text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')}>
               ← {t.map.backToReading}
             </button>
           )}
