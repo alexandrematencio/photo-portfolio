@@ -1,7 +1,6 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { createPortal } from 'react-dom';
 import {
   createContext,
   useCallback,
@@ -59,15 +58,12 @@ const GRAPH_LABEL_ROOM = 200;
 const SITE_HEADER = 64;
 
 /**
- * Le haut de la pile, dans la colonne des notes (2026-10-31, demande
- * Alexandre) : à 16 px du bord de l'écran, quand la barre du site est vide
- * au-dessus de la colonne (elle est transparente) ; sinon — sous 1280 px,
- * les langues y passent — à 12 px sous elle. Dans la barre, la pile
- * passe AU-DESSUS d'elle (z-50), sinon sa bande capte les clics — et
- * vit dans `body` : la colonne qui défile (`fixed`) fait un contexte
- * d'empilement, où aucun z-index ne passerait la barre.
+ * Le haut de la pile (2026-10-31, demande Alexandre) : 16 px sous le chapô
+ * tant qu'il est à l'écran — il court sur toute la largeur du titre, la pile
+ * ne doit pas le couvrir, et une citation peut y être dès l'arrivée — puis
+ * 16 px sous la barre du site, une fois le chapô passé.
  */
-const PILLS_TOP = 16;
+const PILLS_GAP = 16;
 
 /** Écart entre le texte et la colonne des notes (`NoteRow`, `gap-x-12`). */
 const NOTES_GAP = 48;
@@ -130,8 +126,8 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
   const [visible, setVisible] = useState<ReadonlySet<string>>(() => new Set());
   const [hot, setHot] = useState<string | null>(null);
   /** La colonne des notes, dès qu'elle existe (1100 px) : les pastilles s'y rangent. */
-  const [rail, setRail] = useState<{ left: number; width: number; top: number } | null>(null);
-  const [host, setHost] = useState<HTMLElement | null>(null);
+  const [rail, setRail] = useState<{ left: number; width: number } | null>(null);
+  const pills = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLElement>(null);
   const heading = useRef<HTMLParagraphElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
@@ -176,7 +172,6 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
 
   // Les pastilles dans la colonne des notes : même bord gauche, même largeur.
   useEffect(() => {
-    setHost(document.body);
     const row = document.querySelector<HTMLElement>('[data-note-row]');
     if (!row) return;
     const mq = window.matchMedia('(min-width: 1100px)');
@@ -184,15 +179,38 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
       const text = row.firstElementChild?.getBoundingClientRect();
       if (!mq.matches || !text) return setRail(null);
       const left = Math.round(text.right + NOTES_GAP);
-      const navEnd = Math.max(
-        0,
-        ...[...document.querySelectorAll<HTMLElement>('header nav a, header nav button')].filter((e) => e.offsetParent).map((e) => e.getBoundingClientRect().right),
-      );
-      setRail({ left, width: Math.round(row.getBoundingClientRect().right) - left, top: navEnd + 16 <= left ? PILLS_TOP : SITE_HEADER + 12 });
+      setRail({ left, width: Math.round(row.getBoundingClientRect().right) - left });
     };
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
+  }, []);
+
+  // Sous le chapô, puis sous la barre. Écrit à même le style, une fois par
+  // image : le suivre au défilement ne doit rien rendre. Sur téléphone, la
+  // pile est en bas (CSS) : on rend la main.
+  useEffect(() => {
+    const el = pills.current;
+    if (!el) return;
+    const lead = document.querySelector<HTMLElement>('[data-lead]');
+    const mq = window.matchMedia('(min-width: 768px)');
+    let frame = 0;
+    const place = () => {
+      frame = 0;
+      el.style.top = mq.matches ? `${Math.round(Math.max(SITE_HEADER, lead?.getBoundingClientRect().bottom ?? 0)) + PILLS_GAP}px` : '';
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(place);
+    };
+    place();
+    // En capture : la page défile dans sa colonne, pas dans `window`.
+    document.addEventListener('scroll', schedule, { capture: true, passive: true });
+    window.addEventListener('resize', schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('scroll', schedule, { capture: true });
+      window.removeEventListener('resize', schedule);
+    };
   }, []);
 
   useEffect(() => {
@@ -288,56 +306,53 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
       {/* Les pastilles, en haut : une par citation à l'écran, dans l'ordre de
           lecture ; un toucher ouvre le panneau sur elle. Toutes montées,
           repliées tant qu'elles sont hors champ (CSS `.article-map-slot`). */}
-      {host &&
-        createPortal(
-          <div
-            className="article-map-pills"
-            data-hot={hot && !open && visible.has(hot) ? '' : undefined}
-            style={rail ? { left: rail.left, width: rail.width, right: 'auto', top: rail.top, zIndex: rail.top < SITE_HEADER ? 51 : undefined } : undefined}
-          >
-            {order.map((id) => {
-              const node = ix.byId.get(id);
-              const on = !open && visible.has(id);
-              if (!node) return null;
-              const n = theses.indexOf(id);
-              return (
-                <div key={id} className="article-map-slot" data-shown={on ? '' : undefined} data-hot={hot === id ? '' : undefined}>
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => ctx.openAt(id)}
-                      {...hoverProps(ctx, id)}
-                      onFocus={() => setHot(id)}
-                      onBlur={() => setHot(null)}
-                      aria-hidden={!on}
-                      tabIndex={on ? 0 : -1}
-                      className="article-map-pill flex items-center gap-3 border border-[var(--color-line)] bg-[var(--color-bg-raised)] text-left shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                      style={{ borderRadius: CONTROL_RADIUS, padding: '10px 14px' }}
-                    >
-                      <span className="article-map-pill-kicker flex text-[var(--color-fg-muted)]">
-                        <MapGlyph />
-                      </span>
-                      <span className="flex min-w-0 flex-col">
-                        <span className={cn(MICRO_LABEL, 'article-map-pill-kicker text-[var(--color-fg-muted)]')}>
-                          {ARTICLE_MAP_LABEL} · {n >= 0 ? `${n + 1}/${theses.length}` : t.map.mechanism}
-                        </span>
-                        <span className="truncate text-[14px] font-bold leading-[1.3] text-[var(--color-fg)]">{frenchSpaces(node.label)}</span>
-                      </span>
-                      <kbd
-                        aria-hidden
-                        className={cn(MICRO_LABEL, 'hidden flex-none border border-[var(--color-line)] text-[var(--color-fg-muted)] [@media(hover:hover)]:inline-block')}
-                        style={{ padding: '1px 5px', borderRadius: CONTROL_RADIUS }}
-                      >
-                        M
-                      </kbd>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>,
-          host,
-        )}
+      <div
+        ref={pills}
+        className="article-map-pills"
+        data-hot={hot && !open && visible.has(hot) ? '' : undefined}
+        style={rail ? { left: rail.left, width: rail.width, right: 'auto' } : undefined}
+      >
+        {order.map((id) => {
+          const node = ix.byId.get(id);
+          const on = !open && visible.has(id);
+          if (!node) return null;
+          const n = theses.indexOf(id);
+          return (
+            <div key={id} className="article-map-slot" data-shown={on ? '' : undefined} data-hot={hot === id ? '' : undefined}>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => ctx.openAt(id)}
+                  {...hoverProps(ctx, id)}
+                  onFocus={() => setHot(id)}
+                  onBlur={() => setHot(null)}
+                  aria-hidden={!on}
+                  tabIndex={on ? 0 : -1}
+                  className="article-map-pill flex items-center gap-3 border border-[var(--color-line)] bg-[var(--color-bg-raised)] text-left shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                  style={{ borderRadius: CONTROL_RADIUS, padding: '10px 14px' }}
+                >
+                  <span className="article-map-pill-kicker flex text-[var(--color-fg-muted)]">
+                    <MapGlyph />
+                  </span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className={cn(MICRO_LABEL, 'article-map-pill-kicker text-[var(--color-fg-muted)]')}>
+                      {ARTICLE_MAP_LABEL} · {n >= 0 ? `${n + 1}/${theses.length}` : t.map.mechanism}
+                    </span>
+                    <span className="truncate text-[14px] font-bold leading-[1.3] text-[var(--color-fg)]">{frenchSpaces(node.label)}</span>
+                  </span>
+                  <kbd
+                    aria-hidden
+                    className={cn(MICRO_LABEL, 'hidden flex-none border border-[var(--color-line)] text-[var(--color-fg-muted)] [@media(hover:hover)]:inline-block')}
+                    style={{ padding: '1px 5px', borderRadius: CONTROL_RADIUS }}
+                  >
+                    M
+                  </kbd>
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       <aside
         ref={panel}

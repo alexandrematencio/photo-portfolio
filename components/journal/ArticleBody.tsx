@@ -369,7 +369,7 @@ export function ArticleBody({
               const mark = found?.length ? <ConceptMarks items={found} /> : null;
               if (isLead && notes.length === 0) {
                 return (
-                  <p key={i} {...passage} className={cn(EDITORIAL_LEAD, passage.className)} style={{ marginTop: top(0) }}>
+                  <p key={i} {...passage} data-lead className={cn(EDITORIAL_LEAD, passage.className)} style={{ marginTop: top(0) }}>
                     {mark}
                     {renderInline(inline, numbering)}
                   </p>
@@ -377,7 +377,7 @@ export function ArticleBody({
               }
               return (
                 <NoteRow key={i} notes={notes} style={{ marginTop: top(isLead ? 0 : after) }}>
-                  <p {...passage} className={cn(isLead ? EDITORIAL_LEAD : EDITORIAL_BODY, passage.className)}>
+                  <p {...passage} data-lead={isLead ? '' : undefined} className={cn(isLead ? EDITORIAL_LEAD : EDITORIAL_BODY, passage.className)}>
                     {mark}
                     {renderInline(inline, numbering)}
                   </p>
