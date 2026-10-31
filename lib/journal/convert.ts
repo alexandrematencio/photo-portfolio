@@ -48,13 +48,21 @@ export function imageOf(raw: RawImage | undefined): JournalImage | null {
   const dims = ref ? dimensionsOf(ref) : null;
   const base = raw && dims ? urlFor(raw) : null;
   if (!raw || !dims || !base) return null;
-  const at = (w: number) => base.width(w).fit('max').auto('format').quality(82).url();
+  // Un schéma (PNG) est servi tel quel, sans conversion ni perte : l'AVIF à
+  // 82 bavait sur les traits fins et le petit texte, illisibles sur un écran
+  // 1x (2026-10-31). Les photos (JPEG) gardent la compression.
+  const lossless = /-png$/i.test(ref!);
+  const at = (w: number) =>
+    lossless ? base.width(w).fit('max').url() : base.width(w).fit('max').auto('format').quality(82).url();
   const { x = 0.5, y = 0.5 } = raw.hotspot ?? {};
   // Un recadrage du Studio change les proportions servies par le CDN.
   const { top = 0, bottom = 0, left = 0, right = 0 } = raw.crop ?? {};
   return {
     src: at(1600),
     srcSet: IMAGE_WIDTHS.map((w) => `${at(w)} ${w}w`).join(', '),
+    // Pleine taille, pour la vue agrandie, à la largeur de l'asset : `urlFor`
+    // impose 2048 px, ce qui AGRANDISSAIT un schéma de 1584 px (rééchantillonné, flou).
+    full: lossless ? base.width(dims.width).fit('max').url() : base.width(dims.width).fit('max').auto('format').quality(82).url(),
     width: Math.round(dims.width * (1 - left - right)),
     height: Math.round(dims.height * (1 - top - bottom)),
     alt: raw.alt?.trim() ?? '',

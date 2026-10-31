@@ -428,6 +428,8 @@ export function ArticleBody({
                   image={block.image}
                   caption={block.caption}
                   wide={block.wide}
+                  enlargeLabel={DICT[lang].enlarge}
+                  closeLabel={DICT[lang].close}
                   style={{ marginTop: top(RHYTHM.object) }}
                 />
               );

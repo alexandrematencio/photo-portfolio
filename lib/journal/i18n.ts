@@ -186,6 +186,8 @@ export type Dict = {
   workshopNote: (n: string) => string;
   toDecide: string;
   close: string;
+  /** Pastille d'une image du corps : l'ouvre en pleine taille (`ArticleImage`). */
+  enlarge: string;
   notes: string;
   /** Notes repliées dans la marge, faute de place : « + 2 notes · 26, 27 ». */
   foldedNotes: (ids: string[]) => string;
@@ -428,6 +430,7 @@ export const DICT: Record<Lang, Dict> = {
     workshopNote: (n) => `Note d’atelier ${n}`,
     toDecide: 'À trancher',
     close: 'Fermer',
+    enlarge: 'Voir en grand',
     notes: 'Notes',
     foldedNotes: (ids) => `+ ${ids.length} note${ids.length > 1 ? 's' : ''} · ${ids.join(', ')}`,
     foldNotes: 'Replier',
@@ -677,6 +680,7 @@ export const DICT: Record<Lang, Dict> = {
     workshopNote: (n) => `Workshop note ${n}`,
     toDecide: 'To settle',
     close: 'Close',
+    enlarge: 'View full size',
     notes: 'Notes',
     foldedNotes: (ids) => `+ ${ids.length} note${ids.length > 1 ? 's' : ''} · ${ids.join(', ')}`,
     foldNotes: 'Collapse',
@@ -927,6 +931,7 @@ export const DICT: Record<Lang, Dict> = {
     workshopNote: (n) => `Рабочая заметка ${n}`,
     toDecide: 'Решить',
     close: 'Закрыть',
+    enlarge: 'Открыть целиком',
     notes: 'Сноски',
     foldedNotes: (ids) => {
       const n = ids.length;

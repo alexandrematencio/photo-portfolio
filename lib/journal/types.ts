@@ -35,6 +35,8 @@ export type JournalImage = {
   /** URL à 1600 px de large, la plus grande servie par le journal. */
   src: string;
   srcSet: string;
+  /** URL pleine taille, sans perte pour un schéma : la vue agrandie (`ArticleImage`). */
+  full: string;
   width: number;
   height: number;
   alt: string;
