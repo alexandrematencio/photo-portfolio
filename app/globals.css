@@ -1408,21 +1408,28 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
    (`ArticleMap`, même état) : il dit à quoi la pastille renvoie, rien de
    plus. Même geste que le surligné jaune (`.journal-hl` : un fond dont la
    largeur passe de 0 à 100 %), dosé plus bas :
-   - pointillé 3 / 3 px, 1 px d'épaisseur, en `--color-concept-line` ;
+   - pointillé 2 / 4 px, 1 px d'épaisseur, en `--color-concept-line` : un
+     gris à mi-chemin du filet et du texte pâle (2026-10-31, Alexandre — ces
+     citations sont légion, avec les notes et le jaune ça faisait beaucoup) ;
    - posé dans 3 px de `padding-bottom` qui ne touchent pas l'interligne :
      un surligné jaune imbriqué couvrirait sinon le trait ;
    - entrée 900 ms qui freine ; sortie 300 ms qui prend son élan, presque
      toujours hors champ ;
-   - cliquable : la main, et au survol une ombre de gris (opacité −15 %),
-     sans changer de couleur.
+   - cliquable : la main, et au survol une ombre de gris (opacité −25 %,
+     2026-10-31), sans changer de couleur ;
+   - désignée (`data-hot`) depuis sa pastille ou sa marque : le pointillé
+     fonce et un voile gris se pose sous le texte, comme l'appel de note
+     s'allume quand on survole sa note. Survolée elle-même, pareil : le
+   voile montre aussi ses autres morceaux. 150 ms, un état de survol.
    Mouvement réduit : il paraît et disparaît. Sans JS : jamais (pas de
    pastille à désigner, `<noscript>` d'`ArticleBody`). */
 :root {
-  --color-concept-line: var(--color-fg-faint);
+  --color-concept-line: color-mix(in srgb, var(--color-fg-faint) 55%, var(--color-bg));
+  --color-concept-hot: color-mix(in srgb, var(--color-fg) 6%, transparent);
 }
 .journal-concept {
   padding-bottom: 3px;
-  background-image: repeating-linear-gradient(to right, var(--color-concept-line) 0 3px, transparent 3px 6px);
+  background-image: repeating-linear-gradient(to right, var(--color-concept-line) 0 2px, transparent 2px 6px);
   background-repeat: no-repeat;
   background-position: 0 100%;
   background-size: 0% 1px;
@@ -1431,20 +1438,26 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
 .journal-concept[data-on] {
   background-size: 100% 1px;
 }
+.journal-concept[data-on][data-hot] {
+  --color-concept-line: var(--color-fg-muted);
+  background-color: var(--color-concept-hot);
+}
 @media (hover: hover) {
   .journal-concept:hover {
-    opacity: 0.85;
+    opacity: 0.75;
   }
 }
 @media (prefers-reduced-motion: no-preference) {
   .journal-concept {
     transition:
       background-size 0.3s cubic-bezier(0.4, 0, 1, 1),
+      background-color 150ms ease-out,
       opacity 150ms ease-out;
   }
   .journal-concept[data-on] {
     transition:
       background-size 0.9s cubic-bezier(0.25, 1, 0.5, 1),
+      background-color 150ms ease-out,
       opacity 150ms ease-out;
   }
 }
@@ -1589,6 +1602,27 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
   translate: 0 0;
   visibility: visible;
 }
+/* LE SURVOL CROISÉ (2026-10-31, demande Alexandre) — la citation survolée
+   dans le texte allume SA pastille : filet foncé, glyphe et surtitre à l'encre, comme la
+   note dont on survole l'appel ; les autres pastilles reculent (opacité
+   0,4), pour qu'on voie d'un coup laquelle parle de cette phrase. Leur
+   contenu seulement : effacées en entier, elles laissaient voir les notes
+   à travers ; et l'opacité de la pastille sert déjà à son entrée. */
+.article-map-pill > * {
+  transition: opacity 150ms ease-out;
+}
+.article-map-pills[data-hot] .article-map-slot:not([data-hot]) .article-map-pill > * {
+  opacity: 0.4;
+}
+.article-map-slot[data-hot] .article-map-pill {
+  border-color: var(--color-fg-muted);
+}
+.article-map-pill-kicker {
+  transition: color 150ms ease-out;
+}
+.article-map-slot[data-hot] .article-map-pill-kicker {
+  color: var(--color-fg);
+}
 .article-map-slot[data-shown] ~ .article-map-slot kbd {
   display: none !important;
 }
@@ -1694,6 +1728,12 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
 .concept-mark:focus-within {
   opacity: 1;
   visibility: visible;
+}
+.concept-mark[data-hot] .concept-mark-button {
+  color: var(--color-fg);
+}
+.concept-mark[data-hot] .concept-mark-branches {
+  stroke: var(--color-fg-muted);
 }
 @media (hover: hover) and (pointer: fine) and (min-width: 768px) {
   .concept-marks {

@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { createPortal } from 'react-dom';
 import {
   createContext,
   useCallback,
@@ -57,6 +58,20 @@ const GRAPH_LABEL_ROOM = 200;
 /** La barre du site (`SiteHeader`, h-16) : ce qu'elle couvre n'est pas à l'écran. */
 const SITE_HEADER = 64;
 
+/**
+ * Le haut de la pile, dans la colonne des notes (2026-10-31, demande
+ * Alexandre) : à 16 px du bord de l'écran, quand la barre du site est vide
+ * au-dessus de la colonne (elle est transparente) ; sinon — sous 1280 px,
+ * les langues y passent — à 12 px sous elle. Dans la barre, la pile
+ * passe AU-DESSUS d'elle (z-50), sinon sa bande capte les clics — et
+ * vit dans `body` : la colonne qui défile (`fixed`) fait un contexte
+ * d'empilement, où aucun z-index ne passerait la barre.
+ */
+const PILLS_TOP = 16;
+
+/** Écart entre le texte et la colonne des notes (`NoteRow`, `gap-x-12`). */
+const NOTES_GAP = 48;
+
 /** Nom provisoire de la vue — à Alexandre de le choisir. */
 export const ARTICLE_MAP_LABEL = 'Concept Map';
 
@@ -67,8 +82,25 @@ export const ARTICLE_MAP_LABEL = 'Concept Map';
  * qu'une partie passe sous la barre du site ; deux à l'écran, deux pastilles,
  * dans l'ordre de lecture.
  */
-type Ctx = { openAt: (id: string) => void; visible: ReadonlySet<string>; lang: Lang };
+type Ctx = {
+  openAt: (id: string) => void;
+  visible: ReadonlySet<string>;
+  lang: Lang;
+  /** La citation désignée par le pointeur (ou le focus), où qu'il soit : texte, pastille ou marque. */
+  hot: string | null;
+  setHot: (id: string | null) => void;
+};
 const ArticleMapContext = createContext<Ctx | null>(null);
+
+/**
+ * LE SURVOL CROISÉ (2026-10-31, demande Alexandre) : la citation, sa
+ * pastille et sa marque se désignent l'une l'autre. Souris seulement — au
+ * doigt, un `pointerenter` précède le clic et resterait collé.
+ */
+const hoverProps = (ctx: Ctx, id: string) => ({
+  onPointerEnter: (e: { pointerType: string }) => e.pointerType === 'mouse' && ctx.setHot(id),
+  onPointerLeave: () => ctx.setHot(null),
+});
 
 const editable = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
@@ -96,6 +128,10 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
   /** Les citations soulignées, dans l'ordre du texte, et celles qui sont à l'écran. */
   const [order, setOrder] = useState<string[]>([]);
   const [visible, setVisible] = useState<ReadonlySet<string>>(() => new Set());
+  const [hot, setHot] = useState<string | null>(null);
+  /** La colonne des notes, dès qu'elle existe (1100 px) : les pastilles s'y rangent. */
+  const [rail, setRail] = useState<{ left: number; width: number; top: number } | null>(null);
+  const [host, setHost] = useState<HTMLElement | null>(null);
   const panel = useRef<HTMLElement>(null);
   const heading = useRef<HTMLParagraphElement>(null);
   const returnTo = useRef<HTMLElement | null>(null);
@@ -138,6 +174,27 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
     return () => io.disconnect();
   }, [view]);
 
+  // Les pastilles dans la colonne des notes : même bord gauche, même largeur.
+  useEffect(() => {
+    setHost(document.body);
+    const row = document.querySelector<HTMLElement>('[data-note-row]');
+    if (!row) return;
+    const mq = window.matchMedia('(min-width: 1100px)');
+    const measure = () => {
+      const text = row.firstElementChild?.getBoundingClientRect();
+      if (!mq.matches || !text) return setRail(null);
+      const left = Math.round(text.right + NOTES_GAP);
+      const navEnd = Math.max(
+        0,
+        ...[...document.querySelectorAll<HTMLElement>('header nav a, header nav button')].filter((e) => e.offsetParent).map((e) => e.getBoundingClientRect().right),
+      );
+      setRail({ left, width: Math.round(row.getBoundingClientRect().right) - left, top: navEnd + 16 <= left ? PILLS_TOP : SITE_HEADER + 12 });
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px)');
     const sync = () => setWide(mq.matches);
@@ -170,12 +227,14 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
     () => ({
       visible,
       lang: view.lang,
+      hot,
+      setHot,
       openAt: (id) => {
         pick(id);
         show(true);
       },
     }),
-    [visible, pick, show, view.lang],
+    [visible, pick, show, view.lang, hot],
   );
 
   // `M` ouvre et ferme, Échap ferme.
@@ -229,43 +288,56 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
       {/* Les pastilles, en haut : une par citation à l'écran, dans l'ordre de
           lecture ; un toucher ouvre le panneau sur elle. Toutes montées,
           repliées tant qu'elles sont hors champ (CSS `.article-map-slot`). */}
-      <div className="article-map-pills">
-        {order.map((id) => {
-          const node = ix.byId.get(id);
-          const on = !open && visible.has(id);
-          if (!node) return null;
-          const n = theses.indexOf(id);
-          return (
-            <div key={id} className="article-map-slot" data-shown={on ? '' : undefined}>
-              <div>
-                <button
-                  type="button"
-                  onClick={() => ctx.openAt(id)}
-                  aria-hidden={!on}
-                  tabIndex={on ? 0 : -1}
-                  className="article-map-pill flex items-center gap-3 border border-[var(--color-line)] bg-[var(--color-bg-raised)] text-left shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                  style={{ borderRadius: CONTROL_RADIUS, padding: '10px 14px' }}
-                >
-                  <MapGlyph />
-                  <span className="flex min-w-0 flex-col">
-                    <span className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
-                      {ARTICLE_MAP_LABEL} · {n >= 0 ? `${n + 1}/${theses.length}` : t.map.mechanism}
-                    </span>
-                    <span className="truncate text-[14px] font-bold leading-[1.3] text-[var(--color-fg)]">{frenchSpaces(node.label)}</span>
-                  </span>
-                  <kbd
-                    aria-hidden
-                    className={cn(MICRO_LABEL, 'hidden flex-none border border-[var(--color-line)] text-[var(--color-fg-muted)] [@media(hover:hover)]:inline-block')}
-                    style={{ padding: '1px 5px', borderRadius: CONTROL_RADIUS }}
-                  >
-                    M
-                  </kbd>
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {host &&
+        createPortal(
+          <div
+            className="article-map-pills"
+            data-hot={hot && !open && visible.has(hot) ? '' : undefined}
+            style={rail ? { left: rail.left, width: rail.width, right: 'auto', top: rail.top, zIndex: rail.top < SITE_HEADER ? 51 : undefined } : undefined}
+          >
+            {order.map((id) => {
+              const node = ix.byId.get(id);
+              const on = !open && visible.has(id);
+              if (!node) return null;
+              const n = theses.indexOf(id);
+              return (
+                <div key={id} className="article-map-slot" data-shown={on ? '' : undefined} data-hot={hot === id ? '' : undefined}>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => ctx.openAt(id)}
+                      {...hoverProps(ctx, id)}
+                      onFocus={() => setHot(id)}
+                      onBlur={() => setHot(null)}
+                      aria-hidden={!on}
+                      tabIndex={on ? 0 : -1}
+                      className="article-map-pill flex items-center gap-3 border border-[var(--color-line)] bg-[var(--color-bg-raised)] text-left shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                      style={{ borderRadius: CONTROL_RADIUS, padding: '10px 14px' }}
+                    >
+                      <span className="article-map-pill-kicker flex text-[var(--color-fg-muted)]">
+                        <MapGlyph />
+                      </span>
+                      <span className="flex min-w-0 flex-col">
+                        <span className={cn(MICRO_LABEL, 'article-map-pill-kicker text-[var(--color-fg-muted)]')}>
+                          {ARTICLE_MAP_LABEL} · {n >= 0 ? `${n + 1}/${theses.length}` : t.map.mechanism}
+                        </span>
+                        <span className="truncate text-[14px] font-bold leading-[1.3] text-[var(--color-fg)]">{frenchSpaces(node.label)}</span>
+                      </span>
+                      <kbd
+                        aria-hidden
+                        className={cn(MICRO_LABEL, 'hidden flex-none border border-[var(--color-line)] text-[var(--color-fg-muted)] [@media(hover:hover)]:inline-block')}
+                        style={{ padding: '1px 5px', borderRadius: CONTROL_RADIUS }}
+                      >
+                        M
+                      </kbd>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>,
+          host,
+        )}
 
       <aside
         ref={panel}
@@ -422,7 +494,7 @@ export function ConceptMarks({ items }: { items: { id: string; label: string }[]
       {placed.map(({ id, label, x, ys }) => {
         const span = ys.at(-1)! - ys[0];
         return (
-          <span key={id} className="concept-mark" data-on={ctx.visible.has(id) ? '' : undefined}>
+          <span key={id} className="concept-mark" data-on={ctx.visible.has(id) ? '' : undefined} data-hot={ctx.hot === id ? '' : undefined}>
             {ys.length > 1 && (
               <svg aria-hidden className="concept-mark-branches" width={12} height={span + 1} style={{ top: ys[0] }}>
                 <path d={`M8.5 0.5V${span + 0.5}${ys.map((y) => `M0 ${y - ys[0] + 0.5}H8.5`).join('')}M8.5 0.5H12`} />
@@ -431,6 +503,7 @@ export function ConceptMarks({ items }: { items: { id: string; label: string }[]
             <button
               type="button"
               onClick={() => ctx.openAt(id)}
+              {...hoverProps(ctx, id)}
               aria-label={DICT[ctx.lang].map.mark(label)}
               title={label}
               className="concept-mark-button items-center justify-center text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)]"
@@ -452,8 +525,9 @@ export function ConceptMarks({ items }: { items: { id: string; label: string }[]
  * temps que sa pastille paraît en haut : le lecteur voit à quoi la pastille
  * renvoie. Hors champ, il se retire. Un clic ouvre la carte sur elle — sauf
  * sur un lien ou un appel de note qu'elle contient, ou au bout d'une
- * sélection de texte. Au survol, une ombre de gris (opacité −15 %), rien de
- * plus. CSS : `.journal-concept`.
+ * sélection de texte. Au survol, une ombre de gris (opacité −25 %), et sa
+ * pastille s'allume ; survoler la pastille ou la marque l'allume à son tour.
+ * CSS : `.journal-concept`.
  */
 export function ConceptQuote({ id, children }: { id: string; children: ReactNode }) {
   const ctx = useContext(ArticleMapContext);
@@ -462,7 +536,14 @@ export function ConceptQuote({ id, children }: { id: string; children: ReactNode
     ctx.openAt(id);
   };
   return (
-    <span className="journal-concept" data-concept={id} data-on={ctx?.visible.has(id) ? '' : undefined} onClick={ctx ? onClick : undefined}>
+    <span
+      className="journal-concept"
+      data-concept={id}
+      data-on={ctx?.visible.has(id) ? '' : undefined}
+      data-hot={ctx?.hot === id ? '' : undefined}
+      onClick={ctx ? onClick : undefined}
+      {...(ctx && hoverProps(ctx, id))}
+    >
       {children}
     </span>
   );
