@@ -185,7 +185,8 @@ export function MapMenu({
       const el = box.querySelector<HTMLElement>(`[data-section="${focus.section}"] [data-key="${CSS.escape(focus.key)}"]`);
       if (!el) return;
       const r = box.getBoundingClientRect();
-      const top = Math.max(r.top, 0);
+      // L'en-tête collant de la catégorie couvre le haut : on centre dans ce qui reste.
+      const top = Math.max(r.top, 0) + HEADER;
       const bottom = Math.min(r.bottom, window.innerHeight);
       const e = el.getBoundingClientRect();
       const smooth = window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
@@ -298,6 +299,13 @@ function Chevron({ turned }: { turned: number }) {
   );
 }
 
+/**
+ * L'en-tête d'une catégorie. Dépliée, il colle en haut de la liste tant qu'on
+ * est dans la catégorie (2026-10-31, Alexandre : une entrée centrée ne disait
+ * pas d'où elle venait) ; un filet le sépare de ce qui défile dessous.
+ */
+const HEADER = 46;
+
 /** Le filet qui sépare « Réglages » des catégories : appuyé, celui de la languette. */
 const APART = 'border-b-[color-mix(in_srgb,var(--color-fg)_22%,transparent)]';
 
@@ -313,10 +321,11 @@ function Section({ section: s, open, onToggle, apart = false }: { section: MenuS
         onClick={onToggle}
         className={cn(
           MICRO_LABEL,
-          'flex w-full items-center gap-[10px] text-left transition-colors duration-200 motion-reduce:transition-none',
+          'sticky top-0 z-[1] flex w-full items-center gap-[10px] border-b bg-[var(--color-bg-raised)] text-left transition-colors duration-200 motion-reduce:transition-none',
+          open ? 'border-[var(--color-line)]' : 'border-transparent',
           open ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
         )}
-        style={{ height: 46, paddingLeft: PAD_LEFT, paddingRight: 16 }}
+        style={{ height: HEADER, paddingLeft: PAD_LEFT, paddingRight: 16 }}
       >
         <Icon aria-hidden size={ICON} strokeWidth={1.75} className="flex-none" />
         <span className="min-w-0 truncate">{s.label}</span>
