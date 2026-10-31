@@ -10,7 +10,7 @@ import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import { DICT } from '@/lib/journal/i18n';
 import type { MapView } from '@/lib/journal/conceptMapData';
-import { HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, neighbourhood, NO_FILTER, themeSystem, visibleIds, type Filters, type LabelKind, type LabelReach, type MapNav } from './model';
+import { HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, linkedTo, neighbourhood, NO_FILTER, themeSystem, visibleIds, type Filters, type LabelKind, type LabelReach, type MapNav } from './model';
 import { MapPanel } from './MapPanel';
 import { KEY_OF, MapHelp, MapKeys, type NavKey } from './MapControls';
 import { MapList } from './MapList';
@@ -76,7 +76,22 @@ const PANEL_WIDTH = 360;
 type View = 'auto' | 'map' | 'list';
 
 /** `empty` : ce choix, ajouté aux filtres en cours, ne laisserait rien sur la carte — grisé. */
-function Choice({ on, empty = false, onClick, onPreview, children }: { on: boolean; empty?: boolean; onClick: () => void; onPreview?: (on: boolean) => void; children: ReactNode }) {
+/** `linked` : le nœud choisi sur la carte en relève — la pastille s'allume, le libellé reste tel quel. */
+function Choice({
+  on,
+  linked = false,
+  empty = false,
+  onClick,
+  onPreview,
+  children,
+}: {
+  on: boolean;
+  linked?: boolean;
+  empty?: boolean;
+  onClick: () => void;
+  onPreview?: (on: boolean) => void;
+  children: ReactNode;
+}) {
   // Le choix actif reste cliquable : c'est par lui qu'on retire le filtre.
   empty = empty && !on;
   const peek = empty ? undefined : onPreview;
@@ -97,7 +112,7 @@ function Choice({ on, empty = false, onClick, onPreview, children }: { on: boole
       )}
       style={{ paddingBlock: 4 }}
     >
-      <StateDot on={on} />
+      <StateDot on={on || linked} />
       {children}
     </button>
   );
@@ -466,6 +481,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const n = (kind: string) => [...visible].filter((id) => ix.byId.get(id)?.kind === kind).length;
 
   const kindOfShown = shown ? ix.byId.get(shown)?.kind : null;
+  const linked = useMemo(() => linkedTo(ix, shown), [ix, shown]);
   // Téléphone : la vue choisie se joue derrière le tiroir, et son voile
   // retiendrait la page tant qu'on ne l'a pas touché. Le tiroir redescend.
   const pickView = (v: View) => {
@@ -492,11 +508,11 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       id: 'series',
       icon: Library,
       label: t.series,
-      lit: !!filters.series,
+      lit: !!filters.series || linked.series.size > 0,
       body: (
         <Group label={t.series}>
           {data.series.map((s) => (
-            <Choice key={s.title} on={filters.series === s.title} empty={!counts.series.get(s.title)} onClick={() => filterBy('series', s.title)} onPreview={previewFilter('series', s.title)}>
+            <Choice key={s.title} on={filters.series === s.title} linked={linked.series.has(s.title)} empty={!counts.series.get(s.title)} onClick={() => filterBy('series', s.title)} onPreview={previewFilter('series', s.title)}>
               <span>
                 {s.title} <span className="font-normal">({counts.series.get(s.title)})</span>
               </span>
@@ -509,11 +525,11 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       id: 'themes',
       icon: Tags,
       label: t.themes,
-      lit: !!filters.theme,
+      lit: !!filters.theme || linked.themes.size > 0,
       body: (
         <Group label={t.themes}>
           {data.themes.map((t) => (
-            <Choice key={t.title} on={filters.theme === t.title} empty={!counts.themes.get(t.title)} onClick={() => filterBy('theme', t.title)} onPreview={previewFilter('theme', t.title)}>
+            <Choice key={t.title} on={filters.theme === t.title} linked={linked.themes.has(t.title)} empty={!counts.themes.get(t.title)} onClick={() => filterBy('theme', t.title)} onPreview={previewFilter('theme', t.title)}>
               <TagSwatch color={t.color} />
               <span>
                 {t.title} <span className="font-normal">({counts.themes.get(t.title)})</span>
@@ -633,8 +649,9 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
                     gestures={gestures}
                     onSelect={(id) => {
                       select(id, !!id);
-                      // Une thèse choisie sur la carte se retrouve dans le menu (2026-10-30, Alexandre).
-                      if (id && ix.byId.get(id)?.kind === 'thesis') setMenuFocus({ section: 'theses', key: id, at: Date.now() });
+                      // Une thèse ou un mécanisme choisi sur la carte se retrouve dans le menu (2026-10-30/31, Alexandre).
+                      const kind = id ? ix.byId.get(id)?.kind : null;
+                      if (id && kind !== 'article') setMenuFocus({ section: kind === 'thesis' ? 'theses' : 'mechanisms', key: id, at: Date.now() });
                     }}
                   />
                 )}

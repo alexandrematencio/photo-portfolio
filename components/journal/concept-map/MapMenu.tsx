@@ -33,7 +33,7 @@ import { cn } from '@/lib/utils/cn';
  * (pas d'`overscroll-behavior: contain`) : on sort du menu sans lâcher le geste.
  *
  * Un clic sur une icône de la bande rouvre le menu À cette catégorie, dépliée.
- * Une thèse choisie sur la carte (`focus`) déplie sa catégorie au besoin, puis
+ * Une thèse ou un mécanisme choisi sur la carte (`focus`) déplie sa catégorie au besoin, puis
  * la liste glisse pour la poser vers le milieu de la colonne visible.
  * Le menu se replie de lui-même quand une thèse ou un mécanisme choisi dans la
  * liste s'allume sur la carte — c'est `ConceptMapExplorer` qui le décide.

@@ -80,6 +80,28 @@ export function themeSystem(ix: MapIndex, theme: string, within: Set<string>): S
 }
 
 /**
+ * Les séries et thématiques d'un nœud choisi, que le menu signale d'une
+ * pastille (2026-10-31, Alexandre). La thématique d'un mécanisme est sa
+ * couleur ; celles d'une thèse, les couleurs de ses mécanismes ; celles d'un
+ * article, ses étiquettes. Un mécanisme est des séries de ses articles.
+ */
+export function linkedTo(ix: MapIndex, id: string | null): { series: Set<string>; themes: Set<string> } {
+  const series = new Set<string>();
+  const themes = new Set<string>();
+  const n = id ? ix.byId.get(id) : undefined;
+  if (!n) return { series, themes };
+  if (n.kind === 'mechanism') {
+    if (n.theme) themes.add(n.theme);
+    n.articles.forEach((a) => ix.byId.get(a)?.series && series.add(ix.byId.get(a)!.series!));
+  } else {
+    if (n.series) series.add(n.series);
+    if (n.kind === 'article') n.themes.forEach((t) => themes.add(t));
+    else for (const m of ix.mechsOfThesis.get(n.id) ?? []) ix.byId.get(m)?.theme && themes.add(ix.byId.get(m)!.theme!);
+  }
+  return { series, themes };
+}
+
+/**
  * Ce qui reste net autour d'un nœud survolé ou choisi. Un article garde ses
  * thèses ET les mécanismes qu'elles emploient ; un mécanisme, les thèses qui
  * l'emploient, leurs articles et ses rimes ; une thèse, son article et ses
