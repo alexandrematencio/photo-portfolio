@@ -594,7 +594,7 @@ export const DICT: Record<Lang, Dict> = {
       previous: 'Thèse précédente',
       next: 'Thèse suivante',
       backToReading: 'Revenir au passage lu',
-      following: 'Suit la lecture',
+      following: 'Suit votre lecture',
       openFull: 'Voir dans la Concept Map',
       mark: (label) => `Concept Map : ${label}`,
       thesesFolder: 'Thèses',

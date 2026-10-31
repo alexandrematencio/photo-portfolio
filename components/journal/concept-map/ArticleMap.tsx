@@ -268,10 +268,48 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
     return () => window.removeEventListener('keydown', onKey);
   }, [open, show]);
 
+  /**
+   * ← → mènent la lecture elle-même : l'article défile jusqu'à la citation de
+   * la thèse suivante (ou précédente), posée dans la bande où l'observateur de
+   * lecture regarde (35 % de la hauteur). Pendant le trajet, le panneau tient
+   * la thèse visée ; quand la lecture l'atteint, il se raccroche à elle.
+   */
+  const [travel, setTravel] = useState<string | null>(null);
+  useEffect(() => {
+    if (travel && reading === travel) {
+      setTravel(null);
+      setPicked(null);
+    }
+  }, [reading, travel]);
+  // Le lecteur reprend la main en cours de route : le trajet s'abandonne, le
+  // panneau garde la thèse visée et propose de revenir au passage lu.
+  useEffect(() => {
+    if (!travel) return;
+    const cancel = () => setTravel(null);
+    window.addEventListener('wheel', cancel, { passive: true });
+    window.addEventListener('touchstart', cancel, { passive: true });
+    return () => {
+      window.removeEventListener('wheel', cancel);
+      window.removeEventListener('touchstart', cancel);
+    };
+  }, [travel]);
+
   const at = shown ? theses.indexOf(shown) : -1;
   const step = (d: number) => {
     const next = theses[at + d];
-    if (next) pick(next);
+    if (!next) return;
+    pick(next);
+    setTravel(null);
+    const covers = ix.byId.get(next)?.covers ?? [];
+    const el =
+      document.querySelector<HTMLElement>(`.journal-concept[data-concept="${CSS.escape(next)}"]`) ??
+      (covers[0] ? document.getElementById(`p-${covers[0]}`) : null);
+    if (!el) return;
+    setTravel(next);
+    const line = Math.min(el.getBoundingClientRect().height, 24);
+    el.style.scrollMarginTop = `${Math.round(window.innerHeight * 0.355 - line / 2)}px`;
+    el.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    el.style.scrollMarginTop = '';
   };
   const onPanelKey = (e: ReactKeyboardEvent) => {
     if (editable(e.target) || at < 0) return;
@@ -393,7 +431,7 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
               <StepButton disabled={at === 0} onClick={() => step(-1)} label={t.map.previous}>
                 ←
               </StepButton>
-              {picked ? (
+              {picked && picked !== travel ? (
                 <button type="button" onClick={() => setPicked(null)} className={cn(MICRO_LABEL, 'flex items-center gap-2 text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')}>
                   <StateDot on={false} />
                   {t.map.backToReading}
