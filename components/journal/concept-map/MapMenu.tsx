@@ -17,9 +17,9 @@ import { cn } from '@/lib/utils/cn';
  *   passe pas dessus) ;
  * - chaque catégorie s'enroule sur son en-tête, indépendamment des autres : on
  *   ne garde dépliées que celles dont on se sert (mémorisé dans ce navigateur) ;
- * - le repli se commande par une languette posée sur le bord du menu, à
- *   mi-hauteur — la poignée de panneau de Google Maps : on la trouve sans la
- *   chercher, et elle ne partage sa ligne avec rien ;
+ * - le repli se commande par une languette posée sur le bord du menu, en
+ *   face de son en-tête (à mi-hauteur jusqu'au 2026-11-01) : on la trouve
+ *   sans la chercher, et elle ne partage sa ligne avec rien ;
  * - en tête, un bloc fixe un ton plus bas : ce que fait la barre (« Explorer
  *   la carte »), les compteurs, « Tout montrer » — l'en-tête des panneaux de
  *   filtres. Dessous, « Réglages » ouvre la liste, fermé, séparé des
@@ -63,6 +63,8 @@ export type MenuSection = {
  */
 const MENU_OPEN = 'var(--map-menu-open, 272px)';
 const MENU_SHUT = 52;
+/** La languette, calée en haut du menu : son milieu en face du titre et des compteurs, fixe quoi qu'il s'ajoute dessous. */
+const TAB_TOP = 12;
 const ICON = 18;
 /** L'icône centrée dans la bande : elle ne bouge pas d'un pixel quand le menu se replie. */
 const PAD_LEFT = (MENU_SHUT - ICON) / 2;
@@ -266,7 +268,12 @@ export function MapMenu({
         </div>
       </aside>
 
-      {/* La languette : sur le bord du menu, à mi-hauteur, elle suit la colonne qui se resserre. */}
+      {/* La languette : sur le bord du menu, en face de l'en-tête « Explorer la carte », elle suit la colonne
+          qui se resserre. À mi-hauteur (2026-10-30), elle flottait au milieu de la liste sans rien
+          désigner, et passait sous le pli quand le dashboard dépasse de l'écran ; en haut, elle se
+          rattache au titre du panneau qu'elle commande, à la place des bascules de barre latérale
+          (Notion, Linear, VS Code) — et ne bouge pas quand les étiquettes de filtres font grandir
+          l'en-tête (2026-11-01, Alexandre). */}
       <button
         type="button"
         aria-controls={asideId}
@@ -274,8 +281,8 @@ export function MapMenu({
         aria-label={open ? labels.collapse : labels.expand}
         title={`${open ? labels.collapse : labels.expand} ( [ )`}
         onClick={() => onOpen(!open)}
-        className="absolute top-1/2 z-20 hidden -translate-y-1/2 items-center justify-center rounded-r-[6px] border border-l-0 border-[color-mix(in_srgb,var(--color-fg)_22%,transparent)] bg-[var(--color-bg-raised)] text-[var(--color-fg)] shadow-[2px_1px_6px_rgba(10,10,10,0.12)] hover:bg-[var(--color-bg-elev)] focus-visible:bg-[var(--color-bg-elev)] motion-reduce:!transition-none md:flex"
-        style={{ left: `calc(${edge} - 1px)`, width: 24, height: 64, transition: `left ${slide}, background-color 200ms` }}
+        className="absolute z-20 hidden items-center justify-center rounded-r-[6px] border border-l-0 border-[color-mix(in_srgb,var(--color-fg)_22%,transparent)] bg-[var(--color-bg-raised)] text-[var(--color-fg)] shadow-[2px_1px_6px_rgba(10,10,10,0.12)] hover:bg-[var(--color-bg-elev)] focus-visible:bg-[var(--color-bg-elev)] motion-reduce:!transition-none md:flex"
+        style={{ top: TAB_TOP, left: `calc(${edge} - 1px)`, width: 24, height: 64, transition: `left ${slide}, background-color 200ms` }}
       >
         {/* Encre pleine et trait appuyé (2026-10-30, Alexandre : « bien plus évident, sans être flashy »). */}
         {open ? <ChevronLeft aria-hidden size={18} strokeWidth={2.5} /> : <ChevronRight aria-hidden size={18} strokeWidth={2.5} />}

@@ -741,8 +741,9 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
                   dessous, en colonne pour qu'une indication sur deux lignes (téléphone,
                   russe) pousse le bouton au lieu de le chevaucher. À droite, « Aide ? ».
                   Hors du dessin (`aria-hidden`) pour rester atteignables au clavier ; à
-                  gauche du panneau quand il est ouvert. */}
-              <div className="pointer-events-none absolute top-3 flex items-start justify-between gap-4" style={{ left: 12, right: 12 + beside }}>
+                  gauche du panneau quand il est ouvert ; dès 768 px, à droite de la languette
+                  du menu, qui mord de 24 px sur la carte à cette hauteur. */}
+              <div className="pointer-events-none absolute top-3 flex items-start justify-between gap-4" style={{ left: wide ? 12 + 24 : 12, right: 12 + beside }}>
                 <div className="flex min-w-0 flex-col items-start gap-2">
                   <p aria-hidden className={cn(MICRO_LABEL, 'font-medium text-[var(--color-fg)]')}>
                     <span className="md:hidden">{t.zoomTouch}</span>
