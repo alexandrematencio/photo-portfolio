@@ -1999,7 +1999,7 @@ Expected : `1` par page pour le JSON-LD, la balise TDM présente, les deux fichi
 
 - [ ] **Step 3 : Compte rendu à Alexandre, puis attente du feu vert**
 
-Le compte rendu dit, dans cet ordre : ce qui est en ligne dès le prochain déploiement (et que rien n'est déployé), ce que le Studio refuse désormais, les trois chiffres (assets réduits, photos repointées, orphelins restants), les cinq actions qui n'appartiennent qu'à lui (`docs/PROTECTION-IMAGES.md`), et la question de la purge. **Le déploiement (`npm run deploy` ou le workflow bfast) n'est lancé que sur sa réponse**, parce que `/legal` change de contenu public et que la fusion dans `main` est sa décision (CLAUDE.md §8.3).
+Le compte rendu dit, dans cet ordre : ce qui est en ligne dès le prochain déploiement (et que rien n'est déployé), ce que le Studio refuse désormais, les trois chiffres (assets réduits, photos repointées, orphelins restants), les cinq actions qui n'appartiennent qu'à lui (`docs/PROTECTION-IMAGES.md`), et la question de la purge. **Le déploiement (`npm run deploy`) n'est lancé que sur sa réponse**, parce que `/legal` change de contenu public et que la fusion dans `main` est sa décision (CLAUDE.md §8.3).
 
 Après son feu vert : `git checkout main && git merge --no-ff feat/image-protection && git push origin main`, puis déploiement, puis :
 
