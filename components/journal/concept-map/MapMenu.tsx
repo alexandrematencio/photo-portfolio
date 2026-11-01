@@ -47,6 +47,12 @@ export type MenuSection = {
   lit?: boolean;
   /** Affiché dans l'en-tête : le nombre d'entrées. */
   count?: number;
+  /**
+   * La catégorie trie la carte : « Effacer × » dans son en-tête, dépliée ou
+   * non (2026-11-01, Alexandre — la remise à zéro par groupe des filtres à
+   * facettes, à côté de « Tout effacer » en tête du menu).
+   */
+  onClear?: () => void;
   body: ReactNode;
 };
 
@@ -83,7 +89,7 @@ const OPEN_DEFAULT = ['series', 'themes'];
 /** Une entrée à montrer dans le menu ; `at` distingue deux demandes de suite pour la même. */
 export type MenuFocus = { section: string; key: string; at: number };
 
-type Labels = { menu: string; title: string; collapse: string; expand: string; settings: string; close: string };
+type Labels = { menu: string; title: string; collapse: string; expand: string; settings: string; close: string; clear: string; clearOf: (category: string) => string };
 
 export function MapMenu({
   open,
@@ -233,12 +239,13 @@ export function MapMenu({
               <Section
                 section={{ id: 'settings', icon: SlidersHorizontal, label: labels.settings, body: settings }}
                 open={settingsOpen}
+                labels={labels}
                 onToggle={() => setTuning((v) => !v)}
                 apart
               />
             )}
             {sections.map((s) => (
-              <Section key={s.id} section={s} open={unrolled.has(s.id)} onToggle={() => roll(s.id, !unrolled.has(s.id))} />
+              <Section key={s.id} section={s} labels={labels} open={unrolled.has(s.id)} onToggle={() => roll(s.id, !unrolled.has(s.id))} />
             ))}
           </div>
         </div>
@@ -309,31 +316,51 @@ const HEADER = 46;
 /** Le filet qui sépare « Réglages » des catégories : appuyé, celui de la languette. */
 const APART = 'border-b-[color-mix(in_srgb,var(--color-fg)_22%,transparent)]';
 
-function Section({ section: s, open, onToggle, apart = false }: { section: MenuSection; open: boolean; onToggle: () => void; apart?: boolean }) {
+function Section({
+  section: s,
+  labels,
+  open,
+  onToggle,
+  apart = false,
+}: {
+  section: MenuSection;
+  labels: Labels;
+  open: boolean;
+  onToggle: () => void;
+  apart?: boolean;
+}) {
   const Icon = s.icon;
   const bodyId = useId();
   return (
     <section data-section={s.id} aria-label={s.label} className={cn('border-b border-[var(--color-line)]', apart && APART)}>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={bodyId}
-        onClick={onToggle}
+      {/* L'en-tête : le bouton qui enroule, et « Effacer × » posé dessus, à gauche du chevron (deux boutons frères, jamais l'un dans l'autre). */}
+      <div
         className={cn(
-          MICRO_LABEL,
-          'sticky top-0 z-[1] flex w-full items-center gap-[10px] border-b bg-[var(--color-bg-raised)] text-left transition-colors duration-200 motion-reduce:transition-none',
+          'sticky top-0 z-[1] border-b bg-[var(--color-bg-raised)] transition-colors duration-200 motion-reduce:transition-none',
           open ? 'border-[var(--color-line)]' : 'border-transparent',
-          open ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
         )}
-        style={{ height: HEADER, paddingLeft: PAD_LEFT, paddingRight: 16 }}
       >
-        <Icon aria-hidden size={ICON} strokeWidth={1.75} className="flex-none" />
-        <span className="min-w-0 truncate">{s.label}</span>
-        <StateDot on={!open && !!s.lit} />
-        <span aria-hidden className="flex-1" />
-        {s.count != null && <span className="tabular-nums font-normal">{s.count}</span>}
-        <Chevron turned={open ? 90 : 0} />
-      </button>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          onClick={onToggle}
+          className={cn(
+            MICRO_LABEL,
+            'flex w-full items-center gap-[10px] text-left transition-colors duration-200 motion-reduce:transition-none',
+            open ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
+          )}
+          style={{ height: HEADER, paddingLeft: PAD_LEFT, paddingRight: 16 }}
+        >
+          <Icon aria-hidden size={ICON} strokeWidth={1.75} className="flex-none" />
+          <span className="min-w-0 truncate">{s.label}</span>
+          <StateDot on={!open && !!s.lit} />
+          <span aria-hidden className="flex-1" />
+          {s.count != null && <span className="tabular-nums font-normal">{s.count}</span>}
+          <Chevron turned={open ? 90 : 0} />
+        </button>
+        {s.onClear && <ClearButton label={labels.clear} title={labels.clearOf(s.label)} onClick={s.onClear} />}
+      </div>
       <div
         id={bodyId}
         inert={!open}
@@ -345,6 +372,30 @@ function Section({ section: s, open, onToggle, apart = false }: { section: MenuS
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * « Effacer × » : l'encre du lien du site, souligné au survol. Posé sur
+ * l'en-tête, à gauche du chevron ; sa zone de clic prend toute la hauteur.
+ */
+function ClearButton({ label, title, onClick, inline = false }: { label: string; title: string; onClick: () => void; inline?: boolean }) {
+  return (
+    <button
+      type="button"
+      aria-label={title}
+      title={title}
+      onClick={onClick}
+      className={cn(
+        MICRO_LABEL,
+        'flex items-center gap-[4px] text-[var(--color-link)] underline-offset-4 hover:underline focus-visible:underline',
+        inline ? 'self-stretch' : 'absolute inset-y-0',
+      )}
+      style={inline ? { paddingInline: 8 } : { right: 16 + 8 + 6, paddingInline: 8 }}
+    >
+      {label}
+      <X aria-hidden size={12} strokeWidth={2.25} />
+    </button>
   );
 }
 
@@ -416,8 +467,8 @@ function PhoneBar({
   }, [sheet, onSheet]);
 
   const items = [
-    ...(settings ? [{ id: 'settings', icon: SlidersHorizontal, label: labels.settings, lit: false, body: settings }] : []),
-    ...sections.map((s) => ({ id: s.id, icon: s.icon, label: s.label, lit: s.lit, body: s.body })),
+    ...(settings ? [{ id: 'settings', icon: SlidersHorizontal, label: labels.settings, lit: false, body: settings, onClear: undefined as (() => void) | undefined }] : []),
+    ...sections.map((s) => ({ id: s.id, icon: s.icon, label: s.label, lit: s.lit, body: s.body, onClear: s.onClear })),
   ];
   const current = items.find((i) => i.id === shown);
   const up = !!sheet && !!current;
@@ -472,15 +523,18 @@ function PhoneBar({
                 <current.icon aria-hidden size={ICON} strokeWidth={1.75} />
                 {current.label}
               </p>
-              <button
-                type="button"
-                aria-label={labels.close}
-                onClick={() => onSheet(null)}
-                className="flex items-center justify-center text-[var(--color-fg-muted)]"
-                style={{ width: 44, height: 48 }}
-              >
-                <X aria-hidden size={ICON} strokeWidth={1.75} />
-              </button>
+              <div className="flex items-stretch">
+                {current.onClear && <ClearButton inline label={labels.clear} title={labels.clearOf(current.label)} onClick={current.onClear} />}
+                <button
+                  type="button"
+                  aria-label={labels.close}
+                  onClick={() => onSheet(null)}
+                  className="flex items-center justify-center text-[var(--color-fg-muted)]"
+                  style={{ width: 44, height: 48 }}
+                >
+                  <X aria-hidden size={ICON} strokeWidth={1.75} />
+                </button>
+              </div>
             </div>
             <div className="min-h-0 overflow-y-auto overscroll-contain" style={{ padding: '16px var(--page-gutter) 32px' }}>
               {current.body}

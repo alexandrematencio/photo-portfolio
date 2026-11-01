@@ -312,6 +312,12 @@ export type Dict = {
     structures: string;
     common: string;
     showAll: string;
+    /** Dans l'en-tête d'une catégorie filtrée : retire son filtre (2026-11-01). */
+    clear: string;
+    clearOf: (category: string) => string;
+    /** Les filtres en cours, en tête du menu. */
+    applied: string;
+    removeFilter: (name: string) => string;
     /** Lâche le nœud allumé sur la carte (le panneau, lui, se ferme à part). */
     deselect: string;
     drawingNote: string;
@@ -574,7 +580,11 @@ export const DICT: Record<Lang, Dict> = {
       themes: 'Thématiques',
       structures: 'Structures',
       common: 'Communes à plusieurs articles',
-      showAll: 'Tout montrer',
+      showAll: 'Tout effacer',
+      clear: 'Effacer',
+      clearOf: (c) => `Effacer le filtre ${c}`,
+      applied: 'Filtres en cours',
+      removeFilter: (n) => `Retirer le filtre ${n}`,
       deselect: 'Désélectionner',
       drawingNote: 'Le dessin se déplace à la souris ou aux flèches du clavier, mais ses points ne se choisissent qu’à la souris ; la vue Liste donne les mêmes liens au clavier.',
       zoomTouch: 'Deux doigts pour déplacer · pincer pour zoomer',
@@ -828,7 +838,11 @@ export const DICT: Record<Lang, Dict> = {
       themes: 'Themes',
       structures: 'Structures',
       common: 'Shared by several articles',
-      showAll: 'Show all',
+      showAll: 'Clear all',
+      clear: 'Clear',
+      clearOf: (c) => `Clear the ${c} filter`,
+      applied: 'Active filters',
+      removeFilter: (n) => `Remove the filter ${n}`,
       deselect: 'Clear selection',
       drawingNote: 'The drawing moves with the mouse or the arrow keys, but its points can only be picked with a mouse; the List view gives the same links by keyboard.',
       zoomTouch: 'Two fingers to move · pinch to zoom',
@@ -1087,7 +1101,11 @@ export const DICT: Record<Lang, Dict> = {
       themes: 'Темы',
       structures: 'Структура',
       common: 'Общие для нескольких статей',
-      showAll: 'Показать всё',
+      showAll: 'Сбросить всё',
+      clear: 'Сбросить',
+      clearOf: (c) => `Сбросить фильтр «${c}»`,
+      applied: 'Активные фильтры',
+      removeFilter: (n) => `Убрать фильтр «${n}»`,
       deselect: 'Снять выделение',
       drawingNote: 'Схема двигается мышью или стрелками клавиатуры, но точки выбираются только мышью; вид «Список» даёт те же ссылки с клавиатуры.',
       zoomTouch: 'Двумя пальцами — двигать · щипком — масштаб',

@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Cog, GitMerge, Library, List, MessageSquareQuote, Network, Tags } from 'lucide-react';
+import { Cog, GitMerge, Library, List, MessageSquareQuote, Network, Tags, X } from 'lucide-react';
 import { StateDot } from '@/components/site/StateDot';
 import { TagSwatch } from '@/components/journal/TagSwatch';
 import { FolderList, type Filter } from '@/components/journal/FolderTree';
@@ -115,6 +115,48 @@ function Choice({
       <StateDot on={on || linked} />
       {children}
     </button>
+  );
+}
+
+/**
+ * Les filtres en cours, en tête du menu (2026-11-01, Alexandre : une série
+ * choisie grise les thématiques sans rien dire). Une étiquette par filtre,
+ * qu'on retire d'un clic, puis « Tout effacer » : le récapitulatif des filtres
+ * appliqués des boutiques en ligne (Baymard le juge essentiel) — on voit ce qui
+ * trie la carte sans déplier les catégories.
+ */
+function AppliedFilters({
+  label,
+  items,
+  clearAll,
+  onClearAll,
+}: {
+  label: string;
+  items: { key: string; label: string; color?: string; remove: string; onRemove: () => void }[];
+  clearAll: string;
+  onClearAll: () => void;
+}) {
+  return (
+    <div role="group" aria-label={label} className="flex flex-wrap items-center gap-[6px]">
+      {items.map((f) => (
+        <button
+          key={f.key}
+          type="button"
+          aria-label={f.remove}
+          title={f.remove}
+          onClick={f.onRemove}
+          className="flex max-w-full items-center gap-[6px] rounded-full border border-[color-mix(in_srgb,var(--color-fg)_22%,transparent)] bg-[var(--color-bg-raised)] text-[12px] leading-[16px] text-[var(--color-fg)] transition-colors duration-200 hover:border-[var(--color-fg)] focus-visible:border-[var(--color-fg)] motion-reduce:transition-none"
+          style={{ padding: '3px 6px 3px 9px' }}
+        >
+          {f.color && <TagSwatch color={f.color} />}
+          <span className="min-w-0 truncate">{f.label}</span>
+          <X aria-hidden size={12} strokeWidth={2.25} className="flex-none text-[var(--color-fg-muted)]" />
+        </button>
+      ))}
+      <button type="button" onClick={onClearAll} className={cn(MICRO_LABEL, 'text-[var(--color-link)] underline-offset-4 hover:underline focus-visible:underline')} style={{ paddingInline: 4 }}>
+        {clearAll}
+      </button>
+    </div>
   );
 }
 
@@ -331,6 +373,14 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     centerBoard();
     setFit((c) => c + 1);
   };
+  // Un filtre retiré (« Effacer », une étiquette, « Tout effacer ») : la carte recadre ce qui revient.
+  const clearFilters = (keys: (keyof Filters)[]) => {
+    setFilters((f) => keys.reduce((g, k) => ({ ...g, [k]: NO_FILTER[k] }), f));
+    setPreview(null);
+    if (current !== 'map') return;
+    centerBoard();
+    setFit((c) => c + 1);
+  };
   // Une thématique s'isole par ses mécanismes (`themeSystem`) ; une série ou « communs », par ce que le filtre laisserait voir.
   const previewFilter = <K extends keyof Filters>(key: K, value: Filters[K]) => (on: boolean) =>
     setPreview(
@@ -509,6 +559,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       icon: Library,
       label: t.series,
       lit: !!filters.series || linked.series.size > 0,
+      onClear: filters.series ? () => clearFilters(['series']) : undefined,
       body: (
         <Group label={t.series}>
           {data.series.map((s) => (
@@ -526,6 +577,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       icon: Tags,
       label: t.themes,
       lit: !!filters.theme || linked.themes.size > 0,
+      onClear: filters.theme ? () => clearFilters(['theme']) : undefined,
       body: (
         <Group label={t.themes}>
           {data.themes.map((t) => (
@@ -544,6 +596,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       icon: GitMerge,
       label: t.structures,
       lit: filters.common,
+      onClear: filters.common ? () => clearFilters(['common']) : undefined,
       body: (
         <Group label={t.structures}>
           <Choice on={filters.common} empty={!counts.common} onClick={() => filterBy('common', true)} onPreview={previewFilter('common', true)}>
@@ -599,16 +652,23 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
         sections={sections}
         asideRef={aside}
         focus={menuFocus}
-        labels={{ menu: t.filters, title: t.menuTitle, collapse: t.menuCollapse, expand: t.menuExpand, settings: t.settings, close: t.close }}
+        labels={{ menu: t.filters, title: t.menuTitle, collapse: t.menuCollapse, expand: t.menuExpand, settings: t.settings, close: t.close, clear: t.clear, clearOf: t.clearOf }}
         counts={
           <>
             <p aria-live="polite" className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
               {dict.articles(n('article'))} · {t.theses(n('thesis'))} · {t.mechanisms(n('mechanism'))}
             </p>
             {filtered && (
-              <button type="button" onClick={() => setFilters(NO_FILTER)} className={cn(MICRO_LABEL, 'w-fit text-[var(--color-fg)] underline underline-offset-4')}>
-                {t.showAll}
-              </button>
+              <AppliedFilters
+                label={t.applied}
+                clearAll={t.showAll}
+                onClearAll={() => clearFilters(['series', 'theme', 'common'])}
+                items={[
+                  ...(filters.series ? [{ key: 'series' as const, label: filters.series }] : []),
+                  ...(filters.theme ? [{ key: 'theme' as const, label: filters.theme, color: data.themes.find((x) => x.title === filters.theme)?.color }] : []),
+                  ...(filters.common ? [{ key: 'common' as const, label: t.common }] : []),
+                ].map((f) => ({ ...f, remove: t.removeFilter(f.label), onRemove: () => clearFilters([f.key]) }))}
+              />
             )}
           </>
         }
