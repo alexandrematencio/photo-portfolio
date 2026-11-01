@@ -652,7 +652,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
         sections={sections}
         asideRef={aside}
         focus={menuFocus}
-        labels={{ menu: t.filters, title: t.menuTitle, collapse: t.menuCollapse, expand: t.menuExpand, settings: t.settings, close: t.close, clear: t.clear, clearOf: t.clearOf }}
+        labels={{ menu: t.filters, title: t.menuTitle, short: t.menuShort, collapse: t.menuCollapse, expand: t.menuExpand, settings: t.settings, close: t.close, clear: t.clear, clearOf: t.clearOf }}
         counts={
           <>
             <p aria-live="polite" className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>

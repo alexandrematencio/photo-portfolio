@@ -378,6 +378,8 @@ export type Dict = {
     /** Le menu de gauche replié en bande d'icônes, puis rouvert (2026-10-30, Alexandre). */
     menuCollapse: string;
     menuExpand: string;
+    /** Le titre vertical de la bande, menu replié (2026-11-01). */
+    menuShort: string;
     keys: { group: string; up: string; down: string; left: string; right: string; in: string; out: string; reset: string; on: string };
   };
 };
@@ -648,6 +650,7 @@ export const DICT: Record<Lang, Dict> = {
       menuTitle: 'Explorer la carte',
       menuCollapse: 'Replier le menu',
       menuExpand: 'Ouvrir le menu',
+      menuShort: 'Menu',
       keys: { group: 'Clavier de navigation', up: 'Monter', down: 'Descendre', left: 'Aller à gauche', right: 'Aller à droite', in: 'Zoomer', out: 'Dézoomer', reset: 'Recadrer', on: 'Les flèches du clavier déplacent la carte.' },
     },
     dateLocale: 'fr-FR',
@@ -906,6 +909,7 @@ export const DICT: Record<Lang, Dict> = {
       menuTitle: 'Explore the map',
       menuCollapse: 'Collapse the menu',
       menuExpand: 'Open the menu',
+      menuShort: 'Menu',
       keys: { group: 'Navigation keys', up: 'Move up', down: 'Move down', left: 'Move left', right: 'Move right', in: 'Zoom in', out: 'Zoom out', reset: 'Fit the map', on: 'The arrow keys now move the map.' },
     },
     dateLocale: 'en-GB',
@@ -1170,6 +1174,7 @@ export const DICT: Record<Lang, Dict> = {
       menuTitle: 'Исследовать карту',
       menuCollapse: 'Свернуть меню',
       menuExpand: 'Открыть меню',
+      menuShort: 'Меню',
       keys: { group: 'Клавиши навигации', up: 'Вверх', down: 'Вниз', left: 'Влево', right: 'Вправо', in: 'Приблизить', out: 'Отдалить', reset: 'Показать всю карту', on: 'Стрелки клавиатуры теперь двигают карту.' },
     },
     dateLocale: 'ru-RU',

@@ -91,7 +91,7 @@ const OPEN_DEFAULT = ['series', 'themes'];
 /** Une entrée à montrer dans le menu ; `at` distingue deux demandes de suite pour la même. */
 export type MenuFocus = { section: string; key: string; at: number };
 
-type Labels = { menu: string; title: string; collapse: string; expand: string; settings: string; close: string; clear: string; clearOf: (category: string) => string };
+type Labels = { menu: string; title: string; short: string; collapse: string; expand: string; settings: string; close: string; clear: string; clearOf: (category: string) => string };
 
 export function MapMenu({
   open,
@@ -258,7 +258,28 @@ export function MapMenu({
           className="absolute inset-y-0 left-0 flex flex-col motion-reduce:!transition-none"
           style={{ width: MENU_SHUT, opacity: open ? 0 : 1, transition: `opacity ${open ? t(80, EASE_IN) : t(140, EASE_OUT, CLOSE_MS)}` }}
         >
-          <div aria-hidden className="flex-none border-b border-[var(--color-line)] bg-[var(--color-bg-elev)]" style={{ height: headHeight }} />
+          {/* La cale garde les icônes en face de leurs catégories ; vide, elle se lisait comme un trou
+              (2026-11-01, Alexandre). Elle porte le titre de la barre, à la verticale, en gras — le
+              dos d'un classeur — et rouvre le menu : une grande cible, en plus de la languette. Pas de
+              burger : il dit « navigation du site », et le site en a déjà un. */}
+          <button
+            type="button"
+            aria-controls={asideId}
+            aria-expanded={false}
+            aria-label={labels.expand}
+            title={`${labels.expand} ( [ )`}
+            onClick={() => onOpen(true)}
+            className="group flex flex-none items-center justify-center overflow-hidden border-b border-[var(--color-line)] bg-[var(--color-bg-elev)] text-[var(--color-fg)] transition-colors duration-200 hover:bg-[var(--color-bg-raised)] focus-visible:bg-[var(--color-bg-raised)] motion-reduce:transition-none"
+            style={{ height: headHeight }}
+          >
+            <span
+              aria-hidden
+              className="whitespace-nowrap text-[17px] font-bold uppercase leading-none tracking-[0.06em]"
+              style={{ writingMode: 'vertical-rl', rotate: '180deg' }}
+            >
+              {labels.short}
+            </span>
+          </button>
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
             {settings && <StripButton icon={SlidersHorizontal} label={labels.settings} onClick={() => reveal('settings')} apart />}
             {sections.map((s) => (
