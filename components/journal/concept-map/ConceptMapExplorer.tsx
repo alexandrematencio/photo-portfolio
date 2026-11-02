@@ -14,6 +14,7 @@ import { flip, HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, linkedT
 import { MapPanel } from './MapPanel';
 import { KEY_OF, MapHelp, MapKeys, type NavKey } from './MapControls';
 import { MapList } from './MapList';
+import { MapViewPill } from './MapViewPill';
 import { CLOSE_MS, MapMenu, SHEET_OUT, type MenuFocus, type MenuSection } from './MapMenu';
 import type { MapGestures, MapPreview } from './ConceptMapGraph';
 
@@ -583,9 +584,21 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     setView(v);
     if (!wide) setSheet(null);
   };
+  // La pastille du téléphone (MapViewPill) : la vue change sous le doigt, on
+  // remonte en tête de scène, là où elle commence.
+  const pillLabels = { map: t.mapView, list: t.listView };
+  const pickPill = (v: View) => {
+    pickView(v);
+    requestAnimationFrame(() => {
+      const smooth = window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
+      stage.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+    });
+  };
   const sections: MenuSection[] = [
     {
       id: 'view',
+      // Au téléphone, la vue passe par la pastille flottante (MapViewPill).
+      desktopOnly: true,
       icon: current === 'list' ? List : Network,
       label: t.view,
       body: (
@@ -827,6 +840,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
               <div className="absolute bottom-3" style={{ right: 12 + beside }}>
                 <MapKeys t={t} armed={live} lit={lit} onPress={press} />
               </div>
+              {!wide && current === 'map' && <MapViewPill to="list" floating={false} hidden={!!sheet} labels={pillLabels} onPick={pickPill} />}
             </div>
             <p aria-live="polite" className="sr-only">
               {live ? t.keys.on : ''}
@@ -852,6 +866,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
           />
         </div>
       </section>
+      {current === 'list' && <MapViewPill to="map" floating stage={stage} hidden={!!sheet} labels={pillLabels} onPick={pickPill} />}
     </div>
   );
 }

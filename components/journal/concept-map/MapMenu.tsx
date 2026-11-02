@@ -53,6 +53,11 @@ export type MenuSection = {
    * facettes, à côté de « Tout effacer » en tête du menu).
    */
   onClear?: () => void;
+  /**
+   * Hors du bandeau du téléphone : la commande y vit ailleurs (la vue passe
+   * par la pastille flottante « Carte » / « Liste », 2026-11-02).
+   */
+  desktopOnly?: boolean;
   body: ReactNode;
 };
 
@@ -496,7 +501,7 @@ function PhoneBar({
 
   const items = [
     ...(settings ? [{ id: 'settings', icon: SlidersHorizontal, label: labels.settings, lit: false, body: settings, onClear: undefined as (() => void) | undefined }] : []),
-    ...sections.map((s) => ({ id: s.id, icon: s.icon, label: s.label, lit: s.lit, body: s.body, onClear: s.onClear })),
+    ...sections.filter((s) => !s.desktopOnly).map((s) => ({ id: s.id, icon: s.icon, label: s.label, lit: s.lit, body: s.body, onClear: s.onClear })),
   ];
   const current = items.find((i) => i.id === shown);
   const up = !!sheet && !!current;
