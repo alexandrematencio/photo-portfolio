@@ -6,8 +6,17 @@ import type { MapView, MapViewNode } from '@/lib/journal/conceptMapData';
  * survole un nœud. Pur : partagé par le graphe, le panneau et la liste.
  */
 
-export type Filters = { series: string | null; theme: string | null; common: boolean };
-export const NO_FILTER: Filters = { series: null, theme: null, common: false };
+/**
+ * Plusieurs valeurs par catégorie (2026-11-02, Alexandre : « des recherches
+ * groupées »). Dans une catégorie, un article passe s'il porte l'UNE des
+ * valeurs choisies (OU) ; entre catégories, il doit passer chacune (ET) :
+ * l'attente mesurée par Baymard sur les filtres des boutiques en ligne.
+ */
+export type Filters = { series: string[]; theme: string[]; common: boolean };
+export const NO_FILTER: Filters = { series: [], theme: [], common: false };
+
+/** Ajoute la valeur si elle manque, la retire sinon. */
+export const flip = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
 export type MapIndex = ReturnType<typeof indexMap>;
 
@@ -44,7 +53,10 @@ export const isCommon = (n: MapViewNode) => n.kind === 'mechanism' && n.articles
 export function visibleIds(ix: MapIndex, f: Filters): Set<string> {
   const out = new Set<string>();
   const articles = ix.view.nodes.filter(
-    (n) => n.kind === 'article' && (!f.series || n.series === f.series) && (!f.theme || n.themes.includes(f.theme)),
+    (n) =>
+      n.kind === 'article' &&
+      (!f.series.length || (!!n.series && f.series.includes(n.series))) &&
+      (!f.theme.length || n.themes.some((t) => f.theme.includes(t))),
   );
   for (const a of articles) {
     out.add(a.id);

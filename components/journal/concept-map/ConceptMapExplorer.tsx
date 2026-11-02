@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Cog, GitMerge, Library, List, MessageSquareQuote, Network, Tags, X } from 'lucide-react';
+import { Check, Cog, GitMerge, Library, List, MessageSquareQuote, Network, Tags, X } from 'lucide-react';
 import { StateDot } from '@/components/site/StateDot';
 import { TagSwatch } from '@/components/journal/TagSwatch';
 import { FolderList, type Filter } from '@/components/journal/FolderTree';
@@ -10,7 +10,7 @@ import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import { DICT } from '@/lib/journal/i18n';
 import type { MapView } from '@/lib/journal/conceptMapData';
-import { HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, linkedTo, neighbourhood, NO_FILTER, themeSystem, visibleIds, type Filters, type LabelKind, type LabelReach, type MapNav } from './model';
+import { flip, HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, linkedTo, neighbourhood, NO_FILTER, themeSystem, visibleIds, type Filters, type LabelKind, type LabelReach, type MapNav } from './model';
 import { MapPanel } from './MapPanel';
 import { KEY_OF, MapHelp, MapKeys, type NavKey } from './MapControls';
 import { MapList } from './MapList';
@@ -81,6 +81,7 @@ function Choice({
   on,
   linked = false,
   empty = false,
+  multi = false,
   onClick,
   onPreview,
   children,
@@ -88,6 +89,8 @@ function Choice({
   on: boolean;
   linked?: boolean;
   empty?: boolean;
+  /** Une case à cocher au lieu du voyant : on peut en choisir plusieurs. */
+  multi?: boolean;
   onClick: () => void;
   onPreview?: (on: boolean) => void;
   children: ReactNode;
@@ -112,7 +115,7 @@ function Choice({
       )}
       style={{ paddingBlock: 4 }}
     >
-      <StateDot on={on || linked} />
+      {multi ? <CheckBox on={on} linked={linked} /> : <StateDot on={on || linked} />}
       {children}
     </button>
   );
@@ -132,7 +135,7 @@ function AppliedFilters({
   onClearAll,
 }: {
   label: string;
-  items: { key: string; label: string; color?: string; remove: string; onRemove: () => void }[];
+  items: { key: string; label: string; colors?: string[]; values: string[]; remove: string; onRemove: () => void }[];
   clearAll: string;
   onClearAll: () => void;
 }) {
@@ -142,13 +145,22 @@ function AppliedFilters({
         <button
           key={f.key}
           type="button"
-          aria-label={f.remove}
-          title={f.remove}
+          aria-label={`${f.remove} : ${f.values.join(', ')}`}
+          title={f.values.length > 1 ? f.values.join('\n') : f.remove}
           onClick={f.onRemove}
           className="flex max-w-full items-center gap-[6px] rounded-full border border-[color-mix(in_srgb,var(--color-fg)_22%,transparent)] bg-[var(--color-bg-raised)] text-[12px] leading-[16px] text-[var(--color-fg)] transition-colors duration-200 hover:border-[var(--color-fg)] focus-visible:border-[var(--color-fg)] motion-reduce:transition-none"
           style={{ padding: '3px 6px 3px 9px' }}
         >
-          {f.color && <TagSwatch color={f.color} />}
+          {!!f.colors?.length && (
+            // Les couleurs des thématiques cumulées, en pile : trois au plus.
+            <span aria-hidden className="flex flex-none">
+              {f.colors.slice(0, 3).map((c, i) => (
+                <span key={c + i} style={{ marginLeft: i ? -3 : 0 }}>
+                  <TagSwatch color={c} />
+                </span>
+              ))}
+            </span>
+          )}
           <span className="min-w-0 truncate">{f.label}</span>
           <X aria-hidden size={12} strokeWidth={2.25} className="flex-none text-[var(--color-fg-muted)]" />
         </button>
@@ -157,6 +169,35 @@ function AppliedFilters({
         {clearAll}
       </button>
     </div>
+  );
+}
+
+/**
+ * La case d'un choix qu'on cumule (2026-11-02). Baymard : la case à cocher dit
+ * « plusieurs à la fois » là où le point dit « un seul ». Vide, un simple
+ * contour ; cochée, l'encre (2026-11-02, Alexandre : le rouge-orange du
+ * voyant se confondait avec les carrés de Corps et d'Économie, et une case
+ * cochée se lisait comme une thématique de plus) ; liée au nœud choisi, le
+ * point du voyant dedans.
+ */
+function CheckBox({ on, linked }: { on: boolean; linked: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className="flex flex-none items-center justify-center transition-colors duration-200 motion-reduce:transition-none"
+      style={{
+        width: 11,
+        height: 11,
+        border: `1px solid ${on ? 'var(--color-fg)' : 'color-mix(in srgb, var(--color-fg) 35%, transparent)'}`,
+        backgroundColor: on ? 'var(--color-fg)' : 'transparent',
+      }}
+    >
+      {on ? (
+        <Check size={9} strokeWidth={3} className="text-[var(--color-bg)]" />
+      ) : (
+        linked && <span style={{ width: 3, height: 3, borderRadius: '50%', backgroundColor: 'var(--color-link)' }} />
+      )}
+    </span>
   );
 }
 
@@ -312,14 +353,17 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const counts = useMemo(() => {
     const articles = (f: Filters) => [...visibleIds(ix, f)].filter((id) => ix.byId.get(id)?.kind === 'article').length;
     return {
-      series: new Map(data.series.map((s) => [s.title, articles({ ...filters, series: s.title })])),
-      themes: new Map(data.themes.map((t) => [t.title, articles({ ...filters, theme: t.title })])),
+      // Le compte d'une valeur ignore les autres valeurs de SA catégorie (OU) mais
+      // garde les autres catégories (ET) : la facette « disjonctive » d'Algolia.
+      series: new Map(data.series.map((s) => [s.title, articles({ ...filters, series: [s.title] })])),
+      themes: new Map(data.themes.map((t) => [t.title, articles({ ...filters, theme: [t.title] })])),
       common: [...visibleIds(ix, { ...filters, common: true })].filter((id) => isCommon(ix.byId.get(id)!)).length,
     };
   }, [data, ix, filters]);
-  const filtered = filters.series || filters.theme || filters.common;
-  const toggle = <K extends keyof Filters>(key: K, value: Filters[K]) =>
-    setFilters((f) => ({ ...f, [key]: f[key] === value ? NO_FILTER[key] : value }));
+  const filtered = filters.series.length > 0 || filters.theme.length > 0 || filters.common;
+  // Une série ou une thématique s'ajoute aux autres de sa catégorie ; « communes » bascule.
+  const next = (f: Filters, key: keyof Filters, value: string | true): Filters =>
+    key === 'common' ? { ...f, common: !f.common } : { ...f, [key]: flip(f[key], value as string) };
 
   // L'index des dossiers : les thèses par article (ordre de lecture), les mécanismes par nom.
   const index = useMemo(() => {
@@ -367,8 +411,8 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   }, [menu, current]);
 
   // Un filtre choisi : la carte cadre ce qui reste (ou le nœud choisi, s'il reste).
-  const filterBy = <K extends keyof Filters>(key: K, value: Filters[K]) => {
-    toggle(key, value);
+  const filterBy = (key: keyof Filters, value: string | true) => {
+    setFilters((f) => next(f, key, value));
     if (current !== 'map') return;
     centerBoard();
     setFit((c) => c + 1);
@@ -382,10 +426,11 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     setFit((c) => c + 1);
   };
   // Une thématique s'isole par ses mécanismes (`themeSystem`) ; une série ou « communs », par ce que le filtre laisserait voir.
-  const previewFilter = <K extends keyof Filters>(key: K, value: Filters[K]) => (on: boolean) =>
+  // Une série ou « communes » montre ce que le clic donnerait (ajout ou retrait).
+  const previewFilter = (key: keyof Filters, value: string | true) => (on: boolean) =>
     setPreview(
       on && wide && current === 'map'
-        ? { key: `${key}:${value}`, ids: key === 'theme' ? themeSystem(ix, value as string, visible) : visibleIds(ix, { ...filters, [key]: value }) }
+        ? { key: `${key}:${value}`, ids: key === 'theme' ? themeSystem(ix, value as string, visible) : visibleIds(ix, next(filters, key, value)) }
         : null,
     );
   const previewNode = (id: string | null) => setPreview(id && wide && current === 'map' ? { key: id, ids: neighbourhood(ix, id) } : null);
@@ -558,12 +603,12 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       id: 'series',
       icon: Library,
       label: t.series,
-      lit: !!filters.series || linked.series.size > 0,
-      onClear: filters.series ? () => clearFilters(['series']) : undefined,
+      lit: filters.series.length > 0 || linked.series.size > 0,
+      onClear: filters.series.length ? () => clearFilters(['series']) : undefined,
       body: (
         <Group label={t.series}>
           {data.series.map((s) => (
-            <Choice key={s.title} on={filters.series === s.title} linked={linked.series.has(s.title)} empty={!counts.series.get(s.title)} onClick={() => filterBy('series', s.title)} onPreview={previewFilter('series', s.title)}>
+            <Choice key={s.title} multi on={filters.series.includes(s.title)} linked={linked.series.has(s.title)} empty={!counts.series.get(s.title)} onClick={() => filterBy('series', s.title)} onPreview={previewFilter('series', s.title)}>
               <span>
                 {s.title} <span className="font-normal">({counts.series.get(s.title)})</span>
               </span>
@@ -576,12 +621,12 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
       id: 'themes',
       icon: Tags,
       label: t.themes,
-      lit: !!filters.theme || linked.themes.size > 0,
-      onClear: filters.theme ? () => clearFilters(['theme']) : undefined,
+      lit: filters.theme.length > 0 || linked.themes.size > 0,
+      onClear: filters.theme.length ? () => clearFilters(['theme']) : undefined,
       body: (
         <Group label={t.themes}>
           {data.themes.map((t) => (
-            <Choice key={t.title} on={filters.theme === t.title} linked={linked.themes.has(t.title)} empty={!counts.themes.get(t.title)} onClick={() => filterBy('theme', t.title)} onPreview={previewFilter('theme', t.title)}>
+            <Choice key={t.title} multi on={filters.theme.includes(t.title)} linked={linked.themes.has(t.title)} empty={!counts.themes.get(t.title)} onClick={() => filterBy('theme', t.title)} onPreview={previewFilter('theme', t.title)}>
               <TagSwatch color={t.color} />
               <span>
                 {t.title} <span className="font-normal">({counts.themes.get(t.title)})</span>
@@ -663,11 +708,22 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
                 label={t.applied}
                 clearAll={t.showAll}
                 onClearAll={() => clearFilters(['series', 'theme', 'common'])}
+                // Une étiquette par CATÉGORIE, jamais par valeur : l'en-tête ne
+                // porte que trois étiquettes au plus, quel que soit le cumul.
+                // Une valeur se lit en clair ; plusieurs, « Thématiques · 3 »
+                // (le nom de la catégorie reste, Baymard : un compte seul égare).
                 items={[
-                  ...(filters.series ? [{ key: 'series' as const, label: filters.series }] : []),
-                  ...(filters.theme ? [{ key: 'theme' as const, label: filters.theme, color: data.themes.find((x) => x.title === filters.theme)?.color }] : []),
-                  ...(filters.common ? [{ key: 'common' as const, label: t.common }] : []),
-                ].map((f) => ({ ...f, remove: t.removeFilter(f.label), onRemove: () => clearFilters([f.key]) }))}
+                  ...(filters.series.length ? [{ key: 'series' as const, name: t.series, values: filters.series }] : []),
+                  ...(filters.theme.length
+                    ? [{ key: 'theme' as const, name: t.themes, values: filters.theme, colors: filters.theme.map((v) => data.themes.find((x) => x.title === v)?.color).filter((c): c is string => !!c) }]
+                    : []),
+                  ...(filters.common ? [{ key: 'common' as const, name: t.structures, values: [t.common] }] : []),
+                ].map(({ name, ...f }) => ({
+                  ...f,
+                  label: f.values.length > 1 ? `${name} · ${f.values.length}` : f.values[0],
+                  remove: f.values.length > 1 ? t.clearOf(name) : t.removeFilter(f.values[0]),
+                  onRemove: () => clearFilters([f.key]),
+                }))}
               />
             )}
           </>
