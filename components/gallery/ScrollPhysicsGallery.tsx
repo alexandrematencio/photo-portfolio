@@ -3,6 +3,13 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PhotoBlock } from './PhotoBlock';
 import { PhotoLightbox } from './PhotoLightbox';
+
+/**
+ * Lightbox des photos de « Selected Works » : COUPÉE le 2026-11-03 (demande
+ * Alexandre), gardée au chaud — repasser à `true` suffit à la rebrancher
+ * (clic, bouton accessible, carousel sur toute la page, cf. CLAUDE.md §3.4).
+ */
+const HOME_LIGHTBOX = false;
 import type { Photo } from '@/lib/sanity/queries';
 import type { MotionSettings } from '@/lib/sanity/queries';
 import { useReducedMotion } from '@/lib/motion/useReducedMotion';
@@ -369,12 +376,12 @@ export function ScrollPhysicsGallery({ photos, intro }: Props) {
             key={photo?._id ?? `placeholder-${index}`}
             photo={photo}
             index={index}
-            onOpen={(i) => setOpenIndex(i)}
+            onOpen={HOME_LIGHTBOX ? (i) => setOpenIndex(i) : undefined}
           />
         ))}
         </div>
       </section>
-      {openIndex !== null && photos.length > 0 && (
+      {HOME_LIGHTBOX && openIndex !== null && photos.length > 0 && (
         <PhotoLightbox
           photos={photos}
           initialIndex={openIndex}

@@ -88,6 +88,16 @@ export const PhotoBlock = forwardRef<HTMLDivElement, Props>(
     const alt = photo?.image?.alt ?? photo?.title ?? 'Photographie A. Matencio';
     const ratio = photo?.image?.dimensions?.aspectRatio ?? 4 / 5;
     const clickable = Boolean(photo && src);
+    const image = src && (
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        sizes="(max-width: 1023px) 92vw, 62vw"
+        priority={index < 2}
+        className="object-cover"
+      />
+    );
     const number = String(index + 1).padStart(2, '0');
 
     const series = (photo?.seriesLinks ?? []).filter((s) => s?.slug);
@@ -104,24 +114,19 @@ export const PhotoBlock = forwardRef<HTMLDivElement, Props>(
            <figcaption>, qui porte déjà le titre et les métadonnées. */
         aria-label={photo ? undefined : `Photo placeholder ${index + 1}`}
       >
-        {clickable ? (
+        {clickable && onOpen ? (
           <button
             type="button"
-            onClick={() => onOpen?.(index)}
+            onClick={() => onOpen(index)}
             className="photo-figure cursor-pointer border-0 bg-transparent"
             aria-label={`Open “${photo?.title}” fullscreen`}
           >
-            {src && (
-              <Image
-                src={src}
-                alt={alt}
-                fill
-                sizes="(max-width: 1023px) 92vw, 62vw"
-                priority={index < 2}
-                className="object-cover"
-              />
-            )}
+            {image}
           </button>
+        ) : clickable ? (
+          // Sans `onOpen` (lightbox coupée sur la home, 2026-11-03) : la photo
+          // seule, ni bouton ni curseur — rien ne promet un clic qui ne mène nulle part.
+          <div className="photo-figure">{image}</div>
         ) : (
           <div className="photo-figure">
             <Placeholder title={photo?.title} />

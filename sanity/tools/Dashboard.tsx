@@ -19,7 +19,7 @@ import { AddIcon } from '@sanity/icons/Add';
 import { CogIcon } from '@sanity/icons/Cog';
 import { EarthGlobeIcon } from '@sanity/icons/EarthGlobe';
 import { StarIcon } from '@sanity/icons/Star';
-import imageUrlBuilder from '@sanity/image-url';
+import { createImageUrlBuilder } from '@sanity/image-url';
 import { useClient } from 'sanity';
 import { IntentLink } from 'sanity/router';
 
@@ -159,7 +159,7 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const builder = useMemo(() => imageUrlBuilder(client), [client]);
+  const builder = useMemo(() => createImageUrlBuilder(client), [client]);
   const thumbUrl = useCallback(
     (image: SanityImageish | undefined, size: number): string | null => {
       if (!image?.asset?._ref) return null;

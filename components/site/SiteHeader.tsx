@@ -41,6 +41,9 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
   const lang = langOfPath(pathname);
   // About vit sur le hub : son menu est celui d'amatencio.com (lib/site/nav.ts).
   const onHub = isHubPage(pathname);
+  // Hub : le glyph mène à am-home, une AUTRE application — un `<a>`, jamais
+  // `next/link`, qui la précharge et se fait bloquer (CORS, 2026-11-03).
+  const HomeLink = onHub ? 'a' : Link;
   // Chaque entrée dans la langue de la page (la Concept Map en a une par langue).
   const LINKS = (onHub ? HUB_NAV_LINKS : NAV_LINKS).map((link) => ({ ...link, href: navHref(link, lang) }));
   // Une rangée calée à gauche quand la nav-bar n'est pas l'arrivée du morph.
@@ -97,7 +100,7 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
           // cachés et seul le bouton MENU (`MobileMenu`) occupe ce bord.
           style={{ paddingLeft: 'var(--page-gutter)', paddingRight: 64 }}
         >
-          <Link
+          <HomeLink
             href={IS_BLOG ? homePath(lang) : onHub ? HUB_URL : '/'}
             className="flex items-center shrink-0"
             aria-label={glyphLabel}
@@ -133,7 +136,7 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
               color="var(--color-logo)"
               title={glyphLabel}
             />
-          </Link>
+          </HomeLink>
 
           {/* 4 nav-links : visibles sur desktop, distribuées par space-between.
               `data-cursor-invert` déclenche le disque d'inversion (CursorInvert.tsx). */}

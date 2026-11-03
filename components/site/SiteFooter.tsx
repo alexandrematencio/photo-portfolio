@@ -1,5 +1,11 @@
 import Link from 'next/link';
-import { ABOUT_URL, hubHref, photoHref } from '@/lib/site/sites';
+import { ABOUT_URL, IS_BLOG, hubHref, hubSafeHref, photoHref } from '@/lib/site/sites';
+
+// Le pied de page est aussi celui d'About, servie sur le HUB (amatencio.com),
+// et il ne sait pas sur quelle page il est (composant serveur) : ses liens
+// portfolio sont donc TOUJOURS absolus — un `/series/` relatif y menait à une
+// redirection préchargée puis bloquée (CORS), et `/` à am-home (2026-11-03).
+const toPhoto = (path: string) => hubSafeHref(!IS_BLOG, photoHref(path));
 import { SITES } from '@/lib/site/nav';
 import { getSiteSettings, socialLinks } from '@/lib/sanity/queries';
 import { FooterWordmark } from './FooterWordmark';
@@ -34,8 +40,8 @@ export async function SiteFooter() {
         <div className="footer-col">
           <p className="footer-label">Work</p>
           <ul className="footer-links">
-            <li><Link href={photoHref('/series/')}>Series</Link></li>
-            <li><Link href={photoHref('/archives/')}>Archives</Link></li>
+            <li><Link href={toPhoto('/series/')}>Series</Link></li>
+            <li><Link href={toPhoto('/archives/')}>Archives</Link></li>
           </ul>
         </div>
 
@@ -55,7 +61,7 @@ export async function SiteFooter() {
               <li key={site.label}>
                 {site.href ? (
                   <a
-                    href={site.href}
+                    href={hubSafeHref(!IS_BLOG, site.href)}
                     {...(site.external ? { target: '_blank', rel: 'noopener' } : {})}
                   >
                     {site.label}
@@ -87,15 +93,15 @@ export async function SiteFooter() {
         </div>
       </nav>
 
-      <Link href={photoHref('/')} className="footer-logo" aria-label="Alexandre Matencio — home">
+      <Link href={toPhoto('/')} className="footer-logo" aria-label="Alexandre Matencio — home">
         <FooterWordmark />
       </Link>
 
       <div className="footer-bottom">
         <span>© {new Date().getFullYear()} Alexandre Matencio. All rights reserved.</span>
         <span className="footer-legal">
-          <Link href={photoHref('/legal/')}>Legal notice</Link>
-          <Link href={photoHref('/privacy/')}>Privacy</Link>
+          <Link href={toPhoto('/legal/')}>Legal notice</Link>
+          <Link href={toPhoto('/privacy/')}>Privacy</Link>
         </span>
       </div>
     </footer>

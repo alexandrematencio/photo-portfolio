@@ -50,6 +50,9 @@ export function MobileMenu({ journalMenu }: { journalMenu?: MenuEntry[] }) {
   const lang = langOfPath(pathname);
   // About vit sur le hub : son menu est celui d'amatencio.com (lib/site/nav.ts).
   const onHub = isHubPage(pathname);
+  // Hub : le glyph mène à am-home, une AUTRE application — un `<a>`, jamais
+  // `next/link`, qui la précharge et se fait bloquer (CORS, 2026-11-03).
+  const HomeLink = onHub ? 'a' : Link;
   const MOBILE_LINKS = (onHub ? HUB_NAV_LINKS : MOBILE_NAV_LINKS).map((link) => ({ ...link, href: navHref(link, lang) }));
 
   // Close on route change so navigating from inside the menu dismisses it.
@@ -144,14 +147,14 @@ export function MobileMenu({ journalMenu }: { journalMenu?: MenuEntry[] }) {
             className="flex items-center justify-between"
             style={{ paddingBlock: 32, paddingInline: 'var(--page-gutter)' }}
           >
-            <Link
+            <HomeLink
               href={IS_BLOG ? homePath(lang) : onHub ? HUB_URL : '/'}
               aria-label={IS_BLOG ? DICT[lang].journalHome : 'Home'}
               onClick={() => setOpen(false)}
               className="inline-flex"
             >
               <GlyphLogo size={32} title="A. Matencio — home" />
-            </Link>
+            </HomeLink>
             <button
               type="button"
               onClick={() => setOpen(false)}

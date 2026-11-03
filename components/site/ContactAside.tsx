@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { PHOTO_URL } from '@/lib/site/sites';
 import { PortableBody } from './PortableBody';
 import { ProtectedEmail } from './ProtectedEmail';
 import { MICRO_LABEL } from '@/lib/site/typography';
@@ -25,9 +25,11 @@ export function ContactAside({ blocks, className }: { blocks: unknown[]; classNa
       className={cn('flex flex-col', className)}
       style={{ borderTop: '2px solid var(--color-fg)', paddingTop: 14, gap: 18 }}
     >
-      <Link
+      {/* /about vit sur le hub (amatencio.com) : /contact est sur le portfolio, une
+          autre application — adresse absolue et <a>, sans préchargement (CORS). */}
+      <a
         id="contact-aside-title"
-        href="/contact"
+        href={`${PHOTO_URL}/contact/`}
         className={cn(MICRO_LABEL, 'group flex items-center justify-between text-[var(--color-fg)]')}
       >
         Contact
@@ -37,7 +39,7 @@ export function ContactAside({ blocks, className }: { blocks: unknown[]; classNa
         >
           →
         </span>
-      </Link>
+      </a>
       <PortableBody
         value={blocks}
         fallback={

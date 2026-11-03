@@ -20,7 +20,7 @@ import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils/cn';
 import { CONTROL_RADIUS } from '@/lib/site/controls';
 import { SITES, isSamePage } from '@/lib/site/nav';
-import { isExternal, isHubPage } from '@/lib/site/sites';
+import { hubSafeHref, isExternal, isHubPage } from '@/lib/site/sites';
 import { MICRO_LABEL, MICRO_LABEL_XS } from '@/lib/site/typography';
 import { StateDot } from './StateDot';
 
@@ -157,12 +157,13 @@ export function SitesList({
   entries?: MenuEntry[];
 }) {
   const pathname = usePathname();
+  const onHub = isHubPage(pathname);
   return (
     <ul className={cn('flex flex-col', className)}>
       {entries.map((site) => (
         <Row
           key={site.href ?? site.label}
-          site={site}
+          site={onHub && site.href ? { ...site, href: hubSafeHref(true, site.href) } : site}
           // Sur une page du hub, aucun des sites listés n'est celui où l'on est.
           here={!isHubPage(pathname) && (site.here ?? Boolean(site.href && !isExternal(site.href) && pathname && isSamePage(site.href, pathname)))}
           onNavigate={onNavigate}

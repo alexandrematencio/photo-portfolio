@@ -54,6 +54,16 @@ export function isHubPage(pathname: string | null): boolean {
   return !IS_BLOG && !!pathname && /^\/about(\/|$)/.test(pathname);
 }
 
+/**
+ * Sur une page du hub (`amatencio.com/about/`), un chemin RELATIF du portfolio
+ * tombe sur am-home ou sur une redirection vers `photo.` — que `next/link`
+ * précharge et que le navigateur bloque (CORS, 2026-11-03). Il devient absolu ;
+ * `isExternal` le fait alors rendre en `<a>`, chargement complet.
+ */
+export function hubSafeHref(onHub: boolean, href: string): string {
+  return onHub && href.startsWith('/') ? `${PHOTO_URL}${href}` : href;
+}
+
 /** Adresse d'une page du portfolio, valable depuis n'importe quel site. */
 export function photoHref(path: string): string {
   return IS_BLOG ? `${PHOTO_URL}${path}` : path;

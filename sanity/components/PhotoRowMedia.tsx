@@ -13,7 +13,7 @@ import { Menu, MenuButton, MenuItem } from '@sanity/ui/menu';
 import { useToast } from '@sanity/ui/toast';
 import { EyeClosedIcon } from '@sanity/icons/EyeClosed';
 import { EyeOpenIcon } from '@sanity/icons/EyeOpen';
-import imageUrlBuilder from '@sanity/image-url';
+import { createImageUrlBuilder } from '@sanity/image-url';
 import { useClient } from 'sanity';
 import {
   setPhotoHidden,
@@ -85,9 +85,9 @@ export function PhotoRowMedia({
     const asset = (image as { asset?: { _ref?: string } } | null)?.asset;
     if (!asset?._ref) return null;
     try {
-      return imageUrlBuilder(baseClient)
+      return createImageUrlBuilder(baseClient)
         .image(
-          image as Parameters<ReturnType<typeof imageUrlBuilder>['image']>[0]
+          image as Parameters<ReturnType<typeof createImageUrlBuilder>['image']>[0]
         )
         .width(size)
         .height(size)
