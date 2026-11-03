@@ -65,7 +65,10 @@ function TuneGroup({ title, t, onReset, children }: { title: string; t: Tuning; 
   return (
     <div role="group" aria-label={title} className="flex flex-col">
       <div className="flex min-h-8 items-center justify-between gap-3" style={{ paddingBottom: 6 }}>
-        <p className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>{title}</p>
+        {/* Casse de phrase, en gras, à l'encre : un cran SOUS les catégories du menu (capitales) — en
+            capitales grises, « Affichage » et « Disposition » se lisaient comme « Vue » ou « Séries »
+            (2026-11-03, Alexandre). Le niveau des sous-titres de groupe des inspecteurs (Figma). */}
+        <p className="font-[family-name:var(--font-index)] text-[13px] font-semibold leading-[16px] text-[var(--color-fg)]">{title}</p>
         {onReset && (
           <button
             type="button"

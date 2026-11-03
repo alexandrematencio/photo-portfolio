@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode, type Ref } from 'react';
 import { ChevronLeft, ChevronRight, SlidersHorizontal, X, type LucideIcon } from 'lucide-react';
 import { StateDot } from '@/components/site/StateDot';
 import { FOLDER_MS } from '@/components/journal/FolderTree';
@@ -361,6 +361,18 @@ function Chevron({ turned }: { turned: number }) {
  */
 const HEADER = 46;
 
+/**
+ * Le corps de « Réglages », en puits (2026-11-03, Alexandre : ses groupes se
+ * confondaient avec les catégories qui suivent, on ne voyait pas où il
+ * finissait). Le regroupement par région commune — un fond — l'emporte sur la
+ * proximité et les filets (Gestalt ; les inspecteurs de Figma, les groupes
+ * encadrés des réglages de macOS, le panneau du graphe d'Obsidian) : le corps
+ * prend le ton de l'en-tête « Explorer la carte », celui des commandes, et la
+ * fin du fond dit la fin des réglages. Sur ce ton, le filet des curseurs et le
+ * gris du texte s'effaçaient : on les remonte d'un cran, ici seulement.
+ */
+const WELL = { '--color-line': 'var(--surface-3)', '--color-fg-muted': 'var(--color-fg-muted-plate)' } as CSSProperties;
+
 /** Le filet qui sépare « Réglages » des catégories : appuyé, celui de la languette. */
 const APART = 'border-b-[color-mix(in_srgb,var(--color-fg)_22%,transparent)]';
 
@@ -420,7 +432,12 @@ function Section({
       >
         <div className="min-h-0 overflow-hidden">
           {/* Le même souffle en haut et en bas : les rangées sont symétriques, l'écart à l'œil l'est aussi (2026-11-03, Alexandre). */}
-          <div style={{ padding: `12px ${PAD_RIGHT}px 12px ${PAD_LEFT + (flush ? 0 : INDENT)}px` }}>{s.body}</div>
+          <div
+            className={cn(flush && 'bg-[var(--color-bg-elev)]')}
+            style={{ padding: `${flush ? 16 : 12}px ${PAD_RIGHT}px ${flush ? 20 : 12}px ${PAD_LEFT + (flush ? 0 : INDENT)}px`, ...(flush ? WELL : null) }}
+          >
+            {s.body}
+          </div>
         </div>
       </div>
     </section>
