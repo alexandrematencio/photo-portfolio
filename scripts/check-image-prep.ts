@@ -23,7 +23,10 @@ import sharp from 'sharp';
 import { MAX_BYTES, MAX_EDGE, prepareForWeb, probeImage } from './prepare-image';
 
 const DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'check-image-prep-'));
-const P3_PROFILE = '/System/Library/ColorSync/Profiles/Display P3.icc';
+// Profil Apple sous macOS ; ailleurs (CI Linux) le Display P3 embarqué par
+// libvips, décrit « sP3C » — ICC v4 aussi, donc le même chemin `mluc` est éprouvé.
+const MAC_P3 = '/System/Library/ColorSync/Profiles/Display P3.icc';
+const P3_PROFILE = fs.existsSync(MAC_P3) ? MAC_P3 : 'p3';
 
 let failures = 0;
 function check(label: string, ok: boolean, detail = ''): void {
@@ -113,7 +116,7 @@ async function main(): Promise<void> {
   check('HLG détecté', (await probe('hlg.jpg')).hdr === 'hlg', 'transfer=18');
 
   const p3 = await probe('p3.jpg');
-  check('Display P3 lu dans un ICC v4', /display p3/i.test(p3.wideGamut ?? ''), p3.wideGamut ?? '(aucun)');
+  check('Display P3 lu dans un ICC v4', /p3/i.test(p3.wideGamut ?? ''), p3.wideGamut ?? '(aucun)');
   check('la perte de gamut est annoncée', p3.losses.some((l) => /écrêt/.test(l)), `${p3.losses.length} perte(s)`);
   check('la perte HDR est annoncée', (await probe('pq.jpg')).losses.some((l) => /HDR PQ/.test(l)));
 

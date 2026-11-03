@@ -1,0 +1,59 @@
+# Vérifications d'une PR et de chaque push sur main : types, lint, checks
+# (`npm test` = les scripts/check-*.ts sous node --test), puis les deux builds
+# que le VPS publie (portfolio et journal).
+#
+# Ne publie rien et ne lit aucun secret : tout ce dont le build a besoin est
+# dans .env.production (commité, public). La publication reste au VPS, qui ne
+# construit que des commits signés — fusionner en local, pas avec le bouton
+# Merge de GitHub (sa signature est refusée par verify-head.sh).
+#
+# Actions épinglées par SHA (un tag peut être déplacé par qui contrôle le
+# dépôt de l'action) : checkout v7.0.1, setup-node v7.1.0.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: 22 # comme le VPS (paquet Ubuntu)
+          cache: npm
+
+      # --ignore-scripts : comme build-sites.sh sur le VPS, aucun postinstall
+      # d'une dépendance ne s'exécute.
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Types
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Checks
+        run: npm test
+
+      - name: Build portfolio
+        run: npm run build
+
+      - name: Build journal
+        run: npm run build:blog

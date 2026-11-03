@@ -7,6 +7,7 @@
 import type { Photo } from '../lib/sanity/queries';
 import {
   ACQUIRE_LICENSE_URL,
+  AUTHOR_ID,
   LICENSE_URL,
   breadcrumbJsonLd,
   imageGalleryJsonLd,
@@ -64,8 +65,8 @@ const items = crumbs.itemListElement as { position: number; item: string }[];
 check('breadcrumb : positions 1..n', items[0]!.position === 1 && items[1]!.position === 2);
 check('breadcrumb : URL absolues', items[1]!.item === `${SITE_INFO.url}/archives/`);
 
-check('Person : @id stable', personJsonLd()['@id'] === `${SITE_INFO.url}/about/#person`);
-check('WebSite : auteur lié', (webSiteJsonLd().author as { '@id': string })['@id'] === `${SITE_INFO.url}/about/#person`);
+check('Person : @id stable', personJsonLd()['@id'] === AUTHOR_ID);
+check('WebSite : auteur lié', (webSiteJsonLd().author as { '@id': string })['@id'] === AUTHOR_ID);
 
 const escaped = JSON.stringify({ t: '</script>' }).replace(/</g, '\\u003c');
 check('échappement de </script>', !escaped.includes('</script>'), escaped);
