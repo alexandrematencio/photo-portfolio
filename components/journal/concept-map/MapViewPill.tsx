@@ -16,13 +16,20 @@ import { cn } from '@/lib/utils/cn';
  * en clair, qui nomme la vue où il MÈNE. Préféré à une modale au chargement :
  * la décision se défait d'un geste, elle n'a pas à interrompre.
  *
+ * Coin bas droit depuis le 2026-11-03 (Alexandre) : la zone du pouce, et le
+ * coin des commandes de carte chez Google Maps, Leaflet ou Mapbox. Le coin a
+ * UNE pile, ancrée par la pastille : sur la carte, les touches de navigation
+ * (MapKeys) montent au-dessus d'elle (`PILL_STACK`), alignées sur le même bord
+ * droit. La pastille ne bouge donc jamais d'une vue à l'autre : « Carte » et
+ * « Liste » se touchent au même endroit, sous le même doigt.
+ *
  * Deux poses, une seule pastille :
  * - en liste (`floating`), elle flotte au bas de l'écran tant que la liste
  *   passe DERRIÈRE elle — ni sur le titre, ni sur le pied de page sombre, où
  *   l'encre ne se lirait plus ;
- * - sur la carte, elle se pose dans le cadre, en bas au centre, comme les
- *   touches de zoom à sa droite : la carte est moins haute que l'écran, une
- *   pastille fixe tomberait sur le pied de page.
+ * - sur la carte, elle se pose dans le cadre, au même coin : la carte est moins
+ *   haute que l'écran, une pastille fixe tomberait sur le pied de page. Le cadre
+ *   va d'un bord à l'autre au téléphone, donc 12 px du cadre = 12 px de l'écran.
  *
  * Entrée 250 ms ease-out (monte de 12 px), sortie 150 ms ease-in : petit
  * objet, sortie plus courte que l'entrée. Rentrée quand le tiroir des filtres
@@ -32,6 +39,10 @@ import { cn } from '@/lib/utils/cn';
 /** La bande où se pose la pastille flottante, mesurée depuis le bas de l'écran. */
 const BAND_BOTTOM = 20;
 const BAND_HEIGHT = 44;
+/** Retrait du bord droit, le même que celui des touches de la carte. */
+const INSET = 12;
+/** Où la pile du coin reprend au-dessus de la pastille posée dans le cadre (bas 12 + 44 + 8). */
+export const PILL_STACK = INSET + BAND_HEIGHT + 8;
 
 export function MapViewPill({
   to,
@@ -77,8 +88,12 @@ export function MapViewPill({
 
   return (
     <div
-      className={cn('pointer-events-none inset-x-0 z-30 flex justify-center md:hidden', floating ? 'fixed' : 'absolute')}
-      style={{ bottom: floating ? `calc(${BAND_BOTTOM}px + env(safe-area-inset-bottom))` : 12 }}
+      className={cn('pointer-events-none z-30 flex md:hidden', floating ? 'fixed' : 'absolute')}
+      style={
+        floating
+          ? { bottom: `calc(${BAND_BOTTOM}px + env(safe-area-inset-bottom))`, right: `calc(${INSET}px + env(safe-area-inset-right))` }
+          : { bottom: INSET, right: INSET }
+      }
     >
       <button
         type="button"

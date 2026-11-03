@@ -14,7 +14,7 @@ import { flip, HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, linkedT
 import { MapPanel } from './MapPanel';
 import { KEY_OF, MapHelp, MapKeys, type NavKey } from './MapControls';
 import { MapList } from './MapList';
-import { MapViewPill } from './MapViewPill';
+import { MapViewPill, PILL_STACK } from './MapViewPill';
 import { CLOSE_MS, MapMenu, SHEET_OUT, type MenuFocus, type MenuSection } from './MapMenu';
 import type { MapGestures, MapPreview } from './ConceptMapGraph';
 
@@ -837,7 +837,8 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
                 </div>
                 <MapHelp t={t} open={help} onOpen={setHelp} />
               </div>
-              <div className="absolute bottom-3" style={{ right: 12 + beside }}>
+              {/* Au téléphone, la pastille « Liste » tient le coin : les touches montent au-dessus. */}
+              <div className="absolute" style={{ right: 12 + beside, bottom: wide === false && current === 'map' ? PILL_STACK : 12 }}>
                 <MapKeys t={t} armed={live} lit={lit} onPress={press} />
               </div>
               {!wide && current === 'map' && <MapViewPill to="list" floating={false} hidden={!!sheet} labels={pillLabels} onPick={pickPill} />}
