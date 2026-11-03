@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Card, Flex, Spinner, Stack, Text } from '@sanity/ui';
-import { AddIcon, TrashIcon } from '@sanity/icons';
+import { AddIcon } from '@sanity/icons/Add';
+import { TrashIcon } from '@sanity/icons/Trash';
 import {
   set,
   useClient,
@@ -162,7 +163,7 @@ export function createOrderedRefsInput(config: OrderedRefsConfig) {
     const { labels } = config;
 
     return (
-      <Stack space={3}>
+      <Stack gap={3}>
         <Card padding={3} radius={2} tone={complete ? 'positive' : 'caution'}>
           <Flex align="center" gap={3} wrap="wrap">
             {loading ? (

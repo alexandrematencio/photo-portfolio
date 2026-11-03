@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { useToast } from '@sanity/ui';
-import { EyeClosedIcon, EyeOpenIcon } from '@sanity/icons';
+import { useToast } from '@sanity/ui/toast';
+import { EyeClosedIcon } from '@sanity/icons/EyeClosed';
+import { EyeOpenIcon } from '@sanity/icons/EyeOpen';
 import { useClient, type DocumentActionComponent } from 'sanity';
 import {
   setPhotoHidden,

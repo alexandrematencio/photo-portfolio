@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useToast } from '@sanity/ui';
+import { useToast } from '@sanity/ui/toast';
 import {
   useClient,
   useFormValue,

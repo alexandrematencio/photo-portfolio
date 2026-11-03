@@ -6,7 +6,7 @@ const config = [
   ...nextVitals,
   ...nextTs,
   {
-    ignores: ['.next/**', 'out/**', 'dist/**', 'node_modules/**', 'next-env.d.ts', 'public/**'],
+    ignores: ['.next/**', '.next-blog/**', 'out/**', 'out-blog/**', 'dist/**', 'node_modules/**', 'next-env.d.ts', 'public/**'],
   },
   {
     rules: {

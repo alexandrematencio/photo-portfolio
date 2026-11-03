@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Card, Flex, Stack, Text, TextInput } from '@sanity/ui';
-import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-  CloseIcon,
-  SearchIcon,
-} from '@sanity/icons';
+import { ChevronDownIcon } from '@sanity/icons/ChevronDown';
+import { ChevronUpIcon } from '@sanity/icons/ChevronUp';
+import { CloseIcon } from '@sanity/icons/Close';
+import { SearchIcon } from '@sanity/icons/Search';
 import { useRouter } from 'sanity/router';
 
 import { useFacetedSearch } from '@/lib/search';
@@ -165,7 +163,7 @@ export function SearchCard({
 
   return (
     <Card padding={4} radius={2} shadow={1}>
-      <Stack space={3}>
+      <Stack gap={3}>
         <Flex gap={2} align="center" wrap="wrap">
           <Box paddingRight={1}>
             <Text muted>
@@ -224,7 +222,7 @@ export function SearchCard({
         </Flex>
 
         {options.length > 0 && (
-          <Stack space={1}>
+          <Stack gap={1}>
             {options.map((option, i) =>
               option.kind === 'photo' ? (
                 <Card
@@ -275,9 +273,9 @@ export function SearchCard({
 
         {panelOpen && (
           <Card padding={3} radius={2} tone="transparent" border>
-            <Stack space={4}>
+            <Stack gap={4}>
               {result.facets.map((group) => (
-                <Stack key={group.key} space={2}>
+                <Stack key={group.key} gap={2}>
                   <Text size={0} muted weight="semibold">
                     {group.label.toUpperCase()}
                   </Text>

@@ -32,7 +32,7 @@ export function NoteRefInput(props: StringInputProps) {
   }
 
   return (
-    <Stack space={2}>
+    <Stack gap={2}>
       <Select
         value={value ?? ''}
         disabled={readOnly}

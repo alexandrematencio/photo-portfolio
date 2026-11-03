@@ -10,7 +10,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Badge, Box, Card, Flex, Heading, Spinner, Stack, Text } from '@sanity/ui';
-import { EditIcon } from '@sanity/icons';
+import { EditIcon } from '@sanity/icons/Edit';
 import { IntentLink } from 'sanity/router';
 import { useClient } from 'sanity';
 import { checkConceptMap, JOURNAL_MAP_QUERY, MAP_POSTS_QUERY, type JournalMapDoc, type MapPosts } from '@/lib/journal/conceptMap';
@@ -58,7 +58,7 @@ export function ConceptMapStatus({ map: given }: { map?: JournalMapDoc | null })
   for (const i of issues) bySlug.set(i.slug, [...(bySlug.get(i.slug) ?? []), i]);
 
   return (
-    <Stack space={4}>
+    <Stack gap={4}>
       <Flex gap={2} wrap="wrap" align="center">
         <Badge tone="positive">{ok} en place</Badge>
         {moved > 0 && <Badge tone="primary">{plural(moved, 'recalé', 'recalés')} automatiquement</Badge>}
@@ -79,7 +79,7 @@ export function ConceptMapStatus({ map: given }: { map?: JournalMapDoc | null })
       )}
 
       {[...bySlug].map(([slug, list]) => (
-        <Stack space={2} key={slug}>
+        <Stack gap={2} key={slug}>
           <IntentLink intent="edit" params={{ id: postId.get(slug)?.id ?? slug, type: 'post' }} style={{ textDecoration: 'none' }}>
             <Card padding={2} radius={1} tone="transparent" __unstable_focusRing>
               <Flex gap={2} align="center">
@@ -90,7 +90,7 @@ export function ConceptMapStatus({ map: given }: { map?: JournalMapDoc | null })
               </Flex>
             </Card>
           </IntentLink>
-          <Stack space={2} paddingLeft={4}>
+          <Stack gap={2} paddingLeft={4}>
             {list.map((i) => (
               <Text size={1} key={i.nodeId}>
                 {i.label} <span style={{ opacity: 0.6 }}>— {STATUS_LABEL[i.status]}</span>
@@ -125,7 +125,7 @@ export function ConceptMapStatus({ map: given }: { map?: JournalMapDoc | null })
 export function ConceptMapStatusView(props: { document: { displayed: JournalMapDoc } }) {
   return (
     <Box padding={4}>
-      <Stack space={4}>
+      <Stack gap={4}>
         <Heading size={1}>La carte contre le texte publié</Heading>
         <ConceptMapStatus map={props.document.displayed} />
       </Stack>

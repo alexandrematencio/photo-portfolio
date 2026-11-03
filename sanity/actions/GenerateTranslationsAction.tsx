@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Card, Flex, Spinner, Stack, Text } from '@sanity/ui';
-import { CheckmarkCircleIcon, TranslateIcon, WarningOutlineIcon } from '@sanity/icons';
+import { CheckmarkCircleIcon } from '@sanity/icons/CheckmarkCircle';
+import { TranslateIcon } from '@sanity/icons/Translate';
+import { WarningOutlineIcon } from '@sanity/icons/WarningOutline';
 import { useClient, useDocumentOperation, type DocumentActionComponent } from 'sanity';
 import {
   isFrenchPost,
@@ -182,7 +184,7 @@ function JobProgress({
   const waiting = job.status === 'requested';
   const langs = jobLangs(job);
   return (
-    <Stack space={4}>
+    <Stack gap={4}>
       {unpublishedDraft && (
         <Line tone="critical" text="Le brouillon français n’est pas publié : la traduction part de la version en ligne." />
       )}

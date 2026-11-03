@@ -36,7 +36,7 @@ export function SiteSettingsPreviewView() {
     <Flex direction="column" style={{ height: '100%', minHeight: 400 }}>
       <Card padding={3} borderBottom>
         <Flex align="center" justify="space-between" gap={3} wrap="wrap">
-          <Inline space={2}>
+          <Inline gap={2}>
             <Button
               text="Local (drafts)"
               mode={mode === 'local' ? 'default' : 'ghost'}

@@ -34,7 +34,7 @@ export function withExplainedPublish(original: DocumentActionComponent): Documen
     return {
       ...result,
       title: (
-        <Stack space={3} style={{ maxWidth: 360 }}>
+        <Stack gap={3} style={{ maxWidth: 360 }}>
           <Text size={1} weight="semibold">
             {`Publication bloquée : ${countLabel(errors.length, 'erreur à corriger', 'erreurs à corriger')}`}
           </Text>

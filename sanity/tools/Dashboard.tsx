@@ -11,16 +11,14 @@ import {
   Stack,
   Text,
 } from '@sanity/ui';
-import {
-  ImageIcon,
-  WarningOutlineIcon,
-  EditIcon,
-  ClockIcon,
-  AddIcon,
-  CogIcon,
-  EarthGlobeIcon,
-  StarIcon,
-} from '@sanity/icons';
+import { ImageIcon } from '@sanity/icons/Image';
+import { WarningOutlineIcon } from '@sanity/icons/WarningOutline';
+import { EditIcon } from '@sanity/icons/Edit';
+import { ClockIcon } from '@sanity/icons/Clock';
+import { AddIcon } from '@sanity/icons/Add';
+import { CogIcon } from '@sanity/icons/Cog';
+import { EarthGlobeIcon } from '@sanity/icons/EarthGlobe';
+import { StarIcon } from '@sanity/icons/Star';
 import imageUrlBuilder from '@sanity/image-url';
 import { useClient } from 'sanity';
 import { IntentLink } from 'sanity/router';
@@ -200,7 +198,7 @@ export function Dashboard() {
 
   return (
     <Box padding={4} style={{ maxWidth: 1100, margin: '0 auto' }}>
-      <Stack space={5}>
+      <Stack gap={5}>
         <Flex align="center" justify="space-between">
           <Heading size={3}>Tableau de bord</Heading>
           <Flex gap={2} align="center">
@@ -245,9 +243,9 @@ function StatsCard({ data, siteUrl }: { data: DashboardData; siteUrl: string }) 
   const curated = (data.curation ?? []).filter(Boolean).length;
   return (
     <Card padding={4} radius={2} shadow={1}>
-      <Stack space={4}>
+      <Stack gap={4}>
         <Heading size={1}>Vue d&apos;ensemble</Heading>
-        <Grid columns={[2, 3, 6]} gap={3}>
+        <Grid gridTemplateColumns={[2, 3, 6]} gap={3}>
           <Stat label="Photos" value={totals.photos} />
           <Stat label="Curation" value={curated} />
           <Stat label="Séries" value={totals.series} />
@@ -305,7 +303,7 @@ function StatsCard({ data, siteUrl }: { data: DashboardData; siteUrl: string }) 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <Card padding={3} radius={2} tone="transparent" border>
-      <Stack space={2}>
+      <Stack gap={2}>
         <Text size={0} muted>
           {label.toUpperCase()}
         </Text>
@@ -328,9 +326,9 @@ function CatalogueCard({ data }: { data: DashboardData }) {
 
   return (
     <Card padding={4} radius={2} shadow={1}>
-      <Stack space={4}>
+      <Stack gap={4}>
         <Heading size={1}>Catalogue par axe</Heading>
-        <Grid columns={[1, 2, 5]} gap={4}>
+        <Grid gridTemplateColumns={[1, 2, 5]} gap={4}>
           <AxisColumn title="Styles" rows={byStyle} />
           <AxisColumn title="Années" rows={byYear} />
           <AxisColumn title="Lieux" rows={byLocation} />
@@ -352,7 +350,7 @@ function AxisColumn({
   const MAX = 8;
   const shown = rows.slice(0, MAX);
   return (
-    <Stack space={3}>
+    <Stack gap={3}>
       <Text size={0} weight="semibold" muted>
         {title.toUpperCase()}
       </Text>
@@ -361,7 +359,7 @@ function AxisColumn({
           —
         </Text>
       ) : (
-        <Stack space={2}>
+        <Stack gap={2}>
           {shown.map((row) => (
             <Flex key={row.label} justify="space-between" gap={2}>
               <Text size={1} style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -401,7 +399,7 @@ function AlertsCard({ data }: { data: DashboardData }) {
 
   return (
     <Card padding={4} radius={2} shadow={1}>
-      <Stack space={4}>
+      <Stack gap={4}>
         <Flex align="center" gap={2}>
           <Box style={{ color: totalAlerts > 0 ? '#b8860b' : undefined }}>
             <WarningOutlineIcon />
@@ -483,11 +481,11 @@ function AlertGroup({
   items: { id: string; type: string; label: string }[];
 }) {
   return (
-    <Stack space={2}>
+    <Stack gap={2}>
       <Text size={1} weight="semibold">
         {title}
       </Text>
-      <Stack space={1}>
+      <Stack gap={1}>
         {items.slice(0, 8).map((item) => (
           <IntentLink
             key={item.id}
@@ -517,7 +515,7 @@ function AlertGroup({
 function ConceptMapCard() {
   return (
     <Card padding={4} radius={2} shadow={1}>
-      <Stack space={4}>
+      <Stack gap={4}>
         <Heading size={1}>Concept Map du journal</Heading>
         <ConceptMapStatus />
       </Stack>
@@ -530,7 +528,7 @@ function DraftsCard({ data }: { data: DashboardData }) {
   const { drafts } = data;
   return (
     <Card padding={4} radius={2} shadow={1}>
-      <Stack space={4}>
+      <Stack gap={4}>
         <Flex align="center" gap={2}>
           <EditIcon />
           <Heading size={1}>Brouillons en attente</Heading>
@@ -550,7 +548,7 @@ function DraftsCard({ data }: { data: DashboardData }) {
                 se met ensuite à jour tout seul en 3 à 4 minutes.
               </Text>
             </Card>
-            <Stack space={1}>
+            <Stack gap={1}>
               {drafts.map((d) => (
                 <IntentLink
                   key={d._id}
@@ -561,7 +559,7 @@ function DraftsCard({ data }: { data: DashboardData }) {
                   <Card padding={2} radius={1} tone="transparent" __unstable_focusRing>
                     <Flex gap={2} align="center" justify="space-between">
                       <Flex gap={2} align="center">
-                        <Badge tone="primary" mode="outline">
+                        <Badge tone="primary">
                           {d._type}
                         </Badge>
                         <Text size={1}>{d.title ?? d._id}</Text>
@@ -592,7 +590,7 @@ function RecentCard({
   const { recent } = data;
   return (
     <Card padding={4} radius={2} shadow={1}>
-      <Stack space={4}>
+      <Stack gap={4}>
         <Flex align="center" gap={2}>
           <ClockIcon />
           <Heading size={1}>Photos récemment modifiées</Heading>
@@ -602,7 +600,7 @@ function RecentCard({
             Aucune photo dans le dataset.
           </Text>
         ) : (
-          <Stack space={1}>
+          <Stack gap={1}>
             {recent.map((p) => {
               const src = thumbUrl(p.image, 80);
               return (

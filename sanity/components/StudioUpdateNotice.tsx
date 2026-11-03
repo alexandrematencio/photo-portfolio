@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button, Card, Flex, Text } from '@sanity/ui';
-import { WarningOutlineIcon } from '@sanity/icons';
+import { WarningOutlineIcon } from '@sanity/icons/WarningOutline';
 
 /**
  * « Le Studio a été mis à jour » (2026-10-30, demande Alexandre). Un onglet

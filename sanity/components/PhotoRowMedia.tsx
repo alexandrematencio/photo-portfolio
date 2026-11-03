@@ -8,8 +8,11 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from 'react';
-import { Button, Menu, MenuButton, MenuItem, useToast } from '@sanity/ui';
-import { EyeClosedIcon, EyeOpenIcon } from '@sanity/icons';
+import { Button } from '@sanity/ui';
+import { Menu, MenuButton, MenuItem } from '@sanity/ui/menu';
+import { useToast } from '@sanity/ui/toast';
+import { EyeClosedIcon } from '@sanity/icons/EyeClosed';
+import { EyeOpenIcon } from '@sanity/icons/EyeOpen';
 import imageUrlBuilder from '@sanity/image-url';
 import { useClient } from 'sanity';
 import {

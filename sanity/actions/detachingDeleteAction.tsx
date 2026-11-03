@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Box, Button, Card, Flex, Spinner, Stack, Text } from '@sanity/ui';
-import { TrashIcon, UnlinkIcon } from '@sanity/icons';
+import { TrashIcon } from '@sanity/icons/Trash';
+import { UnlinkIcon } from '@sanity/icons/Unlink';
 import {
   useClient,
   useDocumentOperation,
@@ -228,7 +229,7 @@ function DeleteDialogContent({
   const hasRefs = groups.length > 0;
 
   return (
-    <Stack space={4}>
+    <Stack gap={4}>
       {loading && (
         <Flex align="center" gap={2} padding={3}>
           <Spinner muted />
@@ -255,12 +256,12 @@ function DeleteDialogContent({
           <Text size={1}>
             « {title} » {config.introWithRefs}
           </Text>
-          <Stack space={2}>
+          <Stack gap={2}>
             {groups.map((group) => (
               <Card key={group.docType} padding={3} radius={2} tone="caution">
                 <Flex align="flex-start" justify="space-between" gap={3}>
-                  <Stack space={3} style={{ flex: 1, minWidth: 0 }}>
-                    <Stack space={2}>
+                  <Stack gap={3} style={{ flex: 1, minWidth: 0 }}>
+                    <Stack gap={2}>
                       {group.fields.map((field) => (
                         <Flex key={field} align="center" gap={2}>
                           <UnlinkIcon />
@@ -276,7 +277,7 @@ function DeleteDialogContent({
                         ` · + ${group.titles.length - MAX_TITLES_SHOWN} autres`}
                     </Text>
                   </Stack>
-                  <Badge mode="outline">
+                  <Badge>
                     {group.titles.length}{' '}
                     {TYPE_LABELS[group.docType] ?? group.docType}
                   </Badge>

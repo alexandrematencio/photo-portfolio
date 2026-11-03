@@ -8,18 +8,10 @@ import {
   type MouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import {
-  Badge,
-  Box,
-  Card,
-  Flex,
-  Heading,
-  Spinner,
-  Stack,
-  Text,
-  useToast,
-} from '@sanity/ui';
-import { ImageIcon, StarIcon } from '@sanity/icons';
+import { Badge, Box, Card, Flex, Heading, Spinner, Stack, Text } from '@sanity/ui';
+import { useToast } from '@sanity/ui/toast';
+import { ImageIcon } from '@sanity/icons/Image';
+import { StarIcon } from '@sanity/icons/Star';
 import { useClient } from 'sanity';
 import { IntentLink } from 'sanity/router';
 
@@ -290,7 +282,7 @@ export function CurationCard({
 
   return (
     <Card padding={4} radius={2} shadow={1}>
-      <Stack space={4}>
+      <Stack gap={4}>
         <Flex align="center" gap={2}>
           <StarIcon />
           <Heading size={1}>La curation (home)</Heading>

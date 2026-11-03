@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Box, Button, Card, Flex, Stack, Text } from '@sanity/ui';
-import { ErrorOutlineIcon, WarningOutlineIcon } from '@sanity/icons';
+import { ErrorOutlineIcon } from '@sanity/icons/ErrorOutline';
+import { WarningOutlineIcon } from '@sanity/icons/WarningOutline';
 import {
   getPublishedId,
   useValidationStatus,
@@ -47,14 +48,14 @@ function IssueList({
   const shown = issues.slice(0, MAX_LINES);
   return (
     <Card tone={tone} border radius={2} padding={3}>
-      <Stack space={3}>
+      <Stack gap={3}>
         <Flex gap={2} align="center">
           <Text size={1}>{icon}</Text>
           <Text size={1} weight="semibold">
             {heading}
           </Text>
         </Flex>
-        <Stack space={1}>
+        <Stack gap={1}>
           {shown.map((issue, i) => (
             <Button
               key={i}
@@ -65,7 +66,7 @@ function IssueList({
               onClick={() => onOpen(issue)}
               title="Aller au champ"
             >
-              <Stack space={2}>
+              <Stack gap={2}>
                 <Text size={1} weight="medium" muted>
                   {issue.where.join(' › ')}
                 </Text>
@@ -130,7 +131,7 @@ function DocumentValidationSummary(props: ObjectInputProps) {
 
   return (
     <div ref={root}>
-      <Stack space={4}>
+      <Stack gap={4}>
         {errors.length > 0 && (
           <IssueList
             issues={errors}

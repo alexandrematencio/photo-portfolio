@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Card, Flex, Select, Stack, Text, TextInput } from '@sanity/ui';
-import { AddIcon, TrashIcon } from '@sanity/icons';
+import { AddIcon } from '@sanity/icons/Add';
+import { TrashIcon } from '@sanity/icons/Trash';
 import {
   set,
   unset,
@@ -268,7 +269,7 @@ function CreateRefControl({
 
   if (!open) {
     return (
-      <Stack space={2}>
+      <Stack gap={2}>
         <Flex>
           <Button
             ref={buttonRef}
@@ -278,7 +279,7 @@ function CreateRefControl({
             mode="bleed"
             fontSize={1}
             padding={2}
-            space={2}
+            gap={2}
             text={create.button}
             disabled={disabled}
             onClick={() => setOpen(true)}
@@ -294,7 +295,7 @@ function CreateRefControl({
   }
 
   return (
-    <Stack space={2}>
+    <Stack gap={2}>
       <Flex gap={2} align="center">
         <Box flex={1}>
           <TextInput
@@ -418,7 +419,7 @@ export function createQuickRefInput(config: QuickRefConfig) {
     // l'éditeur la chercher ailleurs dans le Studio.
     if (options.length === 0 && !currentRef) {
       return (
-        <Stack space={3}>
+        <Stack gap={3}>
           <Card padding={3} radius={2} tone="caution">
             <Text size={1}>{config.labels.none}</Text>
           </Card>
@@ -428,7 +429,7 @@ export function createQuickRefInput(config: QuickRefConfig) {
     }
 
     return (
-      <Stack space={2}>
+      <Stack gap={2}>
         <Select
           id={props.elementProps.id}
           onFocus={props.elementProps.onFocus}
@@ -516,7 +517,7 @@ export function createQuickRefsArrayInput(config: QuickRefConfig) {
     // l'éditeur la chercher ailleurs dans le Studio.
     if (options.length === 0 && value.length === 0) {
       return (
-        <Stack space={3}>
+        <Stack gap={3}>
           <Card padding={3} radius={2} tone="caution">
             <Text size={1}>{config.labels.none}</Text>
           </Card>
@@ -560,7 +561,7 @@ export function createQuickRefsArrayInput(config: QuickRefConfig) {
     const remaining = options.filter((o) => !taken.has(o._id));
 
     return (
-      <Stack space={2}>
+      <Stack gap={2}>
         {value.map((item) => (
           <Flex key={item._key ?? item._ref} gap={2} align="center">
             <Select

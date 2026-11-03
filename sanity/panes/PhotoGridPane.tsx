@@ -1,3 +1,4 @@
+import type { DocumentSystem } from 'sanity';
 import {
   useCallback,
   useContext,
@@ -19,7 +20,8 @@ import {
   Text,
   TextInput,
 } from '@sanity/ui';
-import { AddIcon, SearchIcon } from '@sanity/icons';
+import { AddIcon } from '@sanity/icons/Add';
+import { SearchIcon } from '@sanity/icons/Search';
 import { DocumentStatusIndicator, SanityDefaultPreview, useClient } from 'sanity';
 import { PaneContext, PaneLayoutContext } from 'sanity/_singletons';
 import { usePaneRouter, type UserComponent } from 'sanity/structure';
@@ -66,6 +68,8 @@ export type PhotoGridOptions = {
 
 type PhotoDoc = {
   _id: string;
+  _type: string;
+  _system: DocumentSystem;
   _rev: string;
   _updatedAt: string;
   _createdAt: string;
@@ -85,7 +89,7 @@ type Row = {
   published: PhotoDoc | null;
 };
 
-const PROJECTION = `{ _id, _rev, _updatedAt, _createdAt, title, location, year, image, hidden }`;
+const PROJECTION = `{ _id, _type, "_system": coalesce(_system, {}), _rev, _updatedAt, _createdAt, title, location, year, image, hidden }`;
 
 /**
  * Le panneau du Studio est étroit exprès quand une photo est ouverte à sa
@@ -315,7 +319,7 @@ export function PhotoGridPane(props: PaneProps) {
   return (
     <Stack
       data-photo-pane={listMode ? 'list' : 'grid'}
-      space={listMode ? 2 : 3}
+      gap={listMode ? 2 : 3}
       padding={2}
     >
       <style>{PANE_CSS}</style>
@@ -387,7 +391,7 @@ export function PhotoGridPane(props: PaneProps) {
           </Text>
         </Box>
       ) : listMode ? (
-        <Stack space={1}>
+        <Stack gap={1}>
           {shown.map((row) => (
             <PhotoRow
               key={row.id}
@@ -518,7 +522,7 @@ function PhotoTile({ row, ChildLink }: LinkProps & { row: Row }) {
         />
       </div>
       <Box padding={2}>
-        <Stack space={2}>
+        <Stack gap={2}>
           <Flex align="center" gap={2}>
             <Box flex={1} style={{ minWidth: 0 }}>
               <Text size={1} weight="medium" textOverflow="ellipsis">

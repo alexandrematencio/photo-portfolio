@@ -1,8 +1,8 @@
 'use client';
 
 import { NextStudio } from 'next-sanity/studio';
-import { createClient } from 'next-sanity';
-import { defineConfig, type AuthStore, type CurrentUser } from 'sanity';
+import { createClient } from '@sanity/client';
+import { defineConfig, type AuthState, type AuthStore, type CurrentUser } from 'sanity';
 import { of } from 'rxjs';
 import { studioConfig } from '@/sanity/studio.config';
 import { apiVersion, dataset, projectId } from '@/lib/sanity/env';
@@ -31,7 +31,7 @@ const currentUser: CurrentUser = {
 };
 
 const auth: AuthStore = {
-  state: of({ authenticated: true, currentUser, client }),
+  state: of<AuthState>({ authenticated: true, currentUser, client }),
   token: of(null),
 };
 

@@ -9,7 +9,10 @@ import {
   Text,
   TextInput,
 } from '@sanity/ui';
-import { AddIcon, CheckmarkIcon, CloseIcon, StackCompactIcon } from '@sanity/icons';
+import { AddIcon } from '@sanity/icons/Add';
+import { CheckmarkIcon } from '@sanity/icons/Checkmark';
+import { CloseIcon } from '@sanity/icons/Close';
+import { StackCompactIcon } from '@sanity/icons/StackCompact';
 import {
   useClient,
   useDocumentOperation,
@@ -141,9 +144,9 @@ function SeriesPicker({
   );
 
   return (
-    <Stack space={4}>
+    <Stack gap={4}>
       {attached.length > 0 && (
-        <Stack space={2}>
+        <Stack gap={2}>
           <Text size={1} weight="semibold">
             Déjà dans {attached.length === 1 ? 'cette série' : 'ces séries'}
           </Text>
@@ -172,7 +175,7 @@ function SeriesPicker({
         </Stack>
       )}
 
-      <Stack space={3}>
+      <Stack gap={3}>
         <Text size={1} weight="semibold" as="label" id="series-search-label">
           {attached.length > 0
             ? 'Ajouter à une autre série, ou taper un nouveau nom'
@@ -232,7 +235,7 @@ function SeriesPicker({
       {/* État vide : aucune série n'existe encore */}
       {series !== null && series.length === 0 && (
         <Card padding={4} radius={2} tone="transparent" border>
-          <Stack space={3}>
+          <Stack gap={3}>
             <Text size={1} weight="semibold">
               Aucune série pour l&apos;instant.
             </Text>
@@ -255,7 +258,7 @@ function SeriesPicker({
       )}
 
       {filtered.length > 0 && (
-        <Stack space={1}>
+        <Stack gap={1}>
           {filtered.map((s) => {
             const isCurrent = currentSeriesIds.includes(s._id);
             return (
@@ -292,7 +295,7 @@ function SeriesPicker({
                       </Text>
                     )}
                   </Flex>
-                  <Badge tone={isCurrent ? 'positive' : 'default'} mode="outline">
+                  <Badge tone={isCurrent ? 'positive' : 'default'}>
                     {isCurrent
                       ? 'déjà rattachée'
                       : `${s.photoCount} photo${s.photoCount === 1 ? '' : 's'}`}

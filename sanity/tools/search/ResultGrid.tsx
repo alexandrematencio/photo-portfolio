@@ -18,7 +18,7 @@ export function ResultGrid({
   thumbUrl: ThumbFn;
 }) {
   return (
-    <Grid columns={[3, 4, 6]} gap={2}>
+    <Grid gridTemplateColumns={[3, 4, 6]} gap={2}>
       {hits.map(({ doc }) => {
         const url = thumbUrl(doc.image ?? undefined, 220);
         return (
@@ -29,7 +29,7 @@ export function ResultGrid({
             style={{ textDecoration: 'none' }}
           >
             <Card radius={2} overflow="hidden" tone="transparent" border>
-              <Stack space={2}>
+              <Stack gap={2}>
                 <Box
                   style={{
                     aspectRatio: '1 / 1',
@@ -39,7 +39,7 @@ export function ResultGrid({
                   }}
                 />
                 <Box padding={2}>
-                  <Stack space={2}>
+                  <Stack gap={2}>
                     <Flex gap={2} align="center">
                       <Text size={1} weight="medium" textOverflow="ellipsis">
                         {doc.title ?? 'Sans titre'}

@@ -1,4 +1,4 @@
-import { HighlightIcon } from '@sanity/icons';
+import { HighlightIcon } from '@sanity/icons/Highlight';
 import { createElement, type ReactNode } from 'react';
 import { defineArrayMember, defineField, defineType } from 'sanity';
 import { NoteRefInput } from '../inputs/NoteRefInput';

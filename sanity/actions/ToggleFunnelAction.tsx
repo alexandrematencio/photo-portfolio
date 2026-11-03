@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useToast } from '@sanity/ui';
-import { AddIcon, RemoveIcon } from '@sanity/icons';
+import { useToast } from '@sanity/ui/toast';
+import { AddIcon } from '@sanity/icons/Add';
+import { RemoveIcon } from '@sanity/icons/Remove';
 import { useClient, type DocumentActionComponent } from 'sanity';
 import {
   ADD_LABEL,
