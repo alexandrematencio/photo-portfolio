@@ -981,10 +981,18 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
   max-width: 1920px;
   /* Le padding haut est porté par `.gallery-heading`, qui vit HORS du stage
      (il doit être centré sur l'ÉCRAN, pas dans la colonne calée à gauche). */
-  padding: 128px var(--page-gutter) 20vh var(--page-gutter);
+  /* Au-dessus de la première photo, le MÊME écart qu'entre deux photos
+     (2026-11-03, demande Alexandre) : quand le premier pas la centre,
+     « Selected Works » est entièrement sorti par le haut au lieu d'y
+     traîner rogné. */
+  padding: calc(100vh - var(--img-max-h)) var(--page-gutter) 20vh var(--page-gutter);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  /* Les photos se dimensionnent en `cqw` (largeur de CONTENU du stage) et non
+     en `%` : le bloc photo + légende est en `fit-content` pour être centré,
+     un `%` y serait circulaire. */
+  container-type: inline-size;
 
   /* ÉCHELLE DE LA CURATION (2026-11-03, demande Alexandre : « réduire un peu
      les images, qu'elles respirent ; le texte proportionnellement »). UN
@@ -1077,7 +1085,6 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
 
 .photo-item {
   display: flex;
-  width: 100%;
   /* `stretch` (défaut) et non `flex-start` : c'est ce qui TEND la colonne de
      texte à la hauteur de la photo, condition pour que la fiche technique se
      cale sur le bas de l'image (mockup `xhHMr`). La photo, elle, refuse
@@ -1089,8 +1096,16 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
      est un bord droit irrégulier et une colonne de texte qui se déplace d'un
      bloc à l'autre — invisible en pratique : un bloc fait presque la hauteur
      de l'écran, on n'en voit jamais deux à la fois. */
+  /* BLOC CENTRÉ (2026-11-03, demande Alexandre) : c'est l'ensemble photo +
+     légende qui est centré dans la page, pas la photo seule — centrer la
+     photo et laisser la légende pendre à droite faisait paraître le bloc
+     décentré. Le bloc prend la largeur de son contenu (`fit-content`) et le
+     stage le centre. */
   justify-content: flex-start;
   gap: var(--pair-gap);
+  width: fit-content;
+  max-width: 100%;
+  align-self: center;
 }
 
 .photo-figure {
@@ -1101,7 +1116,7 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
   align-self: flex-start;
   aspect-ratio: var(--ratio, 4 / 5);
   width: min(
-    calc(100% - var(--text-col) - var(--pair-gap)),
+    calc(100cqw - var(--text-col) - var(--pair-gap)),
     calc(var(--img-max-h) * var(--ratio, 0.8))
   );
   overflow: hidden;
@@ -1200,7 +1215,7 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
     /* Gouttière de page comme partout ailleurs (`--page-gutter` : 32 dès
        `md`, 20 sur téléphone) : le texte tombe sur la même verticale que le
        footer et le glyph du header. */
-    padding: 96px var(--page-gutter) 15vh var(--page-gutter);
+    padding: calc(100svh - var(--img-max-h)) var(--page-gutter) 15vh var(--page-gutter);
     /* Même logique qu'au desktop, en `svh` : la barre d'adresse mobile ne
        doit pas faire varier l'écart. Le bloc empilé porte en plus sa légende,
        la voisine reste donc franchement hors champ. */
@@ -1212,6 +1227,8 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
     --img-max-h: calc(70vh * var(--curation-scale));
   }
   .photo-item {
+    /* Empilé : le bloc reste centré (règle de base), à la largeur de sa
+       photo ; la légende part donc du bord gauche de la photo. */
     flex-direction: column;
     /* Écart photo ↔ légende, empilés. Descendu de 20 à 16 le 2026-08-22
        (demande Alexandre : « un cran de moins »). Le cran est celui de
@@ -1226,10 +1243,13 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
     gap: 8px;
   }
   .photo-figure {
-    width: min(100%, calc(var(--img-max-h) * var(--ratio, 0.8)));
+    width: min(100cqw, calc(var(--img-max-h) * var(--ratio, 0.8)));
   }
   .photo-meta {
-    width: 100%;
+    /* 0 + min-width 100 % : la légende ne compte pas dans la largeur du bloc
+       (c'est la photo qui la fixe) puis s'étire à cette largeur. */
+    width: 0;
+    min-width: 100%;
     /* Empilé, la colonne n'est plus tendue : le `gap` redevient l'écart
        réel entre le titre et la fiche technique. 24 → 12 (2026-08-22),
        puis 12 → 6 (2026-10-05, moitié de l'écart alors en place). C'est LE
