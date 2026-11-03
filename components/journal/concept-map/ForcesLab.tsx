@@ -4,6 +4,7 @@ import { useId, type ReactNode } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
+import type { Dict } from '@/lib/journal/i18n';
 import { FORCE_DEFAULTS, type ForceMode, type ForceSettings, type LinkKind } from './forces';
 
 /**
@@ -23,7 +24,8 @@ import { FORCE_DEFAULTS, type ForceMode, type ForceSettings, type LinkKind } fro
  *   un niveau de difficulté, pas ce qui change ; « Par relation » passait
  *   sur deux lignes à 240 px).
  *
- * LABO : local seulement (`?forces` ou `next dev`), en français seul.
+ * Ouvert à tous depuis le 2026-11-03 (Alexandre), en FR/EN/RU (`dict.map.tuning`).
+ * `?forces=b` ouvre la carte en « Par lien ».
  */
 
 export type LabState = { mode: ForceMode; a: ForceSettings; b: ForceSettings; size: number; live: boolean; replay: number };
@@ -53,16 +55,13 @@ const saveLab = (s: LabState) => {
   }
 };
 
-const KINDS: { kind: LinkKind; label: string }[] = [
-  { kind: 'rhyme', label: 'rimes' },
-  { kind: 'part', label: 'thèse ↔ article' },
-  { kind: 'uses', label: 'thèse → mécanisme' },
-];
+type Tuning = Dict['map']['tuning'];
+const KINDS: LinkKind[] = ['rhyme', 'part', 'uses'];
 const same = (x: ForceSettings, y: ForceSettings) => JSON.stringify(x) === JSON.stringify(y);
 const fmt = (v: number) => String(Math.round(v * 1000) / 1000);
 
 /** Un groupe nommé ; `onReset` seulement quand il a bougé. */
-function TuneGroup({ title, onReset, children }: { title: string; onReset?: () => void; children: ReactNode }) {
+function TuneGroup({ title, t, onReset, children }: { title: string; t: Tuning; onReset?: () => void; children: ReactNode }) {
   return (
     <div role="group" aria-label={title} className="flex flex-col">
       <div className="flex min-h-8 items-center justify-between gap-3" style={{ paddingBottom: 6 }}>
@@ -71,13 +70,13 @@ function TuneGroup({ title, onReset, children }: { title: string; onReset?: () =
           <button
             type="button"
             onClick={onReset}
-            title={`Réinitialiser : ${title}`}
-            aria-label={`Réinitialiser : ${title}`}
+            title={t.resetOf(title)}
+            aria-label={t.resetOf(title)}
             className={cn(MICRO_LABEL, 'flex min-h-8 items-center gap-[4px] text-[var(--color-link)] underline-offset-4 hover:underline focus-visible:underline')}
           >
             <RotateCcw aria-hidden size={11} strokeWidth={2.25} />
             {/* « Rétablir » : « Réinitialiser » débordait du menu à 240 px (2026-11-03) ; le nom complet reste dans l'aria-label. */}
-            Rétablir
+            {t.reset}
           </button>
         )}
       </div>
@@ -114,12 +113,16 @@ function TuneCheck({ label, on, onChange }: { label: string; on: boolean; onChan
  * l'explorateur ; `namesDirty` / `onNamesReset` pour la remise à zéro d'« Affichage ».
  */
 export function MapTuning({
+  t,
+  namesNote,
   lab,
   onChange,
   names,
   namesDirty,
   onNamesReset,
 }: {
+  t: Tuning;
+  namesNote: string;
   lab: LabState;
   onChange: (s: LabState) => void;
   names: ReactNode;
@@ -140,7 +143,8 @@ export function MapTuning({
   return (
     <div className="flex flex-col gap-5">
       <TuneGroup
-        title="Affichage"
+        title={t.display}
+        t={t}
         onReset={
           namesDirty || lab.size !== 1
             ? () => {
@@ -150,15 +154,15 @@ export function MapTuning({
             : undefined
         }
       >
-        <TuneRow label="taille des bulles" value={lab.size} min={0.3} max={2} step={0.05} onChange={(size) => commit({ ...lab, size })} />
+        <TuneRow label={t.size} value={lab.size} min={0.3} max={2} step={0.05} onChange={(size) => commit({ ...lab, size })} />
         <p className="text-[12px] leading-[17px] text-[var(--color-fg-muted)]" style={{ padding: '6px 0 8px' }}>
-          Distance d’affichage des noms
+          {namesNote}
         </p>
         {names}
       </TuneGroup>
 
-      <TuneGroup title="Disposition" onReset={forcesDirty ? () => commit({ ...lab, [lab.mode]: FORCE_DEFAULTS, live: false, replay: lab.replay + 1 }) : undefined}>
-        <div role="radiogroup" aria-label="Réglage des forces" className="grid grid-cols-2 border border-[var(--color-line)]" style={{ marginBottom: 12 }}>
+      <TuneGroup title={t.layout} t={t} onReset={forcesDirty ? () => commit({ ...lab, [lab.mode]: FORCE_DEFAULTS, live: false, replay: lab.replay + 1 }) : undefined}>
+        <div role="radiogroup" aria-label={t.modes.label} className="grid grid-cols-2 border border-[var(--color-line)]" style={{ marginBottom: 12 }}>
           {(['a', 'b'] as const).map((m) => (
             <button
               key={m}
@@ -172,27 +176,27 @@ export function MapTuning({
                 lab.mode === m ? 'bg-[var(--color-fg)] text-[var(--color-bg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
               )}
             >
-              {m === 'a' ? 'Uniforme' : 'Par lien'}
+              {t.modes[m]}
             </button>
           ))}
         </div>
-        <TuneRow label="force du centre" value={f.center} min={0} max={0.3} step={0.005} onChange={(center) => tune({ center })} />
-        <TuneRow label="force de répulsion" value={f.repel} min={0} max={400} step={5} onChange={(repel) => tune({ repel })} />
+        <TuneRow label={t.center} value={f.center} min={0} max={0.3} step={0.005} onChange={(center) => tune({ center })} />
+        <TuneRow label={t.repel} value={f.repel} min={0} max={400} step={5} onChange={(repel) => tune({ repel })} />
         {lab.mode === 'a' ? (
-          <TuneRow label="force des liens" value={f.link} min={0} max={1} step={0.02} onChange={(link) => tune({ link })} />
+          <TuneRow label={t.link} value={f.link} min={0} max={1} step={0.02} onChange={(link) => tune({ link })} />
         ) : (
           <div className="flex flex-col border-l border-[var(--color-line)]" style={{ paddingLeft: 10, marginBottom: 4 }}>
             <p className="font-[family-name:var(--font-index)] text-[12px] leading-[16px] text-[var(--color-fg-muted)]" style={{ paddingBottom: 6 }}>
-              force des liens, par type
+              {t.linkByKind}
             </p>
-            {KINDS.map(({ kind, label }) => (
-              <TuneRow key={kind} label={label} value={f.byKind[kind]} min={0} max={1} step={0.02} onChange={(v) => tune({ byKind: { ...f.byKind, [kind]: v } })} />
+            {KINDS.map((kind) => (
+              <TuneRow key={kind} label={t.kinds[kind]} value={f.byKind[kind]} min={0} max={1} step={0.02} onChange={(v) => tune({ byKind: { ...f.byKind, [kind]: v } })} />
             ))}
           </div>
         )}
-        <TuneRow label="distance des liens" value={f.distance} min={5} max={200} step={1} onChange={(distance) => tune({ distance })} />
-        <TuneCheck label="bulles sans chevauchement" on={f.collide} onChange={(collide) => tune({ collide })} />
-        <TuneCheck label="cadre fixe (écarter agrandit la carte)" on={f.fixedFrame} onChange={(fixedFrame) => tune({ fixedFrame })} />
+        <TuneRow label={t.distance} value={f.distance} min={5} max={200} step={1} onChange={(distance) => tune({ distance })} />
+        <TuneCheck label={t.collide} on={f.collide} onChange={(collide) => tune({ collide })} />
+        <TuneCheck label={t.fixedFrame} on={f.fixedFrame} onChange={(fixedFrame) => tune({ fixedFrame })} />
       </TuneGroup>
     </div>
   );

@@ -367,6 +367,23 @@ export type Dict = {
     labelKinds: { article: string; mechanism: string; thesis: string };
     /** Le cran du réglage, de 0 (jamais) à 10 (toujours). */
     reach: (v: number) => string;
+    /** Les réglages de la carte (taille des bulles, forces à la Obsidian) : voir `ForcesLab.tsx`. */
+    tuning: {
+      display: string;
+      layout: string;
+      reset: string;
+      resetOf: (group: string) => string;
+      size: string;
+      modes: { label: string; a: string; b: string };
+      center: string;
+      repel: string;
+      link: string;
+      linkByKind: string;
+      kinds: { rhyme: string; part: string; uses: string };
+      distance: string;
+      collide: string;
+      fixedFrame: string;
+    };
     help: string;
     helpTitle: string;
     helpMouseTitle: string;
@@ -631,6 +648,22 @@ export const DICT: Record<Lang, Dict> = {
       labelsNote: 'Distance d’affichage des noms',
       labelKinds: { article: 'Articles', mechanism: 'Mécanismes', thesis: 'Thèses' },
       reach: (v) => (v <= 0 ? 'jamais' : v >= 10 ? 'toujours' : v <= 3 ? 'de près' : v <= 6 ? 'à mi-distance' : 'de loin'),
+      tuning: {
+        display: 'Affichage',
+        layout: 'Disposition',
+        reset: 'Rétablir',
+        resetOf: (g) => `Réinitialiser : ${g}`,
+        size: 'taille des bulles',
+        modes: { label: 'Réglage des forces', a: 'Uniforme', b: 'Par lien' },
+        center: 'force du centre',
+        repel: 'force de répulsion',
+        link: 'force des liens',
+        linkByKind: 'force des liens, par type',
+        kinds: { rhyme: 'rimes', part: 'thèse ↔ article', uses: 'thèse → mécanisme' },
+        distance: 'distance des liens',
+        collide: 'bulles sans chevauchement',
+        fixedFrame: 'cadre fixe (écarter agrandit la carte)',
+      },
       help: 'Aide ?',
       helpTitle: 'Naviguer dans la carte',
       helpMouseTitle: 'Souris et pavé tactile',
@@ -893,6 +926,22 @@ export const DICT: Record<Lang, Dict> = {
       labelsNote: 'How far away names show',
       labelKinds: { article: 'Articles', mechanism: 'Mechanisms', thesis: 'Theses' },
       reach: (v) => (v <= 0 ? 'never' : v >= 10 ? 'always' : v <= 3 ? 'up close' : v <= 6 ? 'mid-range' : 'from afar'),
+      tuning: {
+        display: 'Display',
+        layout: 'Layout',
+        reset: 'Reset',
+        resetOf: (g) => `Reset: ${g}`,
+        size: 'bubble size',
+        modes: { label: 'Force settings', a: 'Uniform', b: 'Per link' },
+        center: 'center force',
+        repel: 'repel force',
+        link: 'link force',
+        linkByKind: 'link force, by type',
+        kinds: { rhyme: 'rhymes', part: 'thesis ↔ article', uses: 'thesis → mechanism' },
+        distance: 'link distance',
+        collide: 'no overlapping bubbles',
+        fixedFrame: 'fixed frame (spreading out enlarges the map)',
+      },
       help: 'Help?',
       helpTitle: 'Getting around the map',
       helpMouseTitle: 'Mouse and trackpad',
@@ -1166,6 +1215,22 @@ export const DICT: Record<Lang, Dict> = {
       labelsNote: 'С какого расстояния видны названия',
       labelKinds: { article: 'Статьи', mechanism: 'Механизмы', thesis: 'Тезисы' },
       reach: (v) => (v <= 0 ? 'никогда' : v >= 10 ? 'всегда' : v <= 3 ? 'вблизи' : v <= 6 ? 'на среднем' : 'издалека'),
+      tuning: {
+        display: 'Вид',
+        layout: 'Расположение',
+        reset: 'Сбросить',
+        resetOf: (g) => `Сбросить: ${g}`,
+        size: 'размер кружков',
+        modes: { label: 'Настройка сил', a: 'Единая', b: 'По связям' },
+        center: 'притяжение к центру',
+        repel: 'отталкивание',
+        link: 'сила связей',
+        linkByKind: 'сила связей, по типу',
+        kinds: { rhyme: 'рифмы', part: 'тезис ↔ статья', uses: 'тезис → механизм' },
+        distance: 'длина связей',
+        collide: 'кружки не перекрываются',
+        fixedFrame: 'неподвижная рамка (разлёт увеличивает карту)',
+      },
       help: 'Помощь?',
       helpTitle: 'Как перемещаться по карте',
       helpMouseTitle: 'Мышь и тачпад',

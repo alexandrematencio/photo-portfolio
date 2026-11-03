@@ -274,11 +274,12 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const [labels, setLabels] = useState<LabelReach>(LABEL_DEFAULT);
   const [help, setHelp] = useState(false);
   const [hiddenNames, setHiddenNames] = useState(0);
-  // LABO des forces (`?forces`, `?forces=b`, ou `next dev`) : voir `forces.ts`.
+  // Les forces (voir `forces.ts`), pour tous depuis le 2026-11-03 ; `?forces=b` ouvre en « Par lien ».
+  // Lu après le montage : les réglages gardés vivent dans localStorage.
   const [lab, setLab] = useState<LabState | null>(null);
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get('forces');
-    if (q !== null || process.env.NODE_ENV === 'development') setLab(loadLab(q === 'b' ? 'b' : 'a'));
+    setLab(loadLab(q === 'b' ? 'b' : 'a'));
   }, []);
   const forces = useMemo<MapForces>(() => (lab ? { mode: lab.mode, settings: { ...lab[lab.mode], size: lab.size }, live: lab.live, replay: lab.replay } : null), [lab]);
   const [menu, setMenu] = useState(true);
@@ -767,6 +768,8 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
         settings={
           current === 'map' && lab ? (
             <MapTuning
+              t={t.tuning}
+              namesNote={t.labelsNote}
               lab={lab}
               onChange={setLab}
               namesDirty={LABEL_KINDS.some((k) => labels[k] !== LABEL_DEFAULT[k])}
