@@ -82,6 +82,13 @@ const INDENT = ICON + 10;
  * une barre pleine qui, sinon, mange la marge et vient coller au texte.
  */
 const PAD_RIGHT = 24;
+/**
+ * « Réglages » n'est pas une liste : ses curseurs ont besoin de largeur, pas
+ * d'un retrait qui les range sous un titre (2026-11-03, Alexandre : 28 px vides
+ * à gauche). Son corps part donc du bord gauche de l'icône, la verticale du
+ * titre du menu (« Explorer la carte ») : +28 px pour les curseurs, et un
+ * alignement qui existe déjà au lieu d'un nouveau.
+ */
 
 /** Repli : le contenu s'efface d'abord, puis la colonne se resserre (ease-in-out, elle se pose sur la bande). */
 export const CLOSE_MS = 240;
@@ -256,6 +263,7 @@ export function MapMenu({
                 labels={labels}
                 onToggle={() => setTuning((v) => !v)}
                 apart
+                flush
               />
             )}
             {sections.map((s) => (
@@ -362,12 +370,15 @@ function Section({
   open,
   onToggle,
   apart = false,
+  flush = false,
 }: {
   section: MenuSection;
   labels: Labels;
   open: boolean;
   onToggle: () => void;
   apart?: boolean;
+  /** Le corps part du bord de l'icône, pas du titre (« Réglages », cf. sous `PAD_RIGHT`). */
+  flush?: boolean;
 }) {
   const Icon = s.icon;
   const bodyId = useId();
@@ -409,7 +420,7 @@ function Section({
       >
         <div className="min-h-0 overflow-hidden">
           {/* Le même souffle en haut et en bas : les rangées sont symétriques, l'écart à l'œil l'est aussi (2026-11-03, Alexandre). */}
-          <div style={{ padding: `12px ${PAD_RIGHT}px 12px ${PAD_LEFT + INDENT}px` }}>{s.body}</div>
+          <div style={{ padding: `12px ${PAD_RIGHT}px 12px ${PAD_LEFT + (flush ? 0 : INDENT)}px` }}>{s.body}</div>
         </div>
       </div>
     </section>
