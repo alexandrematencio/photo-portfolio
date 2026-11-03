@@ -75,6 +75,13 @@ const ICON = 18;
 const PAD_LEFT = (MENU_SHUT - ICON) / 2;
 /** Le texte d'une catégorie s'aligne sur son titre, pas sur l'icône. */
 const INDENT = ICON + 10;
+/**
+ * Le souffle à droite des listes et des réglages (2026-11-03, Alexandre : les
+ * thèses et les curseurs touchaient le bord). 24 px, plus la gouttière réservée
+ * à la barre de défilement (`map-menu-scroll`) : avec une souris, macOS affiche
+ * une barre pleine qui, sinon, mange la marge et vient coller au texte.
+ */
+const PAD_RIGHT = 24;
 
 /** Repli : le contenu s'efface d'abord, puis la colonne se resserre (ease-in-out, elle se pose sur la bande). */
 export const CLOSE_MS = 240;
@@ -241,7 +248,7 @@ export function MapMenu({
             <p className={cn(MICRO_LABEL, 'text-[var(--color-fg)]')}>{labels.title}</p>
             {counts}
           </div>
-          <div ref={list} className="min-h-0 flex-1 overflow-y-auto">
+          <div ref={list} className="map-menu-scroll min-h-0 flex-1 overflow-y-auto">
             {settings && (
               <Section
                 section={{ id: 'settings', icon: SlidersHorizontal, label: labels.settings, body: settings }}
@@ -383,7 +390,7 @@ function Section({
             'flex w-full items-center gap-[10px] text-left transition-colors duration-200 motion-reduce:transition-none',
             open ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
           )}
-          style={{ height: HEADER, paddingLeft: PAD_LEFT, paddingRight: 16 }}
+          style={{ height: HEADER, paddingLeft: PAD_LEFT, paddingRight: PAD_RIGHT }}
         >
           <Icon aria-hidden size={ICON} strokeWidth={1.75} className="flex-none" />
           <span className="min-w-0 truncate">{s.label}</span>
@@ -401,7 +408,8 @@ function Section({
         style={{ gridTemplateRows: open ? '1fr' : '0fr', transitionDuration: `${FOLDER_MS}ms` }}
       >
         <div className="min-h-0 overflow-hidden">
-          <div style={{ padding: `0 16px 14px ${PAD_LEFT + INDENT}px` }}>{s.body}</div>
+          {/* Le même souffle en haut et en bas : les rangées sont symétriques, l'écart à l'œil l'est aussi (2026-11-03, Alexandre). */}
+          <div style={{ padding: `12px ${PAD_RIGHT}px 12px ${PAD_LEFT + INDENT}px` }}>{s.body}</div>
         </div>
       </div>
     </section>
@@ -424,7 +432,7 @@ function ClearButton({ label, title, onClick, inline = false }: { label: string;
         'flex items-center gap-[4px] text-[var(--color-link)] underline-offset-4 hover:underline focus-visible:underline',
         inline ? 'self-stretch' : 'absolute inset-y-0',
       )}
-      style={inline ? { paddingInline: 8 } : { right: 16 + 8 + 6, paddingInline: 8 }}
+      style={inline ? { paddingInline: 8 } : { right: PAD_RIGHT + 8 + 6, paddingInline: 8 }}
     >
       {label}
       <X aria-hidden size={12} strokeWidth={2.25} />
@@ -505,6 +513,8 @@ function PhoneBar({
   ];
   const current = items.find((i) => i.id === shown);
   const up = !!sheet && !!current;
+  // « Réglages » se règle EN REGARDANT la carte : demi-tiroir, sans voile (2026-11-03, Alexandre).
+  const light = current?.id === 'settings';
 
   return (
     <div className="flex flex-col gap-3 md:hidden">
@@ -534,7 +544,7 @@ function PhoneBar({
       <div
         aria-hidden
         onClick={() => onSheet(null)}
-        className={cn('fixed inset-0 z-40 bg-[rgba(10,10,10,0.18)] transition-opacity motion-reduce:transition-none', up ? 'opacity-100' : 'pointer-events-none opacity-0')}
+        className={cn('fixed inset-0 z-40 bg-[rgba(10,10,10,0.18)] transition-opacity motion-reduce:transition-none', up && !light ? 'opacity-100' : 'opacity-0', !up && 'pointer-events-none')}
         style={{ transitionDuration: `${up ? SHEET_IN : SHEET_OUT}ms` }}
       />
       <div
@@ -543,7 +553,7 @@ function PhoneBar({
         inert={!up}
         className="fixed inset-x-0 bottom-0 z-50 flex flex-col border-t border-[var(--color-line)] bg-[var(--color-bg-raised)] shadow-[0_-2px_12px_rgba(0,0,0,0.08)] transition-[translate] motion-reduce:transition-none"
         style={{
-          maxHeight: '72dvh',
+          maxHeight: light ? '48dvh' : '72dvh',
           translate: up ? '0 0' : '0 100%',
           transitionDuration: `${up ? SHEET_IN : SHEET_OUT}ms`,
           transitionTimingFunction: up ? EASE_OUT : EASE_IN,

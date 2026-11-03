@@ -41,6 +41,8 @@ process.env.NEXT_PUBLIC_BUILD_STAMP ??= String(Date.now());
 const nextConfig: NextConfig = {
   ...(isProd ? { output: 'export' as const } : {}),
   reactStrictMode: true,
+  // LABO des forces (2026-11-03) : le téléphone d'Alexandre ouvre `next dev` par le Wi-Fi du Mac.
+  allowedDevOrigins: ['192.168.1.66'],
   pageExtensions: isBlog ? ['blog.tsx', 'blog.ts'] : ['tsx', 'ts'],
   ...(isBlog ? { distDir: isProd ? 'out-blog' : '.next-blog' } : {}),
   env: {

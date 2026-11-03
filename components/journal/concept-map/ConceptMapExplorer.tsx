@@ -16,7 +16,8 @@ import { KEY_OF, MapHelp, MapHiddenNote, MapKeys, type NavKey } from './MapContr
 import { MapList } from './MapList';
 import { MapViewPill, PILL_STACK } from './MapViewPill';
 import { CLOSE_MS, MapMenu, SHEET_OUT, type MenuFocus, type MenuSection } from './MapMenu';
-import type { MapGestures, MapPreview } from './ConceptMapGraph';
+import type { MapForces, MapGestures, MapPreview } from './ConceptMapGraph';
+import { loadLab, MapTuning, type LabState } from './ForcesLab';
 
 /**
  * La page `/concept-map` côté navigateur, en dashboard (2026-10-30,
@@ -237,7 +238,7 @@ function ReachRow({ label, value, text, onChange }: { label: string; value: numb
   const id = useId();
   return (
     <div className="flex flex-col gap-1" style={{ paddingBottom: 10 }}>
-      <label htmlFor={id} className="flex items-baseline justify-between gap-3 font-mono text-[12px] leading-[16px]">
+      <label htmlFor={id} className="flex items-baseline justify-between gap-3 font-[family-name:var(--font-index)] text-[12px] leading-[16px]">
         <span className="text-[var(--color-fg)]">{label.toLocaleLowerCase()}</span>
         <span className="text-[var(--color-fg-faint)]">{text}</span>
       </label>
@@ -273,6 +274,13 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const [labels, setLabels] = useState<LabelReach>(LABEL_DEFAULT);
   const [help, setHelp] = useState(false);
   const [hiddenNames, setHiddenNames] = useState(0);
+  // LABO des forces (`?forces`, `?forces=b`, ou `next dev`) : voir `forces.ts`.
+  const [lab, setLab] = useState<LabState | null>(null);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('forces');
+    if (q !== null || process.env.NODE_ENV === 'development') setLab(loadLab(q === 'b' ? 'b' : 'a'));
+  }, []);
+  const forces = useMemo<MapForces>(() => (lab ? { mode: lab.mode, settings: { ...lab[lab.mode], size: lab.size }, live: lab.live, replay: lab.replay } : null), [lab]);
   const [menu, setMenu] = useState(true);
   const [sheet, setSheet] = useState<string | null>(null);
   const [menuFocus, setMenuFocus] = useState<MenuFocus | null>(null);
@@ -337,6 +345,20 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
 
   const visible = useMemo(() => visibleIds(ix, filters), [ix, filters]);
   const current = view === 'auto' ? (wide ? 'map' : 'list') : view;
+  // Téléphone : « Réglages » ouvert sur la carte, le tiroir n'en prend que la moitié
+  // basse (`SETTINGS_SHEET` dans MapMenu) ; la page glisse pour poser le milieu de
+  // la carte au milieu de ce qui reste visible — on règle en regardant.
+  useEffect(() => {
+    if (sheet !== 'settings' || wide !== false || current !== 'map') return;
+    const el = document.querySelector<HTMLElement>('[data-map-frame]');
+    const scroller = el?.closest<HTMLElement>('[data-scroll-container]') ?? (document.scrollingElement as HTMLElement | null);
+    if (!el || !scroller) return;
+    const r = el.getBoundingClientRect();
+    const top = scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top;
+    const room = window.innerHeight * 0.52 - top;
+    const smooth = window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
+    scroller.scrollBy({ top: r.top - top + r.height / 2 - room / 2, behavior: smooth ? 'smooth' : 'auto' });
+  }, [sheet, wide, current]);
 
   const select = useCallback((id: string | null, recenter = false) => {
     setSelected(id);
@@ -743,7 +765,17 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
           </>
         }
         settings={
-          current === 'map' ? (
+          current === 'map' && lab ? (
+            <MapTuning
+              lab={lab}
+              onChange={setLab}
+              namesDirty={LABEL_KINDS.some((k) => labels[k] !== LABEL_DEFAULT[k])}
+              onNamesReset={() => LABEL_KINDS.forEach((k) => reach(k, LABEL_DEFAULT[k]))}
+              names={LABEL_KINDS.map((k) => (
+                <ReachRow key={k} label={t.labelKinds[k]} value={labels[k]} text={t.reach(labels[k])} onChange={(v) => reach(k, v)} />
+              ))}
+            />
+          ) : current === 'map' ? (
             <div role="group" aria-label={t.labelsNote} className="flex flex-col">
               <p className="text-[12px] leading-[17px] text-[var(--color-fg-muted)]" style={{ paddingBottom: 8 }}>
                 {t.labelsNote}
@@ -779,6 +811,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
                     nav={nav}
                     gestures={gestures}
                     onHidden={setHiddenNames}
+                    forces={forces}
                     onSelect={(id) => {
                       select(id, !!id);
                       // Une thèse ou un mécanisme choisi sur la carte se retrouve dans le menu (2026-10-30/31, Alexandre).

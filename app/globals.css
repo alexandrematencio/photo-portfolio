@@ -1810,6 +1810,12 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
     --map-menu-open: var(--column-start);
   }
 }
+/* Le menu de la carte : la gouttière de la barre de défilement est réservée,
+   fine, pour que la marge droite reste la même avec ou sans souris (2026-11-03). */
+.map-menu-scroll {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
 .map-range {
   appearance: none;
   height: 16px;

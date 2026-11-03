@@ -4,6 +4,7 @@ import { useEffect, useRef, type MutableRefObject } from 'react';
 import Graph from 'graphology';
 import type { Attributes } from 'graphology-types';
 import Sigma from 'sigma';
+import { runForces, type ForceMode, type ForceRun, type ForceSettings } from './forces';
 import { colorOf, LABEL_STEPS, neighbourhood, type LabelKind, type LabelReach, type MapIndex, type MapNav } from './model';
 
 /**
@@ -132,6 +133,8 @@ const MAX_RATIO = 1.6;
 export type MapGestures = { held: () => boolean; refused: (gesture: 'wheel' | 'touch') => void };
 /** Le système d'une entrée du menu survolée ; `key` : l'id du nœud quand l'entrée en est un. */
 export type MapPreview = { key: string; ids: Set<string> } | null;
+/** LABO des forces (voir `forces.ts`) : `live` faux = la carte d'origine ; `replay` change = repartir de l'origine. */
+export type MapForces = { mode: ForceMode; settings: ForceSettings; live: boolean; replay: number } | null;
 
 const NODE_SIZE = { article: 13, thesis: 3.5 } as const;
 const EDGE_STYLE = {
@@ -156,6 +159,7 @@ export default function ConceptMapGraph({
   fit = 0,
   onSelect,
   onHidden,
+  forces = null,
 }: {
   ix: MapIndex;
   visible: Set<string>;
@@ -197,11 +201,13 @@ export default function ConceptMapGraph({
   onSelect: (id: string | null) => void;
   /** Avec `labels` : les noms permis par les réglages mais tus faute de place, à l'écran. */
   onHidden?: (count: number) => void;
+  forces?: MapForces;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const sigma = useRef<Sigma | null>(null);
   // L'état que lisent les reducers : des refs, pour ne pas reconstruire Sigma.
-  const state = useRef({ visible, selected, hovered: null as string | null, peek: null as string | null, preview: null as MapPreview, shown: null as string | null, lit: false, around: new Set<string>(), fade: 0, kept: new Set<string>(), reach: null as Record<LabelKind, number> | null, ratio: 1 });
+  const state = useRef({ visible, selected, hovered: null as string | null, peek: null as string | null, preview: null as MapPreview, shown: null as string | null, lit: false, around: new Set<string>(), fade: 0, kept: new Set<string>(), reach: null as Record<LabelKind, number> | null, ratio: 1, sizeK: 1 });
+  const graphOf = useRef<Graph | null>(null);
   const select = useRef(onSelect);
   select.current = onSelect;
   const hiddenOut = useRef(onHidden);
@@ -376,7 +382,8 @@ export default function ConceptMapGraph({
       minCameraRatio: MIN_RATIO,
       maxCameraRatio: MAX_RATIO,
       nodeReducer: (node, data) => {
-        const out = reduceNode(node, data);
+        const base = reduceNode(node, data);
+        const out = s.sizeK === 1 ? base : { ...base, size: base.size * s.sizeK };
         // Tout nom permis est « forcé » auprès de Sigma ; `must` garde le vrai forçage, pour la priorité.
         return (placing ? { ...out, must: !!out.forceLabel, forceLabel: out.label != null && !out.hidden } : out) as typeof data;
       },
@@ -390,6 +397,7 @@ export default function ConceptMapGraph({
       },
     });
     sigma.current = renderer;
+    graphOf.current = graph;
     if (placing) {
       ready = true;
       renderer.on('beforeRender', () => {
@@ -693,6 +701,7 @@ export default function ConceptMapGraph({
       if (nav) nav.current = null;
       renderer.kill();
       sigma.current = null;
+      graphOf.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `sticky`, `nav` et la présence de `labels` ne changent pas d'une vie à l'autre du dessin
   }, [ix]);
@@ -753,6 +762,54 @@ export default function ConceptMapGraph({
     else camera.animate(target, { duration: 450, easing: 'quadraticInOut' });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- seul un nouveau `center` déplace la caméra
   }, [center]);
+
+  // LABO des forces : la simulation part des positions de `map:build` et n'écrit que dans le dessin.
+  const forceRun = useRef<{ run: ForceRun; replay: number } | null>(null);
+  useEffect(() => () => {
+    forceRun.current?.run.stop();
+    forceRun.current = null;
+  }, [ix]);
+  useEffect(() => {
+    const r = sigma.current;
+    const graph = graphOf.current;
+    if (!r || !graph) return;
+    const s = state.current;
+    s.sizeK = forces?.settings.size ?? 1;
+    const xs = ix.view.nodes.map((n) => n.x);
+    const ys = ix.view.nodes.map((n) => n.y);
+    const origin = { x: [Math.min(...xs), Math.max(...xs)] as [number, number], y: [Math.min(...ys), Math.max(...ys)] as [number, number] };
+    r.setCustomBBox(forces?.live && forces.settings.fixedFrame ? origin : null);
+    if (!forces?.live) {
+      forceRun.current?.run.reset();
+      forceRun.current?.run.stop();
+      r.refresh();
+      return;
+    }
+    if (!forceRun.current) {
+      // Le rayon d'une bulle à l'écran (zoom 1), dans l'échelle du document.
+      const radius = (_id: string, size: number) => {
+        const cam = { x: 0.5, y: 0.5, ratio: 1, angle: 0 };
+        const a = r.viewportToGraph({ x: 0, y: 0 }, { cameraState: cam });
+        const b = r.viewportToGraph({ x: 100, y: 0 }, { cameraState: cam });
+        return r.scaleSize(size, 1) * (Math.hypot(b.x - a.x, b.y - a.y) / 100);
+      };
+      const run = runForces({
+        nodes: ix.view.nodes.map((n) => ({ id: n.id, x: n.x, y: n.y, size: graph.getNodeAttribute(n.id, 'size') as number })),
+        edges: ix.view.edges,
+        write: (pos) => graph.updateEachNodeAttributes((id, a) => {
+          const p = pos.get(id);
+          return p ? { ...a, x: p.x, y: p.y } : a;
+        }, { attributes: ['x', 'y'] }),
+        radius,
+        reduced: reduced(),
+      });
+      forceRun.current = { run, replay: forces.replay };
+    } else if (forceRun.current.replay !== forces.replay) {
+      forceRun.current.run.reset();
+      forceRun.current.replay = forces.replay;
+    }
+    forceRun.current.run.set(forces.mode, forces.settings);
+  }, [ix, forces]);
 
   return <div ref={box} className="absolute inset-0" />;
 }
