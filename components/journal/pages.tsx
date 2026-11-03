@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { PageShell, railColumnStart } from '@/components/site/PageShell';
 import { JournalIntro } from '@/components/journal/JournalIntro';
 import { JournalIndex } from '@/components/journal/JournalIndex';

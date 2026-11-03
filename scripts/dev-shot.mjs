@@ -49,14 +49,6 @@ function flag(name, fallback = null) {
 function has(name) {
   return argv.includes(`--${name}`);
 }
-/** Récupère toutes les occurrences d'un flag répétable, dans l'ordre. */
-function allFlags(name) {
-  const out = [];
-  argv.forEach((a, i) => {
-    if (a === `--${name}` && argv[i + 1]) out.push(argv[i + 1]);
-  });
-  return out;
-}
 
 const outPath = path.resolve(flag('out', 'shot.png'));
 const waitMs = Number.parseInt(flag('wait', '800'), 10);
