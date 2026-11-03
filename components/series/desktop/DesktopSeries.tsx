@@ -279,7 +279,6 @@ export function DesktopSeries({
   series,
   openSeries,
   activeIndex,
-  hydrated,
   onOpen,
   onClose,
   onSelectPhoto,

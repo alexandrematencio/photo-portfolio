@@ -343,7 +343,6 @@ export function CurationCard({
                   >
                     <Box style={{ position: 'relative', width: TILE, height: TILE }}>
                       {src ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={src}
                           alt=""
@@ -397,7 +396,6 @@ export function CurationCard({
             }}
           >
             {ghost.src && (
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={ghost.src}
                 alt=""

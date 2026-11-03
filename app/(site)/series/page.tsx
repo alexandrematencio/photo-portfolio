@@ -22,6 +22,7 @@ export default async function SeriesPage() {
     return (
       <div className="py-32 text-center text-[var(--color-fg-muted)] text-sm">
         No series yet. Compose some from{' '}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- le Studio est une autre appli : chargement complet voulu */}
         <a href="/studio" className="underline">
           /studio
         </a>

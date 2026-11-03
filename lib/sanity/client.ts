@@ -26,7 +26,6 @@ const usePreviewDrafts = !isProductionBuild && readToken.length > 0;
 if (isProductionBuild && readToken.length > 0) {
   // Defensive: the build phase ignores the token. Surface it so the developer
   // is not surprised if drafts don't show up later.
-  // eslint-disable-next-line no-console
   console.warn(
     '[sanity] SANITY_API_READ_TOKEN set during production build — ignored. Drafts are NEVER baked into the static export.'
   );

@@ -482,7 +482,6 @@ export function HomeHero({ hero }: HomeHeroProps) {
           return rect;
         };
 
-        const logoInit = capture(logoBlockRef.current!);
         const navInit = navItemsRef.current.map((el) => (el ? capture(el) : null));
 
         const logoTargetScale = GLYPH_TARGET / GLYPH_INITIAL;
@@ -502,16 +501,6 @@ export function HomeHero({ hero }: HomeHeroProps) {
         const padLeft = pageGutter();
         const availableWidth = window.innerWidth - padLeft - PAD_RIGHT;
         const itemGap = (availableWidth - totalContentWidth) / NAV_LINKS.length;
-
-        const logoTargetTop = (HEADER_HEIGHT - GLYPH_TARGET) / 2;
-        // Le block logo contient glyph + ligne « PHOTOGRAPHY », plus large que
-        // le glyph → le glyph est centré dans un bloc plus large.
-        // Compensation pour que le GLYPH (pas le block)
-        // atterrisse sur la gouttière exactement.
-        const glyphOffsetInBlock = (logoInit.width - GLYPH_INITIAL) / 2;
-        const logoDx =
-          padLeft - glyphOffsetInBlock * logoTargetScale - logoInit.left;
-        const logoDy = logoTargetTop - logoInit.top;
 
         const targetLeftFor = (i: number) => {
           let cursor = padLeft + logoVisibleWidth + itemGap;

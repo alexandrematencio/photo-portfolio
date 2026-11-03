@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge,
-  Box,
   Button,
   Card,
   Flex,
