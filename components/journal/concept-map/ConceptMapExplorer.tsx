@@ -12,7 +12,7 @@ import { DICT } from '@/lib/journal/i18n';
 import type { MapView } from '@/lib/journal/conceptMapData';
 import { flip, HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, linkedTo, neighbourhood, NO_FILTER, themeSystem, visibleIds, type Filters, type LabelKind, type LabelReach, type MapNav } from './model';
 import { MapPanel } from './MapPanel';
-import { KEY_OF, MapHelp, MapKeys, type NavKey } from './MapControls';
+import { KEY_OF, MapHelp, MapHiddenNote, MapKeys, type NavKey } from './MapControls';
 import { MapList } from './MapList';
 import { MapViewPill, PILL_STACK } from './MapViewPill';
 import { CLOSE_MS, MapMenu, SHEET_OUT, type MenuFocus, type MenuSection } from './MapMenu';
@@ -272,6 +272,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const [wide, setWide] = useState<boolean | null>(null);
   const [labels, setLabels] = useState<LabelReach>(LABEL_DEFAULT);
   const [help, setHelp] = useState(false);
+  const [hiddenNames, setHiddenNames] = useState(0);
   const [menu, setMenu] = useState(true);
   const [sheet, setSheet] = useState<string | null>(null);
   const [menuFocus, setMenuFocus] = useState<MenuFocus | null>(null);
@@ -762,7 +763,8 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
             {/* Le cadre et ce qui se pose dessus : les coins se mesurent au cadre seul,
                 pas au panneau qui passe dessous sur téléphone. Dès 768 px, il remplit
                 le dashboard ; ses filets sont ceux du dashboard. */}
-            <div className="relative h-[clamp(420px,calc(100dvh-12rem),860px)] md:h-full">
+            {/* `data-map-frame` / `data-map-overlay` : les noms de la carte évitent ce qui se pose dessus. */}
+            <div data-map-frame className="relative h-[clamp(420px,calc(100dvh-12rem),860px)] md:h-full">
               <div aria-hidden className="concept-stage absolute inset-0 overflow-hidden border-y border-[var(--color-line)] bg-[var(--color-bg)] md:border-y-0">
                 {current === 'map' && (
                   <Graph
@@ -776,6 +778,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
                     labels={labels}
                     nav={nav}
                     gestures={gestures}
+                    onHidden={setHiddenNames}
                     onSelect={(id) => {
                       select(id, !!id);
                       // Une thèse ou un mécanisme choisi sur la carte se retrouve dans le menu (2026-10-30/31, Alexandre).
@@ -814,13 +817,15 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
                   du menu, qui mord de 24 px sur la carte à cette hauteur. */}
               <div className="pointer-events-none absolute top-3 flex items-start justify-between gap-4" style={{ left: wide ? 12 + 24 : 12, right: 12 + beside }}>
                 <div className="flex min-w-0 flex-col items-start gap-2">
-                  <p aria-hidden className={cn(MICRO_LABEL, 'font-medium text-[var(--color-fg)]')}>
+                  <p aria-hidden data-map-overlay className={cn(MICRO_LABEL, 'font-medium text-[var(--color-fg)]')}>
                     <span className="md:hidden">{t.zoomTouch}</span>
                     <span className="hidden md:inline">{grip ? t.zoomHeld : t.zoomWheel}</span>
                   </p>
+                  {hiddenNames > 0 && <MapHiddenNote t={t} count={hiddenNames} />}
                   {shown && (
                     <button
                       type="button"
+                      data-map-overlay
                       onClick={() => select(null)}
                       className={cn(
                         MICRO_LABEL,
@@ -838,7 +843,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
                 <MapHelp t={t} open={help} onOpen={setHelp} />
               </div>
               {/* Au téléphone, la pastille « Liste » tient le coin : les touches montent au-dessus. */}
-              <div className="absolute" style={{ right: 12 + beside, bottom: wide === false && current === 'map' ? PILL_STACK : 12 }}>
+              <div data-map-overlay className="absolute" style={{ right: 12 + beside, bottom: wide === false && current === 'map' ? PILL_STACK : 12 }}>
                 <MapKeys t={t} armed={live} lit={lit} onPress={press} />
               </div>
               {!wide && current === 'map' && <MapViewPill to="list" floating={false} hidden={!!sheet} labels={pillLabels} onPick={pickPill} />}

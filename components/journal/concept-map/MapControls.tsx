@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import type { Dict } from '@/lib/journal/i18n';
@@ -150,7 +150,7 @@ export function MapHelp({ t, open, onOpen }: { t: Labels; open: boolean; onOpen:
   }, [open, onOpen]);
 
   return (
-    <div ref={box} className="pointer-events-auto relative flex flex-col items-end">
+    <div ref={box} data-map-overlay className="pointer-events-auto relative flex flex-col items-end">
       <button
         type="button"
         aria-expanded={open}
@@ -187,6 +187,66 @@ export function MapHelp({ t, open, onOpen }: { t: Labels; open: boolean; onOpen:
             {t.helpLabels}
           </p>
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * « N noms masqués faute de place » et son « ? » (2026-11-03, Alexandre) : la
+ * carte tait des noms que les réglages permettent — on le dit, et on dit
+ * pourquoi en deux phrases, plutôt que de laisser croire à un réglage cassé.
+ */
+export function MapHiddenNote({ t, count }: { t: Labels; count: number }) {
+  const id = useId();
+  const box = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      setOpen(false);
+    };
+    document.addEventListener('pointerdown', away, true);
+    window.addEventListener('keydown', esc, true);
+    return () => {
+      document.removeEventListener('pointerdown', away, true);
+      window.removeEventListener('keydown', esc, true);
+    };
+  }, [open]);
+
+  return (
+    <div ref={box} data-map-overlay className="pointer-events-auto relative flex items-center gap-2">
+      <p className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>{t.hiddenNames(count)}</p>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={id}
+        aria-label={t.hiddenWhyLabel}
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          // La cible au doigt fait 44 px (le pseudo-élément) sans grossir le rond.
+          "relative flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold leading-none transition-colors duration-200 after:absolute after:-inset-[13px] after:content-[''] motion-reduce:transition-none",
+          open
+            ? 'border-[var(--color-fg)] text-[var(--color-fg)]'
+            : 'border-[var(--color-line)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)] focus-visible:text-[var(--color-fg)]',
+        )}
+      >
+        ?
+      </button>
+      {open && (
+        <p
+          id={id}
+          role="note"
+          className="absolute left-0 top-full z-10 border border-[var(--color-line)] bg-[var(--color-bg-raised)] text-[12px] leading-[17px] text-[var(--color-fg-muted)] shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+          style={{ marginTop: 8, width: 'min(280px, calc(100vw - 56px))', padding: 12 }}
+        >
+          {t.hiddenWhy}
+        </p>
       )}
     </div>
   );

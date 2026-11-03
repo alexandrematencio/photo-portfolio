@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type MutableRefObject } from 'react';
 import Graph from 'graphology';
+import type { Attributes } from 'graphology-types';
 import Sigma from 'sigma';
 import { colorOf, LABEL_STEPS, neighbourhood, type LabelKind, type LabelReach, type MapIndex, type MapNav } from './model';
 
@@ -61,6 +62,49 @@ const FIT_MS = 620;
 /** Au-delà, les voisins d'un nœud gardent leur pastille mais pas leur libellé : on ne lirait plus rien. */
 const MAX_FORCED_LABELS = 14;
 
+/**
+ * Placement des noms (2026-11-03, Alexandre : au téléphone, des thèses
+ * restaient muettes au zoom maximum, réglées « de loin »). Sigma choisit ses
+ * noms par une grille de carrés de 140 px posée UNE fois sur la carte vue en
+ * entier : au téléphone, la carte tient en 8 carrés, les deux du centre
+ * portent 45 et 42 nœuds pour un plafond de 35 au zoom maximum — les plus
+ * petits (les thèses) n'avaient jamais de nom. Sa grille est donc coupée
+ * (`labelDensity: 0`) et les noms sont placés ici, à chaque image, d'après ce
+ * qui est À L'ÉCRAN, comme sur une carte routière :
+ * - par priorité : le nœud choisi ou pointé, puis son voisinage allumé, puis
+ *   articles, mécanismes (les plus partagés d'abord), thèses ; à rang et
+ *   taille égaux, un nom déjà affiché garde sa place (pas de clignotement),
+ *   puis le plus près du centre de l'écran passe devant ;
+ * - un nom mesuré ne chevauche ni un autre nom ni un nœud, et reste dans le
+ *   cadre : il essaie la droite, la gauche, le dessous, le dessus ;
+ * - un nom long passe à la ligne (la moitié de l'écran au téléphone, 320 px
+ *   au-delà) : un titre de thèse fait jusqu'à 400 px, un téléphone 412 ;
+ * - ce qui ne trouve pas de place est compté (`onHidden`), pour le dire.
+ * Le nom du nœud choisi s'affiche toujours, même à l'étroit.
+ */
+const LABEL_H = 14;
+const LABEL_WRAP_DESK = 320;
+const DOT = 4;
+const LABEL_GAP = 3;
+const LABEL_EDGE = 4;
+type Side = 0 | 1 | 2 | 3;
+type Box = { l: number; t: number; r: number; b: number };
+const KIND_RANK: Record<string, number> = { article: 2, mechanism: 3, thesis: 4 };
+/** `h` : la hauteur du nom, une ligne ou plus. */
+const boxAt = (side: Side, x: number, y: number, r: number, w: number, h = LABEL_H): Box => {
+  if (side === 0) return { l: x + r + LABEL_GAP, t: y - h / 2, r: x + r + LABEL_GAP + w, b: y + h / 2 };
+  if (side === 1) return { l: x - r - LABEL_GAP - w, t: y - h / 2, r: x - r - LABEL_GAP, b: y + h / 2 };
+  const t = side === 2 ? y + r + 1 : y - r - 1 - h;
+  return { l: x - w / 2, t, r: x + w / 2, b: t + h };
+};
+// 4 px entre deux noms empilés : moins, ils se lisent comme un seul nom sur deux lignes.
+const overlaps = (a: Box, b: Box) => a.l < b.r + 3 && b.l < a.r + 3 && a.t < b.b + 4 && b.t < a.b + 4;
+const hitsDisc = (a: Box, c: { x: number; y: number; r: number }) => {
+  const dx = c.x - Math.max(a.l, Math.min(c.x, a.r));
+  const dy = c.y - Math.max(a.t, Math.min(c.y, a.b));
+  return dx * dx + dy * dy < c.r * c.r;
+};
+
 const reduced = () => typeof window !== 'undefined' && !window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
 
@@ -111,6 +155,7 @@ export default function ConceptMapGraph({
   preview = null,
   fit = 0,
   onSelect,
+  onHidden,
 }: {
   ix: MapIndex;
   visible: Set<string>;
@@ -150,6 +195,8 @@ export default function ConceptMapGraph({
    */
   fit?: number;
   onSelect: (id: string | null) => void;
+  /** Avec `labels` : les noms permis par les réglages mais tus faute de place, à l'écran. */
+  onHidden?: (count: number) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const sigma = useRef<Sigma | null>(null);
@@ -157,6 +204,8 @@ export default function ConceptMapGraph({
   const state = useRef({ visible, selected, hovered: null as string | null, peek: null as string | null, preview: null as MapPreview, shown: null as string | null, lit: false, around: new Set<string>(), fade: 0, kept: new Set<string>(), reach: null as Record<LabelKind, number> | null, ratio: 1 });
   const select = useRef(onSelect);
   select.current = onSelect;
+  const hiddenOut = useRef(onHidden);
+  hiddenOut.current = onHidden;
   const gest = useRef(gestures);
   gest.current = gestures;
   const insetNow = useRef(inset);
@@ -184,6 +233,133 @@ export default function ConceptMapGraph({
 
     const s = state.current;
     const font = getComputedStyle(document.body).fontFamily;
+    const reduceNode = (node: string, data: Attributes): Attributes => {
+      if (!s.visible.has(node)) return { ...data, hidden: true };
+      const far = !!s.reach && !(s.ratio <= s.reach[data.kind as LabelKind]);
+      const out = { ...data, highlighted: node === s.selected, label: far ? null : data.label };
+      if (!s.lit || s.fade === 0) return out;
+      if (s.around.has(node)) return { ...out, label: data.label, zIndex: (data.zIndex ?? 0) + 4, forceLabel: node === s.shown || s.around.size <= MAX_FORCED_LABELS };
+      // Un nœud voilé sous le pointeur : il garde son voile, mais dit son nom.
+      if (node === s.peek) return { ...out, color: mix(data.color, PAPER, 0.4 * s.fade), label: data.label, forceLabel: true, zIndex: 5 };
+      // `out.label`, pas `data.label` : le temps du fondu, un nom que le zoom
+      // tait ne doit pas reparaître (le « flash » au survol, 2026-10-30).
+      return { ...out, color: mix(data.color, PAPER, 0.82 * s.fade), label: s.fade > 0.5 ? null : out.label, zIndex: 0 };
+    };
+
+    const measure = document.createElement('canvas').getContext('2d');
+    if (measure) measure.font = `600 12px ${font}`;
+    const width = (text: string) => (measure ? measure.measureText(text).width : text.length * 7);
+    // Un nom coupé en lignes d'au plus `max` px, aux espaces.
+    type Lines = { lines: string[]; w: number; h: number };
+    const layouts = new Map<string, Lines>();
+    const layoutOf = (label: string, max: number): Lines => {
+      const key = `${max}|${label}`;
+      let out = layouts.get(key);
+      if (out) return out;
+      const lines: string[] = [];
+      for (const word of label.split(' ')) {
+        const last = lines[lines.length - 1];
+        if (last !== undefined && width(`${last} ${word}`) <= max) lines[lines.length - 1] = `${last} ${word}`;
+        else lines.push(word);
+      }
+      out = { lines, w: Math.max(...lines.map(width)), h: lines.length * LABEL_H };
+      layouts.set(key, out);
+      return out;
+    };
+    let wrap = LABEL_WRAP_DESK;
+
+    // Les noms placés (voir `LABEL_H`) : recalculés une fois par image, à la première demande.
+    const placing = !!labels;
+    let placed = new Map<string, Side>();
+    let dirty = true;
+    let hidden = 0;
+    let told = -1;
+    let tellTimer = 0;
+    let under: string | null = null;
+    // Sigma dessine une première fois dans son constructeur, avant que `renderer` existe.
+    let ready = false;
+    const place = () => {
+      dirty = false;
+      const { width: W, height: H } = renderer.getDimensions();
+      wrap = W < 600 ? Math.round(W * 0.5) : LABEL_WRAP_DESK;
+      const veiled = s.lit && s.fade > 0.5;
+      // Ce qui se pose sur le dessin (indication de zoom, Aide, touches, pastille) : un nom n'y passe pas dessous.
+      const cr = container.getBoundingClientRect();
+      const boxes: Box[] = [...(container.closest('[data-map-frame]')?.querySelectorAll('[data-map-overlay]') ?? [])].flatMap((el) => {
+        const q = el.getBoundingClientRect();
+        return q.width && q.height ? [{ l: q.left - cr.left - 2, t: q.top - cr.top - 2, r: q.right - cr.left + 2, b: q.bottom - cr.top + 2 }] : [];
+      });
+      const discs: { id: string; x: number; y: number; r: number; article: boolean }[] = [];
+      const cands: { id: string; x: number; y: number; r: number; w: number; h: number; rank: number; kept: boolean; size: number; dist: number }[] = [];
+      graph.forEachNode((id) => {
+        const d = renderer.getNodeDisplayData(id) as (NonNullable<ReturnType<Sigma['getNodeDisplayData']>> & { must?: boolean }) | undefined;
+        if (!d || d.hidden) return;
+        const v = renderer.framedGraphToViewport(d);
+        const r = renderer.scaleSize(d.size);
+        if (v.x < -r || v.x > W + r || v.y < -r || v.y > H + r) return;
+        // Un nœud voilé ne gêne pas (il est presque couleur papier), ni un point de
+        // moins de 4 px, qui reste visible autour du texte : sans ça, en vue
+        // d'ensemble, des noms d'articles se taisaient pour des points de 2 px.
+        if (r >= DOT && (!veiled || s.around.has(id) || id === s.peek)) discs.push({ id, x: v.x, y: v.y, r: r + 1, article: graph.getNodeAttribute(id, 'kind') === 'article' });
+        if (d.label == null) return;
+        const rank = d.must ? 0 : (d.zIndex ?? 0) >= 4 ? 1 : (KIND_RANK[graph.getNodeAttribute(id, 'kind') as string] ?? 4);
+        const { w, h } = layoutOf(d.label, wrap);
+        cands.push({ id, x: v.x, y: v.y, r, w, h, rank, kept: placed.has(id), size: d.size, dist: Math.hypot(v.x - W / 2, v.y - H / 2) });
+      });
+      cands.sort((a, b) => a.rank - b.rank || b.size - a.size || +b.kept - +a.kept || a.dist - b.dist);
+      const next = new Map<string, Side>();
+      const inside = (q: Box) => q.l >= LABEL_EDGE && q.r <= W - LABEL_EDGE && q.t >= LABEL_EDGE && q.b <= H - LABEL_EDGE;
+      hidden = 0;
+      for (const c of cands) {
+        const prev = placed.get(c.id);
+        const sides: Side[] = prev === undefined ? [0, 1, 2, 3] : [prev, ...([0, 1, 2, 3] as Side[]).filter((x) => x !== prev)];
+        let got: Side | undefined;
+        for (const side of sides) {
+          const q = boxAt(side, c.x, c.y, c.r, c.w, c.h);
+          // Un nom d'article (« toujours » par défaut) passe sur un mécanisme ou une thèse, jamais sur un autre article.
+          if (!inside(q) || boxes.some((o) => overlaps(q, o)) || discs.some((o) => o.id !== c.id && (c.rank !== 2 || o.article) && hitsDisc(q, o))) continue;
+          got = side;
+          break;
+        }
+        // Le nœud choisi ou pointé dit son nom quoi qu'il arrive : dans le cadre si possible.
+        if (got === undefined && c.rank === 0) got = sides.find((side) => inside(boxAt(side, c.x, c.y, c.r, c.w, c.h))) ?? 0;
+        if (got === undefined) {
+          // Un nœud à moitié hors du cadre ne compte pas : on ne le voit pas vraiment.
+          if (c.x >= 0 && c.x <= W && c.y >= 0 && c.y <= H) hidden++;
+          continue;
+        }
+        next.set(c.id, got);
+        boxes.push(boxAt(got, c.x, c.y, c.r, c.w, c.h));
+      }
+      placed = next;
+    };
+    // Le compte des noms tus ne remonte qu'une fois la carte posée : pas un rendu React par image.
+    const tell = () => {
+      clearTimeout(tellTimer);
+      if (hidden === told) return;
+      tellTimer = window.setTimeout(() => {
+        told = hidden;
+        hiddenOut.current?.(hidden);
+      }, 160);
+    };
+    const drawLabel = (ctx: CanvasRenderingContext2D, data: { key: string; label: string | null; x: number; y: number; size: number }) => {
+      if (!data.label || !ready) return;
+      if (dirty) place();
+      const side = placed.get(data.key);
+      // Le nœud sous le pointeur a déjà son nom, dans l'étiquette de survol de Sigma.
+      if (side === undefined || data.key === under) return;
+      ctx.fillStyle = '#0a0a0a';
+      ctx.font = `600 12px ${font}`;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = side === 0 ? 'left' : side === 1 ? 'right' : 'center';
+      const { lines, h } = layoutOf(data.label, wrap);
+      const x = side === 0 ? data.x + data.size + LABEL_GAP : side === 1 ? data.x - data.size - LABEL_GAP : data.x;
+      const top = side === 2 ? data.y + data.size + 1 : side === 3 ? data.y - data.size - 1 - h : data.y - h / 2;
+      lines.forEach((line, i) => ctx.fillText(line, x, top + LABEL_H * (i + 0.5)));
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+    };
+
     const renderer = new Sigma(graph, container, {
       labelFont: font,
       labelSize: 12,
@@ -191,23 +367,18 @@ export default function ConceptMapGraph({
       labelColor: { color: '#0a0a0a' },
       // Avec `labels`, c'est le réducteur qui décide, rang par rang.
       labelRenderedSizeThreshold: labels ? 0 : 9,
-      labelDensity: 0.5,
+      // Avec `labels`, la grille de Sigma ne choisit plus rien : `place()` décide.
+      labelDensity: placing ? 0 : 0.5,
       labelGridCellSize: 140,
+      ...(placing ? { defaultDrawNodeLabel: drawLabel as never } : {}),
       zIndex: true,
       stagePadding: 48,
       minCameraRatio: MIN_RATIO,
       maxCameraRatio: MAX_RATIO,
       nodeReducer: (node, data) => {
-        if (!s.visible.has(node)) return { ...data, hidden: true };
-        const far = !!s.reach && !(s.ratio <= s.reach[data.kind as LabelKind]);
-        const out = { ...data, highlighted: node === s.selected, label: far ? null : data.label };
-        if (!s.lit || s.fade === 0) return out;
-        if (s.around.has(node)) return { ...out, label: data.label, zIndex: (data.zIndex ?? 0) + 4, forceLabel: node === s.shown || s.around.size <= MAX_FORCED_LABELS };
-        // Un nœud voilé sous le pointeur : il garde son voile, mais dit son nom.
-        if (node === s.peek) return { ...out, color: mix(data.color, PAPER, 0.4 * s.fade), label: data.label, forceLabel: true, zIndex: 5 };
-        // `out.label`, pas `data.label` : le temps du fondu, un nom que le zoom
-        // tait ne doit pas reparaître (le « flash » au survol, 2026-10-30).
-        return { ...out, color: mix(data.color, PAPER, 0.82 * s.fade), label: s.fade > 0.5 ? null : out.label, zIndex: 0 };
+        const out = reduceNode(node, data);
+        // Tout nom permis est « forcé » auprès de Sigma ; `must` garde le vrai forçage, pour la priorité.
+        return (placing ? { ...out, must: !!out.forceLabel, forceLabel: out.label != null && !out.hidden } : out) as typeof data;
       },
       edgeReducer: (edge, data) => {
         const [a, b] = graph.extremities(edge);
@@ -219,6 +390,18 @@ export default function ConceptMapGraph({
       },
     });
     sigma.current = renderer;
+    if (placing) {
+      ready = true;
+      renderer.on('beforeRender', () => {
+        dirty = true;
+      });
+      // Aucun nom à dessiner n'appelle pas `drawLabel` : le compte se refait quand même.
+      renderer.on('afterRender', () => {
+        if (dirty) place();
+        tell();
+      });
+      renderer.refresh({ skipIndexation: true });
+    }
 
     // L'estompage glisse vers sa profondeur : 1 pour un nœud survolé ou choisi,
     // `PREVIEW` pour une entrée du menu survolée. De l'aperçu au clic, il ne
@@ -410,6 +593,7 @@ export default function ConceptMapGraph({
     // Avec `sticky`, un nœud hors du voisinage choisi dit son nom au survol, sans rallumer son système.
     const outside = (node: string) => sticky && !!s.selected && !s.kept.has(node);
     renderer.on('enterNode', ({ node }) => {
+      under = node;
       container.style.cursor = 'pointer';
       if (outside(node)) {
         s.peek = node;
@@ -419,6 +603,7 @@ export default function ConceptMapGraph({
       settle();
     });
     renderer.on('leaveNode', () => {
+      under = null;
       container.style.cursor = '';
       if (s.peek) {
         s.peek = null;
@@ -437,7 +622,6 @@ export default function ConceptMapGraph({
     // Cadrer un système : on cherche le rapport le plus serré où nœuds ET noms
     // tiennent dans le cadre (moins le panneau, à droite), par dichotomie —
     // la taille rendue des nœuds suit le zoom, celle des noms non.
-    const measure = document.createElement('canvas').getContext('2d');
     const frameOn = (ids: Set<string>) => {
       const pts = [...ids].flatMap((id) => {
         const d = s.visible.has(id) ? renderer.getNodeDisplayData(id) : undefined;
@@ -449,7 +633,6 @@ export default function ConceptMapGraph({
       if (!pts.length || room.w < 80 || room.h < 80) return;
       // Les noms qui se liront : tous pour un petit système (ils sont forcés), ceux des articles sinon.
       const named = ids.size <= MAX_FORCED_LABELS;
-      if (measure) measure.font = `600 12px ${font}`;
       const tail = pts.map(({ id }) => {
         const n = graph.getNodeAttributes(id);
         return (named || n.kind === 'article') && measure ? Math.min(measure.measureText(n.label).width + 3, room.w * FIT_LABEL_SHARE) : 0;
@@ -506,6 +689,7 @@ export default function ConceptMapGraph({
       cancelAnimationFrame(raf);
       cancelAnimationFrame(z.raf);
       cancelAnimationFrame(p.raf);
+      clearTimeout(tellTimer);
       if (nav) nav.current = null;
       renderer.kill();
       sigma.current = null;

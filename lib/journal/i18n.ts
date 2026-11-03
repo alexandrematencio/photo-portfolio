@@ -322,6 +322,10 @@ export type Dict = {
     deselect: string;
     drawingNote: string;
     zoomTouch: string;
+    /** Les noms permis par les réglages mais tus faute de place, sous l'indication de zoom (2026-11-03, Alexandre). */
+    hiddenNames: (n: number) => string;
+    hiddenWhyLabel: string;
+    hiddenWhy: string;
     /** La molette laisse défiler la page tant qu'on n'a pas cliqué dans la carte (2026-10-30, Alexandre). */
     zoomWheel: string;
     /** La carte tient la molette : on dit comment la rendre à la page. */
@@ -590,6 +594,9 @@ export const DICT: Record<Lang, Dict> = {
       deselect: 'Désélectionner',
       drawingNote: 'Le dessin se déplace à la souris ou aux flèches du clavier, mais ses points ne se choisissent qu’à la souris ; la vue Liste donne les mêmes liens au clavier.',
       zoomTouch: 'Deux doigts pour déplacer · pincer pour zoomer',
+      hiddenNames: (n) => `${n} ${n > 1 ? 'noms masqués' : 'nom masqué'} faute de place`,
+      hiddenWhyLabel: 'Pourquoi des noms manquent',
+      hiddenWhy: 'Les noms ne se chevauchent jamais. Quand la place manque, les articles passent d’abord, puis les mécanismes, puis les thèses, et le centre de l’écran avant les bords. Zoomez ou déplacez la carte pour en faire paraître d’autres ; un point choisi dit toujours son nom.',
       zoomWheel: 'Cliquez sur la carte pour zoomer à la molette · ou pincez',
       zoomHeld: 'Molette pour zoomer · sortez de la carte pour faire défiler la page',
       refusedWheel: (mod) => `Cliquez sur la carte pour zoomer à la molette, ou ${mod} + molette`,
@@ -849,6 +856,9 @@ export const DICT: Record<Lang, Dict> = {
       deselect: 'Clear selection',
       drawingNote: 'The drawing moves with the mouse or the arrow keys, but its points can only be picked with a mouse; the List view gives the same links by keyboard.',
       zoomTouch: 'Two fingers to move · pinch to zoom',
+      hiddenNames: (n) => `${n} name${n > 1 ? 's' : ''} hidden for lack of room`,
+      hiddenWhyLabel: 'Why some names are missing',
+      hiddenWhy: 'Names never overlap. When room runs out, articles come first, then mechanisms, then theses, and the middle of the screen before the edges. Zoom in or move the map to bring others out; a chosen point always shows its name.',
       zoomWheel: 'Click the map to zoom with the wheel · or pinch',
       zoomHeld: 'Scroll to zoom · move off the map to scroll the page',
       refusedWheel: (mod) => `Click the map to zoom with the wheel, or use ${mod} + scroll`,
@@ -1113,6 +1123,14 @@ export const DICT: Record<Lang, Dict> = {
       deselect: 'Снять выделение',
       drawingNote: 'Схема двигается мышью или стрелками клавиатуры, но точки выбираются только мышью; вид «Список» даёт те же ссылки с клавиатуры.',
       zoomTouch: 'Двумя пальцами — двигать · щипком — масштаб',
+      hiddenNames: (n) => {
+        const d = n % 10;
+        const h = n % 100;
+        const w = d === 1 && h !== 11 ? 'название скрыто' : d >= 2 && d <= 4 && (h < 12 || h > 14) ? 'названия скрыты' : 'названий скрыто';
+        return `${n} ${w} — не хватает места`;
+      },
+      hiddenWhyLabel: 'Почему не видно названий',
+      hiddenWhy: 'Названия никогда не накладываются друг на друга. Когда места мало, первыми идут статьи, затем механизмы, затем тезисы, и центр экрана раньше краёв. Приблизьте или сдвиньте карту, чтобы увидеть другие; у выбранной точки название видно всегда.',
       zoomWheel: 'Нажмите на карту, чтобы масштабировать колесом · или сведите пальцы',
       zoomHeld: 'Колесо — масштаб · уведите курсор с карты, чтобы прокрутить страницу',
       refusedWheel: (mod) => `Нажмите на карту, чтобы масштабировать колесом, или ${mod} + колесо`,

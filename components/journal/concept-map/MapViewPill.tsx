@@ -88,6 +88,7 @@ export function MapViewPill({
 
   return (
     <div
+      data-map-overlay
       className={cn('pointer-events-none z-30 flex md:hidden', floating ? 'fixed' : 'absolute')}
       style={
         floating
