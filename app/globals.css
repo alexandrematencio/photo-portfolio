@@ -985,13 +985,26 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 128px;
+
+  /* ÉCHELLE DE LA CURATION (2026-11-03, demande Alexandre : « réduire un peu
+     les images, qu'elles respirent ; le texte proportionnellement »). UN
+     seul nombre : il multiplie le plafond de hauteur des photos, la colonne
+     de texte et TOUS les corps de la légende (`PhotoBlock`). Les corps
+     tombent donc hors de l'échelle typo du brand book (14 → 11,5 ; 24 →
+     19,7…) — c'est le prix de la proportion stricte demandée. */
+  --curation-scale: 0.82;
+
+  /* Un geste = une photo (`lib/motion/step-scroll.ts`) : chaque bloc est
+     centré dans l'écran à l'arrêt. L'écart vaut l'écran moins le plafond de
+     photo, si bien que la voisine commence juste sous le bord : une seule
+     photo à l'écran, le reste est du blanc. */
+  gap: calc(100vh - var(--img-max-h));
 
   /* Proportions du mockup, transposées : à 1920 px de large il pose une
      photo de 1200, une gouttière de 96 et une colonne de texte de 560 dans
      1856 px utiles. Les deux `clamp` reproduisent ces parts (30 % / 5 %) et
      retombent sur des valeurs tenables aux largeurs intermédiaires. */
-  --text-col: clamp(300px, 29vw, 560px);
+  --text-col: calc(clamp(300px, 29vw, 560px) * var(--curation-scale));
   /* Gouttière photo ↔ légende, DESKTOP uniquement (sous 1024 les deux
      s'empilent et `.photo-item` impose son propre écart vertical de 8 px —
      cette variable n'y sert plus à rien).
@@ -1009,7 +1022,7 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
      HAUTEUR (`--img-max-h`), les 56 px libérés ne l'élargissent pas — ils
      rapprochent le texte. C'est bien l'effet visé. */
   --pair-gap: 16px;
-  --img-max-h: 76vh;
+  --img-max-h: calc(76vh * var(--curation-scale));
 }
 
 /* « Selected Works » — PLEINE LARGEUR, à toutes les largeurs (demande
@@ -1136,7 +1149,7 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
      `.photo-meta-facts`). Sur mobile il gouverne TOUTES les lignes de la
      légende — c'est l'invariant du « pas unique » : resserrer la seule fiche
      technique y est impossible sans le casser. */
-  --meta-line: 24px;
+  --meta-line: calc(24px * var(--curation-scale));
   align-self: stretch;
   display: flex;
   flex-direction: column;
@@ -1188,12 +1201,15 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
        `md`, 20 sur téléphone) : le texte tombe sur la même verticale que le
        footer et le glyph du header. */
     padding: 96px var(--page-gutter) 15vh var(--page-gutter);
-    gap: 96px;
+    /* Même logique qu'au desktop, en `svh` : la barre d'adresse mobile ne
+       doit pas faire varier l'écart. Le bloc empilé porte en plus sa légende,
+       la voisine reste donc franchement hors champ. */
+    gap: calc(100svh - var(--img-max-h));
     /* Pas de `--pair-gap` ici : empilés, ni `.photo-item` (écart explicite
        de 8 px) ni `.photo-figure` (largeur en `min(100%, …)`) ne le lisent.
        Le redéclarer donnerait une valeur morte qui se lit comme le réglage
        de l'écart mobile — elle a existé à 20 px, elle induisait en erreur. */
-    --img-max-h: 70vh;
+    --img-max-h: calc(70vh * var(--curation-scale));
   }
   .photo-item {
     flex-direction: column;
@@ -1286,7 +1302,7 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
      spécificité, déclaré plus haut) leur rendrait les 24 px. */
   .photo-meta-facts,
   .photo-meta-facts li {
-    font-size: 16px;
+    font-size: calc(16px * var(--curation-scale));
     line-height: 1.3333;
   }
 }

@@ -60,7 +60,10 @@ const GRAIN_PEAK = 4 / 27; // max de o²·(1−o), pour normaliser la courbe à 
  * - Lenis pour le smooth scroll (le hero §3.6 s'appuie dessus), et
  * - un fondu d'entrée/sortie scrubbé aux bords du viewport (voir
  *   EDGE_FADE_PORTION) : les blocs arrivent un par un en fade-in par le bas,
- *   sortent en fade-out par le haut (et inversement en remontant).
+ *   sortent en fade-out par le haut (et inversement en remontant), et
+ * - depuis le 2026-11-03, « un geste, une photo » dans la zone des photos
+ *   (`lib/motion/step-scroll.ts`, d'après vincentvanduysen.com) : chaque
+ *   geste glisse en 1 s jusqu'à la photo suivante, centrée.
  * La parallaxe per-item et la distorsion pilotée par la vélocité
  * (scale/skewY/rotateX) sont SUPPRIMÉES — version archivée dans
  * FREELANCE/RESOURCES/existing-components/scroll-velocity-distortion/.
@@ -83,11 +86,13 @@ export function ScrollPhysicsGallery({ photos, intro }: Props) {
     let cancelled = false;
 
     (async () => {
-      const [{ default: Lenis }, gsapModule, scrollTriggerModule] = await Promise.all([
-        import('lenis'),
-        import('gsap'),
-        import('gsap/ScrollTrigger'),
-      ]);
+      const [{ default: Lenis }, gsapModule, scrollTriggerModule, { bindStepScroll }] =
+        await Promise.all([
+          import('lenis'),
+          import('gsap'),
+          import('gsap/ScrollTrigger'),
+          import('@/lib/motion/step-scroll'),
+        ]);
 
       if (cancelled) return;
 
@@ -173,7 +178,18 @@ export function ScrollPhysicsGallery({ photos, intro }: Props) {
       );
       applyEdgeFades();
 
+      // 3. UN GESTE, UNE PHOTO (2026-11-03, d'après vincentvanduysen.com) —
+      // dans la zone des photos seulement ; le hero reste en défilement libre.
+      // Verrou = `overflow: hidden` sur body, que posent le splash
+      // (`lockBodyScroll`) comme la lightbox.
+      const unbindSteps = bindStepScroll({
+        lenis,
+        getTargets: () => photoItems.map((p) => p.el),
+        isLocked: () => document.body.style.overflow === 'hidden',
+      });
+
       cleanup = () => {
+        unbindSteps();
         // On ne tue QUE nos propres triggers (sinon on bute ceux du HomeHero).
         triggers.forEach((t) => t?.kill());
         lenis.destroy();

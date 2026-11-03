@@ -141,7 +141,7 @@ export const PhotoBlock = forwardRef<HTMLDivElement, Props>(
                     même jour : il DÉROGE aux 0,25 em que §5.3 prescrit pour
                     les sub-labels. Ne pas le « corriger » vers le brand
                     book sans le lui redemander. */}
-                <span className="text-[14px] font-normal tracking-[0.05em] leading-none text-[var(--color-fg)]">
+                <span className="text-[length:calc(14px*var(--curation-scale))] font-normal tracking-[0.05em] leading-none text-[var(--color-fg)]">
                   {number}
                 </span>
                 {/* 24 / 32 / 48 — trois pas de l'échelle typo, là où le
@@ -149,7 +149,7 @@ export const PhotoBlock = forwardRef<HTMLDivElement, Props>(
                     palier. Le `2xl:tracking-[-0.04em]` a sauté avec : la
                     tracking ladder (§5.4) ne passe à -0,04 em qu'à partir
                     de 64 px, et le palier 2xl est redescendu à 48. */}
-                <h3 className="text-[24px] md:text-[32px] 2xl:text-[48px] font-bold tracking-[-0.02em] leading-none text-[var(--color-fg)]">
+                <h3 className="text-[length:calc(24px*var(--curation-scale))] md:text-[length:calc(32px*var(--curation-scale))] 2xl:text-[length:calc(48px*var(--curation-scale))] font-bold tracking-[-0.02em] leading-none text-[var(--color-fg)]">
                   {photo.title}
                 </h3>
               </div>
@@ -164,7 +164,7 @@ export const PhotoBlock = forwardRef<HTMLDivElement, Props>(
                    au pixel sur le premier, sans retrait à deviner. Insécable
                    dans les deux cas : le mot et le nom qu'il introduit ne
                    doivent jamais se retrouver sur deux lignes. */
-                <p className="photo-meta-series text-[18px] leading-[1.5] font-normal text-[var(--color-fg)]">
+                <p className="photo-meta-series text-[length:calc(18px*var(--curation-scale))] leading-[1.5] font-normal text-[var(--color-fg)]">
                   {/* Même gris que la ligne d'origine de la fiche technique
                       (`--color-fg-faint`) : les deux libellés secondaires de la
                       légende doivent s'accorder. */}
@@ -198,7 +198,7 @@ export const PhotoBlock = forwardRef<HTMLDivElement, Props>(
                 L'origine en gris, le matériel en noir ; l'objectif porte le
                 « + » du mockup, qui le rattache au boîtier de la ligne
                 au-dessus. */}
-            <ul className="photo-meta-facts font-sans text-[18px] leading-[24px] font-normal">
+            <ul className="photo-meta-facts font-sans text-[length:calc(18px*var(--curation-scale))] leading-[calc(24px*var(--curation-scale))] font-normal">
               {origin && (
                 <li className="text-[var(--color-fg-faint)]">{origin}</li>
               )}
