@@ -920,14 +920,15 @@ export function DesktopSeries({
     const stackZ = (photo: { _id: string }, i: number) =>
       String(photo._id === target.cover._id ? n + 1 : n - i);
 
+    // Le centre ne vole plus de la pile : il DÉCOLLE DE SA VIGNETTE une fois
+    // celle-ci posée, comme au changement de série et à l'échange ↑ / ↓
+    // (demande Alexandre, 2026-11-04). Rang de la vignette active dans la
+    // cascade, pour caler le décollage sur SA pose.
+    const openIndex = Math.min(indexRef.current, n - 1);
+    let activeFlight = -1;
     target.photos.forEach((photo, i) => {
       const pile = pileImg(target.slug, photo._id);
       const pileRect = rectOf(pile);
-      if (pile && pileRect && photo._id === target.cover._id && centerRect) {
-        const ghost = spawnGhost(layer, pile, pileRect);
-        ghost.style.zIndex = String(n + 2);
-        coverFlight = { ghost, from: pileRect, to: centerRect };
-      }
       const col = colImg(i);
       const to = rectOf(col);
       if (!col || !to || !isOnScreen(to)) return;
@@ -939,8 +940,34 @@ export function DesktopSeries({
       if (!from) return;
       const ghost = spawnGhost(layer, srcEl, from);
       ghost.style.zIndex = stackZ(photo, i);
+      if (i === openIndex) activeFlight = flights.length;
       flights.push({ ghost, from, to });
     });
+
+    // Clone du centre, posé INVISIBLE sur le rect de pose de la vignette
+    // active, au-dessus de toute la couche. Source : le fichier du centre
+    // s'il est déjà décodé, sinon la vignette (même ratio — `contain` évite
+    // tout recadrage), affinée en place dès que le grand fichier est prêt.
+    const liftFrom = activeFlight >= 0 ? flights[activeFlight].to : null;
+    const centerImgEl = q<HTMLImageElement>('[data-center-img]');
+    if (liftFrom && centerRect && centerImgEl) {
+      const loaded = centerImgEl.complete && centerImgEl.naturalWidth > 0;
+      const ghost = spawnGhost(layer, centerImgEl, liftFrom);
+      ghost.style.objectFit = 'contain';
+      ghost.style.zIndex = String(n + 2);
+      ghost.style.opacity = '0';
+      if (!loaded) {
+        const thumbSrc = colImg(openIndex)?.src;
+        if (thumbSrc) ghost.src = thumbSrc;
+        const hq = centerImgEl.currentSrc || centerImgEl.src;
+        if (hq) {
+          void warmHq(hq).then((ok) => {
+            if (ok && ghost.isConnected) ghost.src = hq;
+          });
+        }
+      }
+      coverFlight = { ghost, from: liftFrom, to: centerRect };
+    }
 
     // La pile réelle disparaît à l'instant où ses clones prennent le relais.
     if (stack) gsap.set(stack, { autoAlpha: 0 });
@@ -974,7 +1001,13 @@ export function DesktopSeries({
     });
     tl.to(otherStacks, { autoAlpha: 0, y: 8, duration: DUR.fade }, 0);
     flyCurved(tl, flights, { duration: DUR.open, at: 0 });
-    if (coverFlight) flyCurved(tl, [coverFlight], { duration: DUR.open, at: 0.04 });
+    if (coverFlight) {
+      // Décollage à 85 % du vol de la vignette active (`expo.inOut` : 99,6 %
+      // du trajet parcouru), puis le vol croisé de l'échange.
+      const lift = activeFlight * STAGGER + DUR.open * 0.85;
+      tl.set(coverFlight.ghost, { opacity: 1 }, lift);
+      flyCrossing(tl, [coverFlight], { duration: DUR.swap, at: lift });
+    }
     if (left) tl.to(left, { autoAlpha: 1, duration: DUR.fade }, DUR.open - 0.35);
 
     // Mesures faites (sync, pré-paint) ; seul le DÉPART attend brièvement le

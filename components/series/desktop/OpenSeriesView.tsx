@@ -388,7 +388,19 @@ export function OpenSeriesView({
           data-open-center
           className="flex min-h-0 flex-1 items-center justify-center"
         >
-        <div data-center-wrap className="relative w-fit max-w-full">
+        {/* La LARGEUR vit sur le cadre, pas sur l'image : en `w-fit`, le cadre
+            prenait la taille de l'image et l'image un pourcentage du cadre —
+            cycle qui se résout à 0 tant que le fichier n'est pas chargé.
+            Mesuré à l'ouverture : 0 px de large, donc aucun rect d'arrivée et
+            AUCUN vol du centre — la photo apparaissait d'un coup au raccord
+            (2026-11-04). Même formule que `predictCenterRect`. */}
+        <div
+          data-center-wrap
+          className="relative max-w-full"
+          style={{
+            width: `min(100%, calc(${CENTER_MAX_H} * ${activeRatio}))`,
+          }}
+        >
           <button
             type="button"
             onClick={onClose}
@@ -421,7 +433,7 @@ export function OpenSeriesView({
             className="block max-w-full object-contain"
             style={{
               aspectRatio: String(activeRatio),
-              width: `min(100%, calc(${CENTER_MAX_H} * ${activeRatio}))`,
+              width: '100%',
               maxHeight: CENTER_MAX_H,
             }}
           />
