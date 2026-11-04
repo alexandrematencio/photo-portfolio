@@ -700,7 +700,7 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
    qui connaisse les media queries. Le style inline les ignore, et une utility
    Tailwind de stroke n'existe pas. Un attribut de présentation SVG a la
    spécificité la plus basse — n'importe quelle règle CSS le bat, donc le
-   `strokeWidth={1.5}` de HomeHero/HomeHeroSplash reste la valeur DESKTOP et
+   `strokeWidth={1.5}` de HomeHero reste la valeur DESKTOP et
    celle-ci ne s'applique qu'en dessous du point de bascule. */
 @media (max-width: 767px) {
   .scroll-cue {

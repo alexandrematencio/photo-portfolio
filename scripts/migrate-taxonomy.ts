@@ -184,7 +184,7 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    '\n✓ Migration terminée. Vérifie dans le Studio (Réglages du site → Curation), puis `npm run deploy`.'
+    '\n✓ Migration terminée. Vérifie dans le Studio (Réglages du site → Curation), puis Publish.'
   );
 }
 

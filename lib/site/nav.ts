@@ -1,8 +1,8 @@
 /**
  * Source unique des entrées de navigation du site.
  *
- * Consommée par `SiteHeader`, `HomeHero`, `HomeHeroSplash` et `MobileMenu`.
- * Ces quatre composants redéclaraient chacun sa propre liste : ajouter une
+ * Consommée par `SiteHeader`, `HomeHero` et `MobileMenu`.
+ * Ces composants redéclaraient chacun sa propre liste : ajouter une
  * page obligeait à quatre éditions, et rien n'empêchait qu'elles divergent —
  * ce qui était d'ailleurs déjà arrivé (le menu mobile portait un lien
  * Instagram absent des trois autres, retiré le 2026-08-24).

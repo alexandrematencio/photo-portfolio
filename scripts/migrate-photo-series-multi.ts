@@ -191,7 +191,7 @@ async function main(): Promise<void> {
 
   console.log(`\n✓ ${toMigrate.length} photo(s) migrée(s).`);
   console.log(
-    'Pense à publier les brouillons concernés puis à lancer `npm run deploy` pour que le site reflète l’état du CMS.\n'
+    'Pense à publier les brouillons concernés : le Publish reconstruit le site.\n'
   );
 }
 

@@ -10,16 +10,15 @@ import { hasSeenSplash, markSplashSeen } from '@/lib/site/splash-session';
 import { peekHomeReturn } from '@/lib/site/home-return';
 
 /**
- * SplashScreen — entrance animation prototyped on /splash-test.
+ * SplashScreen — entrance animation of the home (`/`).
  *
  * Inspired by codepen.io/osmosupply/pen/wBGYEMd (Willem) — letters on either
  * side of a "letter-substitute" slot in which photos cycle, then a final
  * element (here: the ALXMTNC glyph) appears and travels to its place in the
  * hero banner.
  *
- * Scope: this component is the ONLY new runtime piece. It is mounted exclusively
- * by `/splash-test` for now. Deleting this file + the `/splash-test` route is
- * enough to fully roll back. See the rollback note in app/(site)/splash-test.
+ * Mounted by `app/(site)/page.tsx` only (the /splash-test sandbox it was
+ * prototyped on was removed on 2026-11-04, audit 1.4).
  *
  * Honors `prefers-reduced-motion` (skips straight to onComplete). Escape skips.
  * A scroll gesture hands the playhead over to the user — see MANUAL SCRUB.
@@ -382,10 +381,8 @@ type Props = {
   /** Fires when the splash finishes (or is skipped) and starts to unmount. */
   onComplete?: () => void;
   /**
-   * Sandbox-only opt-in: on mobile (< md), stack ALX / slot / MTNC vertically
-   * and bump the letter font-size. Desktop layout unchanged. Used by
-   * /splash-test while we iterate on the mobile composition without touching
-   * the production splash on /.
+   * Opt-in: on mobile (< md), stack ALX / slot / MTNC vertically and bump the
+   * letter font-size. Desktop layout unchanged. Used by the home.
    */
   verticalMobile?: boolean;
 };
@@ -1107,7 +1104,7 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
         TRAVEL_END
       );
 
-      // 6 — Overlay background fades out so HomeHeroSplash (already mounted
+      // 6 — Overlay background fades out so HomeHero (already mounted
       // and now mid-entrance) takes over visually. The splash glyph fades
       // with the overlay — by then it sits on top of the hero's own centered
       // glyph, so the handoff reads as one continuous element.

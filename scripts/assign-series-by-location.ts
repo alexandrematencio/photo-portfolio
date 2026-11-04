@@ -22,7 +22,7 @@
  *   - Drafts inclus : si une photo a un brouillon, les deux versions sont
  *     patchées pour ne pas laisser le draft annuler le rattachement.
  *
- * Après coup : Publish dans le Studio, puis `npm run deploy`.
+ * Après coup : Publish dans le Studio (le site se reconstruit seul).
  */
 
 import { createClient } from '@sanity/client';
@@ -292,7 +292,7 @@ async function main(): Promise<void> {
 
   console.log(
     `\n✓ ${patched} photo${patched === 1 ? '' : 's'} rattachée${patched === 1 ? '' : 's'}.` +
-      '\nProchaine étape : vérifie dans le Studio (Photos → Par série), puis `npm run deploy`.'
+      '\nProchaine étape : vérifie dans le Studio (Photos → Par série), puis Publish.'
   );
 }
 

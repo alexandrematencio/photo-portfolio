@@ -58,10 +58,7 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
   // Sur le journal, `/` est la page d'accueil du journal, sans hero : la
   // nav-bar y est affichée comme partout (lib/site/sites.ts).
   const isHome = isPhotoHome(pathname);
-  // /splash-test est un sandbox qui clone la home pour prototyper le splash —
-  // on masque le header ici aussi pour que le test reflète exactement `/`.
-  // À supprimer en même temps que `app/(site)/splash-test/` pour rollback total.
-  const hideHeader = isHome || pathname === '/splash-test';
+  const hideHeader = isHome;
 
   return (
     <>

@@ -2,7 +2,7 @@ import { heroImageUrl } from '@/lib/sanity/image';
 import type { SiteSettings } from '@/lib/sanity/queries';
 
 /**
- * Données du hero prêtes à consommer par <HomeHero /> / <HomeHeroSplash />.
+ * Données du hero prêtes à consommer par <HomeHero />.
  *
  * - `defaultSrc` / `revealSrc` : URLs CDN Sanity (ou `null` si l'image n'est
  *   pas encore renseignée dans le Studio — le composant affiche alors la box

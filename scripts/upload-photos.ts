@@ -693,7 +693,7 @@ async function main(): Promise<void> {
       (incomplete.length > 0
         ? `\n${incomplete.length} photo(s) à compléter dans le Studio (Tableau de bord → Alertes qualité).`
         : '') +
-      '\nProchaine étape : curation dans le Studio (Réglages du site), puis `npm run deploy`.'
+      '\nProchaine étape : curation dans le Studio (Réglages du site), puis Publish.'
   );
 }
 

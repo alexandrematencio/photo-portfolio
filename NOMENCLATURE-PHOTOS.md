@@ -176,7 +176,7 @@ Sans lieu, pas de série automatique — c'est signalé dans le rapport. `--auto
 
 L'import est **idempotent** : l'identifiant d'une photo dérive de son nom de fichier, donc relancer la commande ignore ce qui a déjà été importé. Corollaire à connaître : **renommer un fichier après coup et le réimporter crée une deuxième photo** au lieu de mettre à jour la première. Pour corriger des métadonnées après import, passe par le Studio.
 
-Une fois les photos importées et rangées, il reste deux gestes pour qu'elles apparaissent en ligne : **Publish** dans le Studio, puis `npm run deploy`.
+Une fois les photos importées et rangées, il reste un geste pour qu'elles apparaissent en ligne : **Publish** dans le Studio. Le site se reconstruit seul en 3 à 4 minutes.
 
 ## Si tu ne mets rien du tout
 
