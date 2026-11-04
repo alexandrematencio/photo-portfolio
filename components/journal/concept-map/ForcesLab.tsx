@@ -30,7 +30,8 @@ import { FORCE_DEFAULTS, type ForceMode, type ForceSettings, type LinkKind } fro
 
 export type LabState = { mode: ForceMode; a: ForceSettings; b: ForceSettings; size: number; live: boolean; replay: number };
 
-const KEY = 'concept-map-forces-lab';
+// v2 (2026-11-04) : plages d'Obsidian — les réglages enregistrés avant n'ont plus le même sens.
+const KEY = 'concept-map-forces-lab-v2';
 export function loadLab(mode: ForceMode): LabState {
   const fresh: LabState = { mode, a: FORCE_DEFAULTS, b: FORCE_DEFAULTS, size: 1, live: false, replay: 0 };
   try {
@@ -99,15 +100,6 @@ function TuneRow({ label, value, min, max, step, onChange }: { label: string; va
       </label>
       <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="map-range w-full" />
     </div>
-  );
-}
-
-function TuneCheck({ label, on, onChange }: { label: string; on: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <label className="flex min-h-9 items-center gap-2 font-[family-name:var(--font-index)] text-[12px] leading-[16px] text-[var(--color-fg)]">
-      <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} className="size-4 accent-[var(--color-fg)]" />
-      {label}
-    </label>
   );
 }
 
@@ -183,23 +175,21 @@ export function MapTuning({
             </button>
           ))}
         </div>
-        <TuneRow label={t.center} value={f.center} min={0} max={0.3} step={0.005} onChange={(center) => tune({ center })} />
-        <TuneRow label={t.repel} value={f.repel} min={0} max={400} step={5} onChange={(repel) => tune({ repel })} />
+        <TuneRow label={t.center} value={f.center} min={0} max={1} step={0.01} onChange={(center) => tune({ center })} />
+        <TuneRow label={t.repel} value={f.repel} min={0} max={20} step={0.05} onChange={(repel) => tune({ repel })} />
         {lab.mode === 'a' ? (
-          <TuneRow label={t.link} value={f.link} min={0} max={1} step={0.02} onChange={(link) => tune({ link })} />
+          <TuneRow label={t.link} value={f.link} min={0} max={1} step={0.01} onChange={(link) => tune({ link })} />
         ) : (
           <div className="flex flex-col border-l border-[var(--color-line)]" style={{ paddingLeft: 10, marginBottom: 4 }}>
             <p className="font-[family-name:var(--font-index)] text-[12px] leading-[16px] text-[var(--color-fg-muted)]" style={{ paddingBottom: 6 }}>
               {t.linkByKind}
             </p>
             {KINDS.map((kind) => (
-              <TuneRow key={kind} label={t.kinds[kind]} value={f.byKind[kind]} min={0} max={1} step={0.02} onChange={(v) => tune({ byKind: { ...f.byKind, [kind]: v } })} />
+              <TuneRow key={kind} label={t.kinds[kind]} value={f.byKind[kind]} min={0} max={1} step={0.01} onChange={(v) => tune({ byKind: { ...f.byKind, [kind]: v } })} />
             ))}
           </div>
         )}
-        <TuneRow label={t.distance} value={f.distance} min={5} max={200} step={1} onChange={(distance) => tune({ distance })} />
-        <TuneCheck label={t.collide} on={f.collide} onChange={(collide) => tune({ collide })} />
-        <TuneCheck label={t.fixedFrame} on={f.fixedFrame} onChange={(fixedFrame) => tune({ fixedFrame })} />
+        <TuneRow label={t.distance} value={f.distance} min={30} max={500} step={1} onChange={(distance) => tune({ distance })} />
       </TuneGroup>
     </div>
   );

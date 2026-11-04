@@ -778,29 +778,29 @@ export default function ConceptMapGraph({
     const xs = ix.view.nodes.map((n) => n.x);
     const ys = ix.view.nodes.map((n) => n.y);
     const origin = { x: [Math.min(...xs), Math.max(...xs)] as [number, number], y: [Math.min(...ys), Math.max(...ys)] as [number, number] };
-    r.setCustomBBox(forces?.live && forces.settings.fixedFrame ? origin : null);
+    // Forces actives = comme Obsidian (2026-11-04) : cadre FIXE (sans lui, Sigma refait tenir la carte
+    // dans l'écran et écarter les nœuds ne se voit pas — mesuré le 2026-11-03), et bulles qui
+    // appartiennent au graphe : elles suivent le zoom (taille ÷ ratio) au lieu de garder presque
+    // leur taille à l'écran (√ratio, le défaut de Sigma, que la carte publiée garde).
+    r.setCustomBBox(forces?.live ? origin : null);
+    r.setSetting('zoomToSizeRatioFunction', forces?.live ? (ratio: number) => ratio : Math.sqrt);
     if (!forces?.live) {
+      r.setSetting('maxCameraRatio', MAX_RATIO);
       forceRun.current?.run.reset();
       forceRun.current?.run.stop();
       r.refresh();
       return;
     }
     if (!forceRun.current) {
-      // Le rayon d'une bulle à l'écran (zoom 1), dans l'échelle du document.
-      const radius = (_id: string, size: number) => {
-        const cam = { x: 0.5, y: 0.5, ratio: 1, angle: 0 };
-        const a = r.viewportToGraph({ x: 0, y: 0 }, { cameraState: cam });
-        const b = r.viewportToGraph({ x: 100, y: 0 }, { cameraState: cam });
-        return r.scaleSize(size, 1) * (Math.hypot(b.x - a.x, b.y - a.y) / 100);
-      };
       const run = runForces({
-        nodes: ix.view.nodes.map((n) => ({ id: n.id, x: n.x, y: n.y, size: graph.getNodeAttribute(n.id, 'size') as number })),
+        nodes: ix.view.nodes.map((n) => ({ id: n.id, x: n.x, y: n.y })),
         edges: ix.view.edges,
         write: (pos) => graph.updateEachNodeAttributes((id, a) => {
           const p = pos.get(id);
           return p ? { ...a, x: p.x, y: p.y } : a;
         }, { attributes: ['x', 'y'] }),
-        radius,
+        // Un graphe qui déborde du cadre d'origine : le dézoom s'ouvre d'autant (+15 % d'air).
+        extent: (k) => r.setSetting('maxCameraRatio', MAX_RATIO * Math.max(1, k * 1.15)),
         reduced: reduced(),
       });
       forceRun.current = { run, replay: forces.replay };

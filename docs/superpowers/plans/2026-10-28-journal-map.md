@@ -610,3 +610,60 @@ Appris en route (phase 4 bis et menu) :
   parenthèses derrière une traduction.
 - Les thématiques se traduisent en mettant en regard les tags de l'article
   FR et ceux de sa traduction, pas par un dictionnaire.
+
+## Backlog de la Concept Map (ouvert le 2026-11-03)
+
+### Mode plein écran 3D — demandé par Alexandre le 2026-11-03
+
+Un mode plein écran qui est aussi un mode de visualisation à part : la
+carte passe en 3D et on peut la traverser de part en part.
+
+- **Clavier** : ZQSD déplace la caméra sur les axes X et Y (comme un
+  clavier de jeu), les flèches font la même chose. Lire `event.code`
+  (`KeyW`/`KeyA`/`KeyS`/`KeyD`) et pas `event.key` : la touche garde sa
+  place physique, ZQSD en AZERTY et WASD en QWERTY marchent sans réglage.
+- **Souris** : elle fait pivoter le système (orientation de la caméra).
+- **Molette** : zoom avant/arrière, donc avancer et reculer dans la carte.
+- **Clic sur un nœud** : la caméra s'y rend en glissant, puis le nœud
+  s'affiche en surbrillance, en grand, dans le cadre.
+- **Survol d'un lien** : ses deux nœuds s'allument.
+- Sortie : Échap, et un bouton visible.
+
+À trancher avant de commencer :
+- Le moteur. Sigma ne fait que de la 2D. Les pistes sont three.js, seul
+  ou via `3d-force-graph` (qui utilise d3-force-3d), avec une disposition
+  3D calculée à part, puisque `map:build` ne donne que x/y.
+- La souris oriente-t-elle en continu (pointeur capturé, comme dans un
+  jeu), ou seulement quand on glisse avec le bouton enfoncé ? La capture
+  du pointeur est plus immersive, mais elle désoriente sur le web.
+- Le téléphone : pas de ZQSD. Faut-il prévoir un pad tactile, ou garder
+  ce mode pour l'ordinateur ?
+- `prefers-reduced-motion` : vols de caméra coupés (on saute au nœud).
+
+### Suite du labo des forces (`lab/map-forces`)
+
+- **2026-11-04 (non commité) : « Uniforme » = Obsidian à l'identique**,
+  réécrit d'après son propre code (`sim.js` et `app.js` dans
+  `~/Library/Application Support/obsidian/obsidian-1.15.0.asar`).
+  Correspondance curseur → force :
+  - répulsion : −r³ (10 donne −1000), distanceMin 30 ;
+  - centre et liens : `(0.01^(1−v) − 0.01) / 0.99` (0,52 donne 0,1) ;
+  - anti-chevauchement : rayon 60, force 0,5, pour tous les nœuds ;
+  - amortissement 0,4 ; refroidissement `1 − 0.001^(1/300)` ;
+  - chaque geste relance la simulation à 0,3 ;
+  - caméra fixe, bulles qui suivent le zoom.
+  Une seule échelle monde → document : l'équilibre par défaut a la taille
+  de la carte publiée. Les essais précédents (valeurs calées sur des
+  captures, disposition recalculée depuis l'origine) sont abandonnés.
+- **Un seul moteur.** La carte publiée sort de ForceAtlas2, les curseurs
+  de d3-force. Le premier geste change donc encore la FORME. Il faut
+  piloter ForceAtlas2 depuis les curseurs (sa répulsion selon le nombre de
+  liens écarte les articles) ou passer `map:build` à d3.
+- **Des commandes qui annoncent leur effet** à la place de la physique
+  brute : « Aérer », « Séparer les articles », « Éviter les
+  chevauchements ». Les quatre curseurs restent dans un mode avancé.
+- **Graphe local** (« Autour de ce nœud », profondeur 1 ou 2) : c'est le
+  vrai outil de clarté d'Obsidian, et il tiendra à environ 700 nœuds
+  (30 articles).
+- **Loupe excentrique** (retenue le 2026-11-03) : elle aussi traite le
+  manque de place.
