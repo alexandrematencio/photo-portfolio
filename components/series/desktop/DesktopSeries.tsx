@@ -1142,6 +1142,8 @@ export function DesktopSeries({
       ? nameRect.top + nameRect.height / 2 - spawnH / 2
       : sceneRect.bottom - spawnH - 24;
     const flights: Flight[] = [];
+    // Rang de la vignette ACTIVE dans la cascade : le centre décolle d'elle.
+    let activeFlight = 0;
     target.photos.forEach((photo, i) => {
       const to = rectOf(colImg(i));
       if (!to || !isOnScreen(to)) return;
@@ -1155,6 +1157,7 @@ export function DesktopSeries({
       );
       const ghost = spawnGhost(layer, img, from);
       ghost.style.opacity = '0';
+      if (i === activeIndex) activeFlight = flights.length;
       flights.push({ ghost, from, to });
       chain.cover.push(ghost);
     });
@@ -1169,6 +1172,13 @@ export function DesktopSeries({
     const centerRect = rectOf(centerImg);
     const active = target.photos[activeIndex] ?? target.photos[0];
     const hqSrc = active ? centerSrcFor(active) : '';
+    // Le centre SORT DE SA VIGNETTE, comme à l'échange ↑ / ↓ (demande
+    // Alexandre, 2026-11-04) : il apparaissait en fondu sur place, d'un coup
+    // au milieu de l'écran, alors que tout le reste de la série glisse en
+    // place. Départ = rect de POSE de la vignette active (mesuré à plat, la
+    // colonne est réglée) ; si elle est hors écran, repli sur l'ancien fondu.
+    const activeThumb = rectOf(colImg(activeIndex));
+    const liftFrom = activeThumb && isOnScreen(activeThumb) ? activeThumb : null;
     let centerGhost: HTMLImageElement | null = null;
     if (centerImg && centerRect) {
       // L'image réelle est déjà affichable (série revisitée) → on la garde ;
@@ -1179,7 +1189,7 @@ export function DesktopSeries({
         : hqReadyRef.current.has(hqSrc)
           ? hqSrc
           : (colImg(activeIndex)?.src ?? '');
-      centerGhost = spawnGhost(layer, centerImg, centerRect);
+      centerGhost = spawnGhost(layer, centerImg, liftFrom ?? centerRect);
       // Le rect cloné porte exactement le ratio de la photo (aspect-ratio posé
       // depuis Sanity), mais la source d'amorce, elle, peut être la vignette :
       // `contain` garantit qu'aucun recadrage ne s'invite le temps du vol.
@@ -1245,7 +1255,20 @@ export function DesktopSeries({
       stagger: STAGGER * k,
       at: 0.12 * k,
     });
-    if (centerGhost) {
+    if (centerGhost && centerRect && liftFrom) {
+      // Décollage quand la vignette active est posée à quelques pixels près
+      // (`expo.inOut` : à 85 % de sa durée, 99,6 % du trajet ; à 80 % il
+      // restait ~8 px, visibles en dédoublement au décollage) — le clone du
+      // centre apparaît PILE sur le sien, puis fait le vol croisé de
+      // l'échange. Vol au-dessus de la colonne : il est ajouté après elle
+      // dans la couche. Temps à l'échelle `k`, comme toute la recette.
+      const lift = (0.12 + activeFlight * STAGGER) * k + dur * 0.85;
+      tl.set(centerGhost, { opacity: 1 }, lift);
+      flyCrossing(tl, [{ ghost: centerGhost, from: liftFrom, to: centerRect }], {
+        duration: DUR.swap * k,
+        at: lift,
+      });
+    } else if (centerGhost) {
       tl.to(centerGhost, { opacity: 1, duration: DUR.fade * k }, 0.25 * k);
     }
     chain.tl = tl;

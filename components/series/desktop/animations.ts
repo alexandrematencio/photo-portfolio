@@ -248,7 +248,10 @@ export function flyCurved(
 export function flyCrossing(
   tl: gsap.core.Timeline,
   flights: Flight[],
-  { duration = DUR.swap }: { duration?: number } = {}
+  {
+    duration = DUR.swap,
+    at = 0,
+  }: { duration?: number; at?: number | string } = {}
 ): void {
   for (const { ghost, from, to } of flights) {
     // Scale par axe, même raison que dans `flyCurved` : ici source et cible
@@ -266,7 +269,7 @@ export function flyCrossing(
         scaleX: to.width / from.width,
         scaleY: to.height / from.height,
       },
-      0
+      at
     );
   }
 }
