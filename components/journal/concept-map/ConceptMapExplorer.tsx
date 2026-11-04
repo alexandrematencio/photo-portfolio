@@ -281,7 +281,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     const q = new URLSearchParams(window.location.search).get('forces');
     setLab(loadLab(q === 'b' ? 'b' : 'a'));
   }, []);
-  const forces = useMemo<MapForces>(() => (lab ? { mode: lab.mode, settings: { ...lab[lab.mode], size: lab.size }, live: lab.live, replay: lab.replay } : null), [lab]);
+  const forces = useMemo<MapForces>(() => (lab ? { mode: lab.mode, settings: { ...lab[lab.mode], size: lab.size }, links: lab.links, live: lab.live, replay: lab.replay } : null), [lab]);
   const [menu, setMenu] = useState(true);
   const [sheet, setSheet] = useState<string | null>(null);
   const [menuFocus, setMenuFocus] = useState<MenuFocus | null>(null);
@@ -734,7 +734,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
         sections={sections}
         asideRef={aside}
         focus={menuFocus}
-        labels={{ menu: t.filters, title: t.menuTitle, short: t.menuShort, collapse: t.menuCollapse, expand: t.menuExpand, settings: t.settings, close: t.close, clear: t.clear, clearOf: t.clearOf }}
+        labels={{ menu: t.filters, title: t.menuTitle, short: t.menuShort, collapse: t.menuCollapse, expand: t.menuExpand, settings: t.settings, settingsScope: t.mapView, close: t.close, clear: t.clear, clearOf: t.clearOf }}
         counts={
           <>
             <p aria-live="polite" className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>

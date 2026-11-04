@@ -5,6 +5,7 @@ import Graph from 'graphology';
 import type { Attributes } from 'graphology-types';
 import Sigma from 'sigma';
 import { runForces, type ForceMode, type ForceRun, type ForceSettings } from './forces';
+import type { LinkStyle } from './ForcesLab';
 import { colorOf, LABEL_STEPS, neighbourhood, type LabelKind, type LabelReach, type MapIndex, type MapNav } from './model';
 
 /**
@@ -134,7 +135,7 @@ export type MapGestures = { held: () => boolean; refused: (gesture: 'wheel' | 't
 /** Le système d'une entrée du menu survolée ; `key` : l'id du nœud quand l'entrée en est un. */
 export type MapPreview = { key: string; ids: Set<string> } | null;
 /** LABO des forces (voir `forces.ts`) : `live` faux = la carte d'origine ; `replay` change = repartir de l'origine. */
-export type MapForces = { mode: ForceMode; settings: ForceSettings; live: boolean; replay: number } | null;
+export type MapForces = { mode: ForceMode; settings: ForceSettings; links: LinkStyle; live: boolean; replay: number } | null;
 
 const NODE_SIZE = { article: 13, thesis: 3.5 } as const;
 const EDGE_STYLE = {
@@ -143,6 +144,20 @@ const EDGE_STYLE = {
   rhyme: { color: '#6e6960', size: 1.4 },
 } as const;
 const EDGE_FOCUS = '#8d887c';
+/**
+ * Style de liens « Obsidian » (Réglages › Affichage, 2026-11-04), d'après le
+ * rendu d'Obsidian 1.15.0 (`app.js`) : un filet gris (`--color-base-35` du
+ * thème clair), 1 px à l'écran quel que soit le zoom ; au survol d'un nœud,
+ * SES liens prennent l'encre et les autres tombent à 20 %. Une entorse
+ * voulue : les rimes, qu'Obsidian n'a pas, gardent leur encre (1,5 px fixes)
+ * et ne tombent qu'à moitié — sans elles la carte perd son sens (Alexandre).
+ */
+const OBS_LINE = '#dadada';
+const OBS_LINE_LIT = '#6e6960';
+const OBS_DIM = 0.2;
+const OBS_RHYME_PX = 1.5;
+/** Le minimum de Sigma (`minEdgeThickness`), que la carte publiée garde. */
+const EDGE_MIN = 1.7;
 
 export default function ConceptMapGraph({
   ix,
@@ -206,7 +221,7 @@ export default function ConceptMapGraph({
   const box = useRef<HTMLDivElement>(null);
   const sigma = useRef<Sigma | null>(null);
   // L'état que lisent les reducers : des refs, pour ne pas reconstruire Sigma.
-  const state = useRef({ visible, selected, hovered: null as string | null, peek: null as string | null, preview: null as MapPreview, shown: null as string | null, lit: false, around: new Set<string>(), fade: 0, kept: new Set<string>(), reach: null as Record<LabelKind, number> | null, ratio: 1, sizeK: 1 });
+  const state = useRef({ visible, selected, hovered: null as string | null, peek: null as string | null, preview: null as MapPreview, shown: null as string | null, lit: false, obsidian: false, sizeFn: Math.sqrt as (ratio: number) => number, around: new Set<string>(), fade: 0, kept: new Set<string>(), reach: null as Record<LabelKind, number> | null, ratio: 1, sizeK: 1 });
   const graphOf = useRef<Graph | null>(null);
   const select = useRef(onSelect);
   select.current = onSelect;
@@ -390,6 +405,19 @@ export default function ConceptMapGraph({
       edgeReducer: (edge, data) => {
         const [a, b] = graph.extremities(edge);
         if (!s.visible.has(a) || !s.visible.has(b)) return { ...data, hidden: true };
+        if (s.obsidian) {
+          const rhyme = data.color === EDGE_STYLE.rhyme.color;
+          // Filet : taille quasi nulle, que Sigma relève à `minEdgeThickness` (1 px d'écran).
+          // Rime : taille × le facteur de zoom de Sigma, d'où des pixels fixes (relu à chaque zoom).
+          const line = rhyme
+            ? { ...data, color: EDGE_STYLE.rhyme.color as string, size: OBS_RHYME_PX * s.sizeFn(s.ratio), zIndex: 1 }
+            : { ...data, color: OBS_LINE, size: 0.01, zIndex: 0 };
+          if (!s.lit || s.fade === 0) return line;
+          // Un nœud au centre : ses seuls liens ; un aperçu du menu (un système) : les liens internes.
+          const on = s.shown && graph.hasNode(s.shown) ? a === s.shown || b === s.shown : s.around.has(a) && s.around.has(b);
+          if (on) return { ...line, color: rhyme ? line.color : mix(OBS_LINE, OBS_LINE_LIT, s.fade), zIndex: 2 };
+          return { ...line, color: mix(line.color, PAPER, (rhyme ? 0.5 : 1 - OBS_DIM) * s.fade) };
+        }
         if (!s.lit || s.fade === 0) return data;
         if (s.around.has(a) && s.around.has(b))
           return { ...data, color: data.color === EDGE_STYLE.rhyme.color ? data.color : mix(data.color, EDGE_FOCUS, s.fade), zIndex: 2 };
@@ -588,6 +616,12 @@ export default function ConceptMapGraph({
     let lastBand = band();
     camera.on('updated', ({ ratio }) => {
       s.ratio = ratio;
+      // Style « Obsidian » : l'épaisseur des rimes se recalcule à chaque zoom.
+      if (s.obsidian) {
+        lastBand = band();
+        renderer.refresh({ skipIndexation: true });
+        return;
+      }
       const b = band();
       if (b === lastBand) return;
       lastBand = b;
@@ -783,7 +817,12 @@ export default function ConceptMapGraph({
     // appartiennent au graphe : elles suivent le zoom (taille ÷ ratio) au lieu de garder presque
     // leur taille à l'écran (√ratio, le défaut de Sigma, que la carte publiée garde).
     r.setCustomBBox(forces?.live ? origin : null);
-    r.setSetting('zoomToSizeRatioFunction', forces?.live ? (ratio: number) => ratio : Math.sqrt);
+    s.sizeFn = forces?.live ? (ratio: number) => ratio : Math.sqrt;
+    r.setSetting('zoomToSizeRatioFunction', s.sizeFn);
+    // Le style des liens est un réglage d'AFFICHAGE : il vaut aussi pour la carte publiée.
+    s.obsidian = forces?.links === 'obsidian';
+    r.setSetting('minEdgeThickness', s.obsidian ? 1 : EDGE_MIN);
+    r.refresh({ skipIndexation: true });
     if (!forces?.live) {
       r.setSetting('maxCameraRatio', MAX_RATIO);
       forceRun.current?.run.reset();

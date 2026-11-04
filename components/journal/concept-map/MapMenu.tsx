@@ -43,6 +43,13 @@ export type MenuSection = {
   id: string;
   icon: LucideIcon;
   label: string;
+  /**
+   * La vue dont dépend la catégorie, nommée après son titre : « Réglages · Carte »
+   * (2026-11-04, Alexandre : les réglages sont l'enfant de la vue Carte). C'est le
+   * motif des onglets contextuels d'Office (« Outils Image ») : une commande qui
+   * n'existe que dans un contexte porte le nom de ce contexte.
+   */
+  scope?: string;
   /** Un filtre de la catégorie trie la carte, ou son nœud est allumé : un voyant. */
   lit?: boolean;
   /** Affiché dans l'en-tête : le nombre d'entrées. */
@@ -110,7 +117,7 @@ const OPEN_DEFAULT = ['series', 'themes'];
 /** Une entrée à montrer dans le menu ; `at` distingue deux demandes de suite pour la même. */
 export type MenuFocus = { section: string; key: string; at: number };
 
-type Labels = { menu: string; title: string; short: string; collapse: string; expand: string; settings: string; close: string; clear: string; clearOf: (category: string) => string };
+type Labels = { menu: string; title: string; short: string; collapse: string; expand: string; settings: string; settingsScope: string; close: string; clear: string; clearOf: (category: string) => string };
 
 export function MapMenu({
   open,
@@ -258,7 +265,7 @@ export function MapMenu({
           <div ref={list} className="map-menu-scroll min-h-0 flex-1 overflow-y-auto">
             {settings && (
               <Section
-                section={{ id: 'settings', icon: SlidersHorizontal, label: labels.settings, body: settings }}
+                section={{ id: 'settings', icon: SlidersHorizontal, label: labels.settings, scope: labels.settingsScope, body: settings }}
                 open={settingsOpen}
                 labels={labels}
                 onToggle={() => setTuning((v) => !v)}
@@ -301,7 +308,7 @@ export function MapMenu({
             </span>
           </button>
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-            {settings && <StripButton icon={SlidersHorizontal} label={labels.settings} onClick={() => reveal('settings')} apart />}
+            {settings && <StripButton icon={SlidersHorizontal} label={`${labels.settings} · ${labels.settingsScope}`} onClick={() => reveal('settings')} apart />}
             {sections.map((s) => (
               <StripButton key={s.id} icon={s.icon} label={s.label} lit={s.lit} onClick={() => reveal(s.id)} />
             ))}
@@ -395,7 +402,7 @@ function Section({
   const Icon = s.icon;
   const bodyId = useId();
   return (
-    <section data-section={s.id} aria-label={s.label} className={cn('border-b border-[var(--color-line)]', apart && APART)}>
+    <section data-section={s.id} aria-label={s.scope ? `${s.label} · ${s.scope}` : s.label} className={cn('border-b border-[var(--color-line)]', apart && APART)}>
       {/* L'en-tête : le bouton qui enroule, et « Effacer × » posé dessus, à gauche du chevron (deux boutons frères, jamais l'un dans l'autre). */}
       <div
         className={cn(
@@ -416,7 +423,10 @@ function Section({
           style={{ height: HEADER, paddingLeft: PAD_LEFT, paddingRight: PAD_RIGHT }}
         >
           <Icon aria-hidden size={ICON} strokeWidth={1.75} className="flex-none" />
-          <span className="min-w-0 truncate">{s.label}</span>
+          <span className="min-w-0 truncate">
+            {s.label}
+            {s.scope && <Scope>{s.scope}</Scope>}
+          </span>
           <StateDot on={!open && !!s.lit} />
           <span aria-hidden className="flex-1" />
           {s.count != null && <span className="tabular-nums font-normal">{s.count}</span>}
@@ -442,6 +452,11 @@ function Section({
       </div>
     </section>
   );
+}
+
+/** Le contexte d'une catégorie, après son titre : même capitales, graisse normale, gris — « Réglages · Carte ». */
+function Scope({ children }: { children: ReactNode }) {
+  return <span className="font-normal text-[var(--color-fg-muted)]"> · {children}</span>;
 }
 
 /**
@@ -536,8 +551,8 @@ function PhoneBar({
   }, [sheet, onSheet]);
 
   const items = [
-    ...(settings ? [{ id: 'settings', icon: SlidersHorizontal, label: labels.settings, lit: false, body: settings, onClear: undefined as (() => void) | undefined }] : []),
-    ...sections.filter((s) => !s.desktopOnly).map((s) => ({ id: s.id, icon: s.icon, label: s.label, lit: s.lit, body: s.body, onClear: s.onClear })),
+    ...(settings ? [{ id: 'settings', icon: SlidersHorizontal, label: labels.settings, scope: labels.settingsScope as string | undefined, lit: false, body: settings, onClear: undefined as (() => void) | undefined }] : []),
+    ...sections.filter((s) => !s.desktopOnly).map((s) => ({ id: s.id, icon: s.icon, label: s.label, scope: undefined as string | undefined, lit: s.lit, body: s.body, onClear: s.onClear })),
   ];
   const current = items.find((i) => i.id === shown);
   const up = !!sheet && !!current;
@@ -592,7 +607,10 @@ function PhoneBar({
             <div className="flex items-center justify-between border-b border-[var(--color-line)]" style={{ padding: '0 8px 0 var(--page-gutter)' }}>
               <p className={cn(MICRO_LABEL, 'flex items-center gap-[10px] text-[var(--color-fg)]')}>
                 <current.icon aria-hidden size={ICON} strokeWidth={1.75} />
-                {current.label}
+                <span>
+                  {current.label}
+                  {current.scope && <Scope>{current.scope}</Scope>}
+                </span>
               </p>
               <div className="flex items-stretch">
                 {current.onClear && <ClearButton inline label={labels.clear} title={labels.clearOf(current.label)} onClick={current.onClear} />}
