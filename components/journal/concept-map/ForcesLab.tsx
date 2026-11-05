@@ -15,7 +15,10 @@ import { FORCE_DEFAULTS, type ForceMode, type ForceSettings, type LinkKind } fro
  * si le groupe a bougé (comme « Effacer × » des filtres). Le menu est à
  * gauche, la carte à droite : on règle en regardant.
  *
- * - « Affichage » : taille des bulles, distance d'affichage des noms ;
+ * - « Affichage » : taille des bulles, distance d'affichage des noms. (Le
+ *   style des liens Éditorial / Obsidian a quitté ce panneau le 2026-11-05 :
+ *   c'est un choix d'Alexandre, posé dans le Studio, champ `linkStyle` du
+ *   document Concept Map — voir `lib/journal/conceptMap.ts`.)
  * - « Disposition » : les forces. « Uniforme » = les quatre réglages
  *   d'Obsidian, la même force pour tous les liens ; « Par lien » ouvre la
  *   force des liens en une force par type de lien. Les deux noms répondent à la
