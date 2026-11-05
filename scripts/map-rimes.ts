@@ -10,7 +10,7 @@
  * l'empreinte des définitions — un mécanisme réécrit est rejugé, les autres
  * ne coûtent plus rien.
  *
- * Une rime retenue (p ≥ 0,75, huit au plus par passage) est écrite sur la
+ * Une rime retenue (p ≥ 0,65, huit au plus par passage) est écrite sur la
  * note du premier mécanisme (ordre alphabétique) avec `statut: "proposée"`,
  * `source: "jev"`, et un `pourquoi` vide : Claude l'écrit en la présentant,
  * Alexandre la passe en `validée` ou la supprime. Une rime supprimée ne
@@ -25,9 +25,10 @@ import { ask, JEV_DIR, jevConfigured, noulOf, spendLine, type Question } from '.
 import { link, readVault, setProperties, str, target, type Note } from './jev/vault';
 
 const DRY = process.argv.includes('--dry');
-const YES = 0.75;
+const YES = 0.65; // 0,75 avec la question v1 ; la v2, plus stricte, note plus bas (calibrage 2026-11-03)
 const DUPLICATE = 0.7;
 const MAX = 8;
+const QUESTION = 'v2';
 const CACHE = path.join(JEV_DIR, 'rimes-cache.json');
 
 type Cache = { judged: Record<string, { rhyme: number; duplicate: number }>; proposed: string[] };
@@ -48,7 +49,8 @@ async function main() {
   for (const m of mechanisms) for (const r of (m.meta.rimes as Record<string, unknown>[]) ?? []) linked.add(pairKey(m.file, target(r.avec)));
 
   // Une requête par mécanisme lu, avec toutes les paires dirigées qui manquent au cache.
-  const directed = (a: Note, b: Note) => `${print(a)}→${print(b)}`;
+  // QUESTION : à changer quand la question change, pour que tout soit rejugé (calibrage 2026-11-03 → v2).
+  const directed = (a: Note, b: Note) => `${QUESTION}:${print(a)}→${print(b)}`;
   let asked = 0;
   for (const a of mechanisms) {
     const others = mechanisms.filter((b) => b !== a && !linked.has(pairKey(a.file, b.file)) && !cache.judged[directed(a, b)]);
@@ -58,10 +60,11 @@ async function main() {
       const other = `« ${b.title} » : ${str(b.meta.definition)}`;
       questions[`r${i}`] = {
         type: 'noul',
-        instructions: `Is this other mechanism the same underlying structure as the mechanism in the state, seen in a different domain? ${other}`,
+        instructions: `Is this other mechanism the same underlying structure as the mechanism in the state, seen in a different domain? A rhyme is two independent mechanisms with the same shape, not one mechanism and an instance or cause of it. ${other}`,
         criteria: {
           true: 'Same causal structure (same forces, same sequence, same outcome), even though the subject matter differs',
-          false: 'They only share a topic, a word or a mood; the way things happen is different',
+          false:
+            'They only share a topic, a word or a mood; or they come from the same domain; or one is a case, a cause, a consequence or a part of the other (one definition already names the other); the way things happen is different',
         },
       };
       questions[`d${i}`] = {
