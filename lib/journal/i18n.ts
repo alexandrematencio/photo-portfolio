@@ -374,8 +374,6 @@ export type Dict = {
       reset: string;
       resetOf: (group: string) => string;
       size: string;
-      linkStyle: string;
-      linkStyles: { editorial: string; obsidian: string };
       modes: { label: string; a: string; b: string };
       center: string;
       repel: string;
@@ -656,8 +654,6 @@ export const DICT: Record<Lang, Dict> = {
         reset: 'Rétablir',
         resetOf: (g) => `Réinitialiser : ${g}`,
         size: 'taille des bulles',
-        linkStyle: 'style des liens',
-        linkStyles: { editorial: 'Éditorial', obsidian: 'Obsidian' },
         modes: { label: 'Réglage des forces', a: 'Uniforme', b: 'Par lien' },
         center: 'force du centre',
         repel: 'force de répulsion',
@@ -936,8 +932,6 @@ export const DICT: Record<Lang, Dict> = {
         reset: 'Reset',
         resetOf: (g) => `Reset: ${g}`,
         size: 'bubble size',
-        linkStyle: 'link style',
-        linkStyles: { editorial: 'Editorial', obsidian: 'Obsidian' },
         modes: { label: 'Force settings', a: 'Uniform', b: 'Per link' },
         center: 'center force',
         repel: 'repel force',
@@ -1227,8 +1221,6 @@ export const DICT: Record<Lang, Dict> = {
         reset: 'Сбросить',
         resetOf: (g) => `Сбросить: ${g}`,
         size: 'размер кружков',
-        linkStyle: 'стиль связей',
-        linkStyles: { editorial: 'Редакционный', obsidian: 'Obsidian' },
         modes: { label: 'Настройка сил', a: 'Единая', b: 'По связям' },
         center: 'притяжение к центру',
         repel: 'отталкивание',

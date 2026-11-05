@@ -5,7 +5,6 @@ import Graph from 'graphology';
 import type { Attributes } from 'graphology-types';
 import Sigma from 'sigma';
 import { runForces, type ForceMode, type ForceRun, type ForceSettings } from './forces';
-import type { LinkStyle } from './ForcesLab';
 import { colorOf, LABEL_STEPS, neighbourhood, type LabelKind, type LabelReach, type MapIndex, type MapNav } from './model';
 
 /**
@@ -135,7 +134,7 @@ export type MapGestures = { held: () => boolean; refused: (gesture: 'wheel' | 't
 /** Le système d'une entrée du menu survolée ; `key` : l'id du nœud quand l'entrée en est un. */
 export type MapPreview = { key: string; ids: Set<string> } | null;
 /** LABO des forces (voir `forces.ts`) : `live` faux = la carte d'origine ; `replay` change = repartir de l'origine. */
-export type MapForces = { mode: ForceMode; settings: ForceSettings; links: LinkStyle; live: boolean; replay: number } | null;
+export type MapForces = { mode: ForceMode; settings: ForceSettings; live: boolean; replay: number } | null;
 
 const NODE_SIZE = { article: 13, thesis: 3.5 } as const;
 const EDGE_STYLE = {
@@ -145,7 +144,8 @@ const EDGE_STYLE = {
 } as const;
 const EDGE_FOCUS = '#8d887c';
 /**
- * Style de liens « Obsidian » (Réglages › Affichage, 2026-11-04), d'après le
+ * Style de liens « Obsidian » (2026-11-04 ; choisi dans le Studio depuis le
+ * 2026-11-05, `ix.view.linkStyle`), d'après le
  * rendu d'Obsidian 1.15.0 (`app.js`) : un filet gris (`--color-base-35` du
  * thème clair), 1 px à l'écran quel que soit le zoom ; au survol d'un nœud,
  * SES liens prennent l'encre et les autres tombent à 20 %. Une entorse
@@ -819,8 +819,8 @@ export default function ConceptMapGraph({
     r.setCustomBBox(forces?.live ? origin : null);
     s.sizeFn = forces?.live ? (ratio: number) => ratio : Math.sqrt;
     r.setSetting('zoomToSizeRatioFunction', s.sizeFn);
-    // Le style des liens est un réglage d'AFFICHAGE : il vaut aussi pour la carte publiée.
-    s.obsidian = forces?.links === 'obsidian';
+    // Le style des liens vient du Studio (document Concept Map) : il vaut pour toutes les cartes.
+    s.obsidian = ix.view.linkStyle === 'obsidian';
     r.setSetting('minEdgeThickness', s.obsidian ? 1 : EDGE_MIN);
     r.refresh({ skipIndexation: true });
     if (!forces?.live) {

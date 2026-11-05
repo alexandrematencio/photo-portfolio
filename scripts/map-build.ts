@@ -274,15 +274,18 @@ async function main() {
     const clean = <T extends object>(o: T) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null && v !== '' && !(Array.isArray(v) && !v.length)));
     // Les traductions EN/RU suivent la carte : `map:translate` saura, à leur
     // empreinte, lesquelles le nouvel export a rendues périmées.
-    const previous = await client.fetch<{ _id: string; translations?: unknown[] }[]>(
-      `*[_id in ["drafts.${JOURNAL_MAP_ID}", "${JOURNAL_MAP_ID}"]]{ _id, translations }`,
+    // Le style des liens se choisit dans le Studio : il survit à l'export.
+    const previous = await client.fetch<{ _id: string; translations?: unknown[]; linkStyle?: string }[]>(
+      `*[_id in ["drafts.${JOURNAL_MAP_ID}", "${JOURNAL_MAP_ID}"]]{ _id, translations, linkStyle }`,
     );
-    const translations = (previous.find((d) => d._id.startsWith('drafts.')) ?? previous[0])?.translations;
+    const last = previous.find((d) => d._id.startsWith('drafts.')) ?? previous[0];
+    const translations = last?.translations;
     await client.createOrReplace({
       _id: `drafts.${JOURNAL_MAP_ID}`,
       _type: 'journalMap',
       exportedAt,
       ...(translations?.length ? { translations } : {}),
+      ...(last?.linkStyle ? { linkStyle: last.linkStyle } : {}),
       nodes: nodes.map(({ id, ...n }) => ({ _key: key(id), _type: 'journalMapNode', nodeId: id, ...clean(n) })),
       edges: edges.map((e) => ({ _key: key(`${e.kind}|${e.source}|${e.target}`), _type: 'journalMapEdge', ...clean(e) })),
     });

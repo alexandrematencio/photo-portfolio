@@ -36,10 +36,19 @@ export type StoredMapNode = {
 
 export type StoredMapEdge = { source: string; target: string; kind: 'part' | 'next' | 'uses' | 'rhyme'; why?: string };
 
-/** `translations` : les libellés EN/RU, écrits par `map:translate` (conceptMapI18n.ts). */
-export type JournalMapDoc = { exportedAt?: string; nodes?: StoredMapNode[]; edges?: StoredMapEdge[]; translations?: StoredMapText[] };
+/**
+ * Style des liens de la carte, choisi dans le Studio (champ `linkStyle`,
+ * 2026-11-05). « Éditorial » (défaut) : les liens hiérarchisés, la toile du
+ * voisinage au survol. « Obsidian » : filets d'1 px, rimes à l'encre (1,5 px
+ * fixes), au survol l'étoile des seuls liens du nœud, le reste à 20 %.
+ */
+export type LinkStyle = 'editorial' | 'obsidian';
+export const linkStyleOf = (v: unknown): LinkStyle => (v === 'obsidian' ? 'obsidian' : 'editorial');
 
-export const JOURNAL_MAP_QUERY = `*[_id == "${JOURNAL_MAP_ID}"][0]{ exportedAt, nodes, edges, translations }`;
+/** `translations` : les libellés EN/RU, écrits par `map:translate` (conceptMapI18n.ts). */
+export type JournalMapDoc = { exportedAt?: string; linkStyle?: string; nodes?: StoredMapNode[]; edges?: StoredMapEdge[]; translations?: StoredMapText[] };
+
+export const JOURNAL_MAP_QUERY = `*[_id == "${JOURNAL_MAP_ID}"][0]{ exportedAt, linkStyle, nodes, edges, translations }`;
 
 /**
  * Articles français publiés et leurs traductions publiées, avec l'adresse de

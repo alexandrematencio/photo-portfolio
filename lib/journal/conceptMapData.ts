@@ -1,6 +1,6 @@
 import { sanityClient } from '@/lib/sanity/client';
 import { getArticles } from './articles';
-import { checkConceptMap, JOURNAL_MAP_QUERY, MAP_POSTS_QUERY, type JournalMapDoc, type MapPosts } from './conceptMap';
+import { checkConceptMap, JOURNAL_MAP_QUERY, linkStyleOf, MAP_POSTS_QUERY, type JournalMapDoc, type LinkStyle, type MapPosts } from './conceptMap';
 import { mapUnits, rhymeId, textKey, type MapTextField, type StoredMapText } from './conceptMapI18n';
 import { STATUS_LABEL } from './mapAnchors';
 import { articleSections } from './sections';
@@ -62,6 +62,8 @@ export type MapView = {
   /** Dans l'ordre d'apparition des articles, avec leur couleur (Studio, sinon `THEME_FALLBACK`). */
   themes: { title: string; color: string }[];
   series: { title: string; href: string }[];
+  /** Choisi dans le Studio (document Concept Map) ; « Éditorial » par défaut. */
+  linkStyle: LinkStyle;
 };
 
 /**
@@ -264,6 +266,7 @@ async function fetchConceptMapView(lang: Lang): Promise<MapView | null> {
 
   return {
     lang,
+    linkStyle: linkStyleOf(map.linkStyle),
     nodes,
     edges: edges
       .filter((e) => ids.has(e.source) && kept.has(e.source) && kept.has(e.target))
@@ -304,6 +307,7 @@ export function articleMapView(view: MapView, slug: string): MapView | null {
   const themes = new Set(nodes.flatMap((n) => n.themes));
   return {
     lang: view.lang,
+    linkStyle: view.linkStyle,
     article: articleId,
     nodes,
     edges: view.edges.filter((e) => keep.has(e.source) && keep.has(e.target)),

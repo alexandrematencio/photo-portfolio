@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, type ReactNode } from 'react';
-import { ChevronDown, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import type { Dict } from '@/lib/journal/i18n';
@@ -15,12 +15,10 @@ import { FORCE_DEFAULTS, type ForceMode, type ForceSettings, type LinkKind } fro
  * si le groupe a bougé (comme « Effacer × » des filtres). Le menu est à
  * gauche, la carte à droite : on règle en regardant.
  *
- * - « Affichage » : style des liens, taille des bulles, distance d'affichage
- *   des noms. Le style des liens est un MENU, pas des onglets (2026-11-04) :
- *   il répond à une autre question que « Uniforme / Par lien » (l'apparence,
- *   pas la mécanique), et deux rangées d'onglets voisines se lisaient comme un
- *   seul choix — un réglage par axe, rangé là où il agit, comme Obsidian
- *   (Display / Forces) ;
+ * - « Affichage » : taille des bulles, distance d'affichage des noms. (Le
+ *   style des liens Éditorial / Obsidian a quitté ce panneau le 2026-11-05 :
+ *   c'est un choix d'Alexandre, posé dans le Studio, champ `linkStyle` du
+ *   document Concept Map — voir `lib/journal/conceptMap.ts`.)
  * - « Disposition » : les forces. « Uniforme » = les quatre réglages
  *   d'Obsidian, la même force pour tous les liens ; « Par lien » ouvre la
  *   force des liens en une force par type de lien. Les deux noms répondent à la
@@ -33,14 +31,12 @@ import { FORCE_DEFAULTS, type ForceMode, type ForceSettings, type LinkKind } fro
  * `?forces=b` ouvre la carte en « Par lien ».
  */
 
-/** « Éditorial » = les liens hiérarchisés de la carte ; « Obsidian » = filets à 1 px, rimes gardées à l'encre. */
-export type LinkStyle = 'editorial' | 'obsidian';
-export type LabState = { mode: ForceMode; a: ForceSettings; b: ForceSettings; size: number; links: LinkStyle; live: boolean; replay: number };
+export type LabState = { mode: ForceMode; a: ForceSettings; b: ForceSettings; size: number; live: boolean; replay: number };
 
 // v2 (2026-11-04) : plages d'Obsidian — les réglages enregistrés avant n'ont plus le même sens.
 const KEY = 'concept-map-forces-lab-v2';
 export function loadLab(mode: ForceMode): LabState {
-  const fresh: LabState = { mode, a: FORCE_DEFAULTS, b: FORCE_DEFAULTS, size: 1, links: 'editorial', live: false, replay: 0 };
+  const fresh: LabState = { mode, a: FORCE_DEFAULTS, b: FORCE_DEFAULTS, size: 1, live: false, replay: 0 };
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return fresh;
@@ -48,7 +44,6 @@ export function loadLab(mode: ForceMode): LabState {
     return {
       ...fresh,
       size: typeof saved.size === 'number' ? saved.size : 1,
-      links: saved.links === 'obsidian' ? 'obsidian' : 'editorial',
       a: { ...FORCE_DEFAULTS, ...saved.a },
       b: { ...FORCE_DEFAULTS, ...saved.b, byKind: { ...FORCE_DEFAULTS.byKind, ...saved.b?.byKind } },
     };
@@ -58,7 +53,7 @@ export function loadLab(mode: ForceMode): LabState {
 }
 const saveLab = (s: LabState) => {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ a: s.a, b: s.b, size: s.size, links: s.links }));
+    localStorage.setItem(KEY, JSON.stringify({ a: s.a, b: s.b, size: s.size }));
   } catch {
     /* navigation privée : les réglages ne survivent pas au rechargement, c'est tout */
   }
@@ -112,41 +107,6 @@ function TuneRow({ label, value, min, max, step, onChange }: { label: string; va
 }
 
 /**
- * Un choix d'apparence, en pleine largeur (2026-11-04, Alexandre). Même
- * grammaire que les curseurs : le libellé sur sa ligne, la commande dessous,
- * bord à bord — chaque réglage du panneau se lit pareil, de haut en bas.
- * Un menu et non des onglets : la valeur choisie se lit comme un texte posé
- * dans un champ, avec son chevron, là où « Uniforme / Par lien » est un bloc
- * inversé (encre pleine) — deux formes, deux questions.
- */
-function TuneSelect<V extends string>({ label, value, options, onChange }: { label: string; value: V; options: { value: V; label: string }[]; onChange: (v: V) => void }) {
-  const id = useId();
-  return (
-    <div className="flex flex-col gap-1" style={{ paddingBottom: 12 }}>
-      <label htmlFor={id} className="font-[family-name:var(--font-index)] text-[12px] leading-[16px] text-[var(--color-fg)]">
-        {label}
-      </label>
-      <div className="relative">
-        <select
-          id={id}
-          value={value}
-          onChange={(e) => onChange(e.target.value as V)}
-          className="min-h-9 w-full cursor-pointer appearance-none border border-[var(--color-line)] bg-[var(--color-bg)] font-[family-name:var(--font-index)] text-[13px] text-[var(--color-fg)] transition-colors duration-150 hover:border-[var(--color-fg-muted)] focus-visible:border-[var(--color-fg)] focus-visible:outline-none motion-reduce:transition-none"
-          style={{ padding: '0 32px 0 10px' }}
-        >
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <ChevronDown aria-hidden size={14} strokeWidth={1.75} className="pointer-events-none absolute top-1/2 -translate-y-1/2 text-[var(--color-fg-muted)]" style={{ right: 10 }} />
-      </div>
-    </div>
-  );
-}
-
-/**
  * Le corps de « Réglages » : `names` = les crans des noms, fournis par
  * l'explorateur ; `namesDirty` / `onNamesReset` pour la remise à zéro d'« Affichage ».
  */
@@ -184,20 +144,14 @@ export function MapTuning({
         title={t.display}
         t={t}
         onReset={
-          namesDirty || lab.size !== 1 || lab.links !== 'editorial'
+          namesDirty || lab.size !== 1
             ? () => {
                 onNamesReset();
-                commit({ ...lab, size: 1, links: 'editorial' });
+                commit({ ...lab, size: 1 });
               }
             : undefined
         }
       >
-        <TuneSelect<LinkStyle>
-          label={t.linkStyle}
-          value={lab.links}
-          options={(['editorial', 'obsidian'] as const).map((v) => ({ value: v, label: t.linkStyles[v] }))}
-          onChange={(links) => commit({ ...lab, links })}
-        />
         <TuneRow label={t.size} value={lab.size} min={0.3} max={2} step={0.05} onChange={(size) => commit({ ...lab, size })} />
         <p className="text-[12px] leading-[17px] text-[var(--color-fg-muted)]" style={{ padding: '6px 0 8px' }}>
           {namesNote}

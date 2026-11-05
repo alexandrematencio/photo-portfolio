@@ -281,7 +281,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     const q = new URLSearchParams(window.location.search).get('forces');
     setLab(loadLab(q === 'b' ? 'b' : 'a'));
   }, []);
-  const forces = useMemo<MapForces>(() => (lab ? { mode: lab.mode, settings: { ...lab[lab.mode], size: lab.size }, links: lab.links, live: lab.live, replay: lab.replay } : null), [lab]);
+  const forces = useMemo<MapForces>(() => (lab ? { mode: lab.mode, settings: { ...lab[lab.mode], size: lab.size }, live: lab.live, replay: lab.replay } : null), [lab]);
   const [menu, setMenu] = useState(true);
   const [sheet, setSheet] = useState<string | null>(null);
   const [menuFocus, setMenuFocus] = useState<MenuFocus | null>(null);

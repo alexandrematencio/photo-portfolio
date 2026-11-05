@@ -2,9 +2,11 @@
  * LA CONCEPT MAP DU JOURNAL (phase 3, docs/superpowers/plans/2026-10-28-journal-map.md).
  *
  * Singleton `journalMap`, écrit en BROUILLON par `npm run map:build -- --write`
- * depuis le vault Obsidian, qui fait foi. Tout est en lecture seule ici : une
- * thèse ou une rime se corrige dans le vault, puis on réexporte. Le seul geste
- * du Studio est Publish, qui rend la carte publique au prochain build.
+ * depuis le vault Obsidian, qui fait foi. Les données sont en lecture seule ici :
+ * une thèse ou une rime se corrige dans le vault, puis on réexporte. Deux
+ * gestes dans le Studio : Publish, qui rend la carte publique au prochain
+ * build, et le style des liens (`linkStyle`, 2026-11-05), seul champ
+ * modifiable, que `map:build` et `map:translate` recopient sans y toucher.
  */
 import { defineArrayMember, defineField, defineType } from 'sanity';
 
@@ -102,7 +104,6 @@ export const journalMap = defineType({
   name: 'journalMap',
   title: 'Concept Map',
   type: 'document',
-  readOnly: true,
   fieldsets: [{ name: 'data', title: 'Données exportées', options: { collapsible: true, collapsed: true } }],
   fields: [
     defineField({
@@ -110,15 +111,33 @@ export const journalMap = defineType({
       title: 'Exportée du vault le',
       type: 'datetime',
       description: 'Écrite par `npm run map:build -- --write`. Se corrige dans le vault Obsidian, jamais ici.',
+      readOnly: true,
     }),
-    defineField({ name: 'nodes', title: 'Nœuds', type: 'array', fieldset: 'data', of: [defineArrayMember({ type: 'journalMapNode' })] }),
-    defineField({ name: 'edges', title: 'Liens', type: 'array', fieldset: 'data', of: [defineArrayMember({ type: 'journalMapEdge' })] }),
+    defineField({
+      name: 'linkStyle',
+      title: 'Style des liens',
+      type: 'string',
+      description:
+        'Éditorial : les liens de la carte publiée, et au survol d’un nœud toute la toile de son voisinage. Obsidian : des filets d’1 px, les rimes gardées à l’encre, et au survol les seuls liens du nœud (une étoile), le reste à 20 %. Vaut pour la Concept Map et les cartes des articles, après Publish.',
+      options: {
+        list: [
+          { value: 'editorial', title: 'Éditorial' },
+          { value: 'obsidian', title: 'Obsidian' },
+        ],
+        layout: 'radio',
+        direction: 'horizontal',
+      },
+      initialValue: 'editorial',
+    }),
+    defineField({ name: 'nodes', title: 'Nœuds', type: 'array', fieldset: 'data', readOnly: true, of: [defineArrayMember({ type: 'journalMapNode' })] }),
+    defineField({ name: 'edges', title: 'Liens', type: 'array', fieldset: 'data', readOnly: true, of: [defineArrayMember({ type: 'journalMapEdge' })] }),
     defineField({
       name: 'translations',
       title: 'Libellés en anglais et en russe',
       description: 'Écrits par `npm run map:translate`, publiés avec la carte.',
       type: 'array',
       fieldset: 'data',
+      readOnly: true,
       of: [defineArrayMember({ type: 'journalMapText' })],
     }),
   ],

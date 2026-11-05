@@ -59,7 +59,7 @@ async function main() {
   if (WRITE && !token) throw new Error('SANITY_API_WRITE_TOKEN manquant (.env.local) pour --write');
   const client = createClient({ projectId: 'yh5i5diw', dataset: 'production', apiVersion: '2026-01-01', useCdn: false, token, perspective: 'raw' });
   const docs = await client.fetch<(JournalMapDoc & { _id: string })[]>(
-    `*[_id in ["drafts.${JOURNAL_MAP_ID}", "${JOURNAL_MAP_ID}"]]{ _id, exportedAt, nodes, edges, translations }`,
+    `*[_id in ["drafts.${JOURNAL_MAP_ID}", "${JOURNAL_MAP_ID}"]]{ _id, exportedAt, linkStyle, nodes, edges, translations }`,
   );
   const map = docs.find((d) => d._id.startsWith('drafts.')) ?? docs.find((d) => d._id === JOURNAL_MAP_ID);
   if (!map?.nodes?.length) throw new Error('Aucune carte (npm run map:build -- --write)');
