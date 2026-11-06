@@ -51,6 +51,7 @@ ITEMS=(
   "portfolio"             # photos sources (les originaux, pas les dérivés Sanity)
   "yml-deploy-guide.md"
   ".env.local"            # ⚠️ jetons Sanity en clair — cf. le README de la destination
+  "backups"               # ce que wipe-photos / purge-orphan-assets ont sauvé avant de supprimer
 )
 
 mkdir -p "$DEST"

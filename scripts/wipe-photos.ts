@@ -1,7 +1,8 @@
 /**
  * Supprime TOUS les documents `photo` de Sanity ET leurs assets image associés.
  *
- * DESTRUCTIF. Utilise uniquement pour repartir d'une page blanche
+ * DESTRUCTIF. Avant de supprimer, sauvegarde documents et fichiers dans
+ * `backups/` (save-before-delete.ts, audit 2.7). Utilise uniquement pour repartir d'une page blanche
  * (ex : après avoir renommé tous les fichiers locaux).
  *
  * Usage :
@@ -13,6 +14,7 @@
  */
 
 import { createClient } from '@sanity/client';
+import { saveBeforeDelete } from './save-before-delete';
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
 const DATASET = process.env.NEXT_PUBLIC_SANITY_DATASET ?? 'production';
@@ -71,6 +73,15 @@ async function main(): Promise<void> {
     );
     return;
   }
+
+  // Garde-fou (audit 2.7) : documents et fichiers sauvés sur le disque avant
+  // toute suppression ; un échec ici arrête le script.
+  await saveBeforeDelete(client, 'wipe-photos', {
+    docs: photos.map((p) => p._id),
+    assets: keepAssets
+      ? []
+      : Array.from(new Set(photos.map((p) => p.image?.asset?._ref).filter(Boolean) as string[])),
+  });
 
   console.log(
     `\nSuppression de ${photos.length} document${photos.length > 1 ? 's' : ''}…`

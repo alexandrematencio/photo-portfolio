@@ -6,13 +6,15 @@
  *   npm run purge-orphan-assets            → DRY-RUN : liste, n'écrit rien
  *   npm run purge-orphan-assets -- --yes   → supprime
  *
- * IRRÉVERSIBLE. Décidé par Alexandre le 2026-09-11, qui détient les masters
+ * IRRÉVERSIBLE côté Sanity : les fichiers partent d'abord dans `backups/`
+ * (save-before-delete.ts, audit 2.7). Décidé par Alexandre le 2026-09-11, qui détient les masters
  * (Lightroom). Garde-fou : la requête cherche les références dans TOUS les
  * types de documents, publiés et brouillons (`perspective: 'raw'`), et Sanity
  * refuse de toute façon de supprimer un asset encore référencé — une erreur
  * ici signifie qu'un document le pointe encore, pas qu'il faut forcer.
  */
 import { createClient } from '@sanity/client';
+import { saveBeforeDelete } from './save-before-delete';
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
 const DATASET = process.env.NEXT_PUBLIC_SANITY_DATASET ?? 'production';
@@ -58,6 +60,9 @@ async function main(): Promise<void> {
     console.log('\nDry-run terminé. Relance avec --yes pour SUPPRIMER (irréversible).');
     return;
   }
+  // Garde-fou (audit 2.7) : chaque fichier est téléchargé dans `backups/`
+  // avant suppression ; un échec ici arrête le script.
+  await saveBeforeDelete(client, 'purge-orphan-assets', { docs: [], assets: orphans.map((o) => o._id) });
   let done = 0;
   for (const o of orphans) {
     await client.delete(o._id);

@@ -86,3 +86,6 @@ docs/SEO-*.pdf
 
 # Sortie de npm run map:build (Concept Map)
 /.concept-map
+
+# Sauvegardes écrites par les scripts destructifs avant de supprimer (audit 2.7)
+/backups/
