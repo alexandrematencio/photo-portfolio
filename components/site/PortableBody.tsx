@@ -4,6 +4,7 @@ import {
   type PortableTextReactComponents,
 } from '@portabletext/react';
 import { asset } from '@/lib/utils/asset';
+import { safeHref } from '@/lib/utils/safe-href';
 import { EmailAddressText, ProtectedEmail } from './ProtectedEmail';
 import {
   EDITORIAL_ANNEX,
@@ -367,7 +368,9 @@ const makeMarks = (
     // we expand it to https://t.me/username. Strips any leading whitespace or
     // accidental extra `@`.
     const isTelegramHandle = /^@[A-Za-z0-9_]{3,}$/.test(raw);
-    const href = isTelegramHandle ? `https://t.me/${raw.slice(1)}` : raw;
+    // Schéma hors liste (`javascript:`, `data:`…) : le texte reste, sans lien.
+    const href = safeHref(isTelegramHandle ? `https://t.me/${raw.slice(1)}` : raw);
+    if (!href) return <>{children}</>;
     const external = href.startsWith('http');
     return (
       <a

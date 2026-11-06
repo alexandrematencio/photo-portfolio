@@ -1,4 +1,5 @@
 import { urlFor } from '@/lib/sanity/image';
+import { safeHref } from '@/lib/utils/safe-href';
 import type {
   Article,
   ArticleBlock,
@@ -115,7 +116,9 @@ export type RawPost = {
 function linkOf(def: PTMarkDef | undefined): InlineLink | undefined {
   if (def?._type !== 'journalLink') return undefined;
   if (def.article?._ref) return { article: def.article._ref };
-  if (def.href) return { href: def.href };
+  // Schéma hors liste : pas de lien, le passage reste en texte.
+  const href = safeHref(def.href);
+  if (href) return { href };
   return undefined;
 }
 

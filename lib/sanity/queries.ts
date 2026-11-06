@@ -1,5 +1,6 @@
 import { groq } from 'next-sanity';
 import { sanityClient } from './client';
+import { safeHref } from '@/lib/utils/safe-href';
 
 export type PhotoStyle = {
   _id: string;
@@ -116,8 +117,9 @@ export function socialLinks(settings: SiteSettings | null | undefined): SocialLi
     for (const span of block.children ?? []) {
       const def = block.markDefs?.find((d) => span.marks?.includes(d._key));
       const label = span.text?.trim();
-      if (!def?.href || !label || def.href.startsWith('mailto:')) continue;
-      links.push({ label, href: def.href });
+      const href = safeHref(def?.href);
+      if (!href || !label || href.startsWith('mailto:')) continue;
+      links.push({ label, href });
     }
   }
   return links;
