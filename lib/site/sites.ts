@@ -26,6 +26,14 @@ export const PHOTO_URL = strip(process.env.NEXT_PUBLIC_PHOTO_URL ?? 'https://pho
 export const BLOG_URL = strip(process.env.NEXT_PUBLIC_BLOG_URL ?? 'https://blog.amatencio.com');
 
 /**
+ * Le Studio Sanity, sur son propre sous-domaine depuis le 2026-11-06 (audit
+ * 2.3) : sa session n'est plus lisible par les scripts du hub. En dev, il
+ * tourne avec le portfolio (`/studio`). Seule origine dont l'aperçu d'article
+ * accepte les messages.
+ */
+export const STUDIO_URL = strip(process.env.NEXT_PUBLIC_STUDIO_URL ?? 'https://studio.amatencio.com');
+
+/**
  * Le HUB : `amatencio.com`, l'entrée principale de tous les sites — la cible
  * du clic sur « All sites » (demande Alexandre, 2026-10-22). La page
  * d'accueil est le projet am-home ; le portfolio vit sur `photo.`.

@@ -5,7 +5,7 @@ import { ArticleView } from '@/components/journal/ArticleView';
 import { summarize, toArticle } from '@/lib/journal/convert';
 import { DEFAULT_LANG, isLang } from '@/lib/journal/i18n';
 import { PREVIEW_READY, PREVIEW_UPDATE, type PreviewPayload } from '@/lib/journal/preview';
-import { PHOTO_URL } from '@/lib/site/sites';
+import { STUDIO_URL } from '@/lib/site/sites';
 import type { Article, ArticleSummary } from '@/lib/journal/types';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
@@ -15,9 +15,9 @@ import { cn } from '@/lib/utils/cn';
  * la page publiée, dans le layout du blog (en-tête, pied de page, polices).
  * Ce qu'on voit ici est ce qui paraîtra.
  *
- * Le Studio (amatencio.com/studio) l'affiche en iframe et lui envoie le
+ * Le Studio (studio.amatencio.com/studio) l'affiche en iframe et lui envoie le
  * brouillon par `postMessage` à chaque modification. On n'écoute que le
- * Studio : `PHOTO_URL` est son origine, un autre site qui encadrerait cette
+ * Studio : `STUDIO_URL` est son origine, un autre site qui encadrerait cette
  * page ne peut rien y écrire. Aucune donnée ne part d'ici, et la page ne lit
  * rien dans Sanity — le Studio, lui, est connecté.
  */
@@ -25,7 +25,7 @@ export function ArticlePreview() {
   const [view, setView] = useState<{ article: Article; series: ArticleSummary[]; signature: string } | null>(null);
 
   useEffect(() => {
-    const studio = new URL(PHOTO_URL).origin;
+    const studio = new URL(STUDIO_URL).origin;
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== studio || e.data?.type !== PREVIEW_UPDATE) return;
       const { raw, series, siblings, signature } = e.data.payload as PreviewPayload;
