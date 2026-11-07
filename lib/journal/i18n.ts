@@ -99,6 +99,11 @@ export const LOCALE: Record<Lang, { bcp47: string; og: string; native: string; c
  *    langue du système qu'on sait servir ; à défaut, l'anglais.
  * 3. On ne part que si la page existe dans cette langue (son lien
  *    `hreflang`) — un article non traduit reste où il est.
+ * 4. Jamais sur un Retour (ou un Suivant) : le lecteur qui passe de FR à EN
+ *    puis revient en arrière veut le français qu'il quitte, à l'endroit où
+ *    il l'a quitté (`ScrollMemory`). Sans cette règle, le choix « EN » que le
+ *    clic vient de retenir le renvoyait en anglais, en haut de page
+ *    (2026-11-07).
  *
  * `location.replace` : la page quittée ne reste pas dans l'historique, le
  * bouton Retour ne ramène pas à une redirection.
@@ -106,6 +111,7 @@ export const LOCALE: Record<Lang, { bcp47: string; og: string; native: string; c
 export function languageScript(current: Lang): string {
   return `(function(){try{
 if(/bot|crawl|spider|slurp|lighthouse|preview|facebookexternalhit|embedly|quora|whatsapp|telegram/i.test(navigator.userAgent))return;
+var n=performance.getEntriesByType&&performance.getEntriesByType('navigation')[0];if(n&&n.type==='back_forward')return;
 var langs=${JSON.stringify(LANGS)},want=null;
 try{want=localStorage.getItem(${JSON.stringify(LANG_STORAGE_KEY)});}catch(e){}
 if(langs.indexOf(want)<0){want='en';var l=navigator.languages||[navigator.language];

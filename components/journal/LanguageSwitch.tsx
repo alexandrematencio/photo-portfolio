@@ -24,7 +24,37 @@ import type { Alternates } from '@/lib/journal/types';
  * langue du système (`languageScript`). Une langue où la page n'existe pas
  * reste visible, grisée : la place est prise, rien ne saute d'une page à
  * l'autre.
+ *
+ * Changer de langue garde sa place (2026-11-07, demande Alexandre) : au clic,
+ * le lien emporte l'ancre du paragraphe en haut de l'écran (`#p-<clé>`). Les
+ * clés sont communes au FR, à l'EN et au RU (`align-translation-keys`) : la
+ * page d'arrivée s'ouvre sur le même passage, que `PassageArrival` souligne
+ * du filet orange. On modifie le `href` au lieu d'empêcher la navigation :
+ * Cmd+clic, qui ouvre un onglet, en profite aussi.
  */
+
+/** La marge d'ancre des passages (`.journal-passage`, globals.css). */
+const PASSAGE_TOP = 32;
+
+/**
+ * L'ancre du paragraphe que lit le lecteur : le premier dont le bas passe sous
+ * le haut de l'écran. Rien tant qu'on est au-dessus du texte (titre, chapeau) :
+ * la page d'arrivée s'ouvre alors en haut, comme avant. Rien non plus hors
+ * d'un article : il n'y a pas de passage.
+ */
+function passageAtTop(): string {
+  const passages = document.querySelectorAll<HTMLElement>('.journal-passage[id^="p-"]');
+  // Le haut de l'écran est celui du conteneur qui défile (FramedScroll, sous
+  // la barre du haut), pas celui de la fenêtre.
+  const frame = document.querySelector('[data-scroll-container]')?.getBoundingClientRect().top ?? 0;
+  for (let i = 0; i < passages.length; i++) {
+    const box = passages[i].getBoundingClientRect();
+    if (box.bottom <= frame + PASSAGE_TOP) continue;
+    return i === 0 && box.top >= frame ? '' : passages[i].id;
+  }
+  return '';
+}
+
 export function LanguageSwitch({
   lang,
   alternates,
@@ -84,7 +114,10 @@ export function LanguageSwitch({
                 href={href}
                 hrefLang={LOCALE[l].bcp47}
                 lang={LOCALE[l].bcp47}
-                onClick={() => rememberLang(l)}
+                onClick={(e) => {
+                  rememberLang(l);
+                  e.currentTarget.hash = passageAtTop();
+                }}
                 className={cn(base, '[&>img]:opacity-45 hover:[&>img]:opacity-100 focus-visible:[&>img]:opacity-100')}
                 style={{ paddingBlock: 6 }}
               >

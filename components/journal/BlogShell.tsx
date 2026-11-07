@@ -15,6 +15,7 @@ import { CursorInvert } from '@/components/site/CursorInvert';
 import { EmailHoneypot } from '@/components/site/EmailHoneypot';
 import { SwipeBackGuard } from '@/components/site/SwipeBackGuard';
 import { NavMemory } from '@/components/journal/BackLink';
+import { ScrollMemory } from '@/components/journal/ScrollMemory';
 import { HomeReturn } from '@/components/journal/HomeReturn';
 import { getAllSeries, getArticles } from '@/lib/journal/articles';
 import { DICT, LOCALE, conceptMapPath, homePath, languageScript, seriesPath, type Lang } from '@/lib/journal/i18n';
@@ -80,6 +81,7 @@ export async function BlogShell({ lang, children }: { lang: Lang; children: Reac
         <PageArrival />
         <HomeReturn />
         <NavMemory />
+        <ScrollMemory />
         <ScrollThumb />
       </body>
     </html>
