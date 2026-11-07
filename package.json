@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3010",
     "dev:blog": "SITE_TARGET=blog next dev -p 3011",
-    "build": "next build",
+    "build": "next build && node --import tsx scripts/csp-hashes.ts out",
     "build:blog": "SITE_TARGET=blog next build",
     "start": "next start -p 3010",
     "lint": "eslint .",
@@ -42,7 +42,8 @@
     "make-og-image": "node --env-file=.env.production --env-file=.env.local --import tsx scripts/make-og-image.ts",
     "make-og-journal": "node --import tsx scripts/make-og-journal.ts",
     "downsize-assets": "node --env-file=.env.production --env-file=.env.local --import tsx scripts/downsize-assets.ts",
-    "purge-orphan-assets": "node --env-file=.env.local --import tsx scripts/purge-orphan-assets.ts"
+    "purge-orphan-assets": "node --env-file=.env.local --import tsx scripts/purge-orphan-assets.ts",
+    "csp:verify": "node --import tsx scripts/csp-verify.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0",
