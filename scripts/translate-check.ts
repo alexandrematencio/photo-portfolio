@@ -126,7 +126,7 @@ async function main() {
     projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID ?? 'yh5i5diw',
     dataset: process.env.NEXT_PUBLIC_SANITY_DATASET ?? 'production',
     apiVersion: '2026-01-01',
-    token: process.env.SANITY_API_WRITE_TOKEN,
+    token: process.env.SANITY_API_WRITE_TOKEN ?? process.env.SANITY_API_READ_TOKEN, // brouillons : un Viewer suffit (audit 2.11)
     useCdn: false,
     perspective: 'raw',
   });

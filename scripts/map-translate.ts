@@ -56,7 +56,7 @@ const CYRILLIC = /[а-яё]/i;
 
 async function main() {
   const token = process.env.SANITY_API_WRITE_TOKEN;
-  if (WRITE && !token) throw new Error('SANITY_API_WRITE_TOKEN manquant (.env.local) pour --write');
+  if (WRITE && !token) throw new Error('SANITY_API_WRITE_TOKEN manquant pour --write : lancer par `sanity-write npm run …` (trousseau, audit 2.11)');
   const client = createClient({ projectId: 'yh5i5diw', dataset: 'production', apiVersion: '2026-01-01', useCdn: false, token, perspective: 'raw' });
   const docs = await client.fetch<(JournalMapDoc & { _id: string })[]>(
     `*[_id in ["drafts.${JOURNAL_MAP_ID}", "${JOURNAL_MAP_ID}"]]{ _id, exportedAt, linkStyle, nodes, edges, translations }`,

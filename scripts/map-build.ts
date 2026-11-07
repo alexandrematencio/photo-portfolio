@@ -86,7 +86,7 @@ async function main() {
   const of = (type: string) => notes.filter((n) => n.meta.type === type);
 
   const token = process.env.SANITY_API_WRITE_TOKEN;
-  if (WRITE && !token) throw new Error('SANITY_API_WRITE_TOKEN manquant (.env.local) pour --write');
+  if (WRITE && !token) throw new Error('SANITY_API_WRITE_TOKEN manquant pour --write : lancer par `sanity-write npm run …` (trousseau, audit 2.11)');
   const client = createClient({ projectId: 'yh5i5diw', dataset: 'production', apiVersion: '2026-01-01', useCdn: false, token, perspective: 'raw' });
   const posts = await client.fetch<Post[]>(
     `*[_type == "post" && !defined(translationOf) && !(_id in path("drafts.**"))]{ "slug": slug.current, title, "body": ${MAP_BODY_GROQ} }`,

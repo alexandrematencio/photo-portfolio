@@ -46,7 +46,7 @@ async function main() {
     dataset: 'production',
     apiVersion: '2026-01-01',
     useCdn: false,
-    token: process.env.SANITY_API_WRITE_TOKEN,
+    token: process.env.SANITY_API_WRITE_TOKEN ?? process.env.SANITY_API_READ_TOKEN, // brouillons : un Viewer suffit (audit 2.11)
     perspective: 'raw',
   });
   const posts = await client.fetch<{ _id: string; title: string; body?: MapBlock[] }[]>(
