@@ -287,72 +287,135 @@ function measureSideBearings(
  * Hence 'H': the typographic definition of the cap height, flat top, flat
  * foot — the line the eye draws across A, L, X, M, T, N. Never measure a
  * string containing a round or pointed capital (C, O, G, S, V…).
- * Fallback for engines that don't report it: `fontSize × 0.72`, the same
- * order of magnitude the rest of this file uses.
+ *
+ * And the PAINTED height, not the metric one. The rasterizer grid-fits the
+ * outline: at a 120 px font on a 2x screen, the metric says 171,36 device
+ * pixels and the page paints 172,3 — a full row more, which reads as the
+ * letters standing taller than the photo. So 'H' is drawn on a canvas at the
+ * REAL device size (font size × devicePixelRatio, baseline on a whole row)
+ * and its rows are counted, the top partial row by its coverage. Checked
+ * against screenshots of the DOM (Chrome, 2026-11-07): same coverage to the
+ * hundredth at 2x, under half a pixel apart at 1x — both round to the same
+ * row. The result is rounded to the device grid by `fitSlotToCapBand`.
+ * Falls back on `actualBoundingBoxAscent`, then on `fontSize × 0.72`.
  */
 function measureCapAscentPx(el: HTMLElement): number {
   const style = window.getComputedStyle(el);
   const fontSize = parseFloat(style.fontSize);
   if (!Number.isFinite(fontSize) || fontSize <= 0) return 0;
 
+  const dpr = window.devicePixelRatio || 1;
+  const px = fontSize * dpr;
   const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+  canvas.width = Math.ceil(px * 1.2);
+  canvas.height = Math.ceil(px * 1.5);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return fontSize * 0.72;
 
-  ctx.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
+  ctx.font = `${style.fontWeight} ${px}px ${style.fontFamily}`;
   ctx.textBaseline = 'alphabetic';
-  const ascent = ctx.measureText('H').actualBoundingBoxAscent;
+  const metric = ctx.measureText('H').actualBoundingBoxAscent / dpr;
+  const fallback =
+    Number.isFinite(metric) && metric > 0 ? metric : fontSize * 0.72;
 
-  return Number.isFinite(ascent) && ascent > 0 ? ascent : fontSize * 0.72;
+  const baseline = Math.round(px * 1.25);
+  ctx.fillStyle = '#000';
+  ctx.fillText('H', Math.round(px * 0.1), baseline);
+  const { data, width } = ctx.getImageData(0, 0, canvas.width, baseline);
+
+  // Topmost row with ink, and how much of it is inked (max alpha across the
+  // row: the flat top of the H spans whole pixels, so its max IS its coverage).
+  for (let y = 0; y < baseline; y++) {
+    let cover = 0;
+    for (let x = 0; x < width; x++) {
+      cover = Math.max(cover, data[(y * width + x) * 4 + 3]);
+    }
+    if (cover > 4) {
+      const painted = (baseline - y - 1 + cover / 255) / dpr;
+      // Garde-fou : un rendu qui s'écarte de plus de 2 px écran de la
+      // métrique n'est pas la bonne fonte (repli pas encore remplacé).
+      return Math.abs(painted - fallback) * dpr <= 2 ? painted : fallback;
+    }
+  }
+  return fallback;
 }
 
-/**
- * How far the CAP BAND of `el`'s text sits BELOW the centre of its line box,
- * in CSS pixels. Positive → the letters' visible band is lower than the box
- * they live in.
- *
- * Why it isn't zero, and why the slot can't just be centred like any other
- * flex item: the row is `items-center`, so the browser centres the slot on the
- * LINE BOX of ALX / MTNC. That box is the em (`lineHeight: 1`), and the
- * baseline does not sit in its middle — the font reserves room for descenders
- * below it, none of which the capitals use. In Helvetica the ascent + descent
- * exceed the em, the half-leading is therefore NEGATIVE, and the whole ink
- * band ends up sitting a hair below the geometric centre. A slot exactly one
- * cap tall, centred on that box, thus overhangs the capitals at the TOP by
- * the same hair — measured ~2 px at the 160 px cap of a desktop viewport,
- * which is precisely what reads as « the photo block is taller than the
- * letters » (retour Alexandre, 2026-08-24).
- *
- * The baseline is asked to the LAYOUT ENGINE, never derived from font tables:
- * a zero-sized inline-block at `vertical-align: baseline` puts its box exactly
- * on the baseline of the line it joins. Canvas `fontBoundingBox*` metrics
- * would be a second opinion on a number the browser already knows — and the
- * two disagree across engines, which is exactly the kind of drift this file
- * measures its way out of everywhere else. The probe is created, read and
- * removed inside one synchronous pass: it never survives a paint.
- *
- * `capH` is the cap-height already measured for this element
- * (`measureCapHeightPx`), passed in rather than measured twice.
- */
-function measureCapBandShiftPx(el: HTMLElement, capH: number): number {
+/** Baseline of `el`'s line, in viewport CSS px, as the LAYOUT ENGINE places it. */
+function readBaselineY(el: HTMLElement): number {
   const probe = document.createElement('span');
   probe.style.cssText =
     'display:inline-block;width:0;height:0;vertical-align:baseline';
   el.appendChild(probe);
-  const baselineY = probe.getBoundingClientRect().top;
+  const y = probe.getBoundingClientRect().top;
   probe.remove();
+  return y;
+}
 
-  const box = el.getBoundingClientRect();
-  if (!box.height || !Number.isFinite(baselineY)) return 0;
+/**
+ * Seat the horizontal slot EXACTLY in the band of the capitals: its top on the
+ * cap line, its bottom on the baseline, to the screen pixel. Returns the slot
+ * height actually applied (device-pixel snapped), which the glyph reuses.
+ *
+ * Three things stood in the way, each one measured, each one paid:
+ *
+ * 1. The row is `items-center`, so the browser centres the slot on the LINE
+ *    BOX of ALX / MTNC (`lineHeight: 1`). The baseline does not sit in its
+ *    middle: Helvetica's ascent + descent exceed the em, and the cap band ends
+ *    up a hair below the box centre (~2 px at a 160 px font). Centred, the
+ *    slot overhung the caps at the top (retour Alexandre, 2026-08-24).
+ *
+ * 2. The cap HEIGHT must come from a flat capital (`measureCapAscentPx`, 'H'):
+ *    the « C » overshoots the cap line by 2,7 px at 160 px (2026-11-07).
+ *
+ * 3. TEXT IS PAINTED ON A ROUNDED BASELINE, BOXES ARE NOT. Chrome draws the
+ *    glyphs with their baseline snapped to a whole CSS pixel, while the slot
+ *    box keeps its fractional position. Measured on the painted pixels
+ *    (Chrome, 1867×1011 @2x, 2026-11-07): layout baseline 565,5 px, letters
+ *    painted down to 566, photo stopping at 565 — the whole photo 2 screen
+ *    pixels too high, top over the cap line and a band of air under it
+ *    (retour Alexandre, Screenshot 2026-11-07 at 19.23.52). Every metric said
+ *    « aligned »: only the pixels told the truth.
+ *    The fix does not guess which way an engine rounds: it removes the
+ *    fraction. The row is nudged by `position: relative; top` (< 0,5 px, the
+ *    row already is `relative`) until the layout baseline lands ON a whole CSS
+ *    pixel — there is nothing left to round, in Chrome, Safari or Firefox.
+ *    Then the cap height is snapped to the device-pixel grid, and the slot is
+ *    moved (opposing margins, footprint unchanged) so that its bottom sits on
+ *    that baseline: top and bottom both fall on device-pixel edges, no
+ *    antialiased half row of photo or background at either line.
+ *
+ * The baseline is asked to the LAYOUT ENGINE (zero-sized inline-block probe),
+ * never derived from font tables: canvas `fontBoundingBox*` disagree across
+ * engines. Everything runs in one synchronous pass, before any paint.
+ */
+function fitSlotToCapBand(
+  row: HTMLElement,
+  letters: HTMLElement,
+  slot: HTMLElement,
+  capH: number
+): number {
+  const dpr = window.devicePixelRatio || 1;
+  const height = Math.max(1, Math.round(capH * dpr)) / dpr;
+  slot.style.height = `${height}px`;
+  slot.style.marginTop = '';
+  slot.style.marginBottom = '';
 
-  // Capitals run from the baseline UP by one cap-height.
-  const capCentreY = baselineY - capH / 2;
-  const shift = capCentreY - (box.top + box.height / 2);
+  row.style.top = '0px';
+  const rawBaseline = readBaselineY(letters);
+  if (!Number.isFinite(rawBaseline)) return height;
+  row.style.top = `${Math.round(rawBaseline) - rawBaseline}px`;
+
+  const baseline = readBaselineY(letters);
+  const shift = baseline - height - slot.getBoundingClientRect().top;
 
   // Garde-fou : au-delà d'un quart de cap, la mesure est aberrante (fonte pas
-  // encore posée, élément hors flux) — mieux vaut le centrage d'avant qu'un
-  // slot expédié ailleurs.
-  return Math.abs(shift) > capH / 4 ? 0 : shift;
+  // encore posée, élément hors flux) — mieux vaut le centrage qu'un slot
+  // expédié ailleurs.
+  if (Math.abs(shift) <= capH / 4) {
+    slot.style.marginTop = `${shift}px`;
+    slot.style.marginBottom = `${-shift}px`;
+  }
+  return height;
 }
 
 // Glyph SVG inlined (rather than reusing GlyphLogo) so the wrapping element can
@@ -839,7 +902,7 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
       //   this branch never read a cap-height for its slot.
       const isVerticalMobile =
         verticalMobile && window.matchMedia('(max-width: 768px)').matches;
-      const letterH = isVerticalMobile
+      let letterH = isVerticalMobile
         ? left.getBoundingClientRect().height
         : measureCapAscentPx(left);
 
@@ -873,16 +936,15 @@ export function SplashScreen({ onComplete, verticalMobile = false }: Props) {
         slot.style.marginLeft = `${-asymmetryPx}px`;
         slot.style.marginRight = `${asymmetryPx}px`;
 
-        // Même correction, sur l'autre axe : le slot se cale sur la BANDE DE
-        // CAPITALES et non sur la boîte de ligne (cf. measureCapBandShiftPx —
-        // sans quoi il déborde par le haut de la hauteur de ce décalage). Les
-        // deux marges s'annulent, donc l'encombrement du slot dans la rangée
-        // ne bouge pas : seule sa boîte descend. Appliqué AVANT la mesure de
-        // slotRect, comme les marges horizontales, pour que le glyph reste
-        // posé sur le slot rendu.
-        const capShift = measureCapBandShiftPx(left, letterH);
-        slot.style.marginTop = `${capShift}px`;
-        slot.style.marginBottom = `${-capShift}px`;
+        // Même correction, sur l'autre axe : le slot se cale AU PIXEL ÉCRAN
+        // sur la bande de capitales — haut sur la ligne des capitales, bas sur
+        // la ligne de base PEINTE (cf. fitSlotToCapBand : la rangée glisse de
+        // moins d'un demi-pixel pour que la ligne de base tombe sur un pixel
+        // entier). La hauteur renvoyée, arrondie au pixel écran, sert aussi au
+        // glyph. Appliqué AVANT la mesure de slotRect, comme les marges
+        // horizontales, pour que le glyph reste posé sur le slot rendu.
+        const row = slot.parentElement as HTMLElement;
+        letterH = fitSlotToCapBand(row, left, slot, letterH);
       } else {
         slot.style.marginLeft = '';
         slot.style.marginRight = '';
