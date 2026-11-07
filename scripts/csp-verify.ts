@@ -12,30 +12,36 @@ import { pageHashes } from './csp-hashes';
 
 const LIST_RE = /<meta (?:name="csp-script-hashes" content="([^"]*)"|http-equiv="Content-Security-Policy" content="script-src 'self' ([^"]*)")\/>/;
 
-const base = (process.argv[2] || '').replace(/\/$/, '');
-if (!base) {
-  console.error('usage : npm run csp:verify -- <url du site>');
-  process.exit(1);
-}
-
-const sitemap = await (await fetch(`${base}/sitemap.xml`)).text();
-const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-if (urls.length === 0) {
-  console.error('sitemap vide ou illisible');
-  process.exit(1);
-}
-
-let bad = 0;
-for (const url of urls) {
-  const res = await fetch(url);
-  const html = await res.text();
-  const m = LIST_RE.exec(html);
-  const listed = new Set((m?.[1] ?? m?.[2] ?? '').split(' ').filter(Boolean));
-  const missing = pageHashes(html).filter((h) => !listed.has(h));
-  if (!m || missing.length) {
-    bad += 1;
-    console.log(`✗ ${url} — ${!m ? 'aucune liste' : `${missing.length} script(s) hors liste`}`);
+// Pas d'`await` au niveau du module : le dépôt est en CommonJS (tsx le refuse).
+async function main(): Promise<number> {
+  const base = (process.argv[2] || '').replace(/\/$/, '');
+  if (!base) {
+    console.error('usage : npm run csp:verify -- <url du site>');
+    return 1;
   }
+
+  const sitemap = await (await fetch(`${base}/sitemap.xml`)).text();
+  const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  if (urls.length === 0) {
+    console.error('sitemap vide ou illisible');
+    return 1;
+  }
+
+  let bad = 0;
+  for (const url of urls) {
+    const res = await fetch(url);
+    const html = await res.text();
+    const m = LIST_RE.exec(html);
+    const listed = new Set((m?.[1] ?? m?.[2] ?? '').split(' ').filter(Boolean));
+    const missing = pageHashes(html).filter((h) => !listed.has(h));
+    // Sans script en ligne, l'étape ne pose pas de liste : rien à vérifier.
+    if (missing.length) {
+      bad += 1;
+      console.log(`✗ ${url} — ${!m ? 'aucune liste' : `${missing.length} script(s) hors liste`}`);
+    }
+  }
+  console.log(`${urls.length - bad}/${urls.length} pages conformes`);
+  return bad ? 1 : 0;
 }
-console.log(`${urls.length - bad}/${urls.length} pages conformes`);
-process.exit(bad ? 1 : 0);
+
+main().then((code) => process.exit(code));
