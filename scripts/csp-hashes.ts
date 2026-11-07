@@ -39,7 +39,10 @@ import { fileURLToPath } from 'node:url';
 
 export type CspMode = 'inert' | 'enforce';
 
-export const DEFAULT_MODE: CspMode = 'inert';
+// `enforce` depuis le 2026-11-07, après trois Publish inertes à 22/22 pages
+// conformes (`csp:verify`) et un test local en Chrome : 29/29 pages sans
+// refus et hydratées, une page témoin altérée bien refusée.
+export const DEFAULT_MODE: CspMode = 'enforce';
 
 const SCRIPT_RE = /<script(\s[^>]*)?>([\s\S]*?)<\/script>/gi;
 const DATA_TYPE_RE = /\stype\s*=\s*["']?application\/(ld\+)?json/i;
