@@ -38,7 +38,9 @@ export function ThemeBar({
   const t = DICT[lang];
   const open = picked.length > 0;
   const last = useRef<string[]>([]);
+  // eslint-disable-next-line react-hooks/refs -- derniers choix gardés pendant le repli de la barre
   if (open) last.current = picked;
+  // eslint-disable-next-line react-hooks/refs -- derniers choix gardés pendant le repli de la barre
   const names = themes.filter((f) => last.current.includes(f.key)).map((f) => f.label);
 
   return (

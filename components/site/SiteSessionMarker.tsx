@@ -58,6 +58,7 @@ export function SiteSessionMarker() {
       // First time the marker runs in this JS realm — record the landing
       // path, but don't yet mark the session as visited. That's what makes
       // a fresh direct arrival on `/` play the splash.
+      // eslint-disable-next-line react-hooks/globals -- posé au rendu et non en effet : skill home-hero, gate du splash
       initialPathname = pathname;
     } else if (pathname !== initialPathname) {
       // The user has navigated within the (site) area. Mark the session so

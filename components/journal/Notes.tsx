@@ -93,6 +93,7 @@ export function NotesProvider({ children, lang }: { children: ReactNode; lang: L
   // reste où elle est (la survoler ne doit pas la faire fuir) ; sinon,
   // l'épingle.
   const focus =
+    // eslint-disable-next-line react-hooks/refs -- focus précédent lu au rendu : la note survolée ne doit pas fuir
     hover?.from === 'call' ? hover.id : hover?.from === 'note' && hover.id === focusRef.current ? hover.id : pinned;
 
   useEffect(() => {

@@ -78,6 +78,7 @@ export function Folder({
   // librement (un anneau de focus, un tiroir posé en `absolute`).
   const [clip, setClip] = useState(true);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- rognage remis dès la fermeture, retiré après le dépliage
     if (!open) return setClip(true);
     const id = window.setTimeout(() => setClip(false), FOLDER_MS);
     return () => window.clearTimeout(id);

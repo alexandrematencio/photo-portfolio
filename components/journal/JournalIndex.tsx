@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { DICT, THEME_PARAM, seriesPath, type Lang } from '@/lib/journal/i18n';
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ListSelector } from '@/components/site/ListSelector';
 import { EDITORIAL_SIDENOTE, MICRO_LABEL, PAGE_TITLE_GAP } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
@@ -103,29 +103,38 @@ export function JournalIndex({
   // SANS transition (`settled`), pour qu'un retour ne rejoue pas un dépliage.
   const [folders, setFoldersState] = useState<FolderMemory>(FIRST_VISIT);
   const [settled, setSettled] = useState(false);
-  const setFolder = (name: FolderName, state: FolderState) =>
-    setFoldersState((prev) => {
-      const next = { ...prev, [name]: state };
-      writeFolders(next);
-      return next;
-    });
+  const setFolder = useCallback(
+    (name: FolderName, state: FolderState) =>
+      setFoldersState((prev) => {
+        const next = { ...prev, [name]: state };
+        writeFolders(next);
+        return next;
+      }),
+    []
+  );
   const toggleFolder = (name: FolderName) => setFolder(name, folders[name] === 'open' ? 'closed' : 'open');
   // Desktop : PAS d'aperçu ni de mémoire — la colonne a la place de tout
   // montrer. Un dossier ouvert à la fois, séries au chargement : c'est par
   // elles qu'on entre dans le journal (rétabli le 2026-10-25, l'aperçu du
   // téléphone avait gagné le desktop avec 61afae1).
   const [deskOpen, setDeskOpen] = useState<FolderName>('series');
-  const openThemes = () => {
+  const openThemes = useCallback(() => {
     setFolder('themes', 'open');
     setDeskOpen('themes');
-  };
+  }, [setFolder]);
   const bar = useRef<HTMLDivElement | null>(null);
   // La ligne survolée (ou focalisée) : sa couverture s'ouvre dans la colonne de gauche.
   const [active, setActive] = useState<string | null>(null);
   const covers = articles.filter((a) => a.cover);
 
-  const inSeries = (a: ArticleSummary) => series === ALL || (a.series ?? HORS_SERIE) === series;
-  const inTheme = (a: ArticleSummary) => picked.length === 0 || a.tags.some((tag) => picked.includes(tag.slug));
+  const inSeries = useCallback(
+    (a: ArticleSummary) => series === ALL || (a.series ?? HORS_SERIE) === series,
+    [series]
+  );
+  const inTheme = useCallback(
+    (a: ArticleSummary) => picked.length === 0 || a.tags.some((tag) => picked.includes(tag.slug)),
+    [picked]
+  );
 
   // La liste des séries ne bouge pas ; ses compteurs suivent la thématique choisie.
   const filters = useMemo<Filter[]>(() => {
@@ -144,7 +153,7 @@ export function JournalIndex({
         .sort(([a], [b]) => Number(a === HORS_SERIE) - Number(b === HORS_SERIE))
         .map(([name, count]) => ({ key: name, label: name === HORS_SERIE ? t.noSeries : name, count })),
     ];
-  }, [articles, t, picked]);
+  }, [articles, t, inTheme]);
 
   // Les thématiques, par ordre alphabétique : la liste grandit avec le
   // journal, on y cherche un mot, pas un rang. Vide : pas de groupe.
@@ -170,9 +179,10 @@ export function JournalIndex({
           count: pool.filter((a) => a.tags.some((tag) => tag.slug === slug)).length,
         })),
     ];
-  }, [articles, t, lang, series]);
+  }, [articles, t, lang, inSeries]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mémoire des dossiers relue après hydratation (export statique)
     setFoldersState(readFolders());
     const id = requestAnimationFrame(() => requestAnimationFrame(() => setSettled(true)));
     return () => cancelAnimationFrame(id);
@@ -186,10 +196,11 @@ export function JournalIndex({
       .split(',')
       .filter((slug) => articles.some((a) => a.tags.some((tag) => tag.slug === slug)));
     if (slugs.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- ?theme= lu après hydratation (export statique)
       setPickedState(slugs);
       openThemes();
     }
-  }, [articles]);
+  }, [articles, openThemes]);
 
   const setPicked = (slugs: string[]) => {
     setPickedState(slugs);

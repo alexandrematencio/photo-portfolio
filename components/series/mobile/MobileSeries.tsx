@@ -227,6 +227,7 @@ export function MobileSeries({
   const openSlug = openSeries?.slug ?? null;
 
   const openSlugRef = useRef<string | null>(null);
+  // eslint-disable-next-line react-hooks/refs -- dernière valeur pour les écouteurs globaux, lue hors rendu
   openSlugRef.current = openSlug;
 
   // ── Ouverture ────────────────────────────────────────────────────────────

@@ -183,6 +183,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
       navItemsRef.current.forEach((el) => {
         if (el) el.style.opacity = '1';
       });
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mouvement réduit : entrée sautée, le morph se branche
       setEntranceDone(true);
       return;
     }

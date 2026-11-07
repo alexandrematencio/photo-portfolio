@@ -251,6 +251,7 @@ export function FlatGallery({ photos }: { photos: Photo[] }) {
 
   // Reset to "All" when grouping mode changes.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- retour à « Tout » quand le regroupement change, voulu
     setActiveKey(null);
   }, [mode]);
 

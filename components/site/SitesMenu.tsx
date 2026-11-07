@@ -264,6 +264,7 @@ export const SitesMenu = forwardRef<HTMLAnchorElement, TriggerProps>(function Si
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- menu refermé au changement de page
     close(false);
   }, [pathname, close]);
 

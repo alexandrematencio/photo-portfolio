@@ -24,6 +24,7 @@ export function SiteSettingsPreviewView() {
   const [cacheBuster, setCacheBuster] = useState<number>(() => Date.now());
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Studio : cache de l'iframe cassé à chaque changement de mode
     setCacheBuster(Date.now());
   }, [mode]);
 

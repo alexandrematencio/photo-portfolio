@@ -78,6 +78,7 @@ export function SearchCard({
     [result.hits, result.suggestions]
   );
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- Studio : curseur remis en tête quand la recherche change
   useEffect(() => setCursor(0), [text, chips.length]);
 
   /**

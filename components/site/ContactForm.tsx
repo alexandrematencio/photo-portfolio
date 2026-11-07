@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useId, useRef, useState } from 'react';
+import { useId, useState } from 'react';
 import { asset } from '@/lib/utils/asset';
 import {
   CONTACT_LIMITS,
@@ -57,7 +57,8 @@ export function ContactForm() {
   const [errors, setErrors] = useState<ContactFieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   // Départ du chrono anti-bot : l'instant où le formulaire s'affiche.
-  const mountedAt = useRef<number>(Date.now());
+  // Lazy : Date.now() ne tourne qu'au premier rendu (règle react-hooks/purity).
+  const [mountedAt] = useState(() => Date.now());
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -93,7 +94,7 @@ export function ContactForm() {
         body: JSON.stringify({
           ...check.data,
           [HONEYPOT_FIELD]: String(form.get(HONEYPOT_FIELD) ?? ''),
-          elapsedMs: Date.now() - mountedAt.current,
+          elapsedMs: Date.now() - mountedAt,
         }),
       });
 

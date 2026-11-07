@@ -137,6 +137,7 @@ function useOptions(config: QuickRefConfig) {
   useEffect(() => {
     const params = config.params ? config.params(docId) : {};
     if (params === null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Studio : options rechargées quand le document change
       setState({ options: [], failed: false });
       return;
     }

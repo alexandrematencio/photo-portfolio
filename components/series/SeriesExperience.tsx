@@ -58,6 +58,7 @@ export function SeriesExperience({ series }: { series: PreparedSeries[] }) {
         window.location.pathname + window.location.search
       );
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- drapeau d'hydratation
     setHydrated(true);
   }, []);
 

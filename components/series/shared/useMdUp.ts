@@ -23,6 +23,7 @@ export function useMdUp(): boolean {
 
   useEffect(() => {
     const media = window.matchMedia('(min-width: 768px)');
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- abonnement à matchMedia, false avant hydratation (voulu)
     setMdUp(media.matches);
 
     const onChange = (event: MediaQueryListEvent) => setMdUp(event.matches);

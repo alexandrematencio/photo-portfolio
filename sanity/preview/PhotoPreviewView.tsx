@@ -27,6 +27,7 @@ export function PhotoPreviewView() {
 
   // Re-bust on every mode change so Safari/Chrome don't serve the cached iframe.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Studio : cache de l'iframe cassé à chaque changement de mode
     setCacheBuster(Date.now());
   }, [mode]);
 

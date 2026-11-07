@@ -182,6 +182,7 @@ export function Dashboard() {
   }, [client]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Studio : chargement au montage et au retour sur l'onglet
     load();
     const onFocus = () => load();
     window.addEventListener('focus', onFocus);

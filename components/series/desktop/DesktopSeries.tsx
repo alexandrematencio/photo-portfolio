@@ -289,6 +289,7 @@ export function DesktopSeries({
 
     if (!prev && target) {
       pendingRef.current = { type: 'open' };
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- machine à phases réconciliée sur la prop openSeries (§3.7)
       setDisplayed(target);
       setPhase('opening');
     } else if (prev && !target) {

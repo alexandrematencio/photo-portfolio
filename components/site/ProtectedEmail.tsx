@@ -60,6 +60,7 @@ type Props = {
 export function EmailAddressText() {
   const [text, setText] = useState('email');
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- adresse posée après hydratation, jamais dans le HTML (anti-collecte)
     setText(`${LOCAL_PART}@${DOMAIN}`);
   }, []);
   // `data-reveal-atomic` : ce texte change APRÈS le montage. La révélation de

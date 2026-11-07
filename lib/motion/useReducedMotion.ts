@@ -13,6 +13,7 @@ export function useReducedMotion(): boolean {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- abonnement à matchMedia, false avant hydratation (voulu)
     setReduced(media.matches);
 
     const onChange = (event: MediaQueryListEvent) => setReduced(event.matches);

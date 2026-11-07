@@ -57,11 +57,13 @@ export function MobileMenu({ journalMenu }: { journalMenu?: MenuEntry[] }) {
 
   // Close on route change so navigating from inside the menu dismisses it.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- menu refermé au changement de page
     setOpen(false);
   }, [pathname]);
 
   // Le tiroir rouvre toujours replié : un sous-menu est un détour, pas un état.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sous-menu replié à chaque ouverture
     if (!open) setSubOpen(null);
   }, [open]);
 
