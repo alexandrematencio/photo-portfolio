@@ -1,0 +1,215 @@
+/* Le journal : lien À propos, couvertures, surligné, citations de la Concept Map
+   dans le texte, arrivée sur un passage.
+   Découpé de globals.css (audit 1.6, 2026-11-07), ordre d'origine conservé. */
+
+/* ── LIEN À PROPOS DU JOURNAL ───────────────────────────────────────────────
+   La flèche de « → À propos de ce journal » (AboutLink, 2026-10-19) : la
+   `arrow-right` de Lucide déformée comme chez Josh W. Comeau — hampe 14 → 17,
+   pointe resserrée (7/7 → 7/5). Allonger ET amincir, sinon c'est plat
+   (RESOURCES/animation-principles.md §1). 200 ms expo.out, la durée des
+   survols du journal ; seulement si le mouvement est permis, et au focus
+   clavier comme au pointeur. */
+@media (prefers-reduced-motion: no-preference) {
+  .journal-about-link path {
+    transition: d 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .journal-about-link:hover .journal-about-shaft,
+  .journal-about-link:focus-visible .journal-about-shaft {
+    d: path("M5 12h17");
+  }
+  .journal-about-link:hover .journal-about-head,
+  .journal-about-link:focus-visible .journal-about-head {
+    d: path("M15 7l7 5-7 5");
+  }
+}
+
+/* ── COUVERTURES DU JOURNAL ─────────────────────────────────────────────────
+   Accueil du journal, colonne de gauche : la couverture de l'article survolé
+   (JournalIndex, 2026-10-18). Toutes empilées dans un cadre 4:5, une seule
+   ouverte (`data-on`).
+
+   - Entrée : le cadre s'ouvre de bas en haut (clip-path) en 480 ms expo.out,
+     l'image redescend de 1,06 à 1 en 700 ms — elle finit de se poser après
+     l'ouverture (chevauchement, principe 5) ; scale ≤ 1,06 : en deçà du zoom
+     de survol autorisé pour une photo + une marge (CLAUDE.md §3.2).
+   - Sortie : un fondu de 200 ms ease-in, plus court que l'entrée (principe 9),
+     PUIS le cadre se referme d'un coup (délai 200 ms, durée 0) pour être prêt à
+     se rouvrir par le bas. Une sortie par le haut demanderait deux états de
+     repos et du JS ; le fondu suffit.
+   - La couverture qui entre passe AU-DESSUS de celle qui sort (z-index) : d'une
+     ligne à l'autre, la nouvelle se lève sur l'ancienne.
+   - Mouvement réduit : bascule sans transition. */
+.journal-covers {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+}
+.journal-cover {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  clip-path: inset(100% 0 0 0);
+  transition:
+    opacity 200ms cubic-bezier(0.55, 0, 1, 0.45),
+    clip-path 0s linear 200ms;
+}
+.journal-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  scale: 1.06;
+  transition: scale 0s linear 200ms;
+}
+.journal-cover[data-on] {
+  z-index: 1;
+  opacity: 1;
+  clip-path: inset(0 0 0 0);
+  transition:
+    opacity 0s,
+    clip-path 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.journal-cover[data-on] img {
+  scale: 1;
+  transition: scale 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .journal-cover,
+  .journal-cover img,
+  .journal-cover[data-on],
+  .journal-cover[data-on] img {
+    transition: none;
+  }
+}
+
+
+/* ── Surligné du journal (2026-10-23) ─────────────────────────────────────
+   La phrase marquée au jaune dans le Studio (`Highlight.tsx`, qui dit d'où
+   vient l'effet). Le fond est un dégradé plein dont la LARGEUR s'anime : sur
+   un `<mark>` coupé en plusieurs lignes, il court ligne après ligne.
+   - `background-color: transparent` : le `<mark>` du navigateur est déjà
+     jaune, et ce jaune-là ne s'animerait pas.
+   - État de départ (trait vide) dans le HTML servi ; mouvement réduit : plein
+     d'emblée, sans transition ; sans JS : `<noscript>` d'`ArticleBody`.
+   - 1 s, `cubic-bezier(0.25, 1, 0.5, 1)` : les valeurs du pen. Au-delà des
+     600 ms du §3.2, assumé : rien n'attend ce trait, il se lit pendant
+     qu'il court, et plus court il claque au lieu de surligner. */
+:root {
+  --color-highlight: #f2f20d;
+}
+.journal-hl {
+  color: inherit;
+  background-color: transparent;
+  background-image: linear-gradient(var(--color-highlight), var(--color-highlight));
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .journal-hl {
+    transition: background-size 1s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  .journal-hl:not([data-on]) {
+    background-size: 0% 100%;
+  }
+}
+
+/* LE SOULIGNÉ DES CITATIONS DE LA CONCEPT MAP (2026-10-29, demandes
+   Alexandre) — `ConceptQuote`. La phrase qu'une thèse ou un mécanisme cite.
+   Il ne paraît QUE quand la citation est à l'écran, donc avec sa pastille
+   (`ArticleMap`, même état) : il dit à quoi la pastille renvoie, rien de
+   plus. Même geste que le surligné jaune (`.journal-hl` : un fond dont la
+   largeur passe de 0 à 100 %), dosé plus bas :
+   - pointillé 2 / 4 px, 1 px d'épaisseur, en `--color-concept-line` : un
+     gris à mi-chemin du filet et du texte pâle (2026-10-31, Alexandre — ces
+     citations sont légion, avec les notes et le jaune ça faisait beaucoup) ;
+   - posé dans 3 px de `padding-bottom` qui ne touchent pas l'interligne :
+     un surligné jaune imbriqué couvrirait sinon le trait ;
+   - entrée 900 ms qui freine ; sortie 300 ms qui prend son élan, presque
+     toujours hors champ ;
+   - cliquable : la main, et au survol une ombre de gris (opacité −25 %,
+     2026-10-31), sans changer de couleur ;
+   - désignée (`data-hot`) depuis sa pastille ou sa marque : le pointillé
+     fonce et un voile gris se pose sous le texte, comme l'appel de note
+     s'allume quand on survole sa note. Survolée elle-même, pareil : le
+   voile montre aussi ses autres morceaux. 150 ms, un état de survol.
+   Mouvement réduit : il paraît et disparaît. Sans JS : jamais (pas de
+   pastille à désigner, `<noscript>` d'`ArticleBody`). */
+:root {
+  --color-concept-line: color-mix(in srgb, var(--color-fg-faint) 55%, var(--color-bg));
+  --color-concept-hot: color-mix(in srgb, var(--color-fg) 6%, transparent);
+}
+.journal-concept {
+  padding-bottom: 3px;
+  background-image: repeating-linear-gradient(to right, var(--color-concept-line) 0 2px, transparent 2px 6px);
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0% 1px;
+  cursor: pointer;
+}
+.journal-concept[data-on] {
+  background-size: 100% 1px;
+}
+.journal-concept[data-on][data-hot] {
+  --color-concept-line: var(--color-fg-muted);
+  background-color: var(--color-concept-hot);
+}
+@media (hover: hover) {
+  .journal-concept:hover {
+    opacity: 0.75;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .journal-concept {
+    transition:
+      background-size 0.3s cubic-bezier(0.4, 0, 1, 1),
+      background-color 150ms ease-out,
+      opacity 150ms ease-out;
+  }
+  .journal-concept[data-on] {
+    transition:
+      background-size 0.9s cubic-bezier(0.25, 1, 0.5, 1),
+      background-color 150ms ease-out,
+      opacity 150ms ease-out;
+  }
+}
+
+/* L'ARRIVÉE SUR UN PASSAGE (2026-10-29) — `PassageArrival`. Un lien
+   `#p-<clé>` pose `data-arrived` sur le paragraphe : un filet orange (celui
+   du `StateDot`, « vous êtes ici ») se trace de haut en bas dans la marge
+   gauche, tient 2,4 s, puis s'efface.
+   - Tracé : `scale` en Y depuis le haut, 450 ms ease-out (une entrée freine).
+   - Effacement : opacité seule, 600 ms ease-in (une sortie prend son élan) ;
+     le `scale` ne revient à zéro qu'après, invisible — sinon le filet se
+     rétracterait en s'éteignant et le geste se lirait deux fois.
+   - 14 px de retrait : sous la gouttière minimale (20 px), le filet ne
+     touche jamais le bord de l'écran.
+   Mouvement réduit : le filet paraît et disparaît, sans transition. */
+.journal-passage {
+  position: relative;
+  scroll-margin-top: 32px;
+}
+.journal-passage::before {
+  content: '';
+  position: absolute;
+  left: -14px;
+  top: 0.15em;
+  bottom: 0.15em;
+  width: 2px;
+  background: var(--color-link);
+  transform-origin: top;
+  opacity: 0;
+  pointer-events: none;
+}
+.journal-passage[data-arrived]::before {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .journal-passage::before {
+    scale: 1 0;
+    transition: opacity 600ms ease-in, scale 0s linear 600ms;
+  }
+  .journal-passage[data-arrived]::before {
+    scale: 1 1;
+    transition: opacity 0s, scale 450ms cubic-bezier(0.25, 1, 0.5, 1);
+  }
+}

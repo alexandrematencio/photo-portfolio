@@ -1,0 +1,581 @@
+/* Le chrome commun aux trois sites : pied de page, panneaux (All sites, console),
+   défilement et barre maison, barre du haut mobile, lightbox, accessibilité,
+   mouvement réduit global. Quelques petits blocs du journal y sont restés
+   (bilan `VerdictTable`, encart Contact) : leur place dans la cascade compte.
+   Découpé de globals.css (audit 1.6, 2026-11-07), ordre d'origine conservé. */
+
+/* ── PIED DE PAGE (`SiteFooter.tsx`) ─────────────────────────────────────
+   Unlayered et APRÈS le reset `* { padding: 0 }` : une classe (0,1,0) bat
+   `*` (0,0,0), alors qu'une utility Tailwind de padding se ferait avaler, et
+   qu'un style inline ignorerait les media queries. Gouttière = celle de la
+   page (`--page-gutter`), jamais un nombre recopié. */
+.site-footer {
+  flex-shrink: 0;
+  width: 100%;
+  background: var(--color-bg-footer);
+  color: var(--color-fg-muted-footer);
+  font-family: var(--font-display);
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid var(--color-rule-footer);
+}
+.footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px var(--page-gutter) 32px;
+}
+.footer-col:nth-child(even) {
+  border-left: 1px solid var(--color-rule-footer);
+}
+.footer-col:nth-child(n + 3) {
+  border-top: 1px solid var(--color-rule-footer);
+}
+
+.footer-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-fg-label-footer);
+}
+
+.footer-links {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.footer-links a,
+.footer-legal a {
+  display: inline-block;
+  transition:
+    color 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    translate 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.footer-links a:hover,
+.footer-links a:focus-visible,
+.footer-legal a:hover,
+.footer-legal a:focus-visible {
+  color: var(--color-fg-footer);
+}
+.footer-links a:hover,
+.footer-links a:focus-visible {
+  translate: 4px 0;
+}
+.footer-soon {
+  color: var(--color-fg-dim-footer);
+}
+.footer-soon-tag {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.footer-logo {
+  display: block;
+  padding: 48px var(--page-gutter) 24px;
+  color: var(--color-fg-footer);
+}
+
+.footer-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 20px var(--page-gutter) 24px;
+  border-top: 1px solid var(--color-rule-footer);
+  font-size: 12px;
+}
+.footer-legal {
+  display: flex;
+  gap: 20px;
+}
+
+@media (min-width: 48rem) {
+  .footer-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .footer-col {
+    padding: 32px var(--page-gutter) 48px;
+  }
+  .footer-col + .footer-col {
+    border-left: 1px solid var(--color-rule-footer);
+  }
+  .footer-col:nth-child(n + 3) {
+    border-top: 0;
+  }
+  .footer-logo {
+    padding-top: 72px;
+    padding-bottom: 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .footer-links a,
+  .footer-legal a {
+    transition: none;
+  }
+  .footer-links a:hover,
+  .footer-links a:focus-visible {
+    translate: none;
+  }
+}
+
+/* Cellules du bilan d'un article du journal (`VerdictTable`). Même montage
+   que le footer, pour la même raison : un tableau au-dessus de `md`, une
+   pile de fiches en dessous — deux paddings, donc une règle unlayered. */
+[data-verdict-cell] {
+  padding: 0;
+}
+[data-verdict-row] {
+  padding-block: 16px;
+}
+
+@media (min-width: 48rem) {
+  [data-verdict-cell] {
+    padding: 14px 24px 14px 0;
+  }
+  [data-verdict-cell]:last-child {
+    padding-right: 0;
+  }
+  [data-verdict-row] {
+    padding-block: 0;
+  }
+}
+
+/* Encart Contact de /about (`ContactAside`) : la variante `default` de
+   `PortableBody` espace ses paragraphes en `mb-6`, que le reset avale. */
+[data-contact-aside] .prose-content > * + * {
+  margin-top: 12px;
+}
+
+/* Panneau « All sites » (`SitesMenu`) : il descend de 6 px en apparaissant,
+   200 ms en expo.out — une entrée de petit panneau, qui ne retarde rien.
+   Pas de sortie animée : un clic ailleurs doit rendre la page tout de suite. */
+@keyframes sites-panel-in {
+  from {
+    opacity: 0;
+    translate: 0 -6px;
+  }
+}
+@keyframes sites-panel-in-above {
+  from {
+    opacity: 0;
+    translate: -6px 6px;
+  }
+}
+[data-sites-panel] {
+  animation: sites-panel-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Ouvert au-dessus (nav de la home) : il sort du coin du déclencheur. */
+[data-sites-panel='above'] {
+  animation-name: sites-panel-in-above;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-sites-panel] {
+    animation: none;
+  }
+}
+
+/* ══ CADRE DE PAGE ════════════════════════════════════════════════════════
+   Les trois nombres qui font qu'une page ressemble à la suivante : la
+   gouttière latérale, le corps du titre, l'écart sous le titre. Ils vivent
+   ICI et nulle part ailleurs — une page qui écrirait 32 dans un style inline
+   dériverait en silence le jour où la mesure change (c'est exactement l'état
+   dont ce bloc sort, le 2026-08-24 : six pages éditoriales portaient la même
+   chaîne de classes de H1 recopiée à la main, et un `paddingLeft: 32` inline
+   chacune).
+
+   **Pourquoi des VARIABLES et pas des nombres écrits dans les composants** —
+   c'est la seule sortie du piège habituel du projet (CLAUDE.md §7.6 / §7.7) :
+   le reset `* { padding: 0 }` juste au-dessus vit HORS `@layer` et bat donc
+   toutes les utilities Tailwind de padding ; un style inline y échappe, mais
+   un style inline ne connaît pas les media queries. Or la gouttière EST
+   responsive (20 sur téléphone, 32 au-dessus de `md`). La variable règle les
+   deux d'un coup : le composant écrit `paddingInline: 'var(--page-gutter)'`
+   — inline, donc hors de portée du reset — et c'est la VARIABLE qui change
+   au point de rupture, pas le style. Le footer ci-dessus, lui, date d'avant
+   et garde sa règle unlayered ; les deux mécaniques sont valides, celle-ci
+   est la plus lisible au point d'usage.
+
+   ⚠️ Corollaire : ne jamais recopier 20, 32 ou 96 dans un composant. Le
+   nombre en dur ne suivra pas le point de rupture, et rien ne le dira.
+
+   **La gouttière de 20 vient de `/series`** (référence choisie par Alexandre,
+   2026-08-24) : c'est la seule page dont la mesure de téléphone avait été
+   dessinée, les autres portaient 32 par report du desktop. Au-dessus de `md`,
+   les deux valeurs se rejoignent à 32 — `/series` y était déjà.
+
+   **Le corps du titre est FLUIDE sous `md`, plafonné à 68.** Un 96 px en dur
+   ne tient pas sur un téléphone : mesuré en Helvetica Bold, « ARCHIVES » pèse
+   5,167 em, soit 496 px à 96 — pour 350 px disponibles sur un écran de 390.
+   Cinq pages sur sept se feraient rogner SANS LE MOINDRE SIGNAL (le conteneur
+   de scroll est en `overflow-x-hidden`). Le corps est donc celui auquel le
+   mot le plus long tient encore, plafonné à 68 px :
+
+     min(68px, (largeur utile) / 5,25)
+
+   5,25 = les 5,167 em d'« ARCHIVES » plus 1,6 % de marge, la pile
+   `--font-display` étant SYSTÈME (Helvetica Neue, Arial, Roboto — chasses
+   voisines mais pas identiques). Le diviseur est donc le TOKEN LE PLUS LONG
+   DU SITE, pas celui de la page courante : c'est ce qui garde un corps unique
+   d'une page à l'autre, qui est tout l'objet de la mesure. ⚠️ Ajouter une
+   page dont le plus long mot dépasse « ARCHIVES » oblige à relever ce
+   diviseur — sinon c'est elle qui déborde.
+
+   `100vw` est ici la largeur utile exacte : la page n'a plus de barre de
+   défilement native depuis le 2026-10-15 (cf. « Barre de défilement » plus
+   bas). Avant, une barre classique (Windows, macOS « toujours afficher »)
+   mangeait 15-17 px que `100vw` ignorait, et une réserve de 17 px sous
+   `pointer: fine` compensait. ⚠️ Rendre la barre native à la page oblige à
+   remettre cette réserve — sinon « ARCHIVES » se fait rogner à droite.
+
+   Au-dessus de `md`, 96 px en dur : la colonne éditoriale (1107) l'encaisse,
+   et les titres à deux mots (« LEGAL NOTICE », « DIGITAL AGENCY ») passent
+   simplement sur deux lignes entre 768 et ~885 px. Ne JAMAIS poser
+   `white-space: nowrap` sur ces titres — c'est le retour à la ligne qui les
+   empêche de déborder dans cette fenêtre.
+
+   **L'air au-dessus du titre est de MOITIÉ sur téléphone** (demande Alexandre,
+   2026-08-24). Les 64 px qui séparent le corps de page de la nav-bar sont une
+   règle du brand book (§6.6), mais ils avaient été posés pour le desktop et
+   descendus tels quels : sur un écran de 390, ils prennent 7 % de la hauteur
+   visible avant le premier mot, et le titre, qui vient de passer à ~67 px,
+   les rend d'autant plus lourds. ⚠️ Seul le HAUT est divisé — la gouttière
+   basse ne bouge pas, et surtout le calcul de scène de `/series`
+   (`100dvh − 160`) additionne nav-bar + air haut + gouttière basse : il
+   n'est juste qu'au-dessus de `md`, là où l'air reste à 64. Poser 32 aux deux
+   largeurs ferait dépasser cette page de 32 px sans le moindre signal.
+
+   **Aucun interlettrage** (demande Alexandre, 2026-08-24) : les H1 portaient
+   -0,04 em, les deux lettrages SVG -0,02 em. Le site n'a plus d'interlettrage
+   de titre, ni positif ni négatif. Cf. `PAGE_TITLE` (lib/site/typography.ts)
+   et les `viewBox` recalibrés de `SeriesWordmark` / « Selected Works ».
+
+   **La MESURE (`--editorial-measure`) est une QUATRIÈME largeur, et elle ne
+   remplace pas les 1107** (2026-08-24). Les deux cohabitent dans la même page :
+   le titre, le chapô et les H2 gardent la pleine colonne de 1107 — c'est le
+   bloc d'affiche, il doit rester large — tandis que le texte COURANT et
+   l'ANNEXE se calent à 680. Ce n'est pas un goût, c'est de l'arithmétique :
+   1107 px a été dessiné pour un corps de 28 px (~76 signes par ligne, déjà le
+   plafond) ; le même couloir sous un corps de 20 px donnerait ~110 signes,
+   très au-delà de la fourchette lisible (45-75). Descendre le corps sans
+   resserrer la mesure aurait rendu la page MOINS lisible qu'avant.
+
+   ⚠️ La mesure voyage avec le REGISTRE, pas avec la page : elle est cousue
+   dans `EDITORIAL_BODY` et `EDITORIAL_ANNEX` (lib/site/typography.ts) en
+   `max-w-[var(--editorial-measure)]`. Tout consommateur de ces constantes
+   l'obtient donc sans rien déclarer — y compris les pages en dur (`/legal`,
+   `/privacy`) et le formulaire de contact. Ne pas la reposer à la main sur un
+   conteneur : elle s'appliquerait AUSSI au chapô et aux H2, qui doivent
+   déborder jusqu'à 1107.
+
+   Une seule valeur, pas de point de rupture : sous `md` la largeur utile d'un
+   téléphone (350 px) est très en deçà de 680, la borne n'y mord jamais. */
+:root {
+  --page-gutter: 20px;
+  --page-title-size: min(68px, (100vw - 2 * var(--page-gutter)) / 5.25);
+  --page-air-top: 32px;
+  --editorial-measure: 680px;
+  /* Titre d'ARTICLE du journal, en fraction du corps de page : une phrase de
+     douze mots n'est pas un mot de page (PageShell `titleSize`). */
+  --article-title-scale: 0.6;
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --page-gutter: 32px;
+    --page-title-size: 96px;
+    --page-air-top: 64px;
+    --article-title-scale: 0.75;
+  }
+}
+
+
+/* Tiroir du sélecteur en liste (`<ListSelector />`, console mobile
+   d'/archives). Les paddings de la console, eux, sont redevenus des styles
+   inline dans FlatGallery : depuis que chaque branche (mobile / desktop) a
+   les siens, plus rien n'y est responsive — la règle unlayered façon footer
+   n'a plus de raison d'être ici.
+
+   L'animation — une seule ouverture, courte, sans rebond
+   (brand book §7). Le calque ne fait qu'apparaître : il ne glisse pas depuis
+   le haut, ce qui le ferait lire comme un menu système. */
+@keyframes console-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.console-panel {
+  animation: console-panel-in 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .console-panel {
+    animation: none;
+  }
+}
+
+/* « + » de l'index du journal (`JournalIndex`, demande Alexandre du
+   2026-10-27) : tant que la ligne est survolée, il tourne d'un quart de tour,
+   se pose, recommence — c'est lui qu'on clique, pas le libellé. Un quart de
+   tour et non un tour continu : à 90° un « + » est encore un « + », la boucle
+   ne saute jamais, et la pause laisse l'œil le relire. Le quart de tour finit
+   d'un léger dépassement (back.out) : il se pose au lieu de s'arrêter net.
+   Ouvert, le bouton n'a plus l'animation et passe à 45° (« × »). */
+@keyframes journal-plus-turn {
+  0% {
+    rotate: 0deg;
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  35%,
+  100% {
+    rotate: 90deg;
+  }
+}
+
+html {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  /* Helvetica par défaut sur TOUT le site ; Inter est l'exception, réservée
+     au corps éditorial (voir le commentaire des variables plus haut). */
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* No `scroll-behavior: smooth` here on purpose: it's a documented conflict
+     with GSAP ScrollTrigger (which needs to read/set scroll instantly during
+     pin + refresh) and it's redundant — Lenis owns smooth scrolling on the
+     home, and the few in-app jumps use scrollIntoView({ behavior: 'smooth' })
+     explicitly. Keeping it could desync the morph/refresh on cold loads. */
+}
+
+/* Pas de « page précédente » au glissé à deux doigts : le débordement
+   horizontal s'arrête à la racine (Chrome, Edge, Firefox). Safari passe par
+   <SwipeBackGuard />. */
+html,
+body,
+[data-scroll-container] {
+  overscroll-behavior-x: none;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Photos : pas de glisser-déposer vers le bureau, pas de sélection, pas de
+   menu « Enregistrer l'image » au appui long iOS. Le blocage du clic droit,
+   lui, vit dans <PhotoGuard /> (un menu contextuel ne se désactive pas en CSS).
+
+   ⚠️ Ces règles sont un RALENTISSEUR, pas une protection : les outils de
+   développement, l'onglet réseau et une simple capture d'écran passent outre,
+   et rien ne peut l'empêcher — un navigateur doit décoder l'image pour
+   l'afficher. La vraie protection est le plafond de résolution posé à l'import
+   (MAX_EDGE dans scripts/upload-photos.ts).
+
+   Portée `body` et non `*` : le Studio (/studio) n'est pas dans ce groupe de
+   routes et garde donc son clic droit, indispensable pour éditer. */
+body img {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+/* Barre de défilement : la native est masquée sur la page, `<ScrollThumb />`
+   la remplace — un curseur fin qui n'apparaît qu'au défilement (demande
+   Alexandre, 2026-10-15). Masquée SEULEMENT quand le composant l'a dit
+   (`data-scroll-thumb`, posé à son montage) : sans JavaScript, ou dans le
+   Studio, qui n'est pas dans ce groupe de routes, la barre native reste.
+   Les scrollers INTERNES (colonne de /series, listes déroulantes) gardent la
+   leur : ce ne sont pas des barres de page. */
+html[data-scroll-thumb],
+html[data-scroll-thumb] [data-scroll-container] {
+  scrollbar-width: none;
+}
+html[data-scroll-thumb]::-webkit-scrollbar,
+html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
+  display: none;
+}
+
+/* Indication scroll : flèche qui flotte légèrement vers le haut/bas */
+@keyframes scroll-cue {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateY(10px);
+    opacity: 0.9;
+  }
+}
+.scroll-cue {
+  animation: scroll-cue 2.4s ease-in-out infinite;
+}
+/* Épaisseur du chevron de la home SOUS `md` (demande Alexandre, 2026-08-23 :
+   « peu visible » sur téléphone). 1,5 px à 26 px de haut, c'est le rapport
+   trait/taille le plus fin du site (0,058) — et l'animation le laisse à 45 %
+   d'opacité la moitié du cycle. 2,25 le remonte à 0,087, au-dessus des
+   flèches de la lightbox (0,0625), sans le rendre bavard. La COULEUR ne
+   bouge pas : c'est un repère, pas une commande.
+
+   Pourquoi ici et pas en prop `strokeWidth` : c'est la seule des trois voies
+   qui connaisse les media queries. Le style inline les ignore, et une utility
+   Tailwind de stroke n'existe pas. Un attribut de présentation SVG a la
+   spécificité la plus basse — n'importe quelle règle CSS le bat, donc le
+   `strokeWidth={1.5}` de HomeHero reste la valeur DESKTOP et
+   celle-ci ne s'applique qu'en dessous du point de bascule. */
+@media (max-width: 767px) {
+  .scroll-cue {
+    stroke-width: 2.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-cue {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/* Lightbox loader — mot + barre de 3px, centrés. Monté seulement au-delà de
+   LOADER_DELAY_MS (PhotoLightbox.tsx) : une photo en cache ne le voit jamais.
+   Pendant le load : remplissage 0 → 85% en 1.2s (ease-out asymétrique pour donner
+   l'illusion d'un progress qui ralentit). Quand l'image arrive : la couche
+   `-finish` complète à 100% en 200ms, PUIS le composant efface le tout. Reduced
+   motion : on garde le fill (c'est une info de statut, pas une décoration) mais
+   sur une easing linéaire courte. */
+@keyframes lightbox-loader-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.lightbox-loader {
+  animation: lightbox-loader-in 140ms ease-out both;
+}
+@keyframes lightbox-loader-fill {
+  from { width: 0%; }
+  to { width: 85%; }
+}
+.lightbox-loader-bar {
+  animation: lightbox-loader-fill 1200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes lightbox-loader-finish {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.lightbox-loader-finish {
+  transform-origin: left;
+  animation: lightbox-loader-finish 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lightbox-loader-bar {
+    animation-duration: 600ms;
+    animation-timing-function: linear;
+  }
+  .lightbox-loader-finish {
+    animation-timing-function: linear;
+  }
+}
+
+/* Barre du haut mobile — mode « scroll-triggered » (demande Alexandre,
+   2026-08-24). Les deux morceaux fixes de la barre (glyph du SiteHeader,
+   bouton MENU de MobileMenu) portent `data-top-bar` ; le contrôleur
+   TopBarAutoHide pose `data-top-bar-hidden` sur <html> quand on descend et
+   le retire quand on remonte (mécanisme complet : lib/site/top-bar.ts).
+
+   Le glissement vit ICI, pas dans React : un attribut bascule, le CSS fait
+   le reste — aucun re-render pendant le défilement. `translate` et non
+   `transform`, pour ne composer avec aucun transform Tailwind (et c'est de
+   toute façon la propriété que la v4 écrit, cf. CLAUDE.md §7.7). -100 % :
+   les deux boîtes font la hauteur de la barre (h-16), elles sortent en
+   entier. Scopé sous `md` — au-dessus, la barre ne bouge jamais. */
+@media (max-width: 767px) {
+  [data-top-bar] {
+    transition: translate 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* Le « bandeau » de la barre n'est PAS un élément : le header est
+     transparent, et ce qu'on voit est la zone de 64 px au-dessus du conteneur
+     de scroll (`top-16`, FramedScroll). Cacher la seule barre ne rendrait donc
+     aucun pixel au contenu (constaté par Alexandre, 2026-08-24) : le conteneur
+     MONTE à 0 du même geste — même durée, même easing — et c'est son repère
+     entier qui bouge, donc tout l'intérieur (sticky et sentinelle
+     d'/archives, ancres `#photo-<slug>`) suit sans rien savoir. Unlayered
+     exprès : la règle doit battre l'utility `top-16`, qui vit en @layer. */
+  [data-scroll-container] {
+    transition: top 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  html[data-top-bar-hidden] [data-top-bar] {
+    translate: 0 -100%;
+  }
+  html[data-top-bar-hidden] [data-scroll-container] {
+    top: 0;
+  }
+}
+/* Chemin instantané (§3.2) : l'état joue, la transition non. Les items de la
+   barre restent tabbables hors écran — c'est le contrôleur qui la fait
+   revenir au premier focus dedans (WCAG 2.4.7). */
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  [data-top-bar],
+  html[data-top-bar-hidden] [data-top-bar],
+  [data-scroll-container],
+  html[data-top-bar-hidden] [data-scroll-container] {
+    transition: none;
+  }
+}
+
+/* Skip link a11y */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 0.75rem 1rem;
+  background: var(--color-fg);
+  color: var(--color-bg);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+}
+
+/* Focus visible */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Selection */
+::selection {
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+
+/* Reduced motion : sécurité globale, neutralise toute transition/animation auto */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

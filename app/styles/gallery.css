@@ -1,0 +1,486 @@
+/* Le portfolio : grille des Archives, curation de la home (photo + légende).
+   Découpé de globals.css (audit 1.6, 2026-11-07), ordre d'origine conservé. */
+
+/* Grille des Archives — recette de la démo 2 Codrops « Grid Layout Transitions »
+   (tympanus.net/Tutorials/GridLayoutTransitions/index2.html, style.css), reprise
+   telle quelle : la densité est pilotée par l'attribut data-size-grid (boutons
+   50→125 % dans FlatGallery), chaque palier fixe son nombre de colonnes, avec
+   les overrides tablette de la démo et le verrou 3 colonnes sous 768px (où les
+   boutons sont sans effet, comme dans la démo). La transition entre paliers est
+   un Flip GSAP (FlatGallery.changeGridSize), pas une transition CSS. */
+.grid-gallery {
+  position: relative;
+  display: grid;
+  gap: 1.5rem;
+  width: 100%;
+}
+.grid-gallery[data-size-grid='50%'] {
+  grid-template-columns: repeat(16, 1fr);
+}
+.grid-gallery[data-size-grid='75%'] {
+  grid-template-columns: repeat(10, 1fr);
+}
+.grid-gallery[data-size-grid='100%'] {
+  grid-template-columns: repeat(8, 1fr);
+}
+.grid-gallery[data-size-grid='125%'] {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.grid-gallery-item {
+  will-change: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Boîte image : le ratio natif de la photo vient de --aspect-ratio (posé en
+   inline par PhotoCard). C'est ELLE le cadre de la loupe ci-dessous —
+   `overflow: hidden` garantit que le grossissement ne déborde jamais sur les
+   voisines : les dimensions de la photo font le cadre.
+
+   AUCUN assombrissement. Le voile `brightness(0.8)` du repos (hérité de la
+   démo Codrops) a été retiré le 2026-08-23 : il « dévoilait » la photo au
+   survol, donc il la montrait dégradée le reste du temps — contraire à
+   « l'image d'abord » (CLAUDE.md §3.1). La mise en avant se fait maintenant
+   par la loupe, qui n'enlève rien à personne. */
+.grid-gallery-image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: var(--aspect-ratio, 4 / 5);
+  overflow: hidden;
+  background: var(--color-bg-elev);
+}
+
+/* Loupe — le calque intérieur grossit SUR PLACE, son origine de transformation
+   suivant le curseur (`--loupe-x` / `--loupe-y`, posées par PhotoCard).
+
+   Pourquoi l'origine et pas un translate tracké : avec l'origine posée à
+   l'INTÉRIEUR de la boîte et un scale ≥ 1, l'image couvre mathématiquement
+   toujours la boîte entière, à n'importe quelle échelle — y compris pendant la
+   montée et la descente. Zéro bord vide possible. Un translate, lui, découvre
+   le fond dès qu'on se trompe d'un pixel dans le clamp.
+
+   Le contenu se déplace à (1,15 − 1) / 1,15 ≈ 0,13× la vitesse du curseur : la
+   photo GLISSE sous la loupe au lieu d'y coller. C'est ce ratio qui donne la
+   résistance, pas la durée de la transition — et il DÉCOULE de l'échelle, il
+   ne se règle pas à part. Baisser le grossissement calme donc aussi le suivi.
+
+   `transform-origin` n'est volontairement pas dans la liste des propriétés
+   transitionnées : le suivi doit être immédiat (c'est le curseur qui porte le
+   lissage), seule l'échelle s'anime. */
+.grid-gallery-zoom {
+  position: absolute;
+  inset: 0;
+  transform: scale(var(--loupe-scale, 1));
+  transform-origin: var(--loupe-x, 50%) var(--loupe-y, 50%);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Souris uniquement — sur tactile il n'y a pas de survol, et PhotoCard n'y
+   pose même pas d'écouteur (`pointerType === 'mouse'`). */
+@media (hover: hover) and (pointer: fine) {
+  .grid-gallery-image:hover .grid-gallery-zoom {
+    --loupe-scale: 1.15;
+  }
+}
+
+/* Chemin `instant` (CLAUDE.md §3.2) : le grossissement s'applique d'un coup,
+   la loupe reste utilisable, plus rien ne bouge tout seul. */
+@media (prefers-reduced-motion: reduce) {
+  .grid-gallery-zoom {
+    transition: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .grid-gallery[data-size-grid] {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (min-width: 768px) and (max-width: 1024px) {
+  .grid-gallery[data-size-grid='50%'] {
+    grid-template-columns: repeat(10, 1fr);
+  }
+  .grid-gallery[data-size-grid='75%'] {
+    grid-template-columns: repeat(8, 1fr);
+  }
+  .grid-gallery[data-size-grid='100%'] {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .grid-gallery[data-size-grid='125%'] {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* ── Curation home — bloc « photo à gauche, texte à droite » ────────────────
+   Mockup : resources/homepage-image-component.pen (frame `4qlrb`).
+
+   Trois nombres pilotent la composition et bougent ensemble :
+   - `--text-col`  largeur FIXE de la colonne de texte. Fixe, et non fluide,
+     pour deux raisons : la mesure de lecture ne change pas d'un bloc à
+     l'autre, et la colonne sert d'ANCRE — elle tombe toujours au même x,
+     quel que soit le format de la photo. C'est cette verticale stable qui
+     tient la page au défilement.
+   - `--pair-gap`  gouttière minimale entre la photo et le texte.
+   - `--img-max-h` plafond de hauteur de la photo. C'est lui qui garantit
+     qu'une image entre ENTIÈREMENT dans l'écran : rien à recentrer au
+     scroll pour la lire (demande Alexandre, 2026-08-22).
+
+   La photo garde son ratio natif — jamais de recadrage (CLAUDE.md §3.4) :
+   sa largeur est le min entre la place disponible et ce que le plafond de
+   hauteur autorise. Un portrait est donc plus étroit que la colonne image et
+   laisse du blanc avant le texte. Assumé : c'est le prix de la colonne
+   stable, et ce blanc-là est du silence visuel, pas un trou. */
+.gallery-stage {
+  position: relative;
+  width: 100%;
+  /* Pas de `margin: auto` : sur très large écran la page reste calée à
+     gauche et laisse le blanc à droite (brand book §6.2). */
+  max-width: 1920px;
+  /* Le padding haut est porté par `.gallery-heading`, qui vit HORS du stage
+     (il doit être centré sur l'ÉCRAN, pas dans la colonne calée à gauche). */
+  /* Au-dessus de la première photo, le MÊME écart qu'entre deux photos
+     (2026-11-03, demande Alexandre) : quand le premier pas la centre,
+     « Selected Works » est entièrement sorti par le haut au lieu d'y
+     traîner rogné. */
+  padding: calc(100vh - var(--img-max-h)) var(--page-gutter) 20vh var(--page-gutter);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /* Les photos se dimensionnent en `cqw` (largeur de CONTENU du stage) et non
+     en `%` : le bloc photo + légende est en `fit-content` pour être centré,
+     un `%` y serait circulaire. */
+  container-type: inline-size;
+
+  /* ÉCHELLE DE LA CURATION (2026-11-03, demande Alexandre : « réduire un peu
+     les images, qu'elles respirent ; le texte proportionnellement »). UN
+     seul nombre : il multiplie le plafond de hauteur des photos, la colonne
+     de texte et TOUS les corps de la légende (`PhotoBlock`). Les corps
+     tombent donc hors de l'échelle typo du brand book (14 → 11,5 ; 24 →
+     19,7…) — c'est le prix de la proportion stricte demandée. */
+  --curation-scale: 0.82;
+
+  /* Un geste = une photo (`lib/motion/step-scroll.ts`) : chaque bloc est
+     centré dans l'écran à l'arrêt. L'écart vaut l'écran moins le plafond de
+     photo, si bien que la voisine commence juste sous le bord : une seule
+     photo à l'écran, le reste est du blanc. */
+  gap: calc(100vh - var(--img-max-h));
+
+  /* Proportions du mockup, transposées : à 1920 px de large il pose une
+     photo de 1200, une gouttière de 96 et une colonne de texte de 560 dans
+     1856 px utiles. Les deux `clamp` reproduisent ces parts (30 % / 5 %) et
+     retombent sur des valeurs tenables aux largeurs intermédiaires. */
+  --text-col: calc(clamp(300px, 29vw, 560px) * var(--curation-scale));
+  /* Gouttière photo ↔ légende, DESKTOP uniquement (sous 1024 les deux
+     s'empilent et `.photo-item` impose son propre écart vertical de 8 px —
+     cette variable n'y sert plus à rien).
+
+     Valeur FIXE de 16 px depuis le 2026-08-22, et non plus le
+     `clamp(40px, 3.75vw, 72px)` qui transposait les parts du mockup
+     (30 % de colonne de texte, 5 % de gouttière). Même trajectoire que sur
+     mobile : 96 au mockup → 72 → 16, chaque cran demandé par Alexandre sur
+     capture, toujours pour la même raison — le texte doit se lire comme la
+     suite de sa photo, pas comme une colonne posée à côté. Le clamp saute
+     avec : une gouttière de 16 px n'a plus de raison de respirer avec la
+     largeur d'écran, elle est au plancher de l'échelle §6.5.
+
+     Conséquence à connaître : la photo étant presque toujours plafonnée en
+     HAUTEUR (`--img-max-h`), les 56 px libérés ne l'élargissent pas — ils
+     rapprochent le texte. C'est bien l'effet visé. */
+  --pair-gap: 16px;
+  --img-max-h: calc(76vh * var(--curation-scale));
+}
+
+/* « Selected Works » — PLEINE LARGEUR, à toutes les largeurs (demande
+   Alexandre, 2026-08-22). Le centrage écran d'origine n'a plus d'objet : un
+   titre qui remplit sa boîte est centré par construction.
+
+   Mêmes bornes que `.gallery-stage` — 1920 de plafond, calé à gauche,
+   gouttière de page — pour que le titre tombe exactement sur le bord gauche des
+   photos. Sous 1920 (dont les 1728 points d'un MacBook Pro 16", cas de
+   référence), la page est fluide de bout en bout et le plafond ne mord
+   jamais ; au-delà, titre et photos restent alignés et le blanc part à
+   droite. Ne PAS remettre de `margin: auto` : ça les désolidariserait. */
+.gallery-heading {
+  width: 100%;
+  max-width: 1920px;
+  padding: 16vh var(--page-gutter) 0 var(--page-gutter);
+}
+
+.gallery-title,
+.series-title {
+  color: var(--color-fg);
+}
+
+/* `display: block` et pas l'inline par défaut : sinon le SVG est traité comme
+   du texte et traîne le creux sous la ligne de base. */
+.gallery-title svg,
+.series-title svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.gallery-title text,
+.series-title text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  /* AUCUN interlettrage déclaré (2026-08-24) — les deux lettrages portaient
+     -0,02 em et leurs `viewBox` étaient calibrés dessus. Plus aucun titre du
+     site n'a d'interlettrage ; les deux calibrations ont été refaites à
+     chasse naturelle (cf. `SeriesWordmark` et « Selected Works » dans
+     `ScrollPhysicsGallery`).
+
+     Ce qui reste vrai : `textLength` corrige de toute façon pour tomber pile
+     sur la largeur. Sur Helvetica la correction est nulle (c'est sur elle que
+     les `viewBox` sont calibrés) ; sur une autre pile système, l'écart est
+     absorbé par l'interlettrage rendu. C'est le prix du remplissage garanti —
+     et la raison pour laquelle un titre plein cadre ne peut pas se contenter
+     d'une taille en `calc()`. */
+  fill: currentColor;
+}
+
+.photo-item {
+  display: flex;
+  /* `stretch` (défaut) et non `flex-start` : c'est ce qui TEND la colonne de
+     texte à la hauteur de la photo, condition pour que la fiche technique se
+     cale sur le bas de l'image (mockup `xhHMr`). La photo, elle, refuse
+     l'étirement — cf. `align-self` sur `.photo-figure`. */
+  /* Le texte SUIT la photo, à gouttière constante — il n'est pas ancré au
+     bord droit. Ancré, un portrait (plus étroit, plafonné en hauteur)
+     laissait 460 px de blanc entre l'image et son texte : les deux ne se
+     lisaient plus comme un même bloc (mesuré, capture à l'appui). Le prix
+     est un bord droit irrégulier et une colonne de texte qui se déplace d'un
+     bloc à l'autre — invisible en pratique : un bloc fait presque la hauteur
+     de l'écran, on n'en voit jamais deux à la fois. */
+  /* BLOC CENTRÉ (2026-11-03, demande Alexandre) : c'est l'ensemble photo +
+     légende qui est centré dans la page, pas la photo seule — centrer la
+     photo et laisser la légende pendre à droite faisait paraître le bloc
+     décentré. Le bloc prend la largeur de son contenu (`fit-content`) et le
+     stage le centre. */
+  justify-content: flex-start;
+  gap: var(--pair-gap);
+  width: fit-content;
+  max-width: 100%;
+  align-self: center;
+}
+
+.photo-figure {
+  position: relative;
+  flex: 0 0 auto;
+  /* Sans ça, l'étirement de la rangée imposerait une hauteur à la photo et
+     écraserait son ratio dès que le texte est plus haut qu'elle. */
+  align-self: flex-start;
+  aspect-ratio: var(--ratio, 4 / 5);
+  width: min(
+    calc(100cqw - var(--text-col) - var(--pair-gap)),
+    calc(var(--img-max-h) * var(--ratio, 0.8))
+  );
+  overflow: hidden;
+  background: var(--color-bg-elev);
+}
+
+/* Grain de transition (demande Alexandre, 2026-08-22 : « un fade in / fade
+   out noisy »). `--grain` est piloté par frame depuis ScrollPhysicsGallery et
+   culmine à MI-fondu : la photo émerge du grain puis s'y redissout.
+
+   Coût : une seule image de bruit, rasterisée UNE fois par le navigateur
+   (data-URI SVG feTurbulence, aucune requête réseau, ~400 octets) puis
+   répétée en mosaïque. Pas de filtre SVG animé — un `feTurbulence` recalculé
+   à chaque frame sur une image de 900 px coûte des dizaines de ms. Ici, seule
+   l'opacité d'un calque déjà composité change : gratuit sur le GPU.
+   À `--grain: 0` (l'état de 29 blocs sur 31) le calque ne coûte rien. */
+.photo-figure::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  opacity: var(--grain, 0);
+}
+
+.photo-figure img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.photo-meta {
+  flex: 0 0 auto;
+  width: var(--text-col);
+  /* Pas vertical unique de la légende empilée (cf. la requête ≤ 767 px) :
+     le corps de la légende est à 18 px × 1,5, toutes les autres lignes s'y
+     alignent — y compris le titre, qui fait 24 px sous `md` et y tient donc
+     sans rogner (hauteur de capitale = 0,714 em, la ligne est à 1,0).
+
+     Ce nombre SUIT le pas de la fiche technique, qui est la référence du
+     bloc : 30 → 27 (corps 20 → 18) puis 27 → 24 (interligne resserré, cf.
+     `.photo-meta-facts`). Sur mobile il gouverne TOUTES les lignes de la
+     légende — c'est l'invariant du « pas unique » : resserrer la seule fiche
+     technique y est impossible sans le casser. */
+  --meta-line: calc(24px * var(--curation-scale));
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  /* Les deux moitiés aux extrémités : titre en haut, fiche technique calée
+     sur le bas de la photo. Le `gap` n'est ici qu'un plancher, pour le cas
+     rare où le texte est plus haut que l'image. */
+  justify-content: space-between;
+  gap: 32px;
+}
+
+/* Numéro + titre + série : un seul groupe, sans écart entre ses lignes —
+   l'interligne des textes suffit à les séparer (mockup + demande Alexandre
+   du 2026-08-22 sur le numéro collé au titre). */
+.photo-meta-head,
+.photo-meta-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Fiche technique : AUCUN `gap`. L'écart entre les lignes doit être celui
+   d'un corps de texte, c'est-à-dire la seule différence entre le corps et
+   l'interligne. Un `gap` par-dessus ajoutait un écart qui n'existe dans aucun
+   paragraphe et donnait une liste, pas un bloc de texte (demande Alexandre,
+   2026-08-22).
+
+   Le pas est passé de 27 px (18 × 1,5) à 24 px le même jour. Le 1,5 du brand
+   book §5.5 est donné POUR de la prose au long cours ; ces trois lignes sont
+   courtes et empilées, cas que la même échelle traite en 1,375 (« tight
+   enough to chunk with its sub-list »). 24 plutôt que les 24,75 littéraux :
+   c'est un pas préféré de §6.5, 24,75 ne tombe nulle part. */
+.photo-meta-facts {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  color: var(--color-fg);
+}
+
+/* Empilement sous 1024 px, et non sous 768 : la colonne de texte a un
+   plancher de 280 px (lisibilité), si bien qu'entre 768 et 1024 il ne restait
+   que ~360 px de large pour la photo — l'image n'était plus le sujet. */
+@media (max-width: 1023px) {
+  .gallery-heading {
+    padding: 12vh var(--page-gutter) 0 var(--page-gutter);
+  }
+  .gallery-stage {
+    /* Gouttière de page comme partout ailleurs (`--page-gutter` : 32 dès
+       `md`, 20 sur téléphone) : le texte tombe sur la même verticale que le
+       footer et le glyph du header. */
+    padding: calc(100svh - var(--img-max-h)) var(--page-gutter) 15vh var(--page-gutter);
+    /* Même logique qu'au desktop, en `svh` : la barre d'adresse mobile ne
+       doit pas faire varier l'écart. Le bloc empilé porte en plus sa légende,
+       la voisine reste donc franchement hors champ. */
+    gap: calc(100svh - var(--img-max-h));
+    /* Pas de `--pair-gap` ici : empilés, ni `.photo-item` (écart explicite
+       de 8 px) ni `.photo-figure` (largeur en `min(100%, …)`) ne le lisent.
+       Le redéclarer donnerait une valeur morte qui se lit comme le réglage
+       de l'écart mobile — elle a existé à 20 px, elle induisait en erreur. */
+    --img-max-h: calc(70vh * var(--curation-scale));
+  }
+  .photo-item {
+    /* Empilé : le bloc reste centré (règle de base), à la largeur de sa
+       photo ; la légende part donc du bord gauche de la photo. */
+    flex-direction: column;
+    /* Écart photo ↔ légende, empilés. Descendu de 20 à 16 le 2026-08-22
+       (demande Alexandre : « un cran de moins »). Le cran est celui de
+       l'échelle du brand book §6.5 — pas préférés 4/8/16/24/32/56/64/96 —
+       et non une division arbitraire : 20 n'était déjà pas sur l'échelle.
+       Descendu ENCORE à 8 dans la foulée (16 laissait encore trop d'air,
+       arbitrage Alexandre) : la légende se lit désormais comme la suite
+       immédiate de sa photo.
+       L'écart interne de la légende (`.photo-meta`, 6 px) est désormais
+       plus petit que ces 8 px : la photo et son texte restent plus liés
+       que les deux blocs de la légende entre eux. */
+    gap: 8px;
+  }
+  .photo-figure {
+    width: min(100cqw, calc(var(--img-max-h) * var(--ratio, 0.8)));
+  }
+  .photo-meta {
+    /* 0 + min-width 100 % : la légende ne compte pas dans la largeur du bloc
+       (c'est la photo qui la fixe) puis s'étire à cette largeur. */
+    width: 0;
+    min-width: 100%;
+    /* Empilé, la colonne n'est plus tendue : le `gap` redevient l'écart
+       réel entre le titre et la fiche technique. 24 → 12 (2026-08-22),
+       puis 12 → 6 (2026-10-05, moitié de l'écart alors en place). C'est LE
+       seul écart de la légende empilée : le ≤ 767 le reprend tel quel,
+       les deux bandes ne peuvent donc pas diverger. */
+    gap: 6px;
+  }
+}
+
+/* Mobile : la légende se lit comme un bloc de texte, pas comme trois groupes
+   empilés (demande Alexandre, 2026-08-22) :
+
+   1. AUCUNE gouttière à l'intérieur du bloc de tête — numéro, titre et série
+      s'enchaînent sans respiration. La seule qui subsiste sépare ce bloc de la
+      fiche technique, et elle est réglée une fois pour toutes dans la requête
+      ≤ 1023 px ci-dessus (6 px).
+   2. UN SEUL pas vertical pour toutes les lignes. Le pas ne peut pas venir
+      d'un facteur d'interligne commun : les corps diffèrent (14 px pour le
+      numéro, 24 pour le titre, 18 pour le reste), un même facteur donnerait
+      trois pas différents. C'est donc une valeur ABSOLUE, celle du corps de
+      texte (24 px, cf. `.photo-meta-facts`). Le titre y tient sans rogner :
+      il fait 24 px
+      sous `md` — d'où la borne à 767 px et pas à 1023 comme l'empilement.
+      Entre les deux, le titre passe à 32 px et aucun pas commun n'est
+      possible ; la mise en groupes y reste la bonne. */
+@media (max-width: 767px) {
+  .photo-meta {
+    /* `gap` volontairement absent : la valeur vient de la requête ≤ 1023 px
+       ci-dessus, pour qu'il n'existe qu'UN seul écart de groupe dans toute
+       la légende empilée. */
+    /* La colonne n'est plus tendue à la hauteur d'une photo posée à côté :
+       `space-between` n'a plus rien à répartir et pousserait la fiche
+       technique au loin si un jour la légende était contrainte en hauteur. */
+    justify-content: flex-start;
+  }
+  .photo-meta,
+  .photo-meta * {
+    line-height: var(--meta-line);
+  }
+
+  /* Une série par ligne, toutes alignées sous la première : le libellé
+     « Series » devient une colonne, les noms l'autre. Le retrait n'est donc
+     jamais saisi à la main — il vaut la largeur rendue du libellé, quelle
+     que soit la fonte servie. */
+  .photo-meta-series {
+    display: flex;
+    align-items: flex-start;
+  }
+  .photo-meta-series-names {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .photo-meta-series-sep {
+    display: none;
+  }
+
+  /* Fiche technique d'un cran en dessous du reste de la légende (demande
+     Alexandre, 2026-08-23). Elle était déjà à 18 px comme la ligne « Series » ;
+     ce qui la faisait paraître plus grosse, c'est sa fonte : Inter (`font-sans`)
+     a une hauteur d'œil nettement plus haute qu'Helvetica à corps égal. 16 px
+     la ramène donc à la MÊME taille apparente, pas plus petite.
+     `line-height` sans unité pour rester exactement proportionnel : 1,3333,
+     soit le rapport 24/18 d'origine, ce qui donne 21,33 px à 16 px de corps.
+
+     ⚠️ Ces deux lignes sont la SEULE exception au pas vertical unique de
+     `--meta-line` posé juste au-dessus. Elle est voulue, pas un oubli : le
+     bloc continu de la légende mobile reste la règle pour tout le reste.
+     Le sélecteur vise aussi les `li` — sans quoi `.photo-meta *` (même
+     spécificité, déclaré plus haut) leur rendrait les 24 px. */
+  .photo-meta-facts,
+  .photo-meta-facts li {
+    font-size: calc(16px * var(--curation-scale));
+    line-height: 1.3333;
+  }
+}

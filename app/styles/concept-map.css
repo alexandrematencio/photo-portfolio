@@ -1,0 +1,319 @@
+/* La Concept Map : page /concept-map, carte dans l'article, pastilles, marques
+   de marge, commandes.
+   Découpé de globals.css (audit 1.6, 2026-11-07), ordre d'origine conservé. */
+
+/* ── CONCEPT MAP (/concept-map, components/journal/concept-map) ─────────────
+   Le panneau d'un nœud entre en glissant de 8 px vers le haut et en
+   apparaissant, 240 ms ease-out : un panneau est un objet moyen, il arrive et
+   freine (animation-principles §6, §9). Il se rejoue à chaque nœud (`key`),
+   ce qui dit « autre chose » sans bouger le reste de la page. Le dessin, lui,
+   s'estompe en JS (ConceptMapGraph). Rien sous reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .concept-panel {
+    animation: concept-panel-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+@keyframes concept-panel-in {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+
+/* ── CONCEPT MAP DANS L'ARTICLE (phase 4 bis, concept-map/ArticleMap.tsx) ──
+   Le panneau : feuille qui monte du bas, tiroir à droite dès 1280 px, sous
+   la nav-bar (4rem). Il n'est jamais dans le flux : le texte ne bouge pas.
+   - Entrée : 340 ms ease-out (un panneau arrive et freine) ; sortie : 220 ms
+     ease-in, plus courte (animation-principles §6, §9). `visibility` suit la
+     sortie, retardée d'autant : fermé, rien n'y est atteignable.
+   - Mouvement réduit : un fondu, aucun déplacement.
+   La pastille : même vocabulaire en petit (240 / 160 ms, 8 px).
+   La marque : dans la marge GAUCHE, au-delà du filet d'arrivée (-14 px) ;
+   la droite est aux notes, le texte au surligneur. Souris seulement. */
+.article-map {
+  position: fixed;
+  z-index: 30;
+  inset-inline: 0;
+  bottom: 0;
+  max-height: 78dvh;
+  border-top-width: 1px;
+  translate: 0 100%;
+  visibility: hidden;
+}
+.article-map[data-open] {
+  translate: 0 0;
+  visibility: visible;
+}
+@media (min-width: 1280px) {
+  .article-map {
+    top: 4rem;
+    left: auto;
+    width: 400px;
+    max-height: none;
+    border-top-width: 0;
+    border-left-width: 1px;
+    translate: 100% 0;
+  }
+}
+/* LES PASTILLES, EN HAUT (2026-10-29, demande Alexandre) — une par
+   citation à l'écran, sous la barre du site, dans l'ordre de lecture.
+   Toutes montées : une fente (`.article-map-slot`) se déplie de 0 à sa
+   hauteur (`grid-template-rows` 0fr → 1fr), si bien qu'une pastille qui part
+   laisse les autres glisser au lieu de sauter. La pastille descend de 6 px
+   en entrant (elle vient du haut), remonte en sortant. Toutes de la même
+   largeur : de largeurs inégales, la pile se lisait comme un escalier.
+   Sur téléphone : la première seulement — une pile couvrirait le texte
+   qu'elle désigne — et en bas d'écran. `M` ne s'affiche que sur la première. */
+.article-map-pills {
+  position: fixed;
+  z-index: 25;
+  top: calc(64px + 12px);
+  left: var(--page-gutter);
+  right: var(--page-gutter);
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+.article-map-slot {
+  display: grid;
+  grid-template-rows: 0fr;
+}
+.article-map-slot[data-shown] {
+  grid-template-rows: 1fr;
+}
+/* La place de l'ombre (et de l'écart de 8 px) dans la fente qui rogne. */
+.article-map-slot > div {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 2px 4px 8px;
+  margin: -2px -4px 0;
+}
+.article-map-pill {
+  opacity: 0;
+  translate: 0 -6px;
+  visibility: hidden;
+  pointer-events: auto;
+}
+.article-map-slot[data-shown] .article-map-pill {
+  opacity: 1;
+  translate: 0 0;
+  visibility: visible;
+}
+/* LE SURVOL CROISÉ (2026-10-31, demande Alexandre) — la citation survolée
+   dans le texte allume SA pastille : filet foncé, glyphe et surtitre à l'encre, comme la
+   note dont on survole l'appel ; les autres pastilles reculent (opacité
+   0,4), pour qu'on voie d'un coup laquelle parle de cette phrase. Leur
+   contenu seulement : effacées en entier, elles laissaient voir les notes
+   à travers ; et l'opacité de la pastille sert déjà à son entrée. */
+.article-map-pill > * {
+  transition: opacity 150ms ease-out;
+}
+.article-map-pills[data-hot] .article-map-slot:not([data-hot]) .article-map-pill > * {
+  opacity: 0.4;
+}
+.article-map-slot[data-hot] .article-map-pill {
+  border-color: var(--color-fg-muted);
+}
+.article-map-pill-kicker {
+  transition: color 150ms ease-out;
+}
+.article-map-slot[data-hot] .article-map-pill-kicker {
+  color: var(--color-fg);
+}
+.article-map-slot[data-shown] ~ .article-map-slot kbd {
+  display: none !important;
+}
+@media (max-width: 767px) {
+  .article-map-slot[data-shown] ~ .article-map-slot {
+    display: none;
+  }
+  /* Sur téléphone, en BAS (2026-10-29, demande Alexandre) : en haut, elle
+     tombait au milieu des lignes lues. 16 px du bord, au-dessus de la barre
+     d'accueil ; elle monte en entrant, descend en sortant. */
+  .article-map-pills {
+    top: auto;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .article-map-slot > div {
+    padding-bottom: 2px;
+  }
+  .article-map-pill {
+    translate: 0 6px;
+  }
+}
+@media (min-width: 768px) {
+  .article-map-pills {
+    left: auto;
+    right: 24px;
+    width: 360px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .article-map {
+    transition: translate 220ms cubic-bezier(0.4, 0, 1, 1), visibility 0s linear 220ms;
+  }
+  .article-map[data-open] {
+    transition: translate 340ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
+  }
+  .article-map-slot {
+    transition: grid-template-rows 160ms ease-in;
+  }
+  .article-map-slot[data-shown] {
+    transition: grid-template-rows 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .article-map-pill {
+    transition: opacity 160ms ease-in, translate 160ms ease-in, visibility 0s linear 160ms;
+  }
+  .article-map-slot[data-shown] .article-map-pill {
+    transition: opacity 240ms cubic-bezier(0.22, 1, 0.36, 1), translate 240ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .article-map,
+  .article-map[data-open],
+  .article-map-pill,
+  .article-map-slot[data-shown] .article-map-pill {
+    translate: none;
+  }
+  .article-map-pill {
+    transition: opacity 160ms, visibility 0s linear 160ms;
+  }
+  .article-map-slot[data-shown] .article-map-pill {
+    transition: opacity 160ms, visibility 0s;
+  }
+  .article-map {
+    opacity: 0;
+    transition: opacity 160ms, visibility 0s linear 160ms;
+  }
+  .article-map[data-open] {
+    opacity: 1;
+    transition: opacity 160ms, visibility 0s;
+  }
+}
+/* LES MARQUES DANS LA MARGE DROITE (2026-10-29, demande Alexandre) —
+   `ConceptMarks`. Accrochées au bord droit du paragraphe, dans la gouttière
+   de 48 px qui le sépare des notes : la marque à 16 px du texte, en face de
+   la première ligne de sa citation ; les branches (citation en plusieurs
+   morceaux) entre le texte et elle. Elles paraissent avec le pointillé, en
+   fondu (action secondaire : le trait mène). Sur écran tactile ou étroit :
+   rien, la pastille suffit. */
+.concept-marks {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  display: none;
+}
+.concept-mark-button {
+  position: absolute;
+  display: flex;
+  width: 14px;
+  height: 14px;
+}
+.concept-mark-branches {
+  position: absolute;
+  left: 2px;
+  overflow: visible;
+  fill: none;
+  stroke: var(--color-concept-line);
+  stroke-width: 1;
+}
+.concept-mark {
+  opacity: 0;
+  visibility: hidden;
+}
+.concept-mark[data-on],
+.concept-mark:focus-within {
+  opacity: 1;
+  visibility: visible;
+}
+.concept-mark[data-hot] .concept-mark-button {
+  color: var(--color-fg);
+}
+.concept-mark[data-hot] .concept-mark-branches {
+  stroke: var(--color-fg-muted);
+}
+@media (hover: hover) and (pointer: fine) and (min-width: 768px) {
+  .concept-marks {
+    display: block;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .concept-mark {
+    transition: opacity 200ms ease-in, visibility 0s linear 200ms;
+  }
+  .concept-mark[data-on],
+  .concept-mark:focus-within {
+    transition: opacity 400ms cubic-bezier(0.22, 1, 0.36, 1) 150ms, visibility 0s;
+  }
+  .concept-mark-button {
+    transition: color 160ms ease-out;
+  }
+}
+
+/* COMMANDES DE LA CONCEPT MAP (2026-10-30, Alexandre).
+   - Glissière de « noms/ » : un trait d'un pixel et un disque de 11 px à
+     l'encre, rien de plus — elle vit dans la colonne de filtres, elle ne doit
+     pas peser plus qu'une entrée de dossier. Le focus clavier garde son anneau.
+   - Fiche « Aide ? » : elle descend de 4 px en apparaissant, 180 ms ease-out
+     (un petit objet qui arrive et freine). Sa sortie est immédiate : on la
+     ferme pour revenir à la carte, rien ne doit traîner. Mouvement réduit :
+     elle paraît, c'est tout. */
+/* Le menu ouvert du dashboard (2026-10-30, Alexandre) : son bord droit — le
+   bord gauche de la carte — tombe sur la verticale du titre. Dès `xl`, où le
+   rail cale le titre, il en prend la mesure (`--column-start`, posé par
+   `railColumnStart`) ; en dessous, le titre est à la gouttière et le menu
+   garde sa largeur propre. */
+.map-frame {
+  --map-menu-open: 272px;
+}
+@media (min-width: 80rem) {
+  .map-frame {
+    --map-menu-open: var(--column-start);
+  }
+}
+/* Le menu de la carte : la gouttière de la barre de défilement est réservée,
+   fine, pour que la marge droite reste la même avec ou sans souris (2026-11-03). */
+.map-menu-scroll {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+.map-range {
+  appearance: none;
+  height: 16px;
+  background: linear-gradient(var(--color-line), var(--color-line)) center / 100% 1px no-repeat;
+  cursor: pointer;
+}
+.map-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--color-fg);
+  border: 2px solid var(--color-bg);
+  box-shadow: 0 0 0 1px var(--color-fg);
+}
+.map-range::-moz-range-thumb {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-fg);
+  border: 2px solid var(--color-bg);
+  box-shadow: 0 0 0 1px var(--color-fg);
+}
+.map-range:focus-visible {
+  outline: 2px solid var(--color-fg);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .map-help {
+    animation: map-help-in 180ms ease-out both;
+  }
+}
+@keyframes map-help-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
