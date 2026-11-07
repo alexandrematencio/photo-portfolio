@@ -274,9 +274,20 @@ function measureSideBearings(
  * substitute for, and centring spreads the excess — 3,4 px of it above the
  * caps (retour Alexandre, 2026-08-24 : « il dépasse sur le haut »).
  *
- * `actualBoundingBoxAscent` is the rasterizer's own ink ascent, so it carries
- * neither the overshoot nor the antialiasing fringe an alpha threshold picks
- * up. Fallback for engines that don't report it: `fontSize × 0.72`, the same
+ * `actualBoundingBoxAscent` is the rasterizer's own ink ascent, free of the
+ * antialiasing fringe an alpha threshold picks up. But it is the ascent of
+ * the TALLEST glyph of the string it is given — and the « C » overshoots the
+ * cap line at the TOP just as it does at the bottom. Measured on 'ALXMTNC',
+ * the value came back 116,96 px for 114,24 px of flat capitals at a 160 px
+ * Helvetica Neue Bold (Chrome, 2026-11-07): with the bottom pinned on the
+ * baseline by `measureCapBandShiftPx`, the whole 2,7 px surplus stuck out
+ * ABOVE the letters (retour Alexandre, photo-splash-fix.png). The 2026-08-24
+ * fix had removed the bottom overshoot and kept the top one.
+ *
+ * Hence 'H': the typographic definition of the cap height, flat top, flat
+ * foot — the line the eye draws across A, L, X, M, T, N. Never measure a
+ * string containing a round or pointed capital (C, O, G, S, V…).
+ * Fallback for engines that don't report it: `fontSize × 0.72`, the same
  * order of magnitude the rest of this file uses.
  */
 function measureCapAscentPx(el: HTMLElement): number {
@@ -290,7 +301,7 @@ function measureCapAscentPx(el: HTMLElement): number {
 
   ctx.font = `${style.fontWeight} ${fontSize}px ${style.fontFamily}`;
   ctx.textBaseline = 'alphabetic';
-  const ascent = ctx.measureText('ALXMTNC').actualBoundingBoxAscent;
+  const ascent = ctx.measureText('H').actualBoundingBoxAscent;
 
   return Number.isFinite(ascent) && ascent > 0 ? ascent : fontSize * 0.72;
 }
