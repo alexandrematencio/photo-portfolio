@@ -49,6 +49,7 @@ import {
 import { applyUnits, extractUnits, localizeImages, type SourcePost, type TranslatedFields } from '../lib/journal/translate/units';
 import { jevConfigured } from './jev/client';
 import { checkTranslation, printCheck } from './translate-check';
+import { checkUnits, reserveCall } from './translate-guard';
 
 const MODEL = 'claude-opus-5-5';
 /** Une réponse invalide (unité manquante, appel de note perdu) est redemandée une fois. */
@@ -110,6 +111,8 @@ async function translate(
   const wanted = new Set(plan.pending.map((u) => u.id));
   let lastError: unknown;
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    // Déclenché à distance (bouton du Studio → VPS) : chaque appel payant est compté (`translate-guard.ts`).
+    if (JOB_ID) reserveCall(`${JOB_ID} ${lang} essai ${attempt}`);
     const stream = anthropic.beta.messages.stream({
       model: MODEL,
       max_tokens: 64000,
@@ -127,6 +130,7 @@ async function translate(
     console.log(`  ${lang} : ${message.usage.input_tokens} → ${message.usage.output_tokens} jetons (essai ${attempt})`);
     try {
       const out = Output.parse(JSON.parse(text));
+      checkUnits(plan.pending, out.units);
       // Une unité reprise ne peut pas être écrasée par le modèle, même s'il la renvoie.
       const fresh = out.units.filter((u) => wanted.has(u.id));
       const units = [...[...plan.reused].map(([id, t]) => ({ id, text: t })), ...fresh];
