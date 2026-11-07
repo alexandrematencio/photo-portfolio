@@ -61,8 +61,8 @@
     "lucide-react": "^1.67.0",
     "next": "^16.4.4",
     "next-sanity": "^13.4.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "react-zoom-pan-pinch": "^4.0.3",
     "sanity": "^6.22.0",
     "sigma": "3.0.3",
@@ -85,5 +85,15 @@
     "tailwindcss": "^4.0.0",
     "tsx": "^4.23.15",
     "typescript": "~6.0"
+  },
+  "overrides": {
+    "@vercel/frameworks": {
+      "js-yaml": "^3.15.2",
+      "smol-toml": "^1.9.1"
+    },
+    "@module-federation/dts-plugin": {
+      "undici": "^7.30.1"
+    },
+    "minimatch@^10": "^11.0.5"
   }
 }
