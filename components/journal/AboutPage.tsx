@@ -16,15 +16,19 @@ import { EDITORIAL_H2, EDITORIAL_H3 } from '@/lib/site/typography';
  *
  * Marges en style inline : le reset `* { padding: 0 }` écrase les utilities
  * (CLAUDE.md §7.5–7.8). L'écart au-dessus de chaque étage reprend celui d'un
- * H2 du corps (64) pour que l'encart se lise comme une section de plus.
+ * H2 du corps (64) pour que l'encart se lise comme une section de plus ;
+ * en flux bloc, il absorbe la marge de 24 du dernier paragraphe (fusion).
+ * Le dernier étage garde de l'air sous lui (STAGE_END) : une liste de lignes
+ * repliées qui touche presque le pied de page se lit comme coupée.
  */
 const STAGE_TOP = 64;
+const STAGE_END = 64;
 
 export function AboutExtras({ about }: { about: JournalAbout }) {
   const questions = about.questions?.filter((q) => q.question) ?? [];
   const sections = about.sections?.filter((s) => s.title) ?? [];
   return (
-    <>
+    <div style={{ paddingBottom: STAGE_END }}>
       {about.questionsTitle && questions.length > 0 && (
         <section
           aria-labelledby="about-questions"
@@ -84,6 +88,6 @@ export function AboutExtras({ about }: { about: JournalAbout }) {
           </div>
         </section>
       )}
-    </>
+    </div>
   );
 }

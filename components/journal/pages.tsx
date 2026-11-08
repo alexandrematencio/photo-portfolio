@@ -158,8 +158,12 @@ export async function JournalAbout({ lang }: { lang: Lang }) {
         language={<LanguageSwitch lang={lang} alternates={ABOUT_ALTERNATES} />}
         centered
       >
-        <PortableBody value={about?.body ?? undefined} variant="editorial" fallback={<p className={EDITORIAL_BODY}>{t.siteDescription}</p>} />
-        {about && <AboutExtras about={about} />}
+        {/* UN seul enfant pour PageShell : son `gap` (PAGE_TITLE_GAP, 96) ne sépare
+            que le titre du corps, pas le corps de l'encart (CLAUDE.md §7.5–7.8). */}
+        <div>
+          <PortableBody value={about?.body ?? undefined} variant="editorial" fallback={<p className={EDITORIAL_BODY}>{t.siteDescription}</p>} />
+          {about && <AboutExtras about={about} />}
+        </div>
       </PageShell>
     </>
   );
@@ -266,8 +270,12 @@ export async function JournalMapAbout({ lang }: { lang: Lang }) {
         language={<LanguageSwitch lang={lang} alternates={MAP_ABOUT_ALTERNATES} />}
         centered
       >
-        <PortableBody value={about?.body ?? undefined} variant="editorial" fallback={<p className={EDITORIAL_BODY}>{t.map.intro}</p>} />
-        {about && <AboutExtras about={about} />}
+        {/* UN seul enfant pour PageShell : son `gap` (PAGE_TITLE_GAP, 96) ne sépare
+            que le titre du corps, pas le corps de l'encart (CLAUDE.md §7.5–7.8). */}
+        <div>
+          <PortableBody value={about?.body ?? undefined} variant="editorial" fallback={<p className={EDITORIAL_BODY}>{t.map.intro}</p>} />
+          {about && <AboutExtras about={about} />}
+        </div>
       </PageShell>
     </>
   );
