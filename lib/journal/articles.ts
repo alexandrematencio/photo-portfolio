@@ -139,19 +139,32 @@ export async function getSignature(lang: Lang = DEFAULT_LANG): Promise<string> {
   return text?.trim() || AUTHOR_JOURNAL_SIGNATURE[lang];
 }
 
+/** La page « À propos de ce journal » : trois étages (schéma `journalAboutPage`). */
+export type JournalAbout = {
+  body: unknown[] | null;
+  questionsTitle: string | null;
+  questions: { _key: string; question: string; answer: unknown[] | null }[] | null;
+  sectionsTitle: string | null;
+  sections: { _key: string; title: string; body: unknown[] | null }[] | null;
+};
+
 /**
- * Le texte de la page « À propos de ce journal » (Portable Text, rendu par
- * `PortableBody`). Traduction vide : le français, comme pour la signature.
- * `null` quand rien n'est publié — la page prend alors son repli.
+ * La page « À propos de ce journal », dans la langue demandée. La traduction
+ * se prend EN BLOC dès que son texte principal existe : mêler une encart
+ * traduit et des compléments en français ferait une page à deux langues.
+ * Sinon, le français. `null` quand rien n'est publié — la page prend alors
+ * son repli.
  */
-export async function getJournalAbout(lang: Lang = DEFAULT_LANG): Promise<unknown[] | null> {
+export async function getJournalAbout(lang: Lang = DEFAULT_LANG): Promise<JournalAbout | null> {
   if (!sanityClient) return null;
-  const body = await sanityClient.fetch<unknown[] | null>(
-    /* groq */ `*[_id == "journalAboutPage"][0]{ "b": select($lang != "fr" && count(translations[$lang].body) > 0 => translations[$lang].body, body) }.b`,
+  const about = await sanityClient.fetch<JournalAbout | null>(
+    /* groq */ `*[_id == "journalAboutPage"][0]{
+      "src": select($lang != "fr" && count(translations[$lang].body) > 0 => translations[$lang], @)
+    }.src{ body, questionsTitle, questions[]{ _key, question, answer }, sectionsTitle, sections[]{ _key, title, body } }`,
     { lang },
     { next: { revalidate: 60 } },
   );
-  return body?.length ? body : null;
+  return about?.body?.length ? about : null;
 }
 
 /**

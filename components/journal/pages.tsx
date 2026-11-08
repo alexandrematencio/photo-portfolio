@@ -8,6 +8,7 @@ import { BackLink } from '@/components/journal/BackLink';
 import { LanguageSwitch } from '@/components/journal/LanguageSwitch';
 import { SeriesArticleList } from '@/components/journal/SeriesArticleList';
 import { AboutLink } from '@/components/journal/AboutLink';
+import { AboutExtras } from '@/components/journal/AboutPage';
 import { ConceptMapExplorer } from '@/components/journal/concept-map/ConceptMapExplorer';
 import { articleMapView, conceptMapAlternates, getConceptMapView } from '@/lib/journal/conceptMapData';
 import { PortableBody } from '@/components/site/PortableBody';
@@ -146,7 +147,7 @@ export async function aboutMetadata(lang: Lang): Promise<Metadata> {
  */
 export async function JournalAbout({ lang }: { lang: Lang }) {
   const t = DICT[lang];
-  const body = await getJournalAbout(lang);
+  const about = await getJournalAbout(lang);
   return (
     <>
       <JsonLd data={aboutBreadcrumbJsonLd(lang, t.aboutLink)} />
@@ -156,7 +157,8 @@ export async function JournalAbout({ lang }: { lang: Lang }) {
         language={<LanguageSwitch lang={lang} alternates={ABOUT_ALTERNATES} />}
         centered
       >
-        <PortableBody value={body ?? undefined} variant="editorial" fallback={<p className={EDITORIAL_BODY}>{t.siteDescription}</p>} />
+        <PortableBody value={about?.body ?? undefined} variant="editorial" fallback={<p className={EDITORIAL_BODY}>{t.siteDescription}</p>} />
+        {about && <AboutExtras about={about} />}
       </PageShell>
     </>
   );

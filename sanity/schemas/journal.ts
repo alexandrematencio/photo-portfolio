@@ -815,22 +815,77 @@ export const journalAboutPage = defineType({
   name: 'journalAboutPage',
   title: 'À propos du journal',
   type: 'document',
-  fields: [
+  // 2026-11-08 (demande Alexandre : « indigeste ») : la page passe en trois
+  // étages. Le texte principal reste visible ; un encart de questions le suit,
+  // visible lui aussi ; les compléments se replient. Tout est éditable ici.
+  fields: aboutFields(),
+  preview: { prepare: () => ({ title: 'À propos du journal' }) },
+});
+
+function aboutFields(translated = false): ReturnType<typeof defineField>[] {
+  const fields = [
     defineField({
       name: 'body',
-      title: 'Texte',
-      description: editorialBodyDescription(
-        'Le texte de la page « À propos de ce journal », sous le titre « À propos » : pourquoi ce journal, ce qu’on y lit, à quel rythme, comment il est écrit et sourcé.',
-      ),
+      title: 'Texte principal',
+      description: translated
+        ? undefined
+        : editorialBodyDescription(
+            'Toujours visible, sous le titre « À propos » : l’essentiel, en quelques sections. Le reste va dans les compléments, plus bas.',
+          ),
       type: 'array',
       of: [editorialBlockType],
     }),
-    translationsField(() => [
-      defineField({ name: 'body', title: 'Texte', type: 'array', of: [editorialBlockType] }),
-    ]),
-  ],
-  preview: { prepare: () => ({ title: 'À propos du journal' }) },
-});
+    defineField({
+      name: 'questionsTitle',
+      title: 'Titre de l’encart de questions',
+      description: translated ? undefined : 'Ex. « Deux questions qu’on me pose d’emblée ». Vide : pas d’encart.',
+      type: 'string',
+    }),
+    defineField({
+      name: 'questions',
+      title: 'Questions (encart, toujours visible)',
+      description: translated ? undefined : 'Les questions qu’un lecteur se pose avant de lire. Réponses courtes : elles restent ouvertes.',
+      type: 'array',
+      of: [
+        defineArrayMember({
+          name: 'aboutQuestion',
+          title: 'Question',
+          type: 'object',
+          fields: [
+            defineField({ name: 'question', title: 'Question', type: 'string', validation: (Rule) => Rule.required() }),
+            defineField({ name: 'answer', title: 'Réponse', type: 'array', of: [editorialBlockType] }),
+          ],
+          preview: { select: { title: 'question' } },
+        }),
+      ],
+    }),
+    defineField({
+      name: 'sectionsTitle',
+      title: 'Titre des compléments',
+      description: translated ? undefined : 'Ex. « Pour en savoir plus sur moi et ce blog ».',
+      type: 'string',
+    }),
+    defineField({
+      name: 'sections',
+      title: 'Compléments (repliés, se déplient au clic)',
+      description: translated ? undefined : 'Une section par sujet. Le lecteur ne voit que le titre tant qu’il n’ouvre pas.',
+      type: 'array',
+      of: [
+        defineArrayMember({
+          name: 'aboutSection',
+          title: 'Section',
+          type: 'object',
+          fields: [
+            defineField({ name: 'title', title: 'Titre', type: 'string', validation: (Rule) => Rule.required() }),
+            defineField({ name: 'body', title: 'Texte', type: 'array', of: [editorialBlockType] }),
+          ],
+          preview: { select: { title: 'title' } },
+        }),
+      ],
+    }),
+  ];
+  return translated ? fields : [...fields, translationsField(() => aboutFields(true))];
+}
 
 export const journalSchemas = [
   journalAboutPage,

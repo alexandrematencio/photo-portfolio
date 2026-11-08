@@ -1,6 +1,7 @@
 import {
   PortableText,
   type PortableTextBlock,
+  type PortableTextBlockComponent,
   type PortableTextReactComponents,
 } from '@portabletext/react';
 import { asset } from '@/lib/utils/asset';
@@ -272,6 +273,12 @@ type Props = {
    * Digital-Agency layouts. Required for full-page Sanity-driven editorial bodies.
    */
   variant?: Variant;
+  /**
+   * `false` : pas de chapô positionnel (variante `editorial`). Pour un texte
+   * qui n'ouvre pas la page — une réponse, une section repliée — dont le
+   * premier paragraphe n'est qu'un paragraphe.
+   */
+  lead?: boolean;
 };
 
 /**
@@ -280,13 +287,13 @@ type Props = {
  * any future block-content schema field — never hard-code editable copy in
  * a React component (cf. CLAUDE.md §8.5).
  */
-export function PortableBody({ value, fallback, variant = 'default' }: Props) {
+export function PortableBody({ value, fallback, variant = 'default', lead = true }: Props) {
   if (!value || (Array.isArray(value) && value.length === 0)) {
     return <>{fallback}</>;
   }
 
   const components =
-    variant === 'editorial' ? EDITORIAL_COMPONENTS : DEFAULT_COMPONENTS;
+    variant === 'editorial' ? (lead ? EDITORIAL_COMPONENTS : EDITORIAL_COMPONENTS_NO_LEAD) : DEFAULT_COMPONENTS;
 
   const processedValue = injectFlagMarks(injectBrandLogoMarks(value));
 
@@ -633,4 +640,22 @@ const EDITORIAL_COMPONENTS: Partial<PortableTextReactComponents> = {
   },
   marks: EDITORIAL_MARKS,
   ...EDITORIAL_LISTS,
+};
+
+/** Même rendu, sans chapô : le premier paragraphe est un paragraphe (prop `lead`). */
+const EDITORIAL_COMPONENTS_NO_LEAD: Partial<PortableTextReactComponents> = {
+  ...EDITORIAL_COMPONENTS,
+  block: {
+    ...(EDITORIAL_COMPONENTS.block as Record<string, PortableTextBlockComponent>),
+    normal: ({ children, index }) => (
+      <p
+        className={`${EDITORIAL_BODY} whitespace-pre-line`}
+        style={{ marginBottom: RHYTHM.body }}
+        data-block-index={index}
+        data-editorial-role="body"
+      >
+        {children}
+      </p>
+    ),
+  },
 };
