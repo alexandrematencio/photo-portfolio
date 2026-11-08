@@ -8,8 +8,12 @@
 # committée partirait en ligne, puis disparaîtrait au Publish suivant.
 set -euo pipefail
 
-if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-  echo "deploy refusé : modifications non committées." >&2
+# Fichiers non suivis compris : un `app/**/page.tsx` jamais committé
+# partirait sinon en ligne par cette voie (audit de référence, 2026-11-08).
+# Les fichiers ignorés (.env.local, out/, docs/SECURITY.md…) ne comptent pas.
+if [ -n "$(git status --porcelain)" ]; then
+  echo "deploy refusé : modifications non committées ou fichiers non suivis." >&2
+  git status --short >&2
   exit 1
 fi
 

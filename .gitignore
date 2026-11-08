@@ -64,6 +64,8 @@ next-env.d.ts
 /yml-deploy-guide.md
 /screens
 /resources
+# carte de la surface d'attaque (secrets, chaîne de rebuild, risques acceptés) : le repo est public
+/docs/SECURITY.md
 # brouillons du journal : lus par `npm run import-journal`, jamais publiés par le dépôt
 /content
 

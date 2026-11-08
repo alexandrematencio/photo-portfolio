@@ -6,7 +6,7 @@
     "dev": "next dev -p 3010",
     "dev:blog": "SITE_TARGET=blog next dev -p 3011",
     "build": "next build && node --import tsx scripts/csp-hashes.ts out",
-    "build:blog": "SITE_TARGET=blog next build",
+    "build:blog": "SITE_TARGET=blog next build && node --import tsx scripts/csp-hashes.ts out-blog",
     "start": "next start -p 3010",
     "lint": "eslint .",
     "backup": "bash scripts/backup-client-files.sh",
