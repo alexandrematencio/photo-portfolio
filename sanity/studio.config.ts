@@ -25,6 +25,7 @@ import {
 // `sanity/preview/` pour réactivation rapide.
 import { apiVersion, dataset, projectId, siteUrl } from '@/lib/sanity/env';
 import { HUB_PAGE_TYPES, PAGE_DOCS } from '@/sanity/schemas/pages';
+import { isAboutType } from '@/lib/journal/translate/about-units';
 import { ArticlePreviewView } from '@/sanity/preview/ArticlePreviewView';
 import { ConceptMapBadge } from '@/sanity/components/ConceptMapBadge';
 
@@ -120,9 +121,17 @@ const PHOTO_AXIS_TEMPLATES = [
 const resolveActions: DocumentActionsResolver = (prev, { schemaType }) => {
     // Strip duplicate/delete/unpublish actions on singleton docs.
     if (SINGLETON_TYPES.has(schemaType)) {
-      return prev.filter(
+      const kept = prev.filter(
         ({ action }) => !action || !SINGLETON_FORBIDDEN_ACTIONS.has(action)
       );
+      // Les deux « À propos » du journal (2026-11-08) : mêmes boutons de
+      // traduction que les articles, juste après Publish. La traduction
+      // s'écrit dans le brouillon de la page (scripts/translate-post.ts → runAbout).
+      if (isAboutType(schemaType)) {
+        const at = kept.findIndex((a) => a.action === 'publish');
+        kept.splice(at + 1, 0, ...GENERATE_TRANSLATIONS_ACTIONS);
+      }
+      return kept;
     }
     // « Ajouter à une série » : disponible sur toute photo ouverte, quel que
     // soit l'onglet de Photos d'où l'on vient (une action document ne dépend

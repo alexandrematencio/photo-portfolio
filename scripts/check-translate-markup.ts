@@ -19,7 +19,8 @@ import { createClient } from '@sanity/client';
 import assert from 'node:assert/strict';
 import { parseMarkup, blockToMarkup, type PTBlock } from '../lib/journal/translate/markup';
 import { applyUnits, extractUnits, localizeImages, type SourcePost } from '../lib/journal/translate/units';
-import { canonical, planUnits, readSnapshot, snapshotOf } from '../lib/journal/translate/incremental';
+import { canonical, planFromUnits, planUnits, readSnapshot, snapshotOf } from '../lib/journal/translate/incremental';
+import { ABOUT_TYPES, aboutSnapshotOf, applyAboutUnits, extractAboutUnits, type AboutContent } from '../lib/journal/translate/about-units';
 
 let passed = 0;
 const ok = (label: string, fn: () => void) => {
@@ -232,10 +233,65 @@ function incremental(posts: SourcePost[]) {
   ok('source illisible → tout traduire', () => assert.equal(readSnapshot('{pas du json'), null));
 }
 
+/**
+ * 4. Les deux pages « À propos » (`about-units.ts`) : aller-retour à
+ *    l'identique, puis rien à traduire quand rien n'a changé, et une seule
+ *    unité quand une question change.
+ */
+async function aboutPages() {
+  const client = createClient({
+    projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID ?? 'yh5i5diw',
+    dataset: process.env.NEXT_PUBLIC_SANITY_DATASET ?? 'production',
+    apiVersion: '2026-01-01',
+    useCdn: false,
+  });
+  const pages = await client.fetch<(AboutContent & { _id: string })[]>(
+    `*[_id in $ids]{_id, body, questionsTitle, questions, sectionsTitle, sections}`,
+    { ids: [...ABOUT_TYPES] },
+  );
+  console.log(`\nÉtage 4 — ${pages.length} page(s) « À propos »`);
+  const sameBlocks = (a: PTBlock[] | undefined, b: PTBlock[] | undefined) => {
+    assert.equal(a?.length ?? 0, b?.length ?? 0);
+    (b ?? []).forEach((blk, i) => {
+      assert.equal(a![i]._key, blk._key);
+      assert.equal(a![i].style, blk.style);
+      assert.deepEqual(visible(a![i].children), visible(blk.children), `bloc ${blk._key}`);
+    });
+  };
+  for (const page of pages) {
+    ok(`${page._id} : aller-retour à l’identique`, () => {
+      const back = applyAboutUnits(page, extractAboutUnits(page));
+      assert.equal(back.questionsTitle, page.questionsTitle);
+      assert.equal(back.sectionsTitle, page.sectionsTitle);
+      sameBlocks(back.body, page.body);
+      (page.questions ?? []).forEach((q, i) => {
+        assert.equal(back.questions![i].question, q.question);
+        sameBlocks(back.questions![i].answer, q.answer);
+      });
+      (page.sections ?? []).forEach((sec, i) => {
+        assert.equal(back.sections![i].title, sec.title);
+        sameBlocks(back.sections![i].body, sec.body);
+      });
+    });
+    ok(`${page._id} : incrémental`, () => {
+      const units = extractAboutUnits(page);
+      const snapshot = aboutSnapshotOf(page);
+      assert.equal(planFromUnits(units, units, snapshot).pending.length, 0);
+      const q = page.questions?.[0];
+      if (!q) return;
+      const edited = { ...page, questions: [{ ...q, question: `${q.question} (retouchée)` }, ...page.questions!.slice(1)] };
+      const plan = planFromUnits(extractAboutUnits(edited), units, snapshot);
+      assert.deepEqual(plan.pending.map((u) => u.id), [`q.${q._key}.question`]);
+      assert.equal(plan.pending[0].previousSource, q.question);
+    });
+  }
+}
+
 realPosts()
-  .then((posts) => {
+  .then(async (posts) => {
     fabricated();
     incremental(posts);
+    await aboutPages();
     console.log(`\n${passed} assertions vertes.`);
   })
   .catch((e) => {

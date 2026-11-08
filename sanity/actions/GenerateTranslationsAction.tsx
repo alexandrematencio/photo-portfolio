@@ -14,6 +14,7 @@ import {
   type TranslationLang,
   type TranslationResult,
 } from '@/lib/journal/translate/job';
+import { isAboutType } from '@/lib/journal/translate/about-units';
 
 const API_VERSION = '2026-01-01';
 
@@ -74,7 +75,8 @@ const sameLangs = (a: readonly TranslationLang[], b: readonly TranslationLang[])
 export function createGenerateTranslationsAction(langs: readonly TranslationLang[]): DocumentActionComponent {
   const tag = langsTag(langs);
   const GenerateTranslationsAction: DocumentActionComponent = (props) => {
-    const { id, draft, published } = props;
+    const { id, type, draft, published } = props;
+    const about = isAboutType(type);
     const baseClient = useClient({ apiVersion: API_VERSION });
     const client = useMemo(() => baseClient.withConfig({ perspective: 'raw' }), [baseClient]);
     const jobId = translationJobId(id);
@@ -130,9 +132,9 @@ export function createGenerateTranslationsAction(langs: readonly TranslationLang
       icon: TranslateIcon,
       disabled: requesting || jobBusy || !published,
       title: !published
-        ? 'Publie d’abord l’article : c’est la version en ligne qui est traduite.'
+        ? `Publie d’abord ${about ? 'la page' : 'l’article'} : c’est la version en ligne qui est traduite.`
         : jobBusy && !mine
-          ? `Une traduction (${langsTag(jobLangs(job))}) est déjà en cours pour cet article.`
+          ? `Une traduction (${langsTag(jobLangs(job))}) est déjà en cours pour ${about ? 'cette page' : 'cet article'}.`
           : draft
             ? `Attention : ce brouillon n’est pas publié, il ne sera PAS traduit — seule la version en ligne l’est. ${others}Seuls les passages modifiés depuis la dernière traduction partent au traducteur.`
             : `Met à jour le brouillon ${langs.length > 1 ? 'anglais et russe' : langs[0] === 'en' ? 'anglais' : 'russe'}. ${others}Seuls les passages modifiés depuis la dernière traduction partent au traducteur ; les versions déjà en ligne ne bougent pas avant leur propre Publish.`,
@@ -145,7 +147,7 @@ export function createGenerateTranslationsAction(langs: readonly TranslationLang
         header: langs.length > 1 ? 'Versions anglaise et russe' : langs[0] === 'en' ? 'Version anglaise' : 'Version russe',
         onClose: () => setDialogOpen(false),
         content: (
-          <JobProgress requesting={requesting} job={job} requestError={requestError} unpublishedDraft={!!draft} />
+          <JobProgress requesting={requesting} job={job} requestError={requestError} unpublishedDraft={!!draft} about={about} />
         ),
       },
     };
@@ -164,7 +166,8 @@ function resultLine(lang: keyof typeof LANG_LABEL, r: TranslationResult) {
   if (r.unchanged) return `${LANG_LABEL[lang]} : déjà à jour, rien n’a été retraduit.`;
   const detail =
     r.translated !== undefined && r.reused ? ` (${r.translated} passage(s) traduit(s), ${r.reused} repris tels quels)` : '';
-  return `${LANG_LABEL[lang]} : brouillon prêt — /${lang}/${r.slug}/${detail}`;
+  // Une page « À propos » n'a pas d'adresse à elle : sa traduction est un champ du brouillon.
+  return `${LANG_LABEL[lang]} : brouillon prêt${r.slug ? ` — /${lang}/${r.slug}/` : ''}${detail}`;
 }
 
 function JobProgress({
@@ -172,11 +175,13 @@ function JobProgress({
   job,
   requestError,
   unpublishedDraft,
+  about,
 }: {
   requesting: boolean;
   job: TranslationJob | null;
   requestError: string | null;
   unpublishedDraft: boolean;
+  about: boolean;
 }) {
   if (requestError) return <Line tone="critical" text={`La demande n’a pas pu être écrite : ${requestError}`} />;
   if (requesting || !job) return <Line tone="busy" text="Envoi de la demande de traduction…" />;
@@ -186,7 +191,14 @@ function JobProgress({
   return (
     <Stack gap={4}>
       {unpublishedDraft && (
-        <Line tone="critical" text="Le brouillon français n’est pas publié : la traduction part de la version en ligne." />
+        <Line
+          tone="critical"
+          text={
+            about
+              ? 'Le français de ce brouillon n’est pas publié : la traduction part de la version en ligne, et s’ajoute à ce brouillon.'
+              : 'Le brouillon français n’est pas publié : la traduction part de la version en ligne.'
+          }
+        />
       )}
       {waiting && <Line tone="busy" text="Demande envoyée, le traducteur démarre…" />}
       {langs.map((lang) => {
@@ -202,7 +214,9 @@ function JobProgress({
       <Card padding={3} radius={2} tone="transparent" border>
         <Text size={1} muted>
           {job.status === 'done'
-            ? `${langs.length > 1 ? 'Les traductions mises à jour sont' : `La version en ${langsName(langs)} est`} en brouillon dans Journal → Articles. Relis, puis publie : le blog se met à jour 3 à 4 minutes après.`
+            ? about
+              ? `${langs.length > 1 ? 'Les traductions sont' : `La version en ${langsName(langs)} est`} dans le brouillon de cette page, champ « Traductions ». Relis, puis publie : le blog se met à jour quelques minutes après.`
+              : `${langs.length > 1 ? 'Les traductions mises à jour sont' : `La version en ${langsName(langs)} est`} en brouillon dans Journal → Articles. Relis, puis publie : le blog se met à jour 3 à 4 minutes après.`
             : job.status === 'error'
               ? `Rien n’a été publié. Relance « Generate ${langsTag(langs)} » ; si l’erreur revient, elle est dans le journal du VPS.`
               : 'Tu peux fermer cette fenêtre : la traduction continue sur le serveur et les brouillons apparaîtront seuls.'}

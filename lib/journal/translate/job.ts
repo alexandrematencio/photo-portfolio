@@ -28,7 +28,7 @@ export type TranslationJob = {
   _id: string;
   _type: 'translationJob';
   _rev?: string;
-  /** Id PUBLIÉ de l'article français. */
+  /** Id PUBLIÉ de l'article français, ou d'une page « À propos » (`journalAboutPage`, `journalMapAboutPage`). */
   post: string;
   /** Langues demandées (2026-10-21 : « EN seulement » est un geste à part). Absent = toutes. */
   langs?: TranslationLang[];

@@ -10,6 +10,11 @@
  *   npm run translate-post -- <id> --adopt                → marque les traductions existantes à jour, sans appel
  *   npm run translate-post -- --job translationJob.<id>   → ce que lance le VPS
  *
+ * L'id peut aussi être celui d'une page « À propos » (`journalAboutPage`,
+ * `journalMapAboutPage`, 2026-11-08) : même bouton, même demande, mais la
+ * traduction s'écrit dans `translations.<langue>` du brouillon de la page
+ * (`runAbout`). `--adopt` ne vaut que pour les articles.
+ *
  * Le mode `--job` est celui du bouton du Studio (`lib/journal/translate/job.ts`) :
  * il ne traduit que les langues de la demande (`langs`), et ne la prend
  * que si elle est encore `requested` (une livraison
@@ -37,7 +42,15 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@sanity/client';
 import { z } from 'zod';
 import { outputSchema, systemPrompt } from '../lib/journal/translate/prompt';
-import { canonical, planUnits, readSnapshot, snapshotOf, type UnitPlan } from '../lib/journal/translate/incremental';
+import { canonical, planFromUnits, planUnits, readSnapshot, snapshotOf, type UnitPlan } from '../lib/journal/translate/incremental';
+import {
+  aboutSnapshotOf,
+  applyAboutUnits,
+  extractAboutUnits,
+  isAboutType,
+  type AboutContent,
+  type AboutType,
+} from '../lib/journal/translate/about-units';
 import {
   isFrenchPost,
   jobLangs,
@@ -46,7 +59,7 @@ import {
   type TranslationLang,
   type TranslationResult,
 } from '../lib/journal/translate/job';
-import { applyUnits, extractUnits, localizeImages, type SourcePost, type TranslatedFields } from '../lib/journal/translate/units';
+import { applyUnits, extractUnits, localizeImages, type SourcePost, type TranslatedFields, type Unit } from '../lib/journal/translate/units';
 import { jevConfigured } from './jev/client';
 import { checkTranslation, printCheck } from './translate-check';
 import { checkUnits, reserveCall } from './translate-guard';
@@ -107,7 +120,21 @@ async function translate(
   plan: UnitPlan,
   needSlug: boolean,
 ): Promise<{ fields: TranslatedFields; slug?: string }> {
-  if (!plan.pending.length) return { fields: applyUnits(post, [...plan.reused].map(([id, text]) => ({ id, text }))) };
+  return translateUnits(lang, plan, needSlug, (units) => applyUnits(post, units));
+}
+
+/**
+ * La boucle d'appel au modèle, commune aux articles et aux pages « À propos » :
+ * `build` remet les unités à leur place et refuse (exception) une réponse
+ * incomplète, qui est alors redemandée une fois.
+ */
+async function translateUnits<T>(
+  lang: TranslationLang,
+  plan: UnitPlan,
+  needSlug: boolean,
+  build: (units: { id: string; text: string }[]) => T,
+): Promise<{ fields: T; slug?: string }> {
+  if (!plan.pending.length) return { fields: build([...plan.reused].map(([id, text]) => ({ id, text }))) };
   const wanted = new Set(plan.pending.map((u) => u.id));
   let lastError: unknown;
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
@@ -134,7 +161,7 @@ async function translate(
       // Une unité reprise ne peut pas être écrasée par le modèle, même s'il la renvoie.
       const fresh = out.units.filter((u) => wanted.has(u.id));
       const units = [...[...plan.reused].map(([id, t]) => ({ id, text: t })), ...fresh];
-      return { fields: applyUnits(post, units), slug: out.slug };
+      return { fields: build(units), slug: out.slug };
     } catch (e) {
       lastError = e;
       console.warn(`  ${lang} : réponse refusée — ${(e as Error).message}`);
@@ -180,7 +207,12 @@ async function sourcePost(postId: string) {
   return post;
 }
 
-async function run(postId: string, langs: TranslationLang[], onLang?: (lang: TranslationLang, result: TranslationResult) => Promise<void>) {
+type OnLang = (lang: TranslationLang, result: TranslationResult) => Promise<void>;
+
+async function run(postId: string, langs: TranslationLang[], onLang?: OnLang) {
+  // Les pages « À propos » passent par le même bouton et la même demande (2026-11-08).
+  const head = await sanity.getDocument<{ _type: string }>(postId);
+  if (isAboutType(head?._type)) return runAbout(postId, langs, onLang);
   const post = await sourcePost(postId);
   console.log(`▸ ${post.title} (${postId}) → ${langs.join(', ')}${FULL ? ' — tout retraduire' : ''}`);
   const source = JSON.stringify(snapshotOf(post));
@@ -236,17 +268,80 @@ async function run(postId: string, langs: TranslationLang[], onLang?: (lang: Tra
 
 /** Jev relit ce qui vient d'être traduit. Jamais bloquant. */
 async function review(post: SourcePost, translated: SourcePost, lang: TranslationLang, ids: Set<string>) {
+  return reviewUnits(extractUnits(post), extractUnits(translated), lang, ids);
+}
+
+async function reviewUnits(source: Unit[], translated: Unit[], lang: TranslationLang, ids: Set<string>) {
   if (!ids.size) return;
   if (!jevConfigured()) {
     console.log(`  (${lang} : relecture Jev sautée — TYPESAFE_API_KEY absente)`);
     return;
   }
   try {
-    const fr = extractUnits(post).filter((u) => ids.has(u.id));
-    printCheck(lang, await checkTranslation(fr, extractUnits(translated), lang));
+    const fr = source.filter((u) => ids.has(u.id));
+    printCheck(lang, await checkTranslation(fr, translated, lang));
   } catch (e) {
     console.warn(`  ⚠ ${lang} : relecture Jev impossible (${(e as Error).message})`);
   }
+}
+
+type AboutDoc = AboutContent & {
+  _id: string;
+  _type: AboutType;
+  translations?: Partial<Record<TranslationLang, AboutContent & { translationSource?: string }>>;
+};
+
+/**
+ * Une page « À propos » (2026-11-08). La traduction vit DANS le document,
+ * sous `translations.<langue>` : elle s'écrit donc dans le BROUILLON du
+ * singleton, créé depuis la version publiée s'il n'existe pas. Un brouillon
+ * français en cours est conservé tel quel ; seule la langue demandée est
+ * remplacée. La version en ligne ne bouge qu'au Publish d'Alexandre.
+ */
+async function runAbout(id: string, langs: TranslationLang[], onLang?: OnLang) {
+  const published = await sanity.getDocument<AboutDoc>(id);
+  if (!published) throw new Error(`Page publiée introuvable : ${id}`);
+  const draftId = `drafts.${id}`;
+  const draft = await sanity.getDocument<AboutDoc>(draftId);
+  const sourceUnits = extractAboutUnits(published);
+  const source = JSON.stringify(aboutSnapshotOf(published));
+  console.log(`▸ ${id} → ${langs.join(', ')}${FULL ? ' — tout retraduire' : ''}`);
+
+  // Une seule langue à la fois : les deux écrivent dans le même brouillon.
+  const failures: string[] = [];
+  for (const lang of langs) {
+    try {
+      const existing = (draft ?? published).translations?.[lang] ?? null;
+      const plan = planFromUnits(sourceUnits, existing ? extractAboutUnits(existing) : [], readSnapshot(existing?.translationSource), FULL);
+      console.log(`  ${lang} : ${plan.pending.length} unité(s) à traduire, ${plan.reused.size} reprise(s)`);
+      const { fields } = await translateUnits(lang, plan, false, (units) => applyAboutUnits(published, units));
+      const next = { ...fields, translationSource: source };
+      const counts = { translated: plan.pending.length, reused: plan.reused.size };
+
+      if (existing && canonical(next) === canonical(existing)) {
+        console.log(`  = ${lang} : déjà à jour`);
+        await onLang?.(lang, { draftId: draft ? draftId : id, unchanged: true, ...counts });
+        continue;
+      }
+      if (DRY_RUN) console.log(JSON.stringify(next, null, 2));
+      else {
+        const { _rev: _r, _updatedAt: _u, _createdAt: _c, _system: _s, ...copy } = published as AboutDoc & Record<string, unknown>;
+        await sanity
+          .transaction()
+          .createIfNotExists({ ...copy, _id: draftId })
+          .patch(draftId, (p) => p.set({ [`translations.${lang}`]: next }))
+          .commit();
+      }
+      console.log(`  ✓ ${lang} : ${DRY_RUN ? '(non écrit) ' : ''}${draftId}`);
+      await reviewUnits(sourceUnits, extractAboutUnits(next), lang, new Set(plan.pending.map((u) => u.id)));
+      await onLang?.(lang, { draftId, ...counts });
+    } catch (e) {
+      console.error(`  ✗ ${(e as Error).message}`);
+      failures.push((e as Error).message);
+      await onLang?.(lang, { error: (e as Error).message });
+    }
+  }
+  if (failures.length) throw new Error(failures.join(' · '));
 }
 
 /**

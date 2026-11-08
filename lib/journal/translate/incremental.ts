@@ -59,11 +59,24 @@ export function planUnits(
   snapshot: SourceSnapshot | null,
   full = false,
 ): UnitPlan {
-  const translated = new Map((translation ? extractUnits(translation) : []).map((u) => [u.id, u.text]));
+  return planFromUnits(extractUnits(source), translation ? extractUnits(translation) : [], snapshot, full);
+}
+
+/**
+ * Le même plan, sur des unités déjà extraites : c'est ce que prennent les
+ * pages « À propos » (`about-units.ts`), qui ne sont pas des articles.
+ */
+export function planFromUnits(
+  sourceUnits: Unit[],
+  translationUnits: Unit[],
+  snapshot: SourceSnapshot | null,
+  full = false,
+): UnitPlan {
+  const translated = new Map(translationUnits.map((u) => [u.id, u.text]));
   const reused = new Map<string, string>();
   const pending: PendingUnit[] = [];
 
-  for (const unit of extractUnits(source)) {
+  for (const unit of sourceUnits) {
     const previousSource = full ? undefined : snapshot?.[unit.id];
     const previousTranslation = full ? undefined : translated.get(unit.id);
     if (previousSource === unit.text && previousTranslation) reused.set(unit.id, previousTranslation);

@@ -22,7 +22,7 @@ const SPECIFIC: Record<Target, string> = {
  * encore ; une adresse existante est conservée (`scripts/translate-post.ts`).
  */
 export function systemPrompt(lang: Target, { slug }: { slug: boolean }): string {
-  return `You translate articles from Alexandre Matencio's journal from French into ${LANGUAGE[lang]}. Alexandre is a photographer and author; he writes in the first person, with opinions he holds, in short sentences mixed with longer ones. The translation is published under his name, as if he had written it in ${LANGUAGE[lang]}.
+  return `You translate articles from Alexandre Matencio's journal, and the pages that present it, from French into ${LANGUAGE[lang]}. Alexandre is a photographer and author; he writes in the first person, with opinions he holds, in short sentences mixed with longer ones. The translation is published under his name, as if he had written it in ${LANGUAGE[lang]}.
 
 Voice
 - Translate the meaning and the voice, not the words. Keep the register, the rhythm and the punctuation of thought: a short, blunt sentence stays short and blunt; a hesitation stays a hesitation.
@@ -50,6 +50,7 @@ Unit kinds (from the id)
 - "ref.…": bibliography entries. Keep authors, years, titles of works, journal names, volumes and pages exactly as written; translate only the connecting words ("et", "trad. de", "consulté le", "dir.").
 - "referencesNote": a note about the references, in the author's voice.
 - "ai.…": the end note on how the text was made with AI — what is the author's, what is the AI's, and why he used it. In the author's voice; keep "Claude" and "Anthropic" as they are.
+- About pages (the page that presents the journal, or its Concept Map), in the author's voice: "body.…" is the main text, always visible; "questionsTitle" heads a short box of reader questions, "q.….question" and "q.….answer.…" are those questions and their answers; "sectionsTitle" heads the folded complements, "s.….title" and "s.….body.…" are their headings and text. Keep "Concept Map", "Jev" and "AAXLO" as they are.
 
 ${
     slug

@@ -42,11 +42,14 @@ export type PTBlock = {
 const TAGS: Record<string, string> = { highlight: 'mark', strong: 'b', em: 'i', cite: 'cite' };
 const MARKS: Record<string, string> = Object.fromEntries(Object.entries(TAGS).map(([m, t]) => [t, m]));
 
-/** Les clés des liens d'un bloc (annotations `journalLink`). */
+/**
+ * Les clés des liens d'un bloc : annotations `journalLink` des articles, et
+ * `link` (annotation native) des pages éditoriales comme l'« À propos ».
+ */
 function linkKeys(block: PTBlock): Set<string> {
   return new Set(
     ((block.markDefs ?? []) as { _key?: string; _type?: string }[])
-      .filter((d) => d._type === 'journalLink' && d._key)
+      .filter((d) => (d._type === 'journalLink' || d._type === 'link') && d._key)
       .map((d) => d._key!),
   );
 }

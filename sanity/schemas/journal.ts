@@ -898,7 +898,11 @@ function aboutFields(translated = false): ReturnType<typeof defineField>[] {
       ],
     }),
   ];
-  return translated ? fields : [...fields, translationsField(() => aboutFields(true))];
+  if (!translated) return [...fields, translationsField(() => aboutFields(true))];
+  // Écrit par « Generate EN / RU » (scripts/translate-post.ts → runAbout) : le
+  // français de chaque unité au moment de la traduction, pour ne retraduire
+  // ensuite que ce qui a changé. Jamais à la main — d'où `hidden`.
+  return [...fields, defineField({ name: 'translationSource', title: 'Source de la traduction', type: 'text', hidden: true, readOnly: true })];
 }
 
 export const journalSchemas = [
