@@ -41,6 +41,11 @@ process.env.NEXT_PUBLIC_BUILD_STAMP ??= String(Date.now());
 const nextConfig: NextConfig = {
   ...(isProd ? { output: 'export' as const } : {}),
   reactStrictMode: true,
+  // Pas d'AGENTS.md (2026-11-09, décidé avec Jev) : `next dev` l'écrivait à
+  // chaque lancement, non suivi, ce qui bloquait `deploy-guard.sh`. Seul Claude
+  // travaille ici, avec CLAUDE.md ; le bloc générique de Next n'apportait rien
+  // et l'exposer dans un dépôt public n'avait aucune utilité.
+  agentRules: false,
   // LABO des forces (2026-11-03) : le téléphone d'Alexandre ouvre `next dev` par le Wi-Fi du Mac.
   allowedDevOrigins: ['192.168.1.66'],
   pageExtensions: isBlog ? ['blog.tsx', 'blog.ts'] : ['tsx', 'ts'],
