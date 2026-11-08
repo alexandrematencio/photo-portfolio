@@ -12,6 +12,13 @@
  *    - chaque traduction porte les clés de son article français, bloc pour
  *      bloc — sinon un lien `#p-…` partagé en français tomberait dans le
  *      vide en anglais ou en russe (`align-translation-keys` répare).
+ *      AVERTISSEMENT seulement, jamais un échec (2026-11-08) : ce test
+ *      tourne dans le build de TOUS les sites (`build-sites.sh`). Un article
+ *      français retouché et pas encore retraduit est un état normal et
+ *      passager ; en échec, il bloquait tout Publish, portfolio compris, et
+ *      gardait hors ligne la retouche française elle-même. Les ancres qui
+ *      comptent (celles de la Concept Map) sont signalées par `map:build`
+ *      (`translationGaps`).
  * 3. La garde de la phase 3 (lib/journal/mapAnchors.ts) : recalage d'une
  *    ancre par sa citation, replis intertitre puis article, `covers`
  *    recalculés, clés manquantes dans une traduction.
@@ -87,8 +94,16 @@ async function realPosts() {
   for (const t of posts.filter((x) => x.src)) {
     const source = byId.get(t.src!);
     if (!source) continue;
-    ok(`${t.slug} (${t.language}) : clés de ${source.slug}`, () =>
-      assert.deepEqual(keys(t.body ?? []), keys(source.body ?? []), 'clés différentes du français : npm run align-translation-keys'),
+    const mine = keys(t.body ?? []);
+    const theirs = keys(source.body ?? []);
+    if (JSON.stringify(mine) === JSON.stringify(theirs)) {
+      console.log(`  ✓ ${t.slug} (${t.language}) : clés de ${source.slug}`);
+      continue;
+    }
+    const absent = theirs.filter((k) => !mine.includes(k)).length;
+    console.warn(
+      `  ⚠ ${t.slug} (${t.language}) : ${mine.length} blocs contre ${theirs.length} pour ${source.slug}, ` +
+        `${absent} clé(s) française(s) absente(s) — à retraduire, ou \`npm run align-translation-keys\` (avertissement, pas un échec)`,
     );
   }
 }
