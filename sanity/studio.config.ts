@@ -34,6 +34,7 @@ const SINGLETON_TYPES = new Set([
   'funnelCuration',
   'journalSettings',
   'journalAboutPage',
+  'journalMapAboutPage',
   'journalMap',
   ...PAGE_DOCS.map((p) => p.type),
 ]);
@@ -265,6 +266,8 @@ export const studioConfig = defineConfig({
           return `${BLOG_URL}/`;
         case 'journalAboutPage':
           return `${BLOG_URL}/a-propos/`;
+        case 'journalMapAboutPage':
+          return `${BLOG_URL}/concept-map/a-propos/`;
         case 'journalSeries':
           return slug ? `${BLOG_URL}/serie/${slug}/` : `${BLOG_URL}/`;
         case 'journalTag':

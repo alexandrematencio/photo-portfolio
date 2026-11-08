@@ -150,7 +150,17 @@ function stripSlash(path: string): string {
  * sa propre entrée, et deux pages actives ne disent plus où l'on est.
  */
 export function journalIsActive(pathname: string): boolean {
-  return !LANGS.some((l) => isSamePage(conceptMapPath(l), pathname));
+  return !LANGS.some((l) => isInSection(conceptMapPath(l), pathname));
+}
+
+/**
+ * L'entrée de nav à surligner : sa page, et pour la Concept Map ses sous-pages
+ * aussi (« À propos de la Concept Map », 2026-11-08). Le retour à l'état
+ * d'accueil au clic (`notifySamePageNav`) reste réservé à `isSamePage`.
+ */
+export function isInSection(href: string, pathname: string): boolean {
+  if (isSamePage(href, pathname)) return true;
+  return LANGS.some((l) => stripSlash(href) === stripSlash(conceptMapPath(l))) && `${stripSlash(pathname)}/`.startsWith(`${stripSlash(href)}/`);
 }
 
 export function isSamePage(href: string, pathname: string): boolean {

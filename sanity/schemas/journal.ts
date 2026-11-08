@@ -822,6 +822,20 @@ export const journalAboutPage = defineType({
   preview: { prepare: () => ({ title: 'À propos du journal' }) },
 });
 
+/**
+ * « À propos de la Concept Map » (`/concept-map/a-propos/`, 2026-11-08) : même
+ * page en trois étages que l'« À propos » du journal, mêmes champs. Liée depuis
+ * la carte et depuis le panneau de la carte dans les articles. Vide : la page
+ * renvoie l'intro de la carte (`DICT.map.intro`) en un paragraphe.
+ */
+export const journalMapAboutPage = defineType({
+  name: 'journalMapAboutPage',
+  title: 'À propos de la Concept Map',
+  type: 'document',
+  fields: aboutFields(),
+  preview: { prepare: () => ({ title: 'À propos de la Concept Map' }) },
+});
+
 function aboutFields(translated = false): ReturnType<typeof defineField>[] {
   const fields = [
     defineField({
@@ -889,6 +903,7 @@ function aboutFields(translated = false): ReturnType<typeof defineField>[] {
 
 export const journalSchemas = [
   journalAboutPage,
+  journalMapAboutPage,
   post,
   journalSettings,
   journalSeries,

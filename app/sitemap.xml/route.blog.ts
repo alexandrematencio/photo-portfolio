@@ -1,7 +1,7 @@
 import { getAllArticles, getAllSeries } from '@/lib/journal/articles';
 import { SITE_INFO, withSlash } from '@/lib/seo/metadata';
 import { conceptMapAlternates } from '@/lib/journal/conceptMapData';
-import { LANGS, LOCALE, aboutPath, homePath } from '@/lib/journal/i18n';
+import { LANGS, LOCALE, aboutPath, conceptMapAboutPath, homePath } from '@/lib/journal/i18n';
 import type { Alternates } from '@/lib/journal/types';
 
 /**
@@ -43,6 +43,12 @@ export async function GET() {
     })),
     // La Concept Map : dans chaque langue où ses libellés existent.
     ...Object.values(mapAlternates).map((path) => ({ loc: abs(path!), lastmod: undefined as string | undefined, alternates: mapAlternates })),
+    // « À propos de la Concept Map » : comme celui du journal, dans les trois langues.
+    ...LANGS.map((l) => ({
+      loc: abs(conceptMapAboutPath(l)),
+      lastmod: undefined as string | undefined,
+      alternates: Object.fromEntries(LANGS.map((x) => [x, conceptMapAboutPath(x)])) as Alternates,
+    })),
     // Une série a changé quand l'un de ses articles a changé.
     ...series.map((s) => ({
       loc: abs(s.alternates[s.lang]!),

@@ -155,13 +155,17 @@ export type JournalAbout = {
  * Sinon, le français. `null` quand rien n'est publié — la page prend alors
  * son repli.
  */
-export async function getJournalAbout(lang: Lang = DEFAULT_LANG): Promise<JournalAbout | null> {
+export async function getJournalAbout(
+  lang: Lang = DEFAULT_LANG,
+  /** Le singleton lu : l'« À propos » du journal, ou celui de la Concept Map (mêmes champs). */
+  id: 'journalAboutPage' | 'journalMapAboutPage' = 'journalAboutPage',
+): Promise<JournalAbout | null> {
   if (!sanityClient) return null;
   const about = await sanityClient.fetch<JournalAbout | null>(
-    /* groq */ `*[_id == "journalAboutPage"][0]{
+    /* groq */ `*[_id == $id][0]{
       "src": select($lang != "fr" && count(translations[$lang].body) > 0 => translations[$lang], @)
     }.src{ body, questionsTitle, questions[]{ _key, question, answer }, sectionsTitle, sections[]{ _key, title, body } }`,
-    { lang },
+    { lang, id },
     { next: { revalidate: 60 } },
   );
   return about?.body?.length ? about : null;

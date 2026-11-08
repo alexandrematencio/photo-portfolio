@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import {
   createContext,
   useCallback,
@@ -16,7 +17,7 @@ import {
 import { StateDot } from '@/components/site/StateDot';
 import { CONTROL_RADIUS } from '@/lib/site/controls';
 import { frenchSpaces } from '@/lib/journal/french';
-import { conceptMapPath, DICT, type Lang } from '@/lib/journal/i18n';
+import { conceptMapAboutPath, conceptMapPath, DICT, type Lang } from '@/lib/journal/i18n';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import type { MapView } from '@/lib/journal/conceptMapData';
@@ -550,8 +551,12 @@ export function ArticleMap({ view, children }: { view: MapView; children: ReactN
           )}
           {shown && <MapPanel ix={ix} id={shown} onSelect={pick} rank={isMech && at >= 0 ? [at + 1, series.length] : undefined} />}
           {shown && (
-            <div className="border-t border-[var(--color-line)]" style={{ paddingTop: 16 }}>
+            <div className="flex flex-col gap-3 border-t border-[var(--color-line)]" style={{ paddingTop: 16 }}>
               <ReadLink href={`${conceptMapPath(view.lang)}#${HASH_KEY}=${encodeURIComponent(shown)}`}>{t.map.openFull}</ReadLink>
+              {/* Le mode d'emploi de la carte (2026-11-08), sous le lien principal, en retrait. */}
+              <Link href={conceptMapAboutPath(view.lang)} className={cn(MICRO_LABEL, 'w-fit text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]')}>
+                {t.map.aboutShort}
+              </Link>
             </div>
           )}
         </div>

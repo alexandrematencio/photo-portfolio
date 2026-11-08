@@ -74,6 +74,13 @@ export function conceptMapPath(lang: Lang = DEFAULT_LANG): string {
 }
 export const CONCEPT_MAP_PATH = conceptMapPath(DEFAULT_LANG);
 
+/** « À propos de la Concept Map » (2026-11-08), sous l'adresse de la carte. */
+const MAP_ABOUT_SEGMENT: Record<Lang, string> = { fr: 'a-propos', en: 'about', ru: 'o-karte' };
+
+export function conceptMapAboutPath(lang: Lang = DEFAULT_LANG): string {
+  return `${conceptMapPath(lang)}${MAP_ABOUT_SEGMENT[lang]}/`;
+}
+
 /** La langue d'une adresse du journal, lue sur son premier segment. */
 export function langOfPath(pathname: string | null): Lang {
   const first = pathname?.split('/')[1];
@@ -305,6 +312,12 @@ export type Dict = {
    */
   map: {
     intro: string;
+    /** Lien vers « À propos de la Concept Map », sous l'intro de la carte, et titre de cette page. */
+    aboutLink: string;
+    /** Le même lien, au pied du panneau de la carte dans un article. */
+    aboutShort: string;
+    /** Le H1 de cette page, comme « À propos » pour le journal ; le nom complet en est le chapô. */
+    aboutTitle: string;
     menuDetail: string;
     unavailable: string;
     theses: (n: number) => string;
@@ -596,6 +609,9 @@ export const DICT: Record<Lang, Dict> = {
     },
     journalHome: 'Journal — accueil',
     map: {
+      aboutLink: 'À propos de la Concept Map',
+      aboutShort: 'Comment lire la carte',
+      aboutTitle: 'À propos',
       intro: 'Les articles du journal décomposés en thèses, et les mécanismes qu’ils partagent d’un texte à l’autre. Chaque point mène au passage qui en parle.',
       menuDetail: 'thèses et mécanismes',
       unavailable: 'La carte n’est pas encore publiée.',
@@ -874,6 +890,9 @@ export const DICT: Record<Lang, Dict> = {
     },
     journalHome: 'Journal — home',
     map: {
+      aboutLink: 'About the Concept Map',
+      aboutShort: 'How to read the map',
+      aboutTitle: 'About',
       intro: 'The journal’s articles broken down into theses, and the mechanisms they share from one text to the next. Every point leads to the passage that talks about it.',
       menuDetail: 'theses and mechanisms',
       unavailable: 'The map is not available in English yet.',
@@ -1157,6 +1176,9 @@ export const DICT: Record<Lang, Dict> = {
     },
     journalHome: 'Журнал — главная',
     map: {
+      aboutLink: 'О Concept Map',
+      aboutShort: 'Как читать карту',
+      aboutTitle: 'О карте',
       intro: 'Статьи журнала, разобранные на тезисы, и механизмы, которые переходят из текста в текст. Каждая точка ведёт к отрывку, где о ней говорится.',
       menuDetail: 'тезисы и механизмы',
       unavailable: 'Карта пока не переведена на русский.',

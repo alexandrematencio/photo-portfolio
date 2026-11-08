@@ -23,7 +23,7 @@ import {
   summarize,
 } from '@/lib/journal/articles';
 import { frenchSpaces } from '@/lib/journal/french';
-import { DICT, LANGS, aboutPath, articlePath, conceptMapPath, homePath, seriesPath, type Lang } from '@/lib/journal/i18n';
+import { DICT, LANGS, aboutPath, articlePath, conceptMapAboutPath, conceptMapPath, homePath, seriesPath, type Lang } from '@/lib/journal/i18n';
 import type { JournalSeries } from '@/lib/journal/types';
 import { SITE_INFO, buildMetadata } from '@/lib/seo/metadata';
 import { JsonLd } from '@/components/seo/JsonLd';
@@ -32,6 +32,7 @@ import {
   blogJsonLd,
   blogPostingJsonLd,
   journalBreadcrumbJsonLd,
+  mapAboutBreadcrumbJsonLd,
   seriesBreadcrumbJsonLd,
   seriesJsonLd,
 } from '@/lib/seo/journal-jsonld';
@@ -202,6 +203,7 @@ export async function JournalConceptMap({ lang }: { lang: Lang }) {
       subtitle={
         <div className="flex flex-col gap-5" style={{ marginTop: 12 }}>
           <p className={cn(EDITORIAL_H3, 'max-w-[var(--editorial-measure)]')}>{frenchSpaces(t.map.intro)}</p>
+          <AboutLink href={conceptMapAboutPath(lang)} label={t.map.aboutLink} />
           {view && (
             <p className={cn(MICRO_LABEL, 'flex flex-wrap gap-x-4 gap-y-1 text-[var(--color-fg-muted)]')}>
               <span>{t.articles(count('article'))}</span>
@@ -228,6 +230,45 @@ export async function JournalConceptMap({ lang }: { lang: Lang }) {
       >
         <ConceptMapExplorer view={view} />
       </div>
+    </>
+  );
+}
+
+// ── À propos de la Concept Map ───────────────────────────────────────────
+
+const MAP_ABOUT_ALTERNATES = Object.fromEntries(LANGS.map((l) => [l, conceptMapAboutPath(l)]));
+
+export async function mapAboutMetadata(lang: Lang): Promise<Metadata> {
+  return buildMetadata({
+    title: DICT[lang].map.aboutLink,
+    description: DICT[lang].map.intro,
+    path: conceptMapAboutPath(lang),
+    image: `${SITE_INFO.url}/og-concept-map.png`,
+    lang,
+    alternates: MAP_ABOUT_ALTERNATES,
+  });
+}
+
+/**
+ * « À propos de la Concept Map » (2026-11-08) : la page de l'« À propos » du
+ * journal, appliquée au document « À propos de la Concept Map » du Studio.
+ * Vide, l'intro de la carte en tient lieu. Back : la carte.
+ */
+export async function JournalMapAbout({ lang }: { lang: Lang }) {
+  const t = DICT[lang];
+  const about = await getJournalAbout(lang, 'journalMapAboutPage');
+  return (
+    <>
+      <JsonLd data={mapAboutBreadcrumbJsonLd(lang, t.map.aboutLink)} />
+      <PageShell
+        title={t.map.aboutTitle}
+        back={<BackLink lang={lang} href={conceptMapPath(lang)} />}
+        language={<LanguageSwitch lang={lang} alternates={MAP_ABOUT_ALTERNATES} />}
+        centered
+      >
+        <PortableBody value={about?.body ?? undefined} variant="editorial" fallback={<p className={EDITORIAL_BODY}>{t.map.intro}</p>} />
+        {about && <AboutExtras about={about} />}
+      </PageShell>
     </>
   );
 }

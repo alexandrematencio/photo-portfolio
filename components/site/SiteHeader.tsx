@@ -13,6 +13,7 @@ import {
   NAV_LINKS,
   navHref,
   journalIsActive,
+  isInSection,
   isSamePage,
   notifySamePageNav,
 } from '@/lib/site/nav';
@@ -177,11 +178,13 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
               );
             }
             const active = isSamePage(link.href, pathname);
+            // Surligné aussi sur ses sous-pages (« À propos de la Concept Map ») ; le clic, lui, n'y ramène que depuis la page même.
+            const here = isInSection(link.href, pathname);
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                aria-current={active ? 'page' : undefined}
+                aria-current={here ? 'page' : undefined}
                 // Cliquer le lien de la page courante doit la RAMENER À SON
                 // ÉTAT D'ACCUEIL (cf. notifySamePageNav) : Next ne remonte pas
                 // la page, son état interne survivrait sinon intact.
@@ -211,7 +214,7 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
                 // Un `px-2` ici serait avalé sans le moindre signal, et le
                 // surlignage collerait au texte.
                 style={
-                  active
+                  here
                     ? { padding: ACTIVE_FILL_PADDING, borderRadius: CONTROL_RADIUS }
                     : undefined
                 }
@@ -231,7 +234,7 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
                   // géométrie du morph strictement inchangée. Padder les cinq
                   // élargirait la rangée de 80 px et ferait atterrir le morph
                   // à côté de sa cible.
-                  active && 'bg-[var(--color-active-bg)]'
+                  here && 'bg-[var(--color-active-bg)]'
                 )}
               >
                 {link.label}

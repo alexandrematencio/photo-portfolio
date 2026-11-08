@@ -601,6 +601,10 @@ function journalGroupNode(S: StructureBuilder) {
             .title('À propos du journal')
             .id('journalAboutPage')
             .child(S.document().schemaType('journalAboutPage').documentId('journalAboutPage')),
+          S.listItem()
+            .title('À propos de la Concept Map')
+            .id('journalMapAboutPage')
+            .child(S.document().schemaType('journalMapAboutPage').documentId('journalMapAboutPage')),
           // La Concept Map (2026-10-29) : écrite depuis le vault par
           // `map:build -- --write`, lecture seule ici — on n'y fait que Publish.
           S.divider(),

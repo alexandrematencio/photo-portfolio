@@ -17,6 +17,7 @@ import {
 import {
   HUB_NAV_LINKS,
   MOBILE_NAV_LINKS,
+  isInSection,
   isSamePage,
   journalIsActive,
   navHref,
@@ -193,7 +194,7 @@ export function MobileMenu({ journalMenu }: { journalMenu?: MenuEntry[] }) {
             }}
           >
             {MOBILE_LINKS.map((link) => {
-              const active = isSamePage(link.href, pathname);
+              const here = isInSection(link.href, pathname);
               const itemStyle = {
                 padding: ACTIVE_FILL_PADDING_MOBILE,
                 borderRadius: CONTROL_RADIUS,
@@ -204,7 +205,7 @@ export function MobileMenu({ journalMenu }: { journalMenu?: MenuEntry[] }) {
                 // reste noir (7,26:1 dessus). Le tiroir n'avait AUCUNE marque
                 // d'état alors que la nav desktop en a une — même navigation,
                 // deux grammaires.
-                active && 'bg-[var(--color-active-bg)]'
+                here && 'bg-[var(--color-active-bg)]'
               );
               // « All sites » (et « Journal » sur le blog) : un tiroir dans le
               // tiroir. La liste se déplie SOUS le libellé (grille 0fr → 1fr,
@@ -272,7 +273,7 @@ export function MobileMenu({ journalMenu }: { journalMenu?: MenuEntry[] }) {
                 <Link
                   key={link.href}
                   href={link.href}
-                  aria-current={active ? 'page' : undefined}
+                  aria-current={here ? 'page' : undefined}
                   onClick={() => {
                     setOpen(false);
                     // Même règle que la nav-bar desktop : le lien de la page
