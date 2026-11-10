@@ -140,7 +140,7 @@ export function rememberLang(lang: Lang): void {
 
 /**
  * Les mots de l'interface du journal. Le menu principal (All sites, Journal,
- * About) reste en anglais sur les trois langues, comme sur tout amatencio.com.
+ * Concept Map, et About dans All sites) reste en anglais sur les trois langues, comme sur tout amatencio.com.
  */
 /** Titre et description lus par les machines (<title>, <desc>), légende lue par tous. */
 type FigureText = { title: string; desc: string; legend: string };

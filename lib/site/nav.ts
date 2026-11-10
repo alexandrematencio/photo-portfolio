@@ -15,7 +15,7 @@
  */
 
 import { LANGS, conceptMapPath, type Lang } from '@/lib/journal/i18n';
-import { ABOUT_URL, HUB_URL, IS_BLOG, blogHref, photoHref } from './sites';
+import { ABOUT_URL, HUB_URL, IS_BLOG, blogHref, isHubPage, photoHref } from './sites';
 
 export type NavLink = {
   href: string;
@@ -62,14 +62,13 @@ export const navHref = (link: NavLink, lang: Lang) => link.localized?.(lang) ?? 
 export const NAV_LINKS: NavLink[] = IS_BLOG
   ? [
       // Le journal (blog.amatencio.com) : « All sites », puis « Journal » —
-      // un menu, surligné comme page active —, puis la page About du
-      // portfolio, qui porte le contact (ordre demandé par Alexandre le
-      // 2026-10-18). La Concept Map entre entre les deux (2026-10-29,
-      // demande Alexandre), dans la langue de la page (phase 5).
+      // un menu, surligné comme page active —, puis la Concept Map
+      // (2026-10-29, demande Alexandre), dans la langue de la page (phase 5).
+      // About n'est plus ici : il vit dans « All sites » (`aboutInSitesMenu`,
+      // 2026-11-10).
       { href: HUB_URL, label: 'All sites', menu: 'sites' },
       { href: '/', label: 'Journal', menu: 'journal' },
       { href: conceptMapPath('fr'), label: 'Concept Map', localized: conceptMapPath },
-      { href: ABOUT_URL, label: 'About' },
     ]
   : [
       { href: '/series', label: 'Series' },
@@ -82,14 +81,23 @@ export const NAV_LINKS: NavLink[] = IS_BLOG
 
 /**
  * Le menu des pages du HUB construites ici (About, `isHubPage`) : le glyph
- * ramène à amatencio.com, puis « All sites », puis About — actif. Ni Series ni
- * Archives : on n'est plus dans le portfolio (demande Alexandre, 2026-10-22).
- * Pas de morph sur ces pages : la rangée se cale à gauche, comme le journal.
+ * ramène à amatencio.com, puis « All sites », où About porte le voyant
+ * (`aboutInSitesMenu`). Ni Series ni Archives : on n'est plus dans le
+ * portfolio (demande Alexandre, 2026-10-22). Pas de morph sur ces pages : la
+ * rangée se cale à gauche, comme le journal.
  */
-export const HUB_NAV_LINKS: NavLink[] = [
-  { href: HUB_URL, label: 'All sites', menu: 'sites' },
-  { href: ABOUT_URL, label: 'About' },
-];
+export const HUB_NAV_LINKS: NavLink[] = [{ href: HUB_URL, label: 'All sites', menu: 'sites' }];
+
+/**
+ * RÈGLE (demande Alexandre, 2026-11-10) : sur tout site d'amatencio.com qui
+ * n'est PAS un portfolio (photo, design), About quitte la nav-bar et devient
+ * une rangée de « All sites ». Aujourd'hui : le journal et les pages du hub.
+ * Un portfolio garde About dans sa nav-bar (et le morph du hero en dépend,
+ * §3.6). Un nouveau site se range ici, jamais par une liste écrite à la main.
+ */
+export function aboutInSitesMenu(pathname: string | null): boolean {
+  return IS_BLOG || isHubPage(pathname);
+}
 
 /**
  * Les sites d'amatencio.com, dans le menu « All sites ». `href: null` : site
@@ -112,6 +120,20 @@ export const SITES: SiteEntry[] = [
   { label: 'Agency', host: 'aaxlo.com', href: 'https://www.aaxlo.com/', external: true },
   { label: 'Design', host: 'design.amatencio.com', href: null },
 ];
+
+/**
+ * Le panneau « All sites » : l'accueil principal en tête, About juste après
+ * quand la règle le veut, puis les sites. Libellé « Home » et ordre validés
+ * par Jev le 2026-11-10 (Home 0,84 ; en tête 0,92 ; About après Home 0,75) :
+ * la ligne de détail « amatencio.com » suffit à dire de quel accueil il
+ * s'agit. `SITES` reste la liste des seuls sites (le pied de page la lit).
+ */
+const HOME_ENTRY: SiteEntry = { label: 'Home', host: 'amatencio.com', href: HUB_URL };
+const ABOUT_ENTRY: SiteEntry = { label: 'About', host: 'amatencio.com/about', href: ABOUT_URL };
+
+export function sitesMenu(pathname: string | null): SiteEntry[] {
+  return [HOME_ENTRY, ...(aboutInSitesMenu(pathname) ? [ABOUT_ENTRY] : []), ...SITES];
+}
 
 /**
  * Liste complète affichée dans le drawer mobile : « Home » en tête, puis la

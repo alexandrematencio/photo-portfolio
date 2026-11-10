@@ -19,8 +19,8 @@ import {
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils/cn';
 import { CONTROL_RADIUS } from '@/lib/site/controls';
-import { SITES, isSamePage } from '@/lib/site/nav';
-import { hubSafeHref, isExternal, isHubPage } from '@/lib/site/sites';
+import { isSamePage, sitesMenu } from '@/lib/site/nav';
+import { ABOUT_URL, hubSafeHref, isExternal, isHubPage } from '@/lib/site/sites';
 import { MICRO_LABEL, MICRO_LABEL_XS } from '@/lib/site/typography';
 import { StateDot } from './StateDot';
 
@@ -55,7 +55,6 @@ export type MenuEntry = {
   here?: boolean;
 };
 
-const SITE_ENTRIES: MenuEntry[] = SITES.map(({ host, ...site }) => ({ ...site, detail: host }));
 
 /** Écart nav-bar → panneau. */
 const PANEL_OFFSET = 14;
@@ -150,7 +149,7 @@ function Row({ site, here, onNavigate }: { site: MenuEntry; here: boolean; onNav
 export function SitesList({
   onNavigate,
   className,
-  entries = SITE_ENTRIES,
+  entries,
 }: {
   onNavigate?: () => void;
   className?: string;
@@ -158,14 +157,22 @@ export function SitesList({
 }) {
   const pathname = usePathname();
   const onHub = isHubPage(pathname);
+  // À défaut d'`entries` : « All sites », composé selon la page (`sitesMenu`).
+  const rows = entries ?? sitesMenu(pathname).map(({ host, ...site }) => ({ ...site, detail: host }));
   return (
     <ul className={cn('flex flex-col', className)}>
-      {entries.map((site) => (
+      {rows.map((site) => (
         <Row
-          key={site.href ?? site.label}
+          // Nom ET adresse : en dev, Home et Photography visent le même localhost.
+          key={`${site.label}|${site.href}`}
           site={onHub && site.href ? { ...site, href: hubSafeHref(true, site.href) } : site}
-          // Sur une page du hub, aucun des sites listés n'est celui où l'on est.
-          here={!isHubPage(pathname) && (site.here ?? Boolean(site.href && !isExternal(site.href) && pathname && isSamePage(site.href, pathname)))}
+          // Sur une page du hub, la seule rangée « ici » est About : la page
+          // affichée. Ailleurs, le site que ce build produit, ou la page.
+          here={
+            onHub
+              ? site.href === ABOUT_URL
+              : (site.here ?? Boolean(site.href && !isExternal(site.href) && pathname && isSamePage(site.href, pathname)))
+          }
           onNavigate={onNavigate}
         />
       ))}
@@ -177,7 +184,7 @@ type TriggerProps = Omit<ComponentPropsWithoutRef<'a'>, 'children' | 'href'> & {
   label: string;
   /** Où mène le clic sur le déclencheur : le hub pour « All sites », l'accueil du journal pour « Journal ». */
   href: string;
-  /** Les rangées du panneau ; à défaut, les sites d'amatencio.com. */
+  /** Les rangées du panneau ; à défaut, « All sites » (`sitesMenu`). */
   entries?: MenuEntry[];
 };
 
