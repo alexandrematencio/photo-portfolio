@@ -70,6 +70,9 @@ export function extractUnits(post: SourcePost): Unit[] {
         add(`${id}.alt`, b.alt);
         add(`${id}.caption`, b.caption);
         break;
+      case 'journalVideo':
+        add(`${id}.caption`, b.caption);
+        break;
       // journalFigure : une figure dessinée, choisie dans une liste — rien à traduire.
     }
   }
@@ -140,6 +143,8 @@ export function applyUnits(post: SourcePost, translated: Unit[]): TranslatedFiel
       case 'journalPullQuote':
       case 'journalDraftBlock':
         return { ...copy, text: tIf(`${id}.text`, b.text) };
+      case 'journalVideo':
+        return { ...copy, caption: tIf(`${id}.caption`, b.caption) };
       case 'journalImage':
         return { ...copy, alt: tIf(`${id}.alt`, b.alt), caption: tIf(`${id}.caption`, b.caption) };
       case 'journalTable':

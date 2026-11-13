@@ -201,6 +201,10 @@ export type Dict = {
   close: string;
   /** Pastille d'une image du corps : l'ouvre en pleine taille (`ArticleImage`). */
   enlarge: string;
+  /** Vidéo (ArticleVideo) : le bouton, pourquoi le clic quitte le journal, l'onglet. */
+  watchOnYouTube: string;
+  videoNotice: string;
+  newTab: string;
   notes: string;
   /** Notes repliées dans la marge, faute de place : « + 2 notes · 26, 27 ». */
   foldedNotes: (ids: string[]) => string;
@@ -483,6 +487,9 @@ export const DICT: Record<Lang, Dict> = {
     toDecide: 'À trancher',
     close: 'Fermer',
     enlarge: 'Voir en grand',
+    watchOnYouTube: 'Regarder sur YouTube',
+    videoNotice: 'La vidéo s’ouvre sur YouTube. Ce journal n’intègre aucun lecteur extérieur : tant que vous ne cliquez pas, YouTube ne sait rien de votre visite.',
+    newTab: 'nouvel onglet',
     notes: 'Notes',
     foldedNotes: (ids) => `+ ${ids.length} note${ids.length > 1 ? 's' : ''} · ${ids.join(', ')}`,
     foldNotes: 'Replier',
@@ -764,6 +771,9 @@ export const DICT: Record<Lang, Dict> = {
     toDecide: 'To settle',
     close: 'Close',
     enlarge: 'View full size',
+    watchOnYouTube: 'Watch on YouTube',
+    videoNotice: 'The video opens on YouTube. This journal embeds no outside player: until you click, YouTube knows nothing of your visit.',
+    newTab: 'new tab',
     notes: 'Notes',
     foldedNotes: (ids) => `+ ${ids.length} note${ids.length > 1 ? 's' : ''} · ${ids.join(', ')}`,
     foldNotes: 'Collapse',
@@ -1046,6 +1056,9 @@ export const DICT: Record<Lang, Dict> = {
     toDecide: 'Решить',
     close: 'Закрыть',
     enlarge: 'Открыть целиком',
+    watchOnYouTube: 'Смотреть на YouTube',
+    videoNotice: 'Видео откроется на YouTube. Журнал не встраивает сторонние плееры: пока вы не нажмёте, YouTube ничего не знает о вашем посещении.',
+    newTab: 'новая вкладка',
     notes: 'Сноски',
     foldedNotes: (ids) => {
       const n = ids.length;

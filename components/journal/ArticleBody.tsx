@@ -20,6 +20,7 @@ import { StateDot } from '@/components/site/StateDot';
 import { DraftLabel, NoteCall, NoteRow, NotesProvider, type RowNote } from './Notes';
 import { JournalFigure } from './figures';
 import { ArticleImage } from './ArticleImage';
+import { ArticleVideo } from './ArticleVideo';
 import { Highlight } from './Highlight';
 import { PassageArrival } from './PassageArrival';
 import { VerdictTable } from './VerdictTable';
@@ -430,6 +431,21 @@ export function ArticleBody({
                   wide={block.wide}
                   enlargeLabel={DICT[lang].enlarge}
                   closeLabel={DICT[lang].close}
+                  style={{ marginTop: top(RHYTHM.object) }}
+                />
+              );
+            case 'video':
+              return (
+                <ArticleVideo
+                  key={i}
+                  id={block.id}
+                  title={block.title}
+                  poster={block.poster}
+                  caption={block.caption}
+                  lang={lang}
+                  watchLabel={DICT[lang].watchOnYouTube}
+                  notice={DICT[lang].videoNotice}
+                  newTab={DICT[lang].newTab}
                   style={{ marginTop: top(RHYTHM.object) }}
                 />
               );

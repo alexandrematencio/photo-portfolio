@@ -267,6 +267,53 @@ export const journalImage = defineType({
   },
 });
 
+/**
+ * Une vidéo YouTube dans le texte (2026-11-14, « Tout rentre dans le trou
+ * carré »). Aucun lecteur dans la page : le site montre l'affiche (servie par
+ * le CDN Sanity) habillée en lecteur, et un simple lien vers youtube.com. Aucune
+ * iframe, CSP inchangée (`frame-src 'none'`, décision d'Alexandre, docs/SECURITY.md).
+ */
+export const journalVideo = defineType({
+  name: 'journalVideo',
+  title: 'Vidéo YouTube',
+  type: 'object',
+  fields: [
+    defineField({
+      name: 'videoId',
+      title: 'Identifiant de la vidéo',
+      description: 'Les 11 caractères après « v= » dans l’adresse YouTube (youtube.com/watch?v=uKfTEQIKIsA → uKfTEQIKIsA).',
+      type: 'string',
+      validation: (Rule) =>
+        Rule.required().regex(/^[A-Za-z0-9_-]{11}$/, { name: 'identifiant YouTube' }),
+    }),
+    defineField({
+      name: 'title',
+      title: 'Titre de la vidéo',
+      description: 'Annoncé aux lecteurs d’écran sur le bouton de lecture.',
+      type: 'string',
+      validation: (Rule) => Rule.required().max(200),
+    }),
+    defineField({
+      name: 'poster',
+      title: 'Affiche',
+      description: 'L’image montrée avant le clic (la miniature YouTube, 16:9). Sans elle, un fond neutre.',
+      type: 'image',
+      validation: (Rule) => Rule.custom(assetWithinCap),
+    }),
+    defineField({
+      name: 'caption',
+      title: 'Légende',
+      description: 'Facultative, sous la vidéo.',
+      type: 'text',
+      rows: 2,
+    }),
+  ],
+  preview: {
+    select: { media: 'poster', title: 'title', id: 'videoId' },
+    prepare: ({ media, title, id }) => ({ title: title || id || 'Vidéo', subtitle: 'Vidéo YouTube', media }),
+  },
+});
+
 export const journalTable = defineType({
   name: 'journalTable',
   title: 'Tableau',
@@ -654,6 +701,7 @@ export const post = defineType({
         defineArrayMember({ type: 'journalPullQuote' }),
         defineArrayMember({ type: 'journalFigure' }),
         defineArrayMember({ type: 'journalImage' }),
+        defineArrayMember({ type: 'journalVideo' }),
         defineArrayMember({ type: 'journalTable' }),
         defineArrayMember({ type: 'journalVerdicts' }),
         defineArrayMember({ type: 'journalDraftBlock' }),
@@ -917,6 +965,7 @@ export const journalSchemas = [
   journalPullQuote,
   journalFigure,
   journalImage,
+  journalVideo,
   journalTable,
   journalVerdicts,
   journalDraftBlock,

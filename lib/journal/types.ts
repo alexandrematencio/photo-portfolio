@@ -65,6 +65,11 @@ export type ArticleBlock =
   | { type: 'figure'; name: FigureName }
   /** Image posée dans le texte. `wide` : toute la colonne, sinon la mesure de lecture. */
   | { type: 'image'; image: JournalImage; caption?: string; wide: boolean }
+  /**
+   * Vidéo YouTube : `id` validé (11 caractères sûrs), affiche servie par le
+   * CDN Sanity. Le lecteur n'est chargé qu'au clic (ArticleVideo).
+   */
+  | { type: 'video'; id: string; title: string; poster: JournalImage | null; caption?: string }
   | { type: 'table'; head: string[]; rows: string[][] }
   | { type: 'verdicts'; rows: Verdict[] }
   /** Paragraphe entier « à trancher » : une question laissée ouverte par l'auteur. */

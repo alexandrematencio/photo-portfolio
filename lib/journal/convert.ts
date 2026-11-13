@@ -87,6 +87,7 @@ export type PTBlock =
   | { _type: 'journalPullQuote'; text?: string }
   | { _type: 'journalFigure'; figure?: string }
   | { _type: 'journalImage'; image?: RawImage; caption?: string; wide?: boolean }
+  | { _type: 'journalVideo'; videoId?: string; title?: string; poster?: RawImage; caption?: string }
   | { _type: 'journalTable'; head?: string[]; rows?: { cells?: string[] }[] }
   | { _type: 'journalVerdicts'; rows?: Verdict[] }
   | { _type: 'journalDraftBlock'; text?: string };
@@ -167,6 +168,14 @@ function blocksOf(body: PTBlock[]): ArticleBlock[] {
       case 'journalImage': {
         const image = imageOf(b.image);
         if (image) blocks.push({ type: 'image', image, caption: b.caption?.trim() || undefined, wide: Boolean(b.wide) });
+        break;
+      }
+      case 'journalVideo': {
+        // L'identifiant finit dans une adresse : rien d'autre que les 11
+        // caractères d'un identifiant YouTube ne passe.
+        const id = b.videoId?.trim() ?? '';
+        if (/^[A-Za-z0-9_-]{11}$/.test(id))
+          blocks.push({ type: 'video', id, title: b.title?.trim() || 'YouTube', poster: imageOf(b.poster), caption: b.caption?.trim() || undefined });
         break;
       }
       case 'journalTable':

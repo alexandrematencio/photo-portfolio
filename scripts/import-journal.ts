@@ -5,6 +5,11 @@
  *   npm run import-journal                        → dry-run : ce qui serait écrit
  *   npm run import-journal -- --yes               → écrit les articles en BROUILLONS
  *   npm run import-journal -- --yes --publish     → écrit les articles publiés
+ *   … -- --only <slug>                            → un seul fichier (les autres
+ *     articles du dossier sont déjà dans le Studio : ne pas les écraser)
+ *
+ * En-tête facultatif : `tags: A, B` (thématiques existantes, par nom),
+ * `cover: <chemin d'image>` et `coverAlt:` (couverture téléversée).
  *
  * Idempotent : `_id` déterministes (`post-<fichier>`, `journalSeries-<slug>`),
  * `createOrReplace`, en UNE transaction. Les blocs d'un article déjà présent
@@ -26,7 +31,8 @@
  * Markdown accepté (celui des brouillons d'Alexandre) : en-tête `---`
  * (title, dek, series, part, date, referencesNote), `## intertitre`,
  * `> citation en exergue`, tableaux `|`, tableau à colonne « Famille » =
- * bilan de verdicts, `{{figure:loop}}`, `[^clé]: référence`, et en ligne
+ * bilan de verdicts, `{{figure:loop}}`, `{{youtube:<id>|<titre>}}` (vidéo, affiche
+ * = miniature YouTube téléversée dans Sanity), `[^clé]: référence`, et en ligne
  * **gras**, *emphase*, _titre d'œuvre_, ==surligné==, `[^clé]` (appel), `[question]`
  * (note à trancher ; seule sur sa ligne = paragraphe à trancher).
  */
@@ -35,6 +41,7 @@ import { randomBytes } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { reuseKeys, type KeyedBlock } from '../lib/journal/stableKeys';
+import { prepareForWeb } from './prepare-image';
 
 const PROJECT_ID = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
 const DATASET = process.env.NEXT_PUBLIC_SANITY_DATASET ?? 'production';
@@ -43,6 +50,7 @@ const WRITE_TOKEN = process.env.SANITY_API_WRITE_TOKEN;
 const APPLY = process.argv.includes('--yes');
 const PUBLISH = process.argv.includes('--publish');
 const DIR = path.join(process.cwd(), 'content/journal');
+const ONLY = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : undefined;
 
 if (!PROJECT_ID) throw new Error('NEXT_PUBLIC_SANITY_PROJECT_ID manquant');
 if (APPLY && !WRITE_TOKEN) throw new Error('SANITY_API_WRITE_TOKEN manquant (.env.local)');
@@ -57,6 +65,16 @@ type Doc = Record<string, unknown> & { _id: string; _type: string };
 // l'ancre publique de son paragraphe. Un réimport reprend les clés de
 // l'article existant (`reuseKeys`) ; seuls les blocs neufs gardent celle-ci.
 const key = () => `k${randomBytes(5).toString('hex')}`;
+
+/** Tout dépôt d'image passe par `prepareForWeb` (plafond 2048 px, signature) : CLAUDE.md §11.12. */
+async function uploadImage(name: string, source: Buffer) {
+  const prepared = await prepareForWeb(name, source);
+  const asset = await client.assets.upload('image', prepared.buffer, {
+    filename: `${path.basename(name, path.extname(name))}.${prepared.ext}`,
+    contentType: prepared.contentType,
+  });
+  return { _type: 'image' as const, asset: { _type: 'reference' as const, _ref: asset._id } };
+}
 
 function slugify(s: string) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -97,6 +115,11 @@ function parse(file: string) {
     if (chunk.startsWith('## ')) body.push(block('h2', chunk.slice(3)));
     else if (chunk.startsWith('> ')) body.push({ _type: 'journalPullQuote', _key: key(), text: chunk.slice(2) });
     else if (chunk === '{{figure:loop}}') body.push({ _type: 'journalFigure', _key: key(), figure: 'loop' });
+    else if (chunk.startsWith('{{youtube:')) {
+      const v = chunk.match(/^\{\{youtube:([A-Za-z0-9_-]{11})\|([^}]+)\}\}$/);
+      if (!v) throw new Error(`${file} : vidéo illisible « ${chunk} » (attendu {{youtube:<id>|<titre>}})`);
+      body.push({ _type: 'journalVideo', _key: key(), videoId: v[1], title: v[2].trim() });
+    }
     else if (chunk.startsWith('[^')) {
       for (const line of chunk.split('\n')) {
         const r = line.match(/^\[\^([a-z0-9]+)\]:\s*(.+)$/);
@@ -125,7 +148,9 @@ async function main() {
   const seriesIds = new Map<string, string>();
   const report: string[] = [];
 
-  for (const file of readdirSync(DIR).filter((f) => f.endsWith('.md')).sort()) {
+  const files = readdirSync(DIR).filter((f) => f.endsWith('.md') && (!ONLY || f === `${ONLY}.md`)).sort();
+  if (ONLY && !files.length) throw new Error(`--only ${ONLY} : content/journal/${ONLY}.md introuvable`);
+  for (const file of files) {
     const slug = file.replace(/\.md$/, '');
     const { meta, body, references } = parse(file);
     for (const k of ['title', 'dek', 'date']) if (!meta[k]) throw new Error(`${file} : « ${k} » manquant`);
@@ -167,6 +192,41 @@ async function main() {
     const reused = kept.filter((b) => (existing?.body ?? []).some((e) => e._key === b._key)).length;
     if (existing) report.push(`  ${slug.padEnd(34)} clés reprises : ${reused}/${kept.length}`);
 
+    // Thématiques : par nom, parmi celles qui existent déjà (jamais créées ici).
+    let tags: { _type: 'reference'; _ref: string; _key: string }[] | undefined;
+    if (meta.tags) {
+      const names = meta.tags.split(',').map((t) => t.trim()).filter(Boolean);
+      const found = await client.fetch<{ _id: string; title: string }[]>(`*[_type == "journalTag" && title in $names && !(_id in path("drafts.**"))]{ _id, title }`, { names });
+      const missing = names.filter((n) => !found.some((f) => f.title === n));
+      if (missing.length) throw new Error(`${file} : thématique inconnue « ${missing.join(', ')} »`);
+      tags = names.map((n) => ({ _type: 'reference', _ref: found.find((f) => f.title === n)!._id, _key: key() }));
+    }
+
+    // Affiches des vidéos (miniature YouTube) et couverture : téléversées
+    // seulement avec --yes. Un réimport reprend l'affiche déjà posée.
+    const prev = await client.fetch<{ body?: { _type: string; videoId?: string; poster?: unknown }[]; cover?: unknown } | null>(
+      `coalesce(*[_id == $draft][0], *[_id == $id][0]){ body, cover }`,
+      { id: `post-${slug}`, draft: `drafts.post-${slug}` },
+    );
+    for (const b of body as { _type: string; videoId?: string; poster?: unknown }[]) {
+      if (b._type !== 'journalVideo') continue;
+      const old = prev?.body?.find((o) => o._type === 'journalVideo' && o.videoId === b.videoId)?.poster;
+      if (old) b.poster = old;
+      else if (APPLY) {
+        for (const q of ['maxresdefault', 'hqdefault']) {
+          const res = await fetch(`https://i.ytimg.com/vi/${b.videoId}/${q}.jpg`);
+          if (!res.ok) continue;
+          b.poster = await uploadImage(`youtube-${b.videoId}.jpg`, Buffer.from(await res.arrayBuffer()));
+          break;
+        }
+      }
+    }
+    let cover: unknown = prev?.cover;
+    if (meta.cover && APPLY) {
+      const file = path.resolve(DIR, meta.cover);
+      cover = { ...(await uploadImage(file, readFileSync(file))), ...(meta.coverAlt ? { alt: meta.coverAlt } : {}) };
+    }
+
     docs.push({
       _id: `${PUBLISH ? '' : 'drafts.'}post-${slug}`,
       _type: 'post',
@@ -178,13 +238,15 @@ async function main() {
       body: kept,
       references,
       ...(meta.referencesNote ? { referencesNote: meta.referencesNote } : {}),
+      ...(tags ? { tags } : {}),
+      ...(cover ? { cover } : {}),
     });
 
     const count = (t: string) => (flat.match(new RegExp(`"_type":"${t}"`, 'g')) ?? []).length;
     report.push(
       `  ${slug.padEnd(34)} ${String(count('block')).padStart(3)} blocs · ${count('journalPullQuote')} citations · ` +
         `${count('journalNoteRef')} appels / ${references.length} réf. · ${count('journalDraftNote') + count('journalDraftBlock')} à trancher · ` +
-        `${count('journalTable')} tableau · ${count('journalVerdicts')} bilan · ${count('journalFigure')} figure`,
+        `${count('journalTable')} tableau · ${count('journalVerdicts')} bilan · ${count('journalFigure')} figure · ${count('journalVideo')} vidéo`,
     );
   }
 
