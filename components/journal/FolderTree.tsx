@@ -91,7 +91,7 @@ export function Folder({
         aria-controls={id}
         onClick={onToggle}
         className={cn(
-          'flex w-full items-center gap-[8px] text-left font-mono text-[13px] leading-none transition-colors duration-200 motion-reduce:transition-none',
+          'flex w-full items-center gap-[8px] text-left font-sans text-[13px] leading-none transition-colors duration-200 motion-reduce:transition-none',
           down ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]',
         )}
         style={{ paddingBlock: roomy ? 12 : 8 }}
@@ -212,12 +212,14 @@ function LsEntry({
 }
 
 /**
- * La fonte d'une entrée : `ls`, chasse fixe à 13 px (accueil du journal) ;
+ * Jamais de chasse fixe ici (garde-fou : scripts/check-journal-type.ts).
+ *
+ * La fonte d'une entrée : `ls`, Inter à 13 px (accueil du journal) ;
  * `index`, Switzer à 12 px (thèses/ et mécanismes/ de la Concept Map,
  * demande Alexandre du 2026-10-29).
  */
 type EntryType = 'ls' | 'index';
-const ENTRY_TYPE: Record<EntryType, string> = { ls: 'font-mono text-[13px]', index: 'font-[family-name:var(--font-index)] text-[12px]' };
+const ENTRY_TYPE: Record<EntryType, string> = { ls: 'font-sans text-[13px]', index: 'font-[family-name:var(--font-index)] text-[12px]' };
 const ENTRY_SIZE: Record<EntryType, number> = { ls: 13, index: 12 };
 
 /** Centre de la première ligne d'une entrée : corps × 1,3 d'interligne. */
@@ -317,7 +319,7 @@ export function FolderPeek({
       <button
         type="button"
         onClick={onMore}
-        className="w-fit text-left font-mono text-[13px] italic leading-[1.3] text-[var(--color-fg-muted)] transition-colors duration-200 hover:text-[var(--color-fg)] motion-reduce:transition-none"
+        className="w-fit text-left font-sans text-[13px] italic leading-[1.3] text-[var(--color-fg-muted)] transition-colors duration-200 hover:text-[var(--color-fg)] motion-reduce:transition-none"
         style={{ paddingBlock: ITEM_PAD, marginLeft: TREE_INDENT }}
       >
         <span aria-hidden>- </span>
