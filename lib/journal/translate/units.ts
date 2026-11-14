@@ -144,7 +144,9 @@ export function applyUnits(post: SourcePost, translated: Unit[]): TranslatedFiel
       case 'journalDraftBlock':
         return { ...copy, text: tIf(`${id}.text`, b.text) };
       case 'journalVideo':
-        return { ...copy, caption: tIf(`${id}.caption`, b.caption) };
+        // Sans légende, le bloc reste tel quel : poser `caption: undefined`
+        // changerait l'objet (check-translate-markup, étage 1, 2026-11-14).
+        return b.caption === undefined ? copy : { ...copy, caption: tIf(`${id}.caption`, b.caption) };
       case 'journalImage':
         return { ...copy, alt: tIf(`${id}.alt`, b.alt), caption: tIf(`${id}.caption`, b.caption) };
       case 'journalTable':
