@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type GsapDefault from 'gsap';
 type Gsap = typeof GsapDefault;
-import { ChevronDown } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
 import { GlyphLogo } from './GlyphLogo';
 import {
   SPLASH_REVEAL_EVENT,
@@ -533,7 +533,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
         className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 cursor-pointer bg-transparent border-0 p-2 -m-2"
         style={{ opacity: 0 }}
       >
-        <ChevronDown
+        <ArrowDown
           size={26}
           strokeWidth={1.5}
           className="scroll-cue text-[var(--color-fg)]"

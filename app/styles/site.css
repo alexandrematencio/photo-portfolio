@@ -426,7 +426,7 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
 .scroll-cue {
   animation: scroll-cue 2.4s ease-in-out infinite;
 }
-/* Épaisseur du chevron de la home SOUS `md` (demande Alexandre, 2026-08-23 :
+/* Épaisseur de la flèche de la home SOUS `md` (demande Alexandre, 2026-08-23 :
    « peu visible » sur téléphone). 1,5 px à 26 px de haut, c'est le rapport
    trait/taille le plus fin du site (0,058) — et l'animation le laisse à 45 %
    d'opacité la moitié du cycle. 2,25 le remonte à 0,087, au-dessus des
