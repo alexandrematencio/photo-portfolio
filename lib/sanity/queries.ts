@@ -133,6 +133,11 @@ export type SiteSettings = {
     revealImage?: HeroImage;
   };
   aboutBody?: unknown[];
+  /** Les étages de /about après le texte (même gabarit que le journal : `JournalAbout`). */
+  aboutQuestionsTitle?: string | null;
+  aboutQuestions?: { _key: string; question: string; answer: unknown[] | null }[] | null;
+  aboutSectionsTitle?: string | null;
+  aboutSections?: { _key: string; title: string; body: unknown[] | null }[] | null;
   contactBody?: unknown[];
   digitalAgencyBody?: unknown[];
   socialsBody?: unknown[];
@@ -205,6 +210,10 @@ const siteSettingsQuery = groq`
     "homeSeo": *[_id == "homePage"][0].seo,
     "aboutBody": *[_id == "aboutPage"][0].body,
     "aboutSeo": *[_id == "aboutPage"][0].seo,
+    "aboutQuestionsTitle": *[_id == "aboutPage"][0].questionsTitle,
+    "aboutQuestions": *[_id == "aboutPage"][0].questions[]{ _key, question, answer },
+    "aboutSectionsTitle": *[_id == "aboutPage"][0].sectionsTitle,
+    "aboutSections": *[_id == "aboutPage"][0].sections[]{ _key, title, body },
     "contactBody": *[_id == "contactPage"][0].body,
     "digitalAgencyBody": *[_id == "digitalAgencyPage"][0].body,
     "socialsBody": *[_id == "socialsPage"][0].body,

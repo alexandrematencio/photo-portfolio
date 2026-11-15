@@ -170,6 +170,66 @@ const homePageSchema = defineType({
   preview: { prepare: () => ({ title: HOME_PAGE.title }) },
 });
 
+/**
+ * Les deux étages de /about qui suivent le texte principal (2026-11-16) : même
+ * gabarit que « À propos de ce journal » (`aboutFields`, journal.ts) — un
+ * encart de questions toujours ouvert, puis des compléments repliés. Mêmes
+ * noms de champs, donc `AboutExtras` (components/journal/AboutPage.tsx) les
+ * rend tels quels. Pas de traductions : le site du portfolio est en anglais.
+ */
+function aboutExtraFields() {
+  return [
+    defineField({
+      name: 'questionsTitle',
+      title: 'Titre de l’encart de questions',
+      description: 'Ex. « Questions people ask first ». Vide : pas d’encart.',
+      type: 'string',
+    }),
+    defineField({
+      name: 'questions',
+      title: 'Questions (encart, toujours visible)',
+      description: 'Les questions qu’un lecteur se pose avant de lire. Réponses courtes : elles restent ouvertes.',
+      type: 'array',
+      of: [
+        defineArrayMember({
+          name: 'aboutQuestion',
+          title: 'Question',
+          type: 'object',
+          fields: [
+            defineField({ name: 'question', title: 'Question', type: 'string', validation: (Rule) => Rule.required() }),
+            defineField({ name: 'answer', title: 'Réponse', type: 'array', of: [editorialBlockType] }),
+          ],
+          preview: { select: { title: 'question' } },
+        }),
+      ],
+    }),
+    defineField({
+      name: 'sectionsTitle',
+      title: 'Titre des compléments',
+      description: 'Ex. « More about me ». Vide : pas de titre au-dessus des sections.',
+      type: 'string',
+    }),
+    defineField({
+      name: 'sections',
+      title: 'Compléments (repliés, se déplient au clic)',
+      description: 'Une section par sujet : parcours, photographie, matériel. Le lecteur ne voit que le titre tant qu’il n’ouvre pas.',
+      type: 'array',
+      of: [
+        defineArrayMember({
+          name: 'aboutSection',
+          title: 'Section',
+          type: 'object',
+          fields: [
+            defineField({ name: 'title', title: 'Titre', type: 'string', validation: (Rule) => Rule.required() }),
+            defineField({ name: 'body', title: 'Texte', type: 'array', of: [editorialBlockType] }),
+          ],
+          preview: { select: { title: 'title' } },
+        }),
+      ],
+    }),
+  ];
+}
+
 const bodyPageSchemas = BODY_PAGES.map((page) =>
   defineType({
     name: page.type,
@@ -183,9 +243,7 @@ const bodyPageSchemas = BODY_PAGES.map((page) =>
         of: [editorialBlockType],
         description: editorialBodyDescription(page.intro),
       }),
-      ...(page.type === 'aboutPage'
-        ? [seoField(SEO_DEFAULTS.about, 'la page amatencio.com/about')]
-        : []),
+      ...(page.type === 'aboutPage' ? [...aboutExtraFields(), seoField(SEO_DEFAULTS.about, 'la page amatencio.com/about')] : []),
     ],
     preview: { prepare: () => ({ title: page.title }) },
   })

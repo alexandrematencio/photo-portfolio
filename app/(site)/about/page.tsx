@@ -10,12 +10,18 @@ import { breadcrumbJsonLd, personJsonLd } from '@/lib/seo/jsonld';
 import { SEO_DEFAULTS } from '@/lib/seo/defaults';
 import { AUTHOR_FULL_NAME } from '@/lib/site/author';
 import { HUB_URL, hubHref } from '@/lib/site/sites';
+import { AboutExtras } from '@/components/journal/AboutPage';
 
 /**
  * LA page About — la seule des sites, hors celle du journal (2026-10-22).
  * Construite ici, servie par Caddy sous `amatencio.com/about/` : la canonical
  * et le fil d'Ariane désignent donc le hub, pas le portfolio. Elle porte aussi
  * l'ancienne page Digital Agency, à la suite, sous `#digital-agency`.
+ *
+ * Trois étages depuis le 2026-11-16, comme « À propos de ce journal » : le
+ * texte principal, un encart de questions toujours ouvert, des compléments
+ * repliés (`AboutExtras`, mêmes champs que le journal). Le bloc DIGITAL AGENCY
+ * suit, en dernier.
  *
  * Titre et description : Studio → Pages → About → « Référencement (Google) ».
  */
@@ -61,9 +67,16 @@ Art Director for 8 years, photographer by way of cinema. Edit this copy from Stu
 export default async function AboutPage() {
   const settings = await getSiteSettings();
   const agencyBody = settings?.digitalAgencyBody ?? [];
-  const aboutBody = settings?.aboutBody
-    ? [...settings.aboutBody, ...(agencyBody.length ? [AGENCY_HEADING, ...agencyBody] : [])]
-    : undefined;
+  const aboutBody = settings?.aboutBody;
+  // Les étages ne se montrent que si le Studio en a publié ; `body` n'est pas
+  // lu par `AboutExtras`, il rend seulement l'encart et les compléments.
+  const extras = {
+    body: null,
+    questionsTitle: settings?.aboutQuestionsTitle ?? null,
+    questions: settings?.aboutQuestions ?? null,
+    sectionsTitle: settings?.aboutSectionsTitle ?? null,
+    sections: settings?.aboutSections ?? null,
+  };
 
   return (
     <>
@@ -100,6 +113,15 @@ export default async function AboutPage() {
                 }
               />
             </TextReveal>
+            <AboutExtras about={extras} />
+            {/* Hors du texte principal : un second `PortableBody` ouvrirait sur
+                un second chapô, d'où `lead={false}` ; l'écart de 64 est celui
+                d'un H2 du corps, que l'index 0 ne reçoit pas. */}
+            {aboutBody && agencyBody.length > 0 && (
+              <div style={{ marginTop: 64 }}>
+                <PortableBody value={[AGENCY_HEADING, ...agencyBody]} variant="editorial" lead={false} />
+              </div>
+            )}
           </div>
         </div>
       </PageShell>
