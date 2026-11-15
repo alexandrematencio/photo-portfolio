@@ -31,7 +31,7 @@ type SiteHeaderProps = {
 
 /**
  * Nav-bar globale, identique sur toutes les pages publiques.
- * Layout : full-width flex space-between, [32px PAD_LEFT] LOGO ─ Series ─ Archives ─ About ─ Journal ─ All sites [64px PAD_RIGHT].
+ * Layout : full-width flex space-between, [32px PAD_LEFT] LOGO ─ Series ─ Work ─ Archives ─ About ─ All sites [64px PAD_RIGHT].
  * Cohérent pixel-pour-pixel avec l'état final du morph hero de la home.
  * Masqué sur `/` (le HomeHero gère son propre morph qui devient la nav-bar).
  *

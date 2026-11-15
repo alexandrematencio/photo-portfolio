@@ -1,4 +1,4 @@
-import { defineField, defineType } from 'sanity';
+import { defineArrayMember, defineField, defineType } from 'sanity';
 import {
   editorialBlockType,
   editorialBodyDescription,
@@ -93,8 +93,20 @@ const BODY_PAGES: (PageDoc & { intro: string })[] = [
   },
 ];
 
+/**
+ * La page /work (2026-11-15) : l'étage entre /series (des récits) et
+ * /archives (le fonds complet). Elle CLASSE au lieu de raconter : une
+ * collection par genre (Street, Portraits, Archi & Shapes…), un onglet chacune.
+ *
+ * Une collection EST un document `series` : appartenance (`photo.series`),
+ * ordre (`photoOrder`), cover et page indexable `/series/[slug]` restent ceux
+ * de la série — rien à dupliquer ni à migrer. Une série listée ici quitte la
+ * rangée de /series ; la retirer de la liste l'y renvoie. C'est tout le geste.
+ */
+export const WORK_PAGE: PageDoc = { type: 'workPage', title: 'Work', path: '/work/' };
+
 /** Toutes les pages, dans l'ordre de la rubrique « Pages ». */
-export const PAGE_DOCS: PageDoc[] = [HUB_PAGE, HOME_PAGE, ...BODY_PAGES];
+export const PAGE_DOCS: PageDoc[] = [HUB_PAGE, HOME_PAGE, WORK_PAGE, ...BODY_PAGES];
 
 /** Les pages servies sur le HUB plutôt que sur le portfolio (productionUrl). */
 export const HUB_PAGE_TYPES = new Set([HUB_PAGE.type, 'aboutPage', 'digitalAgencyPage']);
@@ -179,4 +191,23 @@ const bodyPageSchemas = BODY_PAGES.map((page) =>
   })
 );
 
-export const pageSchemas = [hubPageSchema, homePageSchema, ...bodyPageSchemas];
+const workPageSchema = defineType({
+  name: WORK_PAGE.type,
+  title: WORK_PAGE.title,
+  type: 'document',
+  fields: [
+    defineField({
+      name: 'collections',
+      title: 'Collections (onglets de la page Work)',
+      type: 'array',
+      of: [defineArrayMember({ type: 'reference', to: [{ type: 'series' }] })],
+      description:
+        'Les séries affichées sur /work, une par onglet, dans cet ordre (glisser-déposer). Une série listée ici QUITTE la page Series ; retire-la de la liste pour l’y renvoyer. Ses photos, leur ordre et sa cover se règlent toujours dans la série elle-même. ' +
+        PUBLISH_HINT,
+      validation: (Rule) => Rule.unique(),
+    }),
+  ],
+  preview: { prepare: () => ({ title: WORK_PAGE.title }) },
+});
+
+export const pageSchemas = [hubPageSchema, homePageSchema, workPageSchema, ...bodyPageSchemas];

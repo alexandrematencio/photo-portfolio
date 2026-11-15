@@ -147,3 +147,28 @@ export function seriesFacts(photos: Photo[]): string {
     .filter(Boolean)
     .join(' · ');
 }
+
+/**
+ * Le partage entre /series et /work (2026-11-15). Une série listée dans
+ * `workPage.collections` est une COLLECTION : elle quitte la rangée de
+ * /series et devient un onglet de /work, dans l'ordre de cette liste.
+ *
+ * ⚠️ Partage fait à la LECTURE, jamais en base : la série ne change pas, sa
+ * page `/series/[slug]` reste en ligne (adresse déjà indexée, sitemap
+ * inchangé). Les deux pages appellent cette fonction, et elle seule.
+ */
+export function splitSeriesAndWork(
+  raw: SeriesWithPhotos[],
+  seriesOrderRefs: string[] | null,
+  workRefs: string[] | null
+): { series: PreparedSeries[]; work: PreparedSeries[] } {
+  const inWork = new Set(workRefs ?? []);
+  const all = prepareSeries(raw, seriesOrderRefs);
+  return {
+    series: all.filter((s) => !inWork.has(s._id)),
+    work: applyOrder(
+      all.filter((s) => inWork.has(s._id)),
+      workRefs
+    ),
+  };
+}

@@ -277,6 +277,7 @@ export async function getPhotosBySeries(slug: string): Promise<Photo[]> {
 const seriesWithPhotosQuery = groq`
 {
   "seriesOrderRefs": *[_type == "siteSettings"][0].seriesOrder[]._ref,
+  "workRefs": *[_id == "workPage"][0].collections[]._ref,
   "items": *[_type == "series"] | order(order asc, title asc) {
     ${seriesProjection},
     "coverRef": coverPhoto._ref,
@@ -289,11 +290,13 @@ const seriesWithPhotosQuery = groq`
 export type SeriesWithPhotosResult = {
   /** Ordre des piles sur /series (`siteSettings.seriesOrder`) — clé de tri. */
   seriesOrderRefs: string[] | null;
+  /** Séries rangées sur /work (`workPage.collections`), dans leur ordre. */
+  workRefs: string[] | null;
   items: SeriesWithPhotos[];
 };
 
 export async function getSeriesWithPhotos(): Promise<SeriesWithPhotosResult> {
-  if (!sanityClient) return { seriesOrderRefs: null, items: [] };
+  if (!sanityClient) return { seriesOrderRefs: null, workRefs: null, items: [] };
   return sanityClient.fetch<SeriesWithPhotosResult>(seriesWithPhotosQuery, {}, {
     next: { revalidate: 60 },
   });

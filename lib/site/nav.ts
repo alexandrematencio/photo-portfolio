@@ -71,11 +71,15 @@ export const NAV_LINKS: NavLink[] = IS_BLOG
       { href: conceptMapPath('fr'), label: 'Concept Map', localized: conceptMapPath },
     ]
   : [
+      // 2026-11-15 : « Work » entre, « Journal » sort — même geste, cinq
+      // entrées comme avant. Le journal vit dans « All sites » (`SITES`),
+      // comme partout ailleurs que sur amatencio.com. Series raconte, Work
+      // classe, Archives conserve : du plus édité au fonds complet.
       { href: '/series', label: 'Series' },
+      { href: '/work', label: 'Work' },
       { href: '/archives', label: 'Archives' },
       // LA page About vit sur le hub (2026-10-22) : adresse absolue.
       { href: ABOUT_URL, label: 'About' },
-      { href: blogHref('/'), label: 'Journal' },
       { href: HUB_URL, label: 'All sites', menu: 'sites' },
     ];
 

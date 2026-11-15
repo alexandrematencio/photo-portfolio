@@ -41,6 +41,7 @@ export async function SiteFooter() {
           <p className="footer-label">Work</p>
           <ul className="footer-links">
             <li><Link href={toPhoto('/series/')}>Series</Link></li>
+            <li><Link href={toPhoto('/work/')}>Work</Link></li>
             <li><Link href={toPhoto('/archives/')}>Archives</Link></li>
           </ul>
         </div>

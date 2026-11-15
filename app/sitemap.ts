@@ -18,6 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // am-home qui l'annonce, pas celui du portfolio (2026-10-22).
     '/series',
     ...seriesRoutes,
+    '/work',
     '/archives',
     '/contact',
     '/legal',

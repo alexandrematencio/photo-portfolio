@@ -1,6 +1,6 @@
 import { SeriesExperience } from '@/components/series/SeriesExperience';
 import { getSeriesWithPhotos } from '@/lib/sanity/queries';
-import { prepareSeries } from '@/lib/site/series';
+import { splitSeriesAndWork } from '@/lib/site/series';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { breadcrumbJsonLd, imageGalleryJsonLd, pageUrl } from '@/lib/seo/jsonld';
@@ -15,8 +15,9 @@ export const metadata = buildMetadata({
 export const revalidate = 60;
 
 export default async function SeriesPage() {
-  const { items, seriesOrderRefs } = await getSeriesWithPhotos();
-  const series = prepareSeries(items, seriesOrderRefs);
+  const { items, seriesOrderRefs, workRefs } = await getSeriesWithPhotos();
+  // Les collections de /work n'ont pas leur pile ici (cf. splitSeriesAndWork).
+  const { series } = splitSeriesAndWork(items, seriesOrderRefs, workRefs);
 
   if (series.length === 0) {
     return (
