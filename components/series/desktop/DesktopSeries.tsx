@@ -133,7 +133,7 @@ export function DesktopSeries({
     }
     return p;
   }, []);
-  const { footerShown, footerTween, scrollContainer, showFooter, flattenPage } =
+  const { footerShown, footerTween, scrollContainer, showFooter, flattenPage, keepPageFlat } =
     useFooterReserve(sceneRef, rowRef, reduced);
 
   // La prop reste la source de vérité ; les commits éagers (vol interrompu,
@@ -501,7 +501,20 @@ export function DesktopSeries({
   }, [phase, displayed, reduced, onClose, onSelectPhoto, keepThumbVisible]);
 
   // Molette, footer et cliquer-glisser de la rangée : `useRowGestures.ts`.
-  useRowGestures({ sceneRef, rowRef, phase, scrollContainer, showFooter, footerShown, footerTween });
+  // Molette en vue ouverte : un geste NEUF contre un bout de l'album passe à
+  // la série voisine, par le même chemin que ↑ / ↓ qui débordent — la
+  // suivante sur sa première photo, la précédente sur sa dernière (colonne
+  // posée en bas, demande Alexandre 2026-11-15).
+  const onAlbumEdge = useCallback((dir: 1 | -1) => {
+    if (switchChainRef.current) return;
+    const entry: 'first' | 'last' = dir === 1 ? 'first' : 'last';
+    const chain = chainRef.current;
+    if (chain) chain.pendingSwitch ??= { dir, entry };
+    else if (!animating.current) goToSeriesRef.current(dir, entry);
+  }, []);
+  useRowGestures({
+    sceneRef, rowRef, phase, scrollContainer, showFooter, footerShown, footerTween, keepPageFlat, onAlbumEdge,
+  });
 
 
   const isOpenish = phase !== 'closed';

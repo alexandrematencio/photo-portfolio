@@ -92,5 +92,18 @@ export function useFooterReserve(
     if (rowRef.current) gsap.set(rowRef.current, { y: -off });
   }, [scrollContainer, rowRef]);
 
-  return { footerShown, footerTween, scrollContainer, showFooter, flattenPage };
+  /**
+   * Ramène la page à plat SANS compensation, footer rangé d'un coup. Garde de
+   * la vue ouverte, où le footer n'existe pas (2026-11-15) : la rangée y est
+   * masquée, rien à garder immobile à l'écran.
+   */
+  const keepPageFlat = useCallback(() => {
+    const cont = scrollContainer();
+    if (!cont || cont.scrollTop <= 0) return;
+    footerTween.current?.kill();
+    footerShown.current = false;
+    cont.scrollTop = 0;
+  }, [scrollContainer]);
+
+  return { footerShown, footerTween, scrollContainer, showFooter, flattenPage, keepPageFlat };
 }
