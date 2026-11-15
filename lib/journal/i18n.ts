@@ -96,14 +96,43 @@ export const LOCALE: Record<Lang, { bcp47: string; og: string; native: string; c
 };
 
 /**
+ * Les langues dont les locuteurs lisent le russe d'ordinaire : ceux des pays
+ * où l'on apprend le russe à l'école et où on le parle adulte — Ukraine,
+ * Biélorussie, Asie centrale, Caucase, Moldavie, pays baltes (2026-11-16,
+ * demande Alexandre). Une langue y suffit : on ne lit que le sous-tag de
+ * langue du système, jamais la position du lecteur. `ro-MD` (roumain de
+ * Moldavie) est repris à part, le roumain seul n'en fait pas partie.
+ */
+export const RUSSIAN_SPHERE = ['uk', 'be', 'kk', 'ky', 'uz', 'tg', 'tk', 'az', 'hy', 'ka', 'et', 'lv', 'lt', 'tt', 'ba', 'cv', 'ce', 'os', 'ab', 'sah', 'gag', 'mo'];
+
+/**
+ * Choisit la langue depuis `navigator.languages`, du plus au moins préféré ;
+ * la première entrée connue tranche : français → fr, anglais → en, russe ou
+ * langue de la sphère russe → ru. Rien de connu (allemand, japonais…) : en.
+ * Écrit en ES5 dans une chaîne : il est embarqué tel quel dans
+ * `languageScript` (qui tourne avant la première peinture), et le test
+ * (`scripts/check-lang-pick.ts`) évalue cette même chaîne.
+ */
+export const PICK_LANG_SRC = `function pickLang(tags){
+var sphere=${JSON.stringify(RUSSIAN_SPHERE)};
+for(var i=0;i<tags.length;i++){
+var t=String(tags[i]||'').toLowerCase().split(/[-_]/),c=t[0];
+if(c==='fr'||c==='en'||c==='ru')return c;
+if(sphere.indexOf(c)>=0||(c==='ro'&&t.indexOf('md')>0))return 'ru';
+}
+return 'en';
+}`;
+
+/**
  * Le script qui choisit la langue AVANT la première peinture, posé en tête
  * du <body> des layouts du blog (le <head> est alors entièrement lu, donc
  * ses `<link rel="alternate" hreflang>` aussi).
  *
  * 1. Les robots ne sont jamais redirigés : Google doit voir et indexer les
  *    trois versions, chacune à son adresse.
- * 2. Le choix du lecteur (`LanguageSwitch`) prime ; à défaut, la première
- *    langue du système qu'on sait servir ; à défaut, l'anglais.
+ * 2. Le choix du lecteur (`LanguageSwitch`) prime ; à défaut, la langue du
+ *    système (`PICK_LANG_SRC`) : français, anglais, russe, ou la langue d'un
+ *    pays russophone → russe ; toute autre → anglais.
  * 3. On ne part que si la page existe dans cette langue (son lien
  *    `hreflang`) — un article non traduit reste où il est.
  * 4. Jamais sur un Retour (ou un Suivant) : le lecteur qui passe de FR à EN
@@ -119,10 +148,10 @@ export function languageScript(current: Lang): string {
   return `(function(){try{
 if(/bot|crawl|spider|slurp|lighthouse|preview|facebookexternalhit|embedly|quora|whatsapp|telegram/i.test(navigator.userAgent))return;
 var n=performance.getEntriesByType&&performance.getEntriesByType('navigation')[0];if(n&&n.type==='back_forward')return;
+${PICK_LANG_SRC}
 var langs=${JSON.stringify(LANGS)},want=null;
 try{want=localStorage.getItem(${JSON.stringify(LANG_STORAGE_KEY)});}catch(e){}
-if(langs.indexOf(want)<0){want='en';var l=navigator.languages||[navigator.language];
-for(var i=0;i<l.length;i++){var c=String(l[i]||'').slice(0,2).toLowerCase();if(langs.indexOf(c)>=0){want=c;break;}}}
+if(langs.indexOf(want)<0)want=pickLang(navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language]);
 if(want===${JSON.stringify(current)})return;
 var a=document.querySelector('link[rel="alternate"][hreflang^="'+want+'"]');
 if(a&&a.href)location.replace(a.href+location.search+location.hash);

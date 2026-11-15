@@ -6,6 +6,8 @@ import { StateDot } from '@/components/site/StateDot';
 import { FOLDER_MS } from '@/components/journal/FolderTree';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
+import { langOfPath } from '@/lib/journal/i18n';
+import { LANG_SWITCH_EVENT, patchSwitch, takeSwitch } from '@/lib/journal/langSwitch';
 
 /**
  * Le menu de la Concept Map, en dashboard (2026-10-30, Alexandre — variantes
@@ -147,6 +149,15 @@ export function MapMenu({
   focus?: MenuFocus | null;
 }) {
   const [tuning, setTuning] = useState(false);
+  // Changement de langue (lib/journal/langSwitch.ts) : « Réglages » reste ouvert s'il l'était.
+  const tuningNow = useRef(tuning);
+  tuningNow.current = tuning;
+  useEffect(() => {
+    if (takeSwitch(langOfPath(window.location.pathname))?.tuning === true) setTuning(true);
+    const leave = () => patchSwitch({ tuning: tuningNow.current });
+    window.addEventListener(LANG_SWITCH_EVENT, leave);
+    return () => window.removeEventListener(LANG_SWITCH_EVENT, leave);
+  }, []);
   const [target, setTarget] = useState<string | null>(null);
   const [unrolled, setUnrolled] = useState<ReadonlySet<string>>(() => new Set(OPEN_DEFAULT));
   const full = useRef<HTMLDivElement>(null);

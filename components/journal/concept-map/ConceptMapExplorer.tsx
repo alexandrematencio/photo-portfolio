@@ -10,7 +10,7 @@ import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import { DICT } from '@/lib/journal/i18n';
 import type { MapView } from '@/lib/journal/conceptMapData';
-import { flip, HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, linkedTo, neighbourhood, NO_FILTER, themeSystem, visibleIds, type Filters, type LabelKind, type LabelReach, type MapNav } from './model';
+import { flip, HASH_KEY, indexMap, isCommon, LABEL_DEFAULT, LABEL_STEPS, linkedTo, neighbourhood, NO_FILTER, themeSystem, visibleIds, type Filters, type LabelKind, type CameraView, type LabelReach, type MapNav } from './model';
 import { MapPanel } from './MapPanel';
 import { KEY_OF, MapHelp, MapHiddenNote, MapKeys, type NavKey } from './MapControls';
 import { MapList } from './MapList';
@@ -18,6 +18,7 @@ import { MapViewPill, PILL_STACK } from './MapViewPill';
 import { CLOSE_MS, MapMenu, SHEET_OUT, type MenuFocus, type MenuSection } from './MapMenu';
 import type { MapForces, MapGestures, MapPreview } from './ConceptMapGraph';
 import { loadLab, MapTuning, type LabState } from './ForcesLab';
+import { LANG_SWITCH_EVENT, patchSwitch, takeSwitch } from '@/lib/journal/langSwitch';
 
 /**
  * La page `/concept-map` côté navigateur, en dashboard (2026-10-30,
@@ -257,6 +258,32 @@ function ReachRow({ label, value, text, onChange }: { label: string; value: numb
   );
 }
 
+/**
+ * Ce que la carte emporte d'une langue à l'autre (`lib/journal/langSwitch.ts`),
+ * en clés qui ne dépendent pas de la langue : l'id du nœud, l'adresse d'une
+ * série, le nom français d'une thématique (`MapView.series[].key`,
+ * `.themes[].key`), la caméra en coordonnées du graphe.
+ */
+type MapSnap = {
+  sel: string | null;
+  series: string[];
+  theme: string[];
+  common: boolean;
+  panel: boolean;
+  view: View;
+  menu: boolean;
+  sheet: string | null;
+  cam: CameraView | null;
+  scroll: number | null;
+};
+
+const VIEWS: readonly View[] = ['auto', 'map', 'list'];
+
+function isSnap(v: unknown): v is MapSnap {
+  const m = v as MapSnap | undefined;
+  return !!m && Array.isArray(m.series) && Array.isArray(m.theme) && VIEWS.includes(m.view) && typeof m.menu === 'boolean';
+}
+
 const readHash = () => {
   const m = window.location.hash.match(new RegExp(`^#${HASH_KEY}=(.+)$`));
   return m ? decodeURIComponent(m[1]) : null;
@@ -284,6 +311,8 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
   const forces = useMemo<MapForces>(() => (lab ? { mode: lab.mode, settings: { ...lab[lab.mode], size: lab.size }, live: lab.live, replay: lab.replay } : null), [lab]);
   const [menu, setMenu] = useState(true);
   const [sheet, setSheet] = useState<string | null>(null);
+  // La caméra d'avant le changement de langue (Graph la lit à sa création).
+  const [start, setStart] = useState<CameraView | null>(null);
   const [menuFocus, setMenuFocus] = useState<MenuFocus | null>(null);
   const later = useRef<number[]>([]);
   const [armed, setArmed] = useState(false);
@@ -311,12 +340,13 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     sync();
     mq.addEventListener('change', sync);
     const fromHash = readHash();
-    if (fromHash && ix.byId.has(fromHash)) {
+    // Arrivée par un changement de langue : l'état entier revient (effet plus bas), sans recadrage.
+    if (fromHash && ix.byId.has(fromHash) && !isSnap(takeSwitch(data.lang)?.map)) {
       setSelected(fromHash);
       setFit((c) => c + 1);
     }
     return () => mq.removeEventListener('change', sync);
-  }, [ix]);
+  }, [ix, data.lang]);
 
   useEffect(() => {
     try {
@@ -368,6 +398,68 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
     const url = new URL(window.location.href);
     url.hash = id ? `${HASH_KEY}=${encodeURIComponent(id)}` : '';
     history.replaceState(history.state, '', url);
+  }, []);
+
+  // CHANGEMENT DE LANGUE (2026-11-16, Alexandre) : le lecteur reste exactement où il en
+  // était — nœud choisi, filtres, vue, menu, tiroir, caméra, défilement. `LanguageSwitch`
+  // annonce le départ ; on dépose notre part, en clés valables dans les trois langues.
+  const now = useRef({ filters, selected, panel, view, menu, sheet });
+  now.current = { filters, selected, panel, view, menu, sheet };
+  useEffect(() => {
+    const leave = () => {
+      const c = now.current;
+      const key = (list: { key: string; title: string }[], titles: string[]) =>
+        titles.flatMap((title) => list.find((x) => x.title === title)?.key ?? []);
+      const snap: MapSnap = {
+        sel: c.selected,
+        series: key(data.series, c.filters.series),
+        theme: key(data.themes, c.filters.theme),
+        common: c.filters.common,
+        panel: c.panel,
+        view: c.view,
+        menu: c.menu,
+        sheet: c.sheet,
+        cam: nav.current?.view() ?? null,
+        scroll: document.querySelector<HTMLElement>('[data-scroll-container]')?.scrollTop ?? null,
+      };
+      patchSwitch({ map: snap });
+    };
+    window.addEventListener(LANG_SWITCH_EVENT, leave);
+    return () => window.removeEventListener(LANG_SWITCH_EVENT, leave);
+  }, [data]);
+  // Déclaré APRÈS la lecture du menu gardé (plus haut) : l'état d'avant la langue prime sur celui d'avant la visite.
+  useEffect(() => {
+    const snap = takeSwitch(data.lang)?.map;
+    if (!isSnap(snap)) return;
+    const title = (list: { key: string; title: string }[], keys: string[]) => keys.flatMap((k) => list.find((x) => x.key === k)?.title ?? []);
+    setFilters({ series: title(data.series, snap.series), theme: title(data.themes, snap.theme), common: !!snap.common });
+    if (snap.sel && ix.byId.has(snap.sel)) setSelected(snap.sel);
+    setPanel(snap.panel !== false);
+    setView(snap.view);
+    setMenu(snap.menu);
+    if (typeof snap.sheet === 'string') setSheet(snap.sheet);
+    if (snap.cam && [snap.cam.x, snap.cam.y, snap.cam.ratio].every((n) => typeof n === 'number')) setStart(snap.cam);
+    // La page se pose en deux temps : le conteneur n'a pas encore toute sa hauteur au premier.
+    const top = snap.scroll;
+    if (typeof top !== 'number' || !Number.isFinite(top)) return;
+    const box = document.querySelector<HTMLElement>('[data-scroll-container]');
+    if (!box) return;
+    let live = true;
+    const go = () => live && (box.scrollTop = top);
+    const stop = () => (live = false);
+    const frames = requestAnimationFrame(() => requestAnimationFrame(go));
+    const later = window.setTimeout(go, 400);
+    const events = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const;
+    events.forEach((e) => window.addEventListener(e, stop, { once: true, passive: true }));
+    const done = window.setTimeout(stop, 1500);
+    return () => {
+      live = false;
+      cancelAnimationFrame(frames);
+      window.clearTimeout(later);
+      window.clearTimeout(done);
+      events.forEach((e) => window.removeEventListener(e, stop));
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- une fois, à l'arrivée
   }, []);
 
   // Un filtre qui cache le nœud ouvert ferme son panneau.
@@ -812,6 +904,7 @@ export function ConceptMapExplorer({ view: data }: { view: MapView }) {
                     sticky
                     labels={labels}
                     nav={nav}
+                    start={start}
                     gestures={gestures}
                     onHidden={setHiddenNames}
                     forces={forces}

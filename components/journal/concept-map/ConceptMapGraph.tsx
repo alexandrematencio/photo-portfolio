@@ -5,7 +5,7 @@ import Graph from 'graphology';
 import type { Attributes } from 'graphology-types';
 import Sigma from 'sigma';
 import { runForces, type ForceMode, type ForceRun, type ForceSettings } from './forces';
-import { colorOf, LABEL_STEPS, neighbourhood, type LabelKind, type LabelReach, type MapIndex, type MapNav } from './model';
+import { colorOf, LABEL_STEPS, neighbourhood, type LabelKind, type LabelReach, type CameraView, type MapIndex, type MapNav } from './model';
 
 /**
  * Le dessin de la Concept Map (Sigma, WebGL). Chargé en `ssr: false` par
@@ -169,6 +169,7 @@ export default function ConceptMapGraph({
   sticky = false,
   labels,
   nav,
+  start = null,
   gestures,
   preview = null,
   fit = 0,
@@ -197,6 +198,8 @@ export default function ConceptMapGraph({
   labels?: LabelReach;
   /** Rempli au montage : les commandes du clavier et du faux clavier passent par là. */
   nav?: MutableRefObject<MapNav | null>;
+  /** La caméra de départ (changement de langue) ; lue une fois, à la création du dessin. */
+  start?: CameraView | null;
   /**
    * Carte COOPÉRATIVE (`/concept-map`, 2026-10-30, Alexandre) : la molette ne
    * zoome qu'une fois la carte tenue (`held`) — ou avec ⌘/Ctrl, ou au
@@ -223,6 +226,8 @@ export default function ConceptMapGraph({
   // L'état que lisent les reducers : des refs, pour ne pas reconstruire Sigma.
   const state = useRef({ visible, selected, hovered: null as string | null, peek: null as string | null, preview: null as MapPreview, shown: null as string | null, lit: false, obsidian: false, sizeFn: Math.sqrt as (ratio: number) => number, around: new Set<string>(), fade: 0, kept: new Set<string>(), reach: null as Record<LabelKind, number> | null, ratio: 1, sizeK: 1 });
   const graphOf = useRef<Graph | null>(null);
+  const startView = useRef(start);
+  startView.current = start;
   const select = useRef(onSelect);
   select.current = onSelect;
   const hiddenOut = useRef(onHidden);
@@ -602,6 +607,12 @@ export default function ConceptMapGraph({
           }
         },
         zoom: (step) => zoomBy(KEY_ZOOM ** -step, middle()),
+        view: () => {
+          const { width, height } = renderer.getDimensions();
+          if (!width || !height) return null;
+          const g = renderer.viewportToGraph({ x: width / 2, y: height / 2 });
+          return { x: g.x, y: g.y, ratio: camera.ratio };
+        },
         reset: () => {
           cancelAnimationFrame(z.raf);
           z.raf = 0;
@@ -717,6 +728,17 @@ export default function ConceptMapGraph({
       else camera.animate(target, { duration: FIT_MS, easing: 'cubicInOut' });
     };
     (renderer as Sigma & { frameOn?: typeof frameOn }).frameOn = frameOn;
+
+    // Arrivée par un changement de langue : la caméra reprend où elle était. Le
+    // point est donné en coordonnées du graphe ; on le ramène à celles du cadre.
+    const from = startView.current;
+    if (from && Number.isFinite(from.x) && Number.isFinite(from.y) && Number.isFinite(from.ratio) && from.ratio > 0) {
+      const { width, height } = renderer.getDimensions();
+      if (width && height) {
+        const f = renderer.viewportToFramedGraph(renderer.graphToViewport({ x: from.x, y: from.y }));
+        camera.setState({ x: f.x, y: f.y, ratio: camera.getBoundedRatio(from.ratio) });
+      }
+    }
 
     // Sigma ne suit que la fenêtre : un cadre qui change de largeur sans elle (le
     // menu de gauche qui se replie, 2026-10-30) redessine à chaque image du geste.

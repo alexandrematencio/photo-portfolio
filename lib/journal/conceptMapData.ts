@@ -60,8 +60,13 @@ export type MapView = {
   nodes: MapViewNode[];
   edges: MapViewEdge[];
   /** Dans l'ordre d'apparition des articles, avec leur couleur (Studio, sinon `THEME_FALLBACK`). */
-  themes: { title: string; color: string }[];
-  series: { title: string; href: string }[];
+  /**
+   * `key` : le nom français de la thématique ou de la série (les adresses de
+   * série, elles, sont traduites) — le même dans les trois langues, pour qu'un filtre survive au changement de
+   * langue (`journal:lang-switch`, ConceptMapExplorer).
+   */
+  themes: { key: string; title: string; color: string }[];
+  series: { key: string; title: string; href: string }[];
   /** Choisi dans le Studio (document Concept Map) ; « Éditorial » par défaut. */
   linkStyle: LinkStyle;
 };
@@ -182,6 +187,13 @@ async function fetchConceptMapView(lang: Lang): Promise<MapView | null> {
     fa.tags.forEach((t, i) => a?.tags[i] && !themeName.has(t.title) && themeName.set(t.title, a.tags[i].title));
   }
   const localTheme = (fr: string) => themeName.get(fr) ?? fr;
+  const frTheme = new Map([...themeName].map(([fr, local]) => [local, fr] as const));
+  // Idem pour les séries : leur titre français est la clé qui ne change pas de langue.
+  const frSeries = new Map<string, string>();
+  for (const fa of frArticles) {
+    const local = fa.series && bySlug.get(fa.slug)?.series;
+    if (fa.series && local && !frSeries.has(local)) frSeries.set(local, fa.series);
+  }
 
   const edges = (map.edges ?? []).map(({ source, target, kind, why }) => ({ source, target, kind, ...(why ? { why } : {}) }));
   const raw = map.nodes;
@@ -271,10 +283,10 @@ async function fetchConceptMapView(lang: Lang): Promise<MapView | null> {
     edges: edges
       .filter((e) => ids.has(e.source) && kept.has(e.source) && kept.has(e.target))
       .map((e) => (e.why ? { ...e, why: tr(rhymeId(e), 'why', e.why) } : e)),
-    themes: themeTitles.map((title) => ({ title, color: tagColor.get(title) ?? fallback.get(title) ?? OTHER })),
+    themes: themeTitles.map((title) => ({ key: frTheme.get(title) ?? title, title, color: tagColor.get(title) ?? fallback.get(title) ?? OTHER })),
     series: seriesTitles.map((title) => {
       const a = articles.find((x) => x.series === title)!;
-      return { title, href: seriesPath(a.seriesSlug!, lang) };
+      return { key: frSeries.get(title) ?? title, title, href: seriesPath(a.seriesSlug!, lang) };
     }),
   };
 }

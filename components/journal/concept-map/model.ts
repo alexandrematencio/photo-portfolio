@@ -171,4 +171,13 @@ export type MapNav = {
   zoom: (step: number) => void;
   /** Toute la carte dans le cadre. */
   reset: () => void;
+  /** Où regarde la caméra, en coordonnées du graphe (valable d'une langue à l'autre). */
+  view: () => CameraView | null;
 };
+
+/**
+ * Le point du graphe au centre du cadre, et le rapport de zoom. En coordonnées
+ * du GRAPHE, pas de la caméra : cadrer d'après les nœuds présents change de
+ * langue en langue (un article non traduit sort de la carte).
+ */
+export type CameraView = { x: number; y: number; ratio: number };

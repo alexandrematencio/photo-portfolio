@@ -5,6 +5,8 @@ import { asset } from '@/lib/utils/asset';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cn } from '@/lib/utils/cn';
 import { DICT, LANGS, LOCALE, rememberLang, type Lang } from '@/lib/journal/i18n';
+import { announceSwitch, patchSwitch } from '@/lib/journal/langSwitch';
+import { HASH_KEY } from '@/components/journal/concept-map/model';
 import type { Alternates } from '@/lib/journal/types';
 
 /**
@@ -31,6 +33,13 @@ import type { Alternates } from '@/lib/journal/types';
  * page d'arrivée s'ouvre sur le même passage, que `PassageArrival` souligne
  * du filet orange. On modifie le `href` au lieu d'empêcher la navigation :
  * Cmd+clic, qui ouvre un onglet, en profite aussi.
+ *
+ * Au plus près, au sein du paragraphe (2026-11-16) : on emporte aussi la
+ * fraction du paragraphe déjà lue, que `PassageArrival` rend à la page
+ * d'arrivée (un paragraphe russe n'a pas la hauteur du français, mais la
+ * proportion tient). Sur la Concept Map, l'ancre est le nœud choisi
+ * (`#n=<id>`, neutre en langue), et la carte dépose le reste de son état au
+ * départ (`LANG_SWITCH_EVENT`, lib/journal/langSwitch.ts).
  */
 
 /** La marge d'ancre des passages (`.journal-passage`, globals.css). */
@@ -42,7 +51,7 @@ const PASSAGE_TOP = 32;
  * la page d'arrivée s'ouvre alors en haut, comme avant. Rien non plus hors
  * d'un article : il n'y a pas de passage.
  */
-function passageAtTop(): string {
+function passageAtTop(): { id: string; frac: number } | null {
   const passages = document.querySelectorAll<HTMLElement>('.journal-passage[id^="p-"]');
   // Le haut de l'écran est celui du conteneur qui défile (FramedScroll, sous
   // la barre du haut), pas celui de la fenêtre.
@@ -50,9 +59,12 @@ function passageAtTop(): string {
   for (let i = 0; i < passages.length; i++) {
     const box = passages[i].getBoundingClientRect();
     if (box.bottom <= frame + PASSAGE_TOP) continue;
-    return i === 0 && box.top >= frame ? '' : passages[i].id;
+    if (i === 0 && box.top >= frame) return null;
+    // La part du paragraphe déjà passée sous le haut de l'écran (0 s'il commence en dessous).
+    const frac = box.height > 0 ? Math.min(1, Math.max(0, (frame + PASSAGE_TOP - box.top) / box.height)) : 0;
+    return { id: passages[i].id, frac };
   }
-  return '';
+  return null;
 }
 
 export function LanguageSwitch({
@@ -116,7 +128,11 @@ export function LanguageSwitch({
                 lang={LOCALE[l].bcp47}
                 onClick={(e) => {
                   rememberLang(l);
-                  e.currentTarget.hash = passageAtTop();
+                  const at = passageAtTop();
+                  // Carte : le nœud choisi voyage dans l'adresse ; article : le paragraphe.
+                  e.currentTarget.hash = at ? at.id : location.hash.startsWith(`#${HASH_KEY}=`) ? location.hash.slice(1) : '';
+                  announceSwitch(l);
+                  if (at) patchSwitch({ passage: at });
                 }}
                 className={cn(base, '[&>img]:opacity-45 hover:[&>img]:opacity-100 focus-visible:[&>img]:opacity-100')}
                 style={{ paddingBlock: 6 }}
