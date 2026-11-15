@@ -3,19 +3,34 @@ import type gsap from 'gsap';
 import type { Phase } from './chains';
 
 /**
- * Silence de molette qui sépare deux gestes, en ms. L'inertie d'un trackpad
- * émet à chaque frame (~16 ms) jusqu'à l'arrêt : 250 ms de silence, c'est un
- * doigt levé. Assez court pour qu'une molette de souris cran par cran passe
- * au deuxième cran.
+ * Comment on reconnaît un NOUVEAU geste de molette (2026-11-15, deuxième
+ * version). L'inertie d'un trackpad émet à chaque frame pendant une à deux
+ * secondes, avec une amplitude qui ne fait que DÉCROÎTRE : un silence de
+ * 250 ms (première version) obligeait donc à attendre la fin de la traîne,
+ * « des fois ça marche », jamais au moment voulu. On reconnaît maintenant un
+ * geste neuf à deux signes, le premier qui arrive l'emporte :
+ *   - un silence de `GESTURE_GAP_MS` (une molette de souris, cran par cran) ;
+ *   - une amplitude qui REMONTE au-dessus de l'enveloppe de la traîne :
+ *     `|delta| > enveloppe × GESTURE_RISE`, l'enveloppe étant le maximum
+ *     récent amorti de `ENVELOPE_DECAY` par événement. Une inertie ne remonte
+ *     jamais ; un doigt reposé, si.
  */
-const FOOTER_BREAK_MS = 250;
+const GESTURE_GAP_MS = 120;
+const GESTURE_RISE = 1.4;
+const ENVELOPE_DECAY = 0.9;
+/** Sous ce delta (px), un sursaut n'est que du bruit de capteur. */
+const GESTURE_MIN = 3;
+
 /**
- * Course du second geste avant que le footer entre : 40 px de molette, ou
- * trois événements — une souris dont le cran ne vaut que quelques px (Safari)
- * n'aurait sinon jamais fini de pousser.
+ * Le défilement ADOUCI de la rangée (demande Alexandre, 2026-11-15 : « adouci
+ * comme pour la home, mais plus rapide »). La molette ne pose plus
+ * `scrollLeft`, elle déplace une CIBLE que la rangée rejoint par une approche
+ * exponentielle (constante de temps `SMOOTH_TAU` s). Arrivée aux bouts,
+ * c'est la cible qui bute : la rangée y FREINE au lieu d'y cogner. La home
+ * (Lenis, 1,2 s expo.out) tient la page entière ; ici ~0,3 s pour s'établir,
+ * un simple amorti qui n'encombre pas un petit geste.
  */
-const FOOTER_PUSH = 40;
-const FOOTER_PUSH_EVENTS = 3;
+const SMOOTH_TAU = 0.075;
 
 /**
  * Gestes de la rangée fermée : molette sur les deux axes et réserve du footer
@@ -54,11 +69,11 @@ export function useRowGestures({
   // geste vers le bas ou vers la droite avance dans la rangée, vers le haut ou
   // vers la gauche recule.
   //
-  // ⚠️ LE FOOTER N'ENTRE QU'APRÈS UNE PAUSE AU BOUT DE LA RANGÉE (2026-11-15,
-  // détail plus bas). Du 2026-08-24 à cette date, seul l'axe VERTICAL pouvait
-  // le chercher : une inertie de fin de glissement latéral suffisait à le
-  // tirer. La pause règle ce problème pour les deux axes à la fois, d'où le
-  // retour de « vers la droite » (demande Alexandre : « si un scroll
+  // ⚠️ LE FOOTER N'ENTRE QU'AU GESTE SUIVANT LA BUTÉE (2026-11-15, détail
+  // plus bas). Du 2026-08-24 à cette date, seul l'axe VERTICAL pouvait le
+  // chercher : une inertie de fin de glissement latéral suffisait à le tirer.
+  // La butée qui arrête la traîne règle ce problème pour les deux axes, d'où
+  // le retour de « vers la droite » (demande Alexandre : « si un scroll
   // down/right s'ajoute »). Au retour : vers le haut on range le footer, vers
   // la gauche on repart dans la rangée (et le footer se range de lui-même dès
   // qu'elle quitte le bout, via l'écouteur `scroll` ci-dessous).
@@ -74,20 +89,56 @@ export function useRowGestures({
     const row = rowRef.current;
     if (!cont || !row) return;
 
-    // LA PAUSE AVANT LE FOOTER (demande Alexandre, 2026-11-15 : « un petit
-    // break juste avant le footer, et si un scroll down/right s'ajoute, alors
-    // le footer entre »). Le « cran suivant » ne suffisait pas : l'inertie
-    // d'un trackpad continue d'envoyer des événements après la butée, et le
-    // premier d'entre eux tirait le footer dans la foulée de la rangée.
-    // Désormais la butée ARRÊTE le geste en cours, quelle que soit sa traîne :
-    // il faut que la molette se taise `FOOTER_BREAK_MS`, puis un NOUVEAU geste
-    // vers le bas OU vers la droite, d'au moins `FOOTER_PUSH` px, pour que le
-    // footer entre. L'inertie ne se tait jamais aussi longtemps au milieu
-    // d'une traîne : c'est ce silence qui distingue un second geste.
+    // LA BUTÉE AVANT LE FOOTER (demande Alexandre, 2026-11-15 : « une fois
+    // le bout atteint, ça stoppe le scroll en cours, mais au scroll suivant,
+    // même petit, ça sort le footer »). Le geste qui amène la rangée à son
+    // bout s'y arrête, traîne d'inertie comprise ; le premier événement d'un
+    // NOUVEAU geste (détection en tête de fichier) vers le bas ou la droite
+    // fait entrer le footer.
     let lastWheel = -Infinity;
-    let armed = false; // la pause a eu lieu, bout de rangée atteint
-    let push = 0; // px poussés contre la butée depuis la pause
-    let pushes = 0; // et en nombre d'événements
+    let envelope = 0;
+
+    // Défilement adouci : la cible, et la boucle qui la rejoint.
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+    let target = row.scrollLeft;
+    let raf = 0;
+    let lastFrame = 0;
+    const stopSmooth = () => {
+      cancelAnimationFrame(raf);
+      raf = 0;
+    };
+    const frame = (now: number) => {
+      const dt = Math.min(0.05, (now - lastFrame) / 1000);
+      lastFrame = now;
+      const gap = target - row.scrollLeft;
+      if (Math.abs(gap) < 0.5) {
+        row.scrollLeft = target;
+        raf = 0;
+        return;
+      }
+      row.scrollLeft += gap * (1 - Math.exp(-dt / SMOOTH_TAU));
+      raf = requestAnimationFrame(frame);
+    };
+    const scrollTo = (next: (from: number) => number) => {
+      // Rien en cours : la rangée a pu bouger par ailleurs (glisser, flèches).
+      if (!raf) target = row.scrollLeft;
+      const maxLeft = row.scrollWidth - row.clientWidth;
+      target = Math.max(0, Math.min(maxLeft, next(target)));
+      if (reduced.matches) {
+        row.scrollLeft = target;
+        return;
+      }
+      if (!raf) {
+        lastFrame = performance.now();
+        raf = requestAnimationFrame(frame);
+      }
+    };
+    // La main reprend la rangée (clic, glisser, touche) : l'amorti s'arrête
+    // où il en est. Un clic qui OUVRE une série mesure les piles, elles ne
+    // doivent plus bouger sous les clones (invariant 18, même raison).
+    const takeOver = () => stopSmooth();
+    row.addEventListener('pointerdown', takeOver, true);
+    window.addEventListener('keydown', takeOver, true);
 
     const onWheel = (e: WheelEvent) => {
       // Branche cachée (viewport mobile) : ne jamais réagir — invariant 3.
@@ -101,8 +152,8 @@ export function useRowGestures({
         // rangée). Pendant les vols (opening/closing/switching), tout est gelé :
         // un défilement en cours de vol déplacerait les éléments réels sous des
         // clones `position: fixed`, et le raccord se ferait à côté.
-        const target = e.target as Element | null;
-        const inCol = target?.closest?.('[data-open-col]');
+        const t = e.target as Element | null;
+        const inCol = t?.closest?.('[data-open-col]');
         if (!inCol || phase !== 'open') e.preventDefault();
         return;
       }
@@ -115,52 +166,45 @@ export function useRowGestures({
       if (!delta) return;
       e.preventDefault();
 
-      const quiet = e.timeStamp - lastWheel >= FOOTER_BREAK_MS;
+      // Nouveau geste ? (en tête de fichier)
+      const size = Math.abs(delta);
+      const fresh =
+        e.timeStamp - lastWheel >= GESTURE_GAP_MS ||
+        (size >= GESTURE_MIN && size > envelope * GESTURE_RISE);
+      envelope = fresh ? size : Math.max(size, envelope * ENVELOPE_DECAY);
       lastWheel = e.timeStamp;
 
       const maxLeft = row.scrollWidth - row.clientWidth;
-      // Tolérance d'1 px : les navigateurs rendent un scrollLeft fractionnaire
-      // (zoom, DPR non entier) et une égalité stricte ne serait jamais vraie.
-      const atEnd = row.scrollLeft >= maxLeft - 1;
+      // Le bout, c'est celui où va la rangée (la cible), pas celui où l'amorti
+      // l'a déjà menée. Tolérance d'1 px : scrollLeft fractionnaire.
+      const atEnd = (raf ? target : row.scrollLeft) >= maxLeft - 1;
 
       if (delta > 0) {
-        // Vers le bas ou vers la droite → on avance dans la rangée. Au bout,
-        // le geste qui y a mené s'arrête net, traîne comprise ; seul un
-        // second geste, après la pause, va chercher le footer (bloc ci-dessus).
+        // Au bout, la traîne du geste qui y a mené bute sans rien faire ; le
+        // premier événement d'un geste NEUF sort le footer.
         if (atEnd) {
-          if (footerShown.current) return;
-          if (quiet) armed = true;
-          if (!armed) return;
-          push += delta;
-          pushes += 1;
-          if (push >= FOOTER_PUSH || pushes >= FOOTER_PUSH_EVENTS) showFooter(true);
-        } else {
-          armed = false;
-          push = 0;
-          pushes = 0;
-          row.scrollLeft = Math.min(maxLeft, row.scrollLeft + delta);
-        }
+          if (fresh && !footerShown.current) showFooter(true);
+        } else scrollTo((t) => t + delta);
       } else if (footerShown.current && !horizontal) {
         // Vers le haut, le footer se range d'abord : il occupe le cran qui
-        // l'avait fait venir. Le redescendre demande une nouvelle pause.
-        armed = false;
-        push = 0;
-        pushes = 0;
+        // l'avait fait venir.
         showFooter(false);
       } else {
-        armed = false;
-        push = 0;
-        pushes = 0;
         // Vers la gauche (ou vers le haut footer déjà rangé) → on recule dans
         // la rangée. Si le footer était sorti, l'écouteur `scroll` de la rangée
         // le range dès qu'elle quitte le bout : c'est déjà le chemin du
         // cliquer-glisser et des flèches, on n'en ajoute pas un deuxième.
-        row.scrollLeft = Math.max(0, row.scrollLeft + delta);
+        scrollTo((t) => t + delta);
       }
     };
 
     cont.addEventListener('wheel', onWheel, { passive: false });
-    return () => cont.removeEventListener('wheel', onWheel);
+    return () => {
+      stopSmooth();
+      cont.removeEventListener('wheel', onWheel);
+      row.removeEventListener('pointerdown', takeOver, true);
+      window.removeEventListener('keydown', takeOver, true);
+    };
   }, [phase, scrollContainer, showFooter, footerShown, rowRef, sceneRef]);
 
   // Le footer n'existe qu'au bout de la rangée : dès qu'on s'en éloigne — au
