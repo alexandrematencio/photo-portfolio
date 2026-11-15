@@ -412,15 +412,13 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
   display: none;
 }
 
-/* Indication scroll : flèche qui flotte légèrement vers le haut/bas */
+/* Indication scroll : flèche qui flotte légèrement vers le haut/bas, opacité constante (2026-11-16 : plus de fondu) */
 @keyframes scroll-cue {
   0%, 100% {
     transform: translateY(0);
-    opacity: 0.45;
   }
   50% {
     transform: translateY(10px);
-    opacity: 0.9;
   }
 }
 .scroll-cue {
