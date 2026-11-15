@@ -16,6 +16,7 @@ import {
   isInSection,
   isSamePage,
   notifySamePageNav,
+  SCOPE_GAP,
 } from '@/lib/site/nav';
 import { beginHomeReturn } from '@/lib/site/home-return';
 import { beginPageLeave } from '@/lib/site/page-transition';
@@ -31,7 +32,7 @@ type SiteHeaderProps = {
 
 /**
  * Nav-bar globale, identique sur toutes les pages publiques.
- * Layout : full-width flex space-between, [32px PAD_LEFT] LOGO ─ Series ─ Work ─ Archives ─ About ─ All sites [64px PAD_RIGHT].
+ * Layout portfolio : [gouttière] LOGO · All sites ─ Series ─ Work ─ Archives [64px PAD_RIGHT], le reste en space-between.
  * Cohérent pixel-pour-pixel avec l'état final du morph hero de la home.
  * Masqué sur `/` (le HomeHero gère son propre morph qui devient la nav-bar).
  *
@@ -61,6 +62,115 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
   const isHome = isPhotoHome(pathname);
   const hideHeader = isHome;
 
+  // La zone fixe ne porte que « All sites » ; il est en tête de chaque liste.
+  const scope = LINKS.filter((l) => l.menu === 'sites');
+  const content = LINKS.filter((l) => l.menu !== 'sites');
+
+  // Une entrée de la rangée : lien, menu « All sites » ou menu « Journal ».
+  const renderLink = (link: (typeof LINKS)[number]) => {
+      // « All sites » : même place, mêmes classes et mêmes repères
+      // qu'un lien (`data-nav-link` : `measureNavBar` compte les
+      // entrées par leur rang), mais un menu, jamais actif.
+      if (link.menu === 'sites') {
+        return (
+          <SitesMenu
+            key={link.label}
+            label={link.label}
+            href={link.href}
+            data-cursor-invert
+            data-nav-link
+            className="hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none"
+          />
+        );
+      }
+      // « Journal » sur le blog : le même menu, ses rangées en plus, et
+      // TOUJOURS surligné — on est dans le journal sur toutes ses pages.
+      // Pas de morph sur le blog : padder l'actif ne décale rien.
+      if (link.menu === 'journal') {
+        return (
+          <SitesMenu
+            key={link.label}
+            label={link.label}
+            // Le clic mène à l'accueil du journal DANS la langue de la
+            // page : la première rangée du menu (« Tous les articles »).
+            href={journalMenu?.[0]?.href ?? link.href}
+            entries={journalMenu ?? []}
+            aria-current={journalIsActive(pathname) ? 'page' : undefined}
+            data-cursor-invert
+            data-nav-link
+            style={{ padding: ACTIVE_FILL_PADDING, borderRadius: CONTROL_RADIUS }}
+            className={cn(
+              'hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none',
+              journalIsActive(pathname) && 'bg-[var(--color-active-bg)]',
+            )}
+          />
+        );
+      }
+      const active = isSamePage(link.href, pathname);
+      // Surligné aussi sur ses sous-pages (« À propos de la Concept Map ») ; le clic, lui, n'y ramène que depuis la page même.
+      const here = isInSection(link.href, pathname);
+      return (
+        <Link
+          key={link.href}
+          href={link.href}
+          aria-current={here ? 'page' : undefined}
+          // Cliquer le lien de la page courante doit la RAMENER À SON
+          // ÉTAT D'ACCUEIL (cf. notifySamePageNav) : Next ne remonte pas
+          // la page, son état interne survivrait sinon intact.
+          onClick={(e) => {
+            if (active) {
+              notifySamePageNav(link.href);
+              return;
+            }
+            if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+              return;
+            }
+            // Lien vers l'autre site : chargement complet, pas de sortie
+            // de page animée (elle attendrait une page qui n'arrive pas).
+            if (isExternal(link.href)) return;
+            // La page part d'un côté, la suivante entre de l'autre, dans
+            // le sens du menu (lib/site/page-transition.ts). Navigation
+            // NON annulée : elle charge pendant la sortie.
+            beginPageLeave(link.href);
+          }}
+          data-cursor-invert
+          // Repère de `beginHomeReturn` : les libellés dont le hero de
+          // la home reprend la place exacte.
+          data-nav-link
+          // PADDING EN STYLE INLINE, jamais en utility Tailwind : le
+          // reset `* { padding: 0 }` de globals.css vit hors @layer et
+          // écrase toutes les utilities de padding (cf. CLAUDE.md §7.6).
+          // Un `px-2` ici serait avalé sans le moindre signal, et le
+          // surlignage collerait au texte.
+          style={
+            here
+              ? { padding: ACTIVE_FILL_PADDING, borderRadius: CONTROL_RADIUS }
+              : undefined
+          }
+          className={cn(
+            // Specs Pencil nav item : fontSize 32, fontWeight 700, letterSpacing -1.28 (= -0.04em).
+            // PAS d'uppercase (Pencil = "About", pas "ABOUT").
+            'hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none motion-reduce:transition-none',
+            // ÉTAT ACTIF = SURLIGNAGE PLEIN, plus de soulignement
+            // (arbitrage Alexandre, 2026-08-23 — brand book §4.3).
+            // Le libellé reste noir : il est à 7,26:1 sur ce fond.
+            //
+            // ⚠️ Le padding n'est posé QUE sur l'item actif, jamais sur
+            // les cinq. La nav-bar doit rester alignée au pixel près sur
+            // l'état d'arrivée du morph du hero de la home (CLAUDE.md
+            // §3.6), et la home n'a AUCUN item actif (`/` n'est pas dans
+            // NAV_LINKS) : ne padder que l'actif laisse donc la
+            // géométrie du morph strictement inchangée. Padder les cinq
+            // élargirait la rangée de 80 px et ferait atterrir le morph
+            // à côté de sa cible.
+            here && 'bg-[var(--color-active-bg)]'
+          )}
+        >
+          {link.label}
+        </Link>
+      );
+  };
+
   return (
     <>
       <a href="#main" className="skip-link">
@@ -84,12 +194,14 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
       >
         <nav
           aria-label="Main navigation"
-          // Journal : un menu ordinaire, aligné à gauche après le glyph
+          // Journal et hub : contenu serré à gauche après la zone fixe
           // (demande Alexandre, 2026-10-18). Le portfolio garde
           // `justify-between` : sa nav-bar est l'état d'arrivée du morph du
-          // hero de la home (CLAUDE.md §3.6), qui répartit l'espace restant.
+          // hero de la home (CLAUDE.md §3.6) — la zone fixe à gauche, Series,
+          // Work et Archives répartis sur la largeur restante (règle 4).
           className={cn(
             'flex h-full items-center',
+            // Serré : le même écart que la zone fixe, sur desktop seulement.
             leftAligned ? 'justify-start md:gap-10' : 'justify-between'
           )}
           // Gauche : la gouttière de page (20 sous `md`, 32 au-dessus), pour
@@ -98,149 +210,56 @@ export function SiteHeader({ heroSrc, journalMenu }: SiteHeaderProps) {
           // cachés et seul le bouton MENU (`MobileMenu`) occupe ce bord.
           style={{ paddingLeft: 'var(--page-gutter)', paddingRight: 64 }}
         >
-          <HomeLink
-            href={IS_BLOG ? homePath(lang) : onHub ? HUB_URL : '/'}
-            className="flex items-center shrink-0"
-            aria-label={glyphLabel}
-            onPointerEnter={warmHero}
-            onPointerDown={warmHero}
-            onFocus={warmHero}
-            // Retour à la home : le corps de page part à droite, le hero naît
-            // sur ce glyph (lib/site/home-return.ts). La navigation n'est PAS
-            // annulée — elle part en même temps. Clic modifié (nouvel onglet,
-            // nouvelle fenêtre) : rien, c'est une autre page qui s'ouvre.
-            onClick={(e) => {
-              // Hub : chargement complet de la porte, pas de hero à faire naître.
-              if (IS_BLOG || onHub) return;
-              if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
-                return;
-              }
-              const glyph = e.currentTarget.querySelector('svg');
-              const bar = e.currentTarget.closest('nav');
-              if (!glyph || !bar) return;
-              beginHomeReturn(
-                glyph,
-                Array.from(bar.querySelectorAll<HTMLElement>('[data-nav-link]'))
-              );
-            }}
-          >
-            {/* Couleur héritée du token, pas figée : `--color-logo` vaut le
-                cobalt brand, et le SVG étant inline il n'y a aucun fichier à
-                échanger le jour où une surface en demanderait un autre. Il ne
-                bascule plus au blanc : le mode immersif de /series (mobile) a
-                été retiré le 2026-08-23 et le glyph est cobalt partout. */}
-            <GlyphLogo
-              size={28}
-              color="var(--color-logo)"
-              title={glyphLabel}
-            />
-          </HomeLink>
-
-          {/* 4 nav-links : visibles sur desktop, distribuées par space-between.
-              `data-cursor-invert` déclenche le disque d'inversion (CursorInvert.tsx). */}
-          {LINKS.map((link) => {
-            // « All sites » : même place, mêmes classes et mêmes repères
-            // qu'un lien (`data-nav-link` : `measureNavBar` compte les
-            // entrées par leur rang), mais un menu, jamais actif.
-            if (link.menu === 'sites') {
-              return (
-                <SitesMenu
-                  key={link.label}
-                  label={link.label}
-                  href={link.href}
-                  data-cursor-invert
-                  data-nav-link
-                  className="hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none"
-                />
-              );
-            }
-            // « Journal » sur le blog : le même menu, ses rangées en plus, et
-            // TOUJOURS surligné — on est dans le journal sur toutes ses pages.
-            // Pas de morph sur le blog : padder l'actif ne décale rien.
-            if (link.menu === 'journal') {
-              return (
-                <SitesMenu
-                  key={link.label}
-                  label={link.label}
-                  // Le clic mène à l'accueil du journal DANS la langue de la
-                  // page : la première rangée du menu (« Tous les articles »).
-                  href={journalMenu?.[0]?.href ?? link.href}
-                  entries={journalMenu ?? []}
-                  aria-current={journalIsActive(pathname) ? 'page' : undefined}
-                  data-cursor-invert
-                  data-nav-link
-                  style={{ padding: ACTIVE_FILL_PADDING, borderRadius: CONTROL_RADIUS }}
-                  className={cn(
-                    'hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none',
-                    journalIsActive(pathname) && 'bg-[var(--color-active-bg)]',
-                  )}
-                />
-              );
-            }
-            const active = isSamePage(link.href, pathname);
-            // Surligné aussi sur ses sous-pages (« À propos de la Concept Map ») ; le clic, lui, n'y ramène que depuis la page même.
-            const here = isInSection(link.href, pathname);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                aria-current={here ? 'page' : undefined}
-                // Cliquer le lien de la page courante doit la RAMENER À SON
-                // ÉTAT D'ACCUEIL (cf. notifySamePageNav) : Next ne remonte pas
-                // la page, son état interne survivrait sinon intact.
-                onClick={(e) => {
-                  if (active) {
-                    notifySamePageNav(link.href);
-                    return;
-                  }
-                  if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
-                    return;
-                  }
-                  // Lien vers l'autre site : chargement complet, pas de sortie
-                  // de page animée (elle attendrait une page qui n'arrive pas).
-                  if (isExternal(link.href)) return;
-                  // La page part d'un côté, la suivante entre de l'autre, dans
-                  // le sens du menu (lib/site/page-transition.ts). Navigation
-                  // NON annulée : elle charge pendant la sortie.
-                  beginPageLeave(link.href);
-                }}
-                data-cursor-invert
-                // Repère de `beginHomeReturn` : les libellés dont le hero de
-                // la home reprend la place exacte.
-                data-nav-link
-                // PADDING EN STYLE INLINE, jamais en utility Tailwind : le
-                // reset `* { padding: 0 }` de globals.css vit hors @layer et
-                // écrase toutes les utilities de padding (cf. CLAUDE.md §7.6).
-                // Un `px-2` ici serait avalé sans le moindre signal, et le
-                // surlignage collerait au texte.
-                style={
-                  here
-                    ? { padding: ACTIVE_FILL_PADDING, borderRadius: CONTROL_RADIUS }
-                    : undefined
+          {/* ZONE FIXE (règles 1 et 2 du header, 2026-11-15) : le glyph puis
+              « All sites », à `SCOPE_GAP`, IDENTIQUES au pixel sur tous les
+              sites — la seule entrée vue des deux côtés d'un passage d'un site
+              à l'autre ne bouge jamais. Le reste de la rangée suit le genre
+              du site (étalé ou serré, cf. la classe du `nav`). */}
+          <div className="flex items-center shrink-0" style={{ gap: SCOPE_GAP }}>
+            <HomeLink
+              href={IS_BLOG ? homePath(lang) : onHub ? HUB_URL : '/'}
+              className="flex items-center shrink-0"
+              data-nav-glyph
+              aria-label={glyphLabel}
+              onPointerEnter={warmHero}
+              onPointerDown={warmHero}
+              onFocus={warmHero}
+              // Retour à la home : le corps de page part à droite, le hero naît
+              // sur ce glyph (lib/site/home-return.ts). La navigation n'est PAS
+              // annulée — elle part en même temps. Clic modifié (nouvel onglet,
+              // nouvelle fenêtre) : rien, c'est une autre page qui s'ouvre.
+              onClick={(e) => {
+                // Hub : chargement complet de la porte, pas de hero à faire naître.
+                if (IS_BLOG || onHub) return;
+                if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+                  return;
                 }
-                className={cn(
-                  // Specs Pencil nav item : fontSize 32, fontWeight 700, letterSpacing -1.28 (= -0.04em).
-                  // PAS d'uppercase (Pencil = "About", pas "ABOUT").
-                  'hidden md:inline-block text-[32px] font-bold tracking-[-0.04em] text-[var(--color-fg)] leading-none motion-reduce:transition-none',
-                  // ÉTAT ACTIF = SURLIGNAGE PLEIN, plus de soulignement
-                  // (arbitrage Alexandre, 2026-08-23 — brand book §4.3).
-                  // Le libellé reste noir : il est à 7,26:1 sur ce fond.
-                  //
-                  // ⚠️ Le padding n'est posé QUE sur l'item actif, jamais sur
-                  // les cinq. La nav-bar doit rester alignée au pixel près sur
-                  // l'état d'arrivée du morph du hero de la home (CLAUDE.md
-                  // §3.6), et la home n'a AUCUN item actif (`/` n'est pas dans
-                  // NAV_LINKS) : ne padder que l'actif laisse donc la
-                  // géométrie du morph strictement inchangée. Padder les cinq
-                  // élargirait la rangée de 80 px et ferait atterrir le morph
-                  // à côté de sa cible.
-                  here && 'bg-[var(--color-active-bg)]'
-                )}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
+                const glyph = e.currentTarget.querySelector('svg');
+                const bar = e.currentTarget.closest('nav');
+                if (!glyph || !bar) return;
+                beginHomeReturn(
+                  glyph,
+                  Array.from(bar.querySelectorAll<HTMLElement>('[data-nav-link]'))
+                );
+              }}
+            >
+              {/* Couleur héritée du token, pas figée : `--color-logo` vaut le
+                  cobalt brand, et le SVG étant inline il n'y a aucun fichier à
+                  échanger le jour où une surface en demanderait un autre. Il ne
+                  bascule plus au blanc : le mode immersif de /series (mobile) a
+                  été retiré le 2026-08-23 et le glyph est cobalt partout. */}
+              <GlyphLogo
+                size={28}
+                color="var(--color-logo)"
+                title={glyphLabel}
+              />
+            </HomeLink>
+            {scope.map(renderLink)}
+          </div>
+
+          {/* Le contenu du site : visible sur desktop. `data-cursor-invert`
+              déclenche le disque d'inversion (CursorInvert.tsx). */}
+          {content.map(renderLink)}
         </nav>
       </header>
     </>

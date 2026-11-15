@@ -95,7 +95,7 @@ export function contentBoxOf(el: HTMLElement): Box {
  */
 export function measureNavBar(activeHref: string): { glyph: Box; nav: Box[] } | null {
   const header = document.querySelector<HTMLElement>('header[data-top-bar]');
-  const glyph = header?.querySelector('nav > a svg');
+  const glyph = header?.querySelector('[data-nav-glyph] svg');
   if (!header || !glyph) return null;
   const links = Array.from(header.querySelectorAll<HTMLElement>('[data-nav-link]'));
   const active = NAV_LINKS.findIndex((l) => isSamePage(l.href, activeHref));

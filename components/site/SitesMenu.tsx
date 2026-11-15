@@ -158,7 +158,7 @@ export function SitesList({
   const pathname = usePathname();
   const onHub = isHubPage(pathname);
   // À défaut d'`entries` : « All sites », composé selon la page (`sitesMenu`).
-  const rows = entries ?? sitesMenu(pathname).map(({ host, ...site }) => ({ ...site, detail: host }));
+  const rows = entries ?? sitesMenu().map(({ host, ...site }) => ({ ...site, detail: host }));
   return (
     <ul className={cn('flex flex-col', className)}>
       {rows.map((site) => (

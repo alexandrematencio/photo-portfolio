@@ -15,7 +15,7 @@
  */
 
 import { LANGS, conceptMapPath, type Lang } from '@/lib/journal/i18n';
-import { ABOUT_URL, HUB_URL, IS_BLOG, blogHref, isHubPage, photoHref } from './sites';
+import { ABOUT_URL, HUB_URL, IS_BLOG, blogHref, photoHref } from './sites';
 
 export type NavLink = {
   href: string;
@@ -64,44 +64,52 @@ export const NAV_LINKS: NavLink[] = IS_BLOG
       // Le journal (blog.amatencio.com) : « All sites », puis « Journal » —
       // un menu, surligné comme page active —, puis la Concept Map
       // (2026-10-29, demande Alexandre), dans la langue de la page (phase 5).
-      // About n'est plus ici : il vit dans « All sites » (`aboutInSitesMenu`,
+      // About n'est plus ici : il vit dans « All sites » (`sitesMenu`,
       // 2026-11-10).
       { href: HUB_URL, label: 'All sites', menu: 'sites' },
       { href: '/', label: 'Journal', menu: 'journal' },
       { href: conceptMapPath('fr'), label: 'Concept Map', localized: conceptMapPath },
     ]
   : [
-      // 2026-11-15 : « Work » entre, « Journal » sort — même geste, cinq
-      // entrées comme avant. Le journal vit dans « All sites » (`SITES`),
-      // comme partout ailleurs que sur amatencio.com. Series raconte, Work
-      // classe, Archives conserve : du plus édité au fonds complet.
+      // 2026-11-15 : « Work » entre, « Journal » sort. Le journal vit dans
+      // « All sites » (`SITES`). Series raconte, Work classe, Archives
+      // conserve : du plus édité au fonds complet.
+      //
+      // Même jour, règles du header (Alexandre, avis de Jev) : « All sites »
+      // passe EN TÊTE, collé au glyph comme sur le journal et le hub — c'est
+      // la seule entrée vue des deux côtés d'un passage d'un site à l'autre,
+      // elle ne bouge jamais (`SCOPE_GAP`). About quitte la barre pour « All
+      // sites » : une entrée de la rangée reste sur le site, et About mène au
+      // hub.
+      { href: HUB_URL, label: 'All sites', menu: 'sites' },
       { href: '/series', label: 'Series' },
       { href: '/work', label: 'Work' },
       { href: '/archives', label: 'Archives' },
-      // LA page About vit sur le hub (2026-10-22) : adresse absolue.
-      { href: ABOUT_URL, label: 'About' },
-      { href: HUB_URL, label: 'All sites', menu: 'sites' },
     ];
+
+/**
+ * Écart entre le glyph et « All sites », identique sur TOUS les sites (règle
+ * 2 du header, 2026-11-15) : la zone glyph + All sites est la même au pixel
+ * sur le portfolio, le journal et le hub. Le reste de la rangée suit le genre
+ * du site : étalé sur un portfolio, serré à gauche (au même écart) ailleurs.
+ */
+export const SCOPE_GAP = 40;
 
 /**
  * Le menu des pages du HUB construites ici (About, `isHubPage`) : le glyph
  * ramène à amatencio.com, puis « All sites », où About porte le voyant
- * (`aboutInSitesMenu`). Ni Series ni Archives : on n'est plus dans le
+ * (`sitesMenu`). Ni Series ni Archives : on n'est plus dans le
  * portfolio (demande Alexandre, 2026-10-22). Pas de morph sur ces pages : la
  * rangée se cale à gauche, comme le journal.
  */
 export const HUB_NAV_LINKS: NavLink[] = [{ href: HUB_URL, label: 'All sites', menu: 'sites' }];
 
 /**
- * RÈGLE (demande Alexandre, 2026-11-10) : sur tout site d'amatencio.com qui
- * n'est PAS un portfolio (photo, design), About quitte la nav-bar et devient
- * une rangée de « All sites ». Aujourd'hui : le journal et les pages du hub.
- * Un portfolio garde About dans sa nav-bar (et le morph du hero en dépend,
- * §3.6). Un nouveau site se range ici, jamais par une liste écrite à la main.
+ * RÈGLE : About est une rangée de « All sites », sur TOUS les sites — le
+ * journal et le hub depuis le 2026-11-10, les portfolios depuis le
+ * 2026-11-15 (règle 3 du header, avis de Jev validé par Alexandre : une
+ * entrée de la rangée ne quitte pas le site, et About mène au hub).
  */
-export function aboutInSitesMenu(pathname: string | null): boolean {
-  return IS_BLOG || isHubPage(pathname);
-}
 
 /**
  * Les sites d'amatencio.com, dans le menu « All sites ». `href: null` : site
@@ -126,8 +134,8 @@ export const SITES: SiteEntry[] = [
 ];
 
 /**
- * Le panneau « All sites » : l'accueil principal en tête, About juste après
- * quand la règle le veut, puis les sites. Libellé « Home » et ordre validés
+ * Le panneau « All sites » : l'accueil principal en tête, About juste après,
+ * puis les sites. Libellé « Home » et ordre validés
  * par Jev le 2026-11-10 (Home 0,84 ; en tête 0,92 ; About après Home 0,75) :
  * la ligne de détail « amatencio.com » suffit à dire de quel accueil il
  * s'agit. `SITES` reste la liste des seuls sites (le pied de page la lit).
@@ -135,23 +143,20 @@ export const SITES: SiteEntry[] = [
 const HOME_ENTRY: SiteEntry = { label: 'Home', host: 'amatencio.com', href: HUB_URL };
 const ABOUT_ENTRY: SiteEntry = { label: 'About', host: 'amatencio.com/about', href: ABOUT_URL };
 
-export function sitesMenu(pathname: string | null): SiteEntry[] {
-  return [HOME_ENTRY, ...(aboutInSitesMenu(pathname) ? [ABOUT_ENTRY] : []), ...SITES];
+export function sitesMenu(): SiteEntry[] {
+  return [HOME_ENTRY, ABOUT_ENTRY, ...SITES];
 }
 
 /**
- * Liste complète affichée dans le drawer mobile : « Home » en tête, puis la
- * nav principale.
+ * Liste du tiroir mobile : la nav principale, dans l'ordre du bureau (règle 6
+ * du header, 2026-11-15).
  *
- * Pourquoi « Home » n'existe QUE là : sur desktop, le glyph de la nav-bar EST
- * le retour à l'accueil, et une entrée `/` dans `NAV_LINKS` ferait tomber
- * l'invariant 6 du §3.6 (la home n'a par construction aucun item actif, c'est
- * ce qui autorise à ne padder que l'actif). Le drawer, lui, padde tous ses
- * items : il peut porter une entrée active sans toucher à aucune géométrie.
+ * Plus de « Home » en tête sur le portfolio : il menait à `/` alors que la
+ * rangée « Home » de « All sites », juste en dessous, mène à amatencio.com —
+ * deux libellés identiques, deux destinations. Le glyph en tête du tiroir
+ * ramène à l'accueil du site, comme sur desktop.
  */
-export const MOBILE_NAV_LINKS: NavLink[] = IS_BLOG
-  ? NAV_LINKS // « Journal » y est déjà l'accueil
-  : [{ href: '/', label: 'Home' }, ...NAV_LINKS];
+export const MOBILE_NAV_LINKS: NavLink[] = NAV_LINKS;
 
 /**
  * Clic sur un lien de nav qui pointe vers la page DÉJÀ affichée.

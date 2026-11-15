@@ -1,6 +1,6 @@
 import { useEffect, type RefObject } from 'react';
 import type GsapDefault from 'gsap';
-import { NAV_LINKS } from '@/lib/site/nav';
+import { NAV_LINKS, SCOPE_GAP } from '@/lib/site/nav';
 import type { HeroRefs } from './refs';
 import {
   FADE_FAST_DURATION,
@@ -89,15 +89,24 @@ export function useScrollMorph(
           init ? init.width * navTargetScale : 0
         );
 
-        const totalContentWidth =
-          logoVisibleWidth + navTargetWidths.reduce((a, b) => a + b, 0);
+        // L'arrivée = la nav-bar du portfolio (`SiteHeader`, règles du header
+        // du 2026-11-15) : la ZONE FIXE à gauche — glyph, `SCOPE_GAP`, « All
+        // sites » —, puis les autres entrées en space-between sur la largeur
+        // restante, la dernière contre `PAD_RIGHT`. « All sites » est en tête
+        // de `NAV_LINKS` (lib/site/nav.ts).
         const padLeft = pageGutter();
-        const availableWidth = window.innerWidth - padLeft - PAD_RIGHT;
-        const itemGap = (availableWidth - totalContentWidth) / NAV_LINKS.length;
+        const scopeIdx = NAV_LINKS.findIndex((l) => l.menu === 'sites');
+        const scopeLeft = padLeft + logoVisibleWidth + SCOPE_GAP;
+        const scopeRight = scopeLeft + (scopeIdx >= 0 ? navTargetWidths[scopeIdx] : -SCOPE_GAP);
+        const rest = NAV_LINKS.map((_, i) => i).filter((i) => i !== scopeIdx);
+        const restWidth = rest.reduce((a, i) => a + navTargetWidths[i], 0);
+        const itemGap = (window.innerWidth - PAD_RIGHT - scopeRight - restWidth) / rest.length;
 
         const targetLeftFor = (i: number) => {
-          let cursor = padLeft + logoVisibleWidth + itemGap;
-          for (let j = 0; j < i; j++) {
+          if (i === scopeIdx) return scopeLeft;
+          let cursor = scopeRight + itemGap;
+          for (const j of rest) {
+            if (j === i) break;
             cursor += navTargetWidths[j] + itemGap;
           }
           return cursor;

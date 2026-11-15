@@ -33,14 +33,15 @@ import {
  * - Open: full-screen overlay on the `--color-bg-raised` rung. Top bar 32 px above, page gutter on the sides, with the cobalt
  *   glyph on the left and an X close icon on the right. Nav items pushed to bottom-left with
  *   page-gutter padding (left), 32 px (bottom), gap 32 px, 48 px / bold.
- * - Items: Home, puis la nav principale (Series, Work, Archives, About, All sites).
+ * - Items: la nav principale, dans l'ordre du bureau (All sites, Series, Work, Archives).
  *
  * Rendered once at the layout level — both home and editorial pages share this single instance.
  */
 
-// « Home » n'existe que dans ce drawer (le glyph joue ce rôle sur desktop) :
-// la liste est composée dans `lib/site/nav.ts`, jamais ici. Le lien Instagram
-// qui vivait là a été retiré le 2026-08-24 — les réseaux vivent sur /contact.
+// La liste est composée dans `lib/site/nav.ts`, jamais ici. Le glyph en tête
+// du tiroir ramène à l'accueil du site (plus d'entrée « Home », 2026-11-15).
+// Le lien Instagram qui vivait là a été retiré le 2026-08-24 — les réseaux
+// vivent sur /contact.
 
 export function MobileMenu({ journalMenu }: { journalMenu?: MenuEntry[] }) {
   const [open, setOpen] = useState(false);

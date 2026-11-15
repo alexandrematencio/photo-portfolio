@@ -11,7 +11,8 @@ export const NAV_FONT_INITIAL = 32;
 // en mode nav-bar fixed top. Seule la position morphe (vertical → horizontal).
 export const NAV_FONT_TARGET = 32;
 export const HEADER_HEIGHT = 64; // h-16 — identique sur toutes les pages (SiteHeader)
-// Nav-bar final = pleine largeur, items space-between. Gauche : la gouttière
+// Nav-bar final = glyph + « All sites » à gauche (`SCOPE_GAP`), le reste en
+// space-between sur la largeur restante (2026-11-15). Gauche : la gouttière
 // de page, lue sur le token (20 sous `md`, 32 au-dessus) — c'est là que se
 // pose le glyph de `SiteHeader`. Droite : 64, desktop seulement (les libellés
 // sont cachés sous `md`).
