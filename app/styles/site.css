@@ -490,6 +490,24 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
   }
 }
 
+/* Diaporama de la lightbox (/work, 2026-11-15) — le temps qui reste avant la
+   photo suivante. Même trait orange de 3 px que le loader : un état (« ça
+   avance tout seul »), jamais un ornement. `linear` assumé : c'est une jauge
+   de temps, pas un déplacement. La durée vient du composant (variable
+   `--slideshow-ms`), une seule source. Mouvement réduit : la jauge ne
+   s'anime pas, elle disparaît — le diaporama, lui, avance quand même. */
+@keyframes lightbox-slideshow-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.lightbox-slideshow-bar {
+  transform-origin: left;
+  animation: lightbox-slideshow-fill var(--slideshow-ms) linear both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lightbox-slideshow-bar { display: none; }
+}
+
 /* Barre du haut mobile — mode « scroll-triggered » (demande Alexandre,
    2026-08-24). Les deux morceaux fixes de la barre (glyph du SiteHeader,
    bouton MENU de MobileMenu) portent `data-top-bar` ; le contrôleur

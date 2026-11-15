@@ -39,8 +39,9 @@
 
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ArrowLeft, ArrowRight } from 'lucide-react';
+import { X, ArrowLeft, ArrowRight, Pause, Play } from 'lucide-react';
 import { lightboxImageUrl } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
 import { pushModalHistory } from '@/lib/utils/modalHistory';
@@ -52,7 +53,18 @@ type Props = {
   photos: Photo[];
   initialIndex: number;
   onClose: () => void;
+  /** Montre la touche lecture / pause (diaporama). Opt-in : /work seulement. */
+  slideshow?: boolean;
+  /** Ouvre le carousel en lecture. Sans effet si `slideshow` est absent. */
+  autoplay?: boolean;
+  /** Prévient le parent de la photo courante — /work recale sa grille dessus
+      à la fermeture. */
+  onIndexChange?: (index: number) => void;
 };
+
+/** Temps de pose d'une photo en diaporama. Le compte ne démarre qu'une fois
+ *  la photo ARRIVÉE : un réseau lent ne raccourcit jamais une pose. */
+const SLIDESHOW_MS = 4500;
 
 /* Fonds de la lightbox — posés sur l'échelle de valeurs de globals.css, plus
    en hex ici. Desktop : le barreau « calque posé sur le papier », commun au
@@ -75,8 +87,20 @@ const SWIPE_THRESHOLD = 50; // px delta to trigger navigation
  *  panne plutôt que comme un chargement. */
 const LOADER_DELAY_MS = 200;
 
-export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
+export function PhotoLightbox({
+  photos,
+  initialIndex,
+  onClose,
+  slideshow = false,
+  autoplay = false,
+  onIndexChange,
+}: Props) {
   const [index, setIndex] = useState(initialIndex);
+  const [playing, setPlaying] = useState(slideshow && autoplay);
+  const slideshowRef = useRef(slideshow);
+  useEffect(() => {
+    slideshowRef.current = slideshow;
+  }, [slideshow]);
   // « Chargée » se lit PAR URL, jamais comme un booléen qu'on remet à false à
   // chaque changement de photo. Bug réel (2026-09-11) : le reset par effet
   // arrivait APRÈS l'`onLoad` d'une image revenue du cache, et `next/image`
@@ -151,10 +175,32 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
     }
   }, [loaded, index, photos]);
 
-  // Keyboard: Esc closes, ← / → navigate. Also locks body scroll while open.
+  // Diaporama : la pose commence quand la photo est là, et repart à zéro à
+  // chaque changement (flèche, balayage) — un geste manuel ne se fait jamais
+  // doubler par le minuteur une demi-seconde plus tard.
+  useEffect(() => {
+    if (!playing || !loaded || photos.length < 2) return;
+    const t = setTimeout(next, SLIDESHOW_MS);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, loaded, index, photos.length]);
+
+  const onIndexChangeRef = useRef(onIndexChange);
+  useEffect(() => {
+    onIndexChangeRef.current = onIndexChange;
+  }, [onIndexChange]);
+  useEffect(() => {
+    onIndexChangeRef.current?.(index);
+  }, [index]);
+
+  // Keyboard: Esc closes, ← / → navigate, Space plays / pauses (slideshow
+  // only). Also locks body scroll while open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === ' ' && slideshowRef.current) {
+        e.preventDefault();
+        setPlaying((p) => !p);
+      } else if (e.key === 'Escape') onClose();
       else if (e.key === 'ArrowLeft') prev();
       else if (e.key === 'ArrowRight') next();
     };
@@ -474,6 +520,25 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
         )}
       </div>
 
+      {/* Jauge du diaporama — le long du bas de l'écran, `key` par visite :
+          elle repart de zéro à chaque photo. Montée seulement quand la pose a
+          commencé (photo arrivée), comme le minuteur qu'elle montre. */}
+      {playing && loaded && (
+        <div
+          key={visit}
+          aria-hidden
+          className="lightbox-slideshow-bar fixed left-0 right-0 bottom-0 pointer-events-none"
+          style={
+            {
+              height: 3,
+              zIndex: 110,
+              backgroundColor: 'var(--color-link)',
+              '--slideshow-ms': `${SLIDESHOW_MS}ms`,
+            } as CSSProperties
+          }
+        />
+      )}
+
       {/* Close — AU NIVEAU DE L'ÉCRAN, plus ancrée au cadre (demande Alexandre,
           2026-08-23). La lightbox occupe tout l'écran : c'est une page qu'on
           ferme, pas un panneau posé sur une autre. La croix va donc là où l'œil
@@ -500,6 +565,26 @@ export function PhotoLightbox({ photos, initialIndex, onClose }: Props) {
             : 'opacity 160ms ease-out',
         }}
       >
+        {slideshow && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPlaying((p) => !p);
+            }}
+            aria-label={playing ? 'Pause slideshow' : 'Play slideshow'}
+            aria-pressed={playing}
+            className="flex items-center justify-center text-[var(--color-fg)] hover:opacity-60 transition-opacity motion-reduce:transition-none cursor-pointer"
+            // Marge inline : le reset global avale les utilities d'espacement.
+            style={{ marginRight: 24 }}
+          >
+            {playing ? (
+              <Pause size={closeSize - 8} strokeWidth={2} />
+            ) : (
+              <Play size={closeSize - 8} strokeWidth={2} />
+            )}
+          </button>
+        )}
         <button
           type="button"
           onClick={(e) => {

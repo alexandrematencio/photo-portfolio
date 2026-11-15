@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { CSSProperties } from 'react';
 import { PhotoCard } from '@/components/gallery/PhotoCard';
 import { PhotoLightbox } from '@/components/gallery/PhotoLightbox';
 import type { Photo } from '@/lib/sanity/queries';
@@ -17,19 +18,20 @@ import type { Photo } from '@/lib/sanity/queries';
  * des timbres-poste. `align-items: start` — des ratios différents ne s'étirent
  * pas à la hauteur de la plus haute.
  */
+/** La grille, partagée avec /work (`WorkGallery`) — une seule définition. */
+export const PHOTO_GRID_STYLE: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
+  gap: '1.5rem',
+  alignItems: 'start',
+  width: '100%',
+};
+
 export function SeriesPhotoGrid({ photos }: { photos: Photo[] }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   return (
     <>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))',
-          gap: '1.5rem',
-          alignItems: 'start',
-          width: '100%',
-        }}
-      >
+      <div style={PHOTO_GRID_STYLE}>
         {photos.map((p, i) => (
           <PhotoCard key={p._id} photo={p} onOpen={() => setOpenIndex(i)} />
         ))}
