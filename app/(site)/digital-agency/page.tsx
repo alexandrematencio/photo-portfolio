@@ -9,6 +9,7 @@ import { hubHref } from '@/lib/site/sites';
  * en dur pour le cas sans JavaScript. `noindex` : la nouvelle adresse
  * est la seule canonique. Depuis le 2026-10-22, la page est une partie
  * de LA page About, sur le hub ; en ligne, Caddy répond par une 301.
+ * Le bloc a disparu de /about le 2026-11-16 : la cible est la page entière.
  */
 export const metadata: Metadata = {
   title: 'Digital Agency',
@@ -16,5 +17,5 @@ export const metadata: Metadata = {
 };
 
 export default function LegacyDigitalAgencyPage() {
-  return <LegacyRedirect to={hubHref('/about/#digital-agency')} />;
+  return <LegacyRedirect to={hubHref('/about/')} />;
 }

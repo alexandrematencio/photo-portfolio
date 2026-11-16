@@ -52,14 +52,7 @@ const BODY_PAGES: (PageDoc & { intro: string })[] = [
     title: 'About',
     path: '/about/',
     intro:
-      'Le texte complet de la page amatencio.com/about — c’est cette liste qui EST la page, il n’y a pas de texte en dur ailleurs. C’est la seule page About des sites (hors celle du journal) : le portfolio et le journal y renvoient. Le texte de « Digital Agency » s’affiche à la suite, sous l’intertitre DIGITAL AGENCY.',
-  },
-  {
-    type: 'digitalAgencyPage',
-    title: 'Digital Agency',
-    path: '/about/#digital-agency',
-    intro:
-      'La partie « DIGITAL AGENCY » de la page amatencio.com/about, affichée après le texte de About, sous son intertitre (ne le répète pas ici). L’ancienne page /about/digital-agency renvoie à cet endroit.',
+      'Le texte complet de la page amatencio.com/about — c’est cette liste qui EST la page, il n’y a pas de texte en dur ailleurs. C’est la seule page About des sites (hors celle du journal) : le portfolio et le journal y renvoient. L’encart de questions et les compléments repliés se règlent plus bas, dans ce même document.',
   },
   {
     type: 'contactPage',
@@ -109,7 +102,9 @@ export const WORK_PAGE: PageDoc = { type: 'workPage', title: 'Work', path: '/wor
 export const PAGE_DOCS: PageDoc[] = [HUB_PAGE, HOME_PAGE, WORK_PAGE, ...BODY_PAGES];
 
 /** Les pages servies sur le HUB plutôt que sur le portfolio (productionUrl). */
-export const HUB_PAGE_TYPES = new Set([HUB_PAGE.type, 'aboutPage', 'digitalAgencyPage']);
+// `digitalAgencyPage` retiré le 2026-11-16 (doublait /about) : le document
+// reste dans le dataset, plus aucun schéma ni page ne le lit.
+export const HUB_PAGE_TYPES = new Set([HUB_PAGE.type, 'aboutPage']);
 
 const hubPageSchema = defineType({
   name: HUB_PAGE.type,

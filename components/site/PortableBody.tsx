@@ -283,7 +283,7 @@ type Props = {
 
 /**
  * Renders a Sanity Portable Text body. Use this everywhere an editable page
- * needs rich text from `siteSettings` (aboutBody, contactBody, digitalAgencyBody) or
+ * needs rich text from `siteSettings` (aboutBody, contactBody) or
  * any future block-content schema field — never hard-code editable copy in
  * a React component (cf. CLAUDE.md §8.5).
  */

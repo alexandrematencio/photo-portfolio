@@ -15,13 +15,13 @@ import { AboutExtras } from '@/components/journal/AboutPage';
 /**
  * LA page About — la seule des sites, hors celle du journal (2026-10-22).
  * Construite ici, servie par Caddy sous `amatencio.com/about/` : la canonical
- * et le fil d'Ariane désignent donc le hub, pas le portfolio. Elle porte aussi
- * l'ancienne page Digital Agency, à la suite, sous `#digital-agency`.
+ * et le fil d'Ariane désignent donc le hub, pas le portfolio.
  *
  * Trois étages depuis le 2026-11-16, comme « À propos de ce journal » : le
  * texte principal, un encart de questions toujours ouvert, des compléments
  * repliés (`AboutExtras`, mêmes champs que le journal). Le bloc DIGITAL AGENCY
- * suit, en dernier.
+ * qui suivait a été retiré le même jour : il doublait le texte (AAXLO y est
+ * présenté, et lié par son logo).
  *
  * Titre et description : Studio → Pages → About → « Référencement (Google) ».
  */
@@ -35,22 +35,6 @@ export async function generateMetadata() {
     siteName: AUTHOR_FULL_NAME,
   });
 }
-
-/**
- * L'intertitre posé entre le texte de About et celui de Digital Agency. Un
- * bloc Portable Text et non un second `PortableBody` : le chapô est le bloc
- * d'INDEX 0 du tableau, et un second corps ouvrirait sur un second chapô.
- * `anchor` devient l'`id` du titre (PortableBody, h2) — l'ancienne adresse
- * /about/digital-agency y renvoie.
- */
-const AGENCY_HEADING = {
-  _type: 'block',
-  _key: 'digital-agency-heading',
-  style: 'h2',
-  anchor: 'digital-agency',
-  markDefs: [],
-  children: [{ _type: 'span', _key: 'digital-agency-heading-text', text: 'DIGITAL AGENCY', marks: [] }],
-};
 
 export const revalidate = 300;
 
@@ -66,7 +50,6 @@ Art Director for 8 years, photographer by way of cinema. Edit this copy from Stu
 
 export default async function AboutPage() {
   const settings = await getSiteSettings();
-  const agencyBody = settings?.digitalAgencyBody ?? [];
   const aboutBody = settings?.aboutBody;
   // Les étages ne se montrent que si le Studio en a publié ; `body` n'est pas
   // lu par `AboutExtras`, il rend seulement l'encart et les compléments.
@@ -114,14 +97,6 @@ export default async function AboutPage() {
               />
             </TextReveal>
             <AboutExtras about={extras} />
-            {/* Hors du texte principal : un second `PortableBody` ouvrirait sur
-                un second chapô, d'où `lead={false}` ; l'écart de 64 est celui
-                d'un H2 du corps, que l'index 0 ne reçoit pas. */}
-            {aboutBody && agencyBody.length > 0 && (
-              <div style={{ marginTop: 64 }}>
-                <PortableBody value={[AGENCY_HEADING, ...agencyBody]} variant="editorial" lead={false} />
-              </div>
-            )}
           </div>
         </div>
       </PageShell>

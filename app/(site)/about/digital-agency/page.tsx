@@ -4,7 +4,8 @@ import { hubHref } from '@/lib/site/sites';
 
 /**
  * La page Digital Agency a été fondue dans LA page About, sur le hub
- * (2026-10-22) : son texte s'y affiche à la suite, sous `#digital-agency`.
+ * (2026-10-22), puis retirée le 2026-11-16 (elle doublait le texte) : la
+ * cible est désormais la page entière.
  * En ligne, Caddy répond par une 301 ; ce stub ne sert qu'en local.
  */
 export const metadata: Metadata = {
@@ -13,5 +14,5 @@ export const metadata: Metadata = {
 };
 
 export default function LegacyAgencyPage() {
-  return <LegacyRedirect to={hubHref('/about/#digital-agency')} />;
+  return <LegacyRedirect to={hubHref('/about/')} />;
 }

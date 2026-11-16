@@ -139,7 +139,6 @@ export type SiteSettings = {
   aboutSectionsTitle?: string | null;
   aboutSections?: { _key: string; title: string; body: unknown[] | null }[] | null;
   contactBody?: unknown[];
-  digitalAgencyBody?: unknown[];
   socialsBody?: unknown[];
   legalBody?: unknown[];
   privacyBody?: unknown[];
@@ -215,7 +214,6 @@ const siteSettingsQuery = groq`
     "aboutSectionsTitle": *[_id == "aboutPage"][0].sectionsTitle,
     "aboutSections": *[_id == "aboutPage"][0].sections[]{ _key, title, body },
     "contactBody": *[_id == "contactPage"][0].body,
-    "digitalAgencyBody": *[_id == "digitalAgencyPage"][0].body,
     "socialsBody": *[_id == "socialsPage"][0].body,
     "legalBody": *[_id == "legalPage"][0].body,
     "privacyBody": *[_id == "privacyPage"][0].body

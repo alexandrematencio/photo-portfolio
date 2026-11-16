@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ABOUT_URL, IS_BLOG, hubHref, hubSafeHref, photoHref } from '@/lib/site/sites';
+import { ABOUT_URL, IS_BLOG, hubSafeHref, photoHref } from '@/lib/site/sites';
 
 // Le pied de page est aussi celui d'About, servie sur le HUB (amatencio.com),
 // et il ne sait pas sur quelle page il est (composant serveur) : ses liens
@@ -49,9 +49,9 @@ export async function SiteFooter() {
         <div className="footer-col">
           <p className="footer-label">About</p>
           <ul className="footer-links">
-            {/* LA page About vit sur le hub, Digital agency fondue dedans (2026-10-22). */}
+            {/* LA page About vit sur le hub. « Digital agency » retiré le
+                2026-11-16 : l'agence est déjà dans la colonne Sites (aaxlo.com). */}
             <li><Link href={ABOUT_URL}>About</Link></li>
-            <li><Link href={hubHref('/about/#digital-agency')}>Digital agency</Link></li>
           </ul>
         </div>
 
