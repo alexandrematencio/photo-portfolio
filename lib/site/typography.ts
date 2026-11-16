@@ -38,9 +38,15 @@ import { cn } from '@/lib/utils/cn';
  *
  * **Les trois voix de corps** :
  *
- *   CHAPÔ    28 / 21   700   pleine colonne (1107)   le bloc d'entrée
- *   COURANT  20 / 17   500   mesure (680)            ce qui se lit
- *   ANNEXE   17 / 15   500   mesure (680)            le pratique, le listé
+ *   CHAPÔ    25 / 21   700   pleine colonne (1107)   le bloc d’entrée
+ *   COURANT  18 / 17   500   mesure (610)            ce qui se lit
+ *   ANNEXE   15 / 15   500   mesure (610)            le pratique, le listé
+ *
+ * **Desktop réduit de 10 % le 2026-11-16** (demande Alexandre : corps 20 → 18,
+ * « trop gros »). Toute l’échelle desktop a suivi au même facteur pour garder
+ * les rapports : chapô 28 → 25, H2 48 → 43, H3 24 → 22, exergue 32 → 29,
+ * annexe 17 → 15, mesure 680 → 610 (même nombre de signes par ligne). Le
+ * mobile n’a pas bougé : 17 px y est déjà le plancher de lecture.
  *
  * ⚠️ Le contraste chapô → courant vient de DEUX leviers, pas d'un : 40 %
  * d'écart de taille en desktop, mais seulement 24 % en mobile (21 → 17) — le
@@ -70,7 +76,7 @@ import { cn } from '@/lib/utils/cn';
  * la page au lieu de son premier paragraphe.
  */
 export const EDITORIAL_LEAD =
-  'font-sans text-[21px] md:text-[28px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)]';
+  'font-sans text-[21px] md:text-[25px] font-bold tracking-[-0.02em] leading-[1.34] text-[var(--color-fg)]';
 
 /**
  * CORPS COURANT — tout ce qui suit le chapô. C'est le texte qu'on LIT.
@@ -100,7 +106,7 @@ export const EDITORIAL_LEAD =
  * en Helvetica (§5.1).
  */
 export const EDITORIAL_BODY =
-  'font-sans max-w-[var(--editorial-measure)] text-[17px] md:text-[20px] font-medium tracking-normal leading-[1.55] text-[var(--color-fg)]';
+  'font-sans max-w-[var(--editorial-measure)] text-[17px] md:text-[18px] font-medium tracking-normal leading-[1.55] text-[var(--color-fg)]';
 
 /**
  * ANNEXE — le registre pratique : délai de réponse, listes de matériel,
@@ -117,7 +123,7 @@ export const EDITORIAL_BODY =
  * qu'elle arrive en blocs courts et listés, pas sa seule taille.
  */
 export const EDITORIAL_ANNEX =
-  'font-sans max-w-[var(--editorial-measure)] text-[15px] md:text-[17px] font-medium tracking-normal leading-[1.5] text-[var(--color-fg)]';
+  'font-sans max-w-[var(--editorial-measure)] text-[15px] font-medium tracking-normal leading-[1.5] text-[var(--color-fg)]';
 
 /**
  * TITRE DE SECTION (H2) — la dalle en capitales : « GEAR », « YOUR RIGHTS ».
@@ -134,7 +140,7 @@ export const EDITORIAL_ANNEX =
  * synchrones, exactement le motif que §7.5 interdit.
  */
 export const EDITORIAL_H2 =
-  'text-[36px] md:text-[48px] font-bold uppercase tracking-[-0.02em] leading-[0.9] text-[var(--color-fg)]';
+  'text-[36px] md:text-[43px] font-bold uppercase tracking-[-0.02em] leading-[0.9] text-[var(--color-fg)]';
 
 /**
  * SOUS-TITRE (H3) — le nom qui coiffe un bloc : « Olympus OM-D EM-10 mkIII ».
@@ -146,7 +152,7 @@ export const EDITORIAL_H2 =
  * ainsi le même en lecture qu'en structure.
  */
 export const EDITORIAL_H3 =
-  'text-[19px] md:text-[24px] font-bold tracking-[-0.02em] leading-[1.25] text-[var(--color-fg)]';
+  'text-[19px] md:text-[22px] font-bold tracking-[-0.02em] leading-[1.25] text-[var(--color-fg)]';
 
 /**
  * DÉCORATION de lien éditorial, sans la typo — orange de marque + soulignement
@@ -426,7 +432,7 @@ export function pageTitleFit(title: string): number {
  * jamais d'orange (§4.3) — l'exergue tient par le corps et la voix.
  */
 export const EDITORIAL_PULLQUOTE =
-  'font-[family-name:var(--font-quote)] text-[26px] md:text-[32px] font-medium tracking-[-0.01em] leading-[1.15] text-[var(--color-fg)] [text-wrap:balance]';
+  'font-[family-name:var(--font-quote)] text-[26px] md:text-[29px] font-medium tracking-[-0.01em] leading-[1.15] text-[var(--color-fg)] [text-wrap:balance]';
 
 /**
  * NOTE EN MARGE — la référence posée à côté du paragraphe qui l'appelle.

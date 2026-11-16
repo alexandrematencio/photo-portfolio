@@ -283,7 +283,7 @@
   --page-gutter: 20px;
   --page-title-size: min(68px, (100vw - 2 * var(--page-gutter)) / 5.25);
   --page-air-top: 32px;
-  --editorial-measure: 680px;
+  --editorial-measure: 610px;
   /* Titre d'ARTICLE du journal, en fraction du corps de page : une phrase de
      douze mots n'est pas un mot de page (PageShell `titleSize`). */
   --article-title-scale: 0.6;

@@ -300,7 +300,7 @@ function SeriesNav({ current, parts, style, lang }: { current: string; parts: Ar
                 <span className={cn(MICRO_LABEL, 'w-6 shrink-0 text-[var(--color-fg-muted)]')}>{p.part}</span>
                 <span
                   className={cn(
-                    'text-[19px] md:text-[24px] font-bold tracking-[-0.02em] leading-[1.25]',
+                    'text-[19px] md:text-[22px] font-bold tracking-[-0.02em] leading-[1.25]',
                     here ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] group-hover:text-[var(--color-fg)]',
                   )}
                 >
