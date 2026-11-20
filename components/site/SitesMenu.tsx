@@ -22,7 +22,7 @@ import { CONTROL_RADIUS } from '@/lib/site/controls';
 import { isSamePage, sitesMenu } from '@/lib/site/nav';
 import { ABOUT_URL, hubSafeHref, isExternal, isHubPage } from '@/lib/site/sites';
 import { MICRO_LABEL, MICRO_LABEL_XS } from '@/lib/site/typography';
-import { StateDot } from './StateDot';
+import { StateDotOnTitle } from './StateDot';
 
 /**
  * « All sites » — les sites d'amatencio.com, depuis la nav-bar (desktop) et
@@ -31,7 +31,8 @@ import { StateDot } from './StateDot';
  *
  * Grammaire reprise du site, rien d'inventé :
  * - le voyant (`StateDot`) dit « vous êtes ici » — Photography sur le
- *   portfolio, Journal sur blog.amatencio.com ;
+ *   portfolio, Journal sur blog.amatencio.com ; il se cale sur la ligne du
+ *   NOM, pas sur le milieu de la rangée (`StateDotOnTitle`) ;
  * - la rangée s'inverse au survol et au focus, 200 ms ease-out, comme les
  *   lignes de la page d'accueil du journal (brand book §14.8) ;
  * - le panneau se pose sur `--color-bg-raised`, le barreau « calque posé sur
@@ -61,6 +62,8 @@ const PANEL_OFFSET = 14;
 /** Écart coin à coin quand le panneau s'ouvre au-dessus (nav de la home). */
 const CORNER_OFFSET = 4;
 const PANEL_WIDTH = 300;
+/** Corps et interlignage du nom de site : le voyant s'y cale (`StateDotOnTitle`). */
+const ROW_TITLE_TYPE = 'text-[22px] leading-none';
 /** Marge de la découpe autour du panneau : son ombre déborde d'autant. */
 const SHADOW_ROOM = 24;
 
@@ -68,11 +71,9 @@ function Row({ site, here, onNavigate }: { site: MenuEntry; here: boolean; onNav
   const rowStyle: CSSProperties = { padding: '14px 16px', borderRadius: CONTROL_RADIUS };
   const body = (
     <>
-      <span className="flex self-center">
-        <StateDot on={here} />
-      </span>
+      <StateDotOnTitle on={here} type={ROW_TITLE_TYPE} />
       <span className="flex min-w-0 flex-col" style={{ gap: 7 }}>
-        <span className="text-[22px] font-bold tracking-[-0.02em] leading-none">
+        <span className={cn(ROW_TITLE_TYPE, 'font-bold tracking-[-0.02em]')}>
           {site.label}
           {here && <span className="sr-only"> (current)</span>}
         </span>

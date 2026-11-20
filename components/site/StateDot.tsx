@@ -73,3 +73,26 @@ export function StateDotBalance() {
     <span aria-hidden style={{ width: STATE_DOT_SIZE, flex: 'none' }} />
   );
 }
+
+/**
+ * VOYANT CALÉ SUR LE TITRE — le voyant d'une rangée qui porte un TITRE et du
+ * texte sous lui (adresse, détail, titre sur deux lignes) se centre sur la
+ * PREMIÈRE LIGNE du titre, jamais sur le milieu de la rangée (règle du brand
+ * book §4.3, demande Alexandre du 2026-11-20 sur le menu « All sites »).
+ *
+ * La boîte reçoit les classes de corps et d'interlignage du titre (`type`,
+ * une constante partagée avec le titre, jamais recopiée) et mesure `1lh` :
+ * exactement une ligne du titre, quel que soit son corps au point de rupture.
+ * Le voyant est centré dans cette ligne ; l'interlignage étant réparti de part
+ * et d'autre, le centre de la ligne tombe sur le milieu des capitales.
+ *
+ * Dans une grille ou un flex, la boîte se pose en `self-start` : en haut de la
+ * rangée, sur la ligne du titre.
+ */
+export function StateDotOnTitle({ on, type }: { on: boolean; type: string }) {
+  return (
+    <span aria-hidden className={`${type} flex shrink-0 items-center self-start`} style={{ height: '1lh' }}>
+      <StateDot on={on} />
+    </span>
+  );
+}

@@ -16,7 +16,7 @@ import {
 import { cn } from '@/lib/utils/cn';
 import { AUTHOR_NAME } from '@/lib/site/author';
 import type { Article, ArticleSummary, Inline, InlineLink, InlineMark } from '@/lib/journal/types';
-import { StateDot } from '@/components/site/StateDot';
+import { StateDotOnTitle } from '@/components/site/StateDot';
 import { DraftLabel, NoteCall, NoteRow, NotesProvider, type RowNote } from './Notes';
 import { JournalFigure } from './figures';
 import { ArticleImage } from './ArticleImage';
@@ -265,6 +265,9 @@ function ArticleH2({ id, text, style, lang }: { id: string; text: string; style:
  * dans l'ordre, la partie courante allumée (`StateDot`, l'orange dit « vous
  * êtes ici »), les autres en liens.
  */
+/** Corps et interlignage d'un titre de partie : le voyant s'y cale (`StateDotOnTitle`). */
+const PART_TITLE_TYPE = 'text-[19px] md:text-[22px] leading-[1.25]';
+
 function SeriesNav({ current, parts, style, lang }: { current: string; parts: ArticleSummary[]; style: CSSProperties; lang: Lang }) {
   const t = DICT[lang];
   const line = t.seriesLine(parts[0]?.series ?? '', parts.length);
@@ -294,13 +297,12 @@ function SeriesNav({ current, parts, style, lang }: { current: string; parts: Ar
                 className="flex items-baseline gap-3 group"
                 style={{ paddingBlock: 14 }}
               >
-                <span className="flex self-center">
-                  <StateDot on={here} />
-                </span>
+                <StateDotOnTitle on={here} type={PART_TITLE_TYPE} />
                 <span className={cn(MICRO_LABEL, 'w-6 shrink-0 text-[var(--color-fg-muted)]')}>{p.part}</span>
                 <span
                   className={cn(
-                    'text-[19px] md:text-[22px] font-bold tracking-[-0.02em] leading-[1.25]',
+                    PART_TITLE_TYPE,
+                    'font-bold tracking-[-0.02em]',
                     here ? 'text-[var(--color-fg)]' : 'text-[var(--color-fg-muted)] group-hover:text-[var(--color-fg)]',
                   )}
                 >
