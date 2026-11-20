@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from 'react';
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from 'react';
 import { PhotoCard } from '@/components/gallery/PhotoCard';
 import { PhotoLightbox } from '@/components/gallery/PhotoLightbox';
 import { PHOTO_GRID_STYLE } from '@/components/series/page/SeriesPhotoGrid';
@@ -61,10 +61,32 @@ const ENTRANCE_MAX = 12;
 /** Un survol arrivé moins de 250 ms après un défilement n'est pas un geste. */
 const SCROLL_QUIET_MS = 250;
 
+/**
+ * Largeur du module de transport (Collection | Slideshow, 50/50) sur desktop. UNE valeur lue
+ * par le pont haut ET par le pont bas : le séquenceur s'arrête au bord gauche du module,
+ * jamais dessous.
+ */
+const TRANSPORT_W = 304;
+
+/** Séquenceur : côté d'un pixel, espace entre deux pixels (px). */
+const DOT = 4;
+const DOT_GAP = 4;
+/** Pixels de dégradé de chaque côté de la fenêtre allumée. */
+const GLOW = 7;
+/** Largeur minimale de la fenêtre allumée, en colonnes : une photo seule reste lisible. */
+const CORE_MIN = 3;
+/** Pixel éteint : le filet des pastilles du pont, tiré vers le fond pour rester DOUX. */
+const DOT_OFF = 'color-mix(in srgb, var(--color-line-plate-low) 72%, var(--color-bg-plate-low))';
+/** Trame verticale d'une colonne : un pixel, un blanc, répétés — une seule boîte par colonne. */
+const DOT_COLUMN_BG = `repeating-linear-gradient(to bottom, currentColor 0 ${DOT}px, transparent ${DOT}px ${DOT + DOT_GAP}px)`;
+
 const thumbUrl = (p: Photo, w: number, h: number) =>
   (p.image && urlFor(p.image)?.width(w).height(h).fit('crop').quality(70).auto('format').url()) || null;
 const peekUrl = (p: Photo) =>
   (p.image && urlFor(p.image)?.width(192).quality(70).auto('format').url()) || null;
+
+/** Part de la fenêtre allumée (0–1) à `d` colonnes de son bord : 1 dedans, puis une chute douce. */
+const glowAt = (d: number) => (d <= 0 ? 1 : d > GLOW ? 0 : (1 - d / (GLOW + 1)) ** 2);
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 const motionAllowed = () =>
@@ -99,8 +121,9 @@ const Tri = ({ dir }: { dir: 'left' | 'right' }) => (
 export function WorkGallery({ collections }: { collections: PreparedSeries[] }) {
   const [active, setActive] = useState(0);
   const [range, setRange] = useState<[number, number] | null>(null);
+  // Hauteur réelle du pont bas collant : une ligne sur desktop, deux sous `md`.
+  const [deckH, setDeckH] = useState(0);
   const [lightbox, setLightbox] = useState<{ index: number; autoplay: boolean } | null>(null);
-  const [peek, setPeek] = useState<{ k: number; left: number } | null>(null);
 
   const stripRef = useRef<HTMLDivElement>(null);
   const deckTopRef = useRef<HTMLDivElement>(null);
@@ -146,7 +169,6 @@ export function WorkGallery({ collections }: { collections: PreparedSeries[] }) 
       if (next === active) return;
       animateNext.current = true;
       setActive(next);
-      setPeek(null);
       window.history.replaceState(window.history.state, '', `#${collections[next].slug}`);
       // Grille déjà sous les yeux : on se recale sur son début, sous le pont bas.
       const panel = panelRef.current;
@@ -173,6 +195,16 @@ export function WorkGallery({ collections }: { collections: PreparedSeries[] }) 
     }
   }, [active]);
 
+  useEffect(() => {
+    const deck = deckLowRef.current;
+    if (!deck) return;
+    const measure = () => setDeckH(deck.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(deck);
+    return () => ro.disconnect();
+  }, []);
+
   // Séquenceur : quelles photos sont à l'écran, SOUS le pont bas collant.
   // Une PLAGE continue (min–max) : des cartes de hauteurs inégales laisseraient
   // des trous dans la rangée, que l'œil lirait comme une panne.
@@ -195,7 +227,7 @@ export function WorkGallery({ collections }: { collections: PreparedSeries[] }) 
     );
     for (const el of grid.children) io.observe(el);
     return () => io.disconnect();
-  }, [active]);
+  }, [active, deckH]);
 
   // Entrée de la grille au changement de collection — fondu + 16 px, 40 ms de
   // décalage (CLAUDE.md §3.2). Jamais au chargement, jamais en mouvement réduit.
@@ -255,7 +287,7 @@ export function WorkGallery({ collections }: { collections: PreparedSeries[] }) 
 
   // UNE racine : `PageShell` pose son `gap` entre chacun de ses enfants.
   return (
-    <div>
+    <div style={{ '--transport-w': `${TRANSPORT_W}px` } as CSSProperties}>
       {/* ══ Pont haut : planche contact + module de transport ══ */}
       <div
         ref={deckTopRef}
@@ -286,21 +318,25 @@ export function WorkGallery({ collections }: { collections: PreparedSeries[] }) 
           ))}
         </div>
 
+        {/* Deux cellules INDÉPENDANTES, chacune son fond : la navigation reste sur
+            la plaque sombre, le diaporama passe à l'encre (`--color-fg`). */}
         <div
           role="group"
           aria-label="Transport"
-          className="flex flex-none items-center justify-between md:justify-center gap-4 bg-[var(--color-bg-plate-dark)]"
-          style={{ padding: '8px var(--page-gutter)' }}
+          className="flex flex-none items-stretch md:w-[var(--transport-w)]"
         >
-          <div className="flex md:flex-col items-center gap-2.5 md:gap-2">
+          <div
+            className="flex flex-1 basis-0 min-w-0 flex-col items-center justify-center gap-2 bg-[var(--color-bg-plate-dark)]"
+            style={{ padding: '10px 8px' }}
+          >
             <span className={cn(MICRO_LABEL_XS, 'text-[var(--color-fg-muted-dark)]')}>Collection</span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center">
               <Disc label="Previous collection" onClick={() => select(active - 1)}>
                 <Tri dir="left" />
               </Disc>
               <span
                 className={cn(MICRO_LABEL, 'text-[12px] text-[var(--color-bg)] text-center')}
-                style={{ minWidth: 52 }}
+                style={{ minWidth: 44 }}
                 aria-live="polite"
               >
                 {pad2(active + 1)}
@@ -311,16 +347,15 @@ export function WorkGallery({ collections }: { collections: PreparedSeries[] }) 
               </Disc>
             </div>
           </div>
-          <div className="flex md:flex-col items-center gap-2.5 md:gap-2">
+          <div
+            className="flex flex-1 basis-0 min-w-0 flex-col items-center justify-center gap-2 bg-[var(--color-fg)]"
+            style={{ padding: '10px 8px' }}
+          >
             <span className={cn(MICRO_LABEL_XS, 'text-[var(--color-fg-muted-dark)]')}>Slideshow</span>
-            <Disc
+            <PlayDisc
               label={`Play ${collection.title} as a slideshow`}
               onClick={() => setLightbox({ index: range ? range[0] : 0, autoplay: true })}
-            >
-              <svg viewBox="0 0 10 10" width={10} height={10} aria-hidden fill="currentColor">
-                <path d="M2.5 1 9 5 2.5 9z" />
-              </svg>
-            </Disc>
+            />
           </div>
         </div>
       </div>
@@ -333,7 +368,7 @@ export function WorkGallery({ collections }: { collections: PreparedSeries[] }) 
           MICRO_LABEL,
           'sticky top-0 z-30 flex flex-wrap md:flex-nowrap items-center gap-x-5 gap-y-2 bg-[var(--color-bg-plate-low)] text-[var(--color-fg-muted-plate-low)]'
         )}
-        style={{ padding: '10px var(--page-gutter) 12px' }}
+        style={{ padding: '6px var(--page-gutter)' }}
       >
         <div className="flex w-full md:w-auto flex-none items-center gap-0.5">
           <Chevron label="Previous collection" onClick={() => select(active - 1)} dir="left" />
@@ -352,59 +387,19 @@ export function WorkGallery({ collections }: { collections: PreparedSeries[] }) 
           <Chevron label="Next collection" onClick={() => select(active + 1)} dir="right" />
         </div>
 
-        <div aria-hidden className="relative flex min-w-0 flex-1 basis-full md:basis-0 items-stretch gap-0.5 h-3 md:h-4">
-          {collection.photos.map((p, k) => {
-            const lit = range !== null && k >= range[0] && k <= range[1];
-            return (
-              <button
-                key={p._id}
-                type="button"
-                tabIndex={-1}
-                onClick={() => goToPhoto(k)}
-                onPointerEnter={(e) => {
-                  if (e.pointerType !== 'mouse') return;
-                  const el = e.currentTarget;
-                  setPeek({ k, left: el.offsetLeft + el.offsetWidth / 2 });
-                }}
-                onPointerLeave={() => setPeek(null)}
-                className={cn(
-                  'flex-1 basis-0 max-w-[22px] min-w-0 border cursor-pointer transition-colors motion-reduce:transition-none',
-                  lit
-                    ? 'bg-[var(--color-fg)] border-[var(--color-fg)]'
-                    : 'border-[var(--color-line-plate-low)] hover:border-[var(--color-fg)]'
-                )}
-                style={{ borderRadius: 1 }}
-              />
-            );
-          })}
-          {peek && collection.photos[peek.k] && peekUrl(collection.photos[peek.k]) && (
-            <span
-              className="absolute pointer-events-none bg-[var(--color-bg)]"
-              style={{
-                top: 'calc(100% + 10px)',
-                left: peek.left,
-                width: 104,
-                padding: 4,
-                transform: 'translateX(-50%)',
-                boxShadow: '0 1px 0 var(--color-line-plate-low)',
-              }}
-            >
-              <Image
-                src={peekUrl(collection.photos[peek.k])!}
-                alt=""
-                width={192}
-                height={Math.round(192 / (collection.photos[peek.k].image?.dimensions?.aspectRatio ?? 1.5))}
-                className="block w-full h-auto"
-              />
-            </span>
-          )}
-        </div>
+        <Sequencer photos={collection.photos} range={range} onGo={goToPhoto} />
 
-        <span className="hidden md:flex flex-none gap-4 whitespace-nowrap tabular-nums">
-          <span>
+        {/* Colonne du bas = EXACTEMENT la largeur du module de transport, texte centré dedans :
+            la marge négative reprend la gouttière que le padding du pont réserve à droite,
+            pour que le centre tombe sur celui du module (et non sur celui de la colonne utile). */}
+        <span
+          className="hidden md:flex flex-none items-center justify-center gap-4 whitespace-nowrap tabular-nums md:w-[var(--transport-w)]"
+          style={{ marginRight: 'calc(-1 * var(--page-gutter))', paddingInline: 8 }}
+        >
+          <span className="flex-none">
             {position && <b className="text-[var(--color-fg)]">{position}</b>} {position ? '/' : ''} {pad2(n)}
           </span>
-          <span>{collectionPlaces(collection.photos)}</span>
+          <span className="min-w-0 truncate">{collectionPlaces(collection.photos)}</span>
         </span>
       </div>
 
@@ -423,8 +418,8 @@ export function WorkGallery({ collections }: { collections: PreparedSeries[] }) 
         </p>
         <div ref={gridRef} key={collection._id} style={PHOTO_GRID_STYLE}>
           {collection.photos.map((p, k) => (
-            // `scroll-margin` : un clic du séquenceur pose la photo SOUS le pont collant.
-            <div key={p._id} data-k={k} style={{ scrollMarginTop: 72 }}>
+            // `scroll-margin` : un clic du séquenceur pose la photo SOUS le pont collant (hauteur MESURÉE, `deckH`).
+            <div key={p._id} data-k={k} style={{ scrollMarginTop: deckH + 16 }}>
               <PhotoCard photo={p} onOpen={() => setLightbox({ index: k, autoplay: false })} />
             </div>
           ))}
@@ -556,7 +551,158 @@ function ContactFrame({ collection: c, selected, onSelect, lastScrollRef, ref }:
   );
 }
 
+// ─── Séquenceur : barre de pixels ────────────────────────────────────────────
+
+/**
+ * Un ascenseur à pixels (5 rangées sur desktop, 4 sous `md` : 36 et 28 px, à tenir avec DOT/DOT_GAP), pas une case par
+ * photo : le NOMBRE DE COLONNES vient de la largeur, jamais du nombre de photos.
+ * La fenêtre allumée est la part de la collection à l'écran, ramenée en
+ * colonnes ; elle s'estompe de chaque côté (`glowAt`). Survol et clic
+ * retombent sur la photo de la colonne visée.
+ *
+ * Le dégradé est un MÉLANGE en oklab entre l'orange du site et le pixel éteint,
+ * jamais une opacité : une opacité fait dériver l'orange vers le rose sur le
+ * fond beige, un mélange reste dans la famille du papier.
+ */
+function Sequencer({
+  photos,
+  range,
+  onGo,
+}: {
+  photos: Photo[];
+  range: [number, number] | null;
+  onGo: (k: number) => void;
+}) {
+  const barRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  const [hover, setHover] = useState<number | null>(null);
+
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const measure = () => setWidth(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const n = photos.length;
+  const cols = width > 0 ? Math.max(1, Math.floor((width + DOT_GAP) / (DOT + DOT_GAP))) : 0;
+  const first = (k: number) => Math.floor((k * cols) / n);
+  const last = (k: number) => Math.max(first(k), Math.ceil(((k + 1) * cols) / n) - 1);
+
+  // Fenêtre allumée, élargie à CORE_MIN colonnes autour de son centre.
+  let c0 = -1;
+  let c1 = -2;
+  if (range && cols > 0) {
+    c0 = first(range[0]);
+    c1 = last(range[1]);
+    const grow = Math.min(cols, CORE_MIN) - (c1 - c0 + 1);
+    if (grow > 0) {
+      c0 = Math.max(0, Math.min(c0 - Math.floor(grow / 2), cols - CORE_MIN));
+      c1 = Math.min(cols - 1, c0 + CORE_MIN - 1);
+    }
+  }
+  const h0 = hover !== null ? first(hover) : -1;
+  const h1 = hover !== null ? last(hover) : -2;
+
+  const photoAt = (clientX: number) => {
+    const r = barRef.current?.getBoundingClientRect();
+    if (!r || !r.width || !cols) return null;
+    const col = Math.max(0, Math.min(cols - 1, Math.floor(((clientX - r.left) / r.width) * cols)));
+    return Math.max(0, Math.min(n - 1, Math.floor(((col + 0.5) * n) / cols)));
+  };
+
+  const colour = (i: number) => {
+    if (i >= h0 && i <= h1) return 'var(--color-fg)';
+    const d = i < c0 ? c0 - i : i > c1 ? i - c1 : 0;
+    const pct = Math.round(glowAt(d) * 100);
+    return pct > 0
+      ? `color-mix(in oklab, var(--color-link) ${pct}%, ${DOT_OFF})`
+      : DOT_OFF;
+  };
+
+  const hoverPhoto = hover !== null ? photos[hover] : null;
+  const peekSrc = hoverPhoto ? peekUrl(hoverPhoto) : null;
+  const peekLeft = cols > 1 ? DOT / 2 + (((h0 + h1) / 2) * (width - DOT)) / (cols - 1) : width / 2;
+
+  return (
+    <div
+      aria-hidden
+      className="relative min-w-0 flex-1 basis-full md:basis-0 cursor-pointer"
+      style={{ paddingBlock: 4 }}
+      onPointerMove={(e) => {
+        if (e.pointerType !== 'mouse') return;
+        const k = photoAt(e.clientX);
+        if (k !== hover) setHover(k);
+      }}
+      onPointerLeave={() => setHover(null)}
+      onClick={(e) => {
+        const k = photoAt(e.clientX);
+        if (k !== null) onGo(k);
+      }}
+    >
+      <div ref={barRef} className="relative flex justify-between h-[28px] md:h-[36px] overflow-hidden">
+        {Array.from({ length: cols }, (_, i) => (
+          <span
+            key={i}
+            className="block flex-none h-full transition-colors duration-150 motion-reduce:transition-none"
+            style={{ width: DOT, color: colour(i), backgroundImage: DOT_COLUMN_BG }}
+          />
+        ))}
+      </div>
+      {peekSrc && hoverPhoto && (
+        <span
+          className="absolute pointer-events-none bg-[var(--color-bg)]"
+          style={{
+            top: 'calc(100% + 6px)',
+            left: peekLeft,
+            width: 104,
+            padding: 4,
+            transform: 'translateX(-50%)',
+            boxShadow: '0 1px 0 var(--color-line-plate-low)',
+          }}
+        >
+          <Image
+            src={peekSrc}
+            alt=""
+            width={192}
+            height={Math.round(192 / (hoverPhoto.image?.dimensions?.aspectRatio ?? 1.5))}
+            className="block w-full h-auto"
+          />
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ─── Touches ─────────────────────────────────────────────────────────────────
+
+/** Touche « lecture » : un DISQUE blanc (le papier de la DA) sur la cellule d'encre. */
+function PlayDisc({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      style={{ width: 44, height: 44, borderRadius: '50%' }}
+      className="group inline-flex items-center justify-center cursor-pointer"
+    >
+      {/* Au survol (et au clavier), le disque prend `--color-active-bg` : le FOND orange de la
+          DA (état actif de la nav-bar). L'encre reste dessus, 7,26:1 ; l'orange de TRAIT
+          (`--color-link`) est réservé au trait, pas au fond. */}
+      <span
+        className="inline-flex items-center justify-center bg-[var(--color-bg)] text-[var(--color-fg)] transition-colors group-hover:bg-[var(--color-active-bg)] group-focus-visible:bg-[var(--color-active-bg)] motion-reduce:transition-none"
+        style={{ width: 40, height: 40, borderRadius: '50%' }}
+      >
+        <svg viewBox="0 0 10 10" width={12} height={12} aria-hidden fill="currentColor" style={{ marginLeft: 1 }}>
+          <path d="M2.5 1 9 5 2.5 9z" />
+        </svg>
+      </span>
+    </button>
+  );
+}
 
 /** Touche ronde du module sombre — la forme des boutons de densité d'/archives. */
 function Disc({
