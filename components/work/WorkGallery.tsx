@@ -68,13 +68,19 @@ const SCROLL_QUIET_MS = 250;
  */
 const TRANSPORT_W = 304;
 
-/** Séquenceur : côté d'un pixel, espace entre deux pixels (px). */
-const DOT = 4;
-const DOT_GAP = 4;
-/** Pixels de dégradé de chaque côté de la fenêtre allumée. */
-const GLOW = 7;
-/** Largeur minimale de la fenêtre allumée, en colonnes : une photo seule reste lisible. */
-const CORE_MIN = 3;
+/** Séquenceur : côté d'un pixel, espace entre deux pixels (px), nombre de rangées. */
+const DOT = 2;
+const DOT_GAP = 2;
+const DOT_ROWS = 3;
+/** Hauteur de la barre : DOT_ROWS pixels et leurs blancs, pas un de plus (sinon une rangée tronquée). */
+const BAR_H = DOT_ROWS * DOT + (DOT_ROWS - 1) * DOT_GAP;
+/**
+ * Colonnes de dégradé de chaque côté de la fenêtre allumée, et largeur minimale de la fenêtre
+ * (une photo seule reste lisible). Comptées en COLONNES : à 4 px de pas elles couvrent
+ * 56 et 24 px, comme avec les pixels de 4 px (7 et 3 colonnes à 8 px de pas).
+ */
+const GLOW = 14;
+const CORE_MIN = 6;
 /** Pixel éteint : le filet des pastilles du pont, tiré vers le fond pour rester DOUX. */
 const DOT_OFF = 'color-mix(in srgb, var(--color-line-plate-low) 72%, var(--color-bg-plate-low))';
 /** Trame verticale d'une colonne : un pixel, un blanc, répétés — une seule boîte par colonne. */
@@ -554,7 +560,7 @@ function ContactFrame({ collection: c, selected, onSelect, lastScrollRef, ref }:
 // ─── Séquenceur : barre de pixels ────────────────────────────────────────────
 
 /**
- * Un ascenseur à pixels (5 rangées sur desktop, 4 sous `md` : 36 et 28 px, à tenir avec DOT/DOT_GAP), pas une case par
+ * Un ascenseur à pixels (DOT_ROWS rangées de DOT px, sur toutes les largeurs : la hauteur BAR_H en découle), pas une case par
  * photo : le NOMBRE DE COLONNES vient de la largeur, jamais du nombre de photos.
  * La fenêtre allumée est la part de la collection à l'écran, ramenée en
  * colonnes ; elle s'estompe de chaque côté (`glowAt`). Survol et clic
@@ -631,7 +637,7 @@ function Sequencer({
     <div
       aria-hidden
       className="relative min-w-0 flex-1 basis-full md:basis-0 cursor-pointer"
-      style={{ paddingBlock: 4 }}
+      style={{ paddingBlock: 8 }}
       onPointerMove={(e) => {
         if (e.pointerType !== 'mouse') return;
         const k = photoAt(e.clientX);
@@ -643,7 +649,7 @@ function Sequencer({
         if (k !== null) onGo(k);
       }}
     >
-      <div ref={barRef} className="relative flex justify-between h-[28px] md:h-[36px] overflow-hidden">
+      <div ref={barRef} className="relative flex justify-between overflow-hidden" style={{ height: BAR_H }}>
         {Array.from({ length: cols }, (_, i) => (
           <span
             key={i}
