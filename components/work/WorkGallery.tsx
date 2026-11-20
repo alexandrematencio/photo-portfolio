@@ -14,7 +14,6 @@ import type { PreparedSeries } from '@/lib/site/series';
 import {
   EDITORIAL_LINK_DECORATION,
   MICRO_LABEL,
-  MICRO_LABEL_XS,
   PAGE_CONTROLS_GAP,
 } from '@/lib/site/typography';
 import { preloadImage } from '@/lib/utils/image-preload';
@@ -118,8 +117,8 @@ function collectionPlaces(photos: Photo[]): string {
 }
 
 // ─── Icônes du transport (triangles pleins, à la façon d'une touche) ─────────
-const Tri = ({ dir }: { dir: 'left' | 'right' }) => (
-  <svg viewBox="0 0 10 10" width={10} height={10} aria-hidden fill="currentColor">
+const Tri = ({ dir, size = 10 }: { dir: 'left' | 'right'; size?: number }) => (
+  <svg viewBox="0 0 10 10" width={size} height={size} aria-hidden fill="currentColor">
     <path d={dir === 'left' ? 'M7 1 2.5 5 7 9z' : 'M3 1 7.5 5 3 9z'} />
   </svg>
 );
@@ -324,44 +323,58 @@ export function WorkGallery({ collections }: { collections: PreparedSeries[] }) 
           ))}
         </div>
 
-        {/* Deux cellules INDÉPENDANTES, chacune son fond : la navigation reste sur
-            la plaque sombre, le diaporama passe à l'encre (`--color-fg`). */}
+        {/* Bloc 2 colonnes, d'après la maquette d'Alexandre (2026-11-21) : à gauche deux
+            étages (libellé / compteur), à droite une seule cellule pleine hauteur. Trois
+            fonds, tous tirés de l'échelle de surfaces : plaque sombre (barreau 4) pour le
+            libellé, un cran plus profond pour le compteur, encre (`--color-fg`) pour le
+            diaporama. Les rangées se partagent la hauteur de la planche contact. */}
         <div
           role="group"
           aria-label="Transport"
-          className="flex flex-none items-stretch md:w-[var(--transport-w)]"
+          className="grid flex-none grid-cols-2 grid-rows-2 md:w-[var(--transport-w)]"
+          style={{ minHeight: 128 }}
         >
-          <div
-            className="flex flex-1 basis-0 min-w-0 flex-col items-center justify-center gap-2 bg-[var(--color-bg-plate-dark)]"
-            style={{ padding: '10px 8px' }}
+          <span
+            className={cn(
+              MICRO_LABEL,
+              'flex items-center justify-center bg-[var(--color-bg-plate-dark)] text-[var(--color-fg-muted-dark)]'
+            )}
           >
-            <span className={cn(MICRO_LABEL_XS, 'text-[var(--color-fg-muted-dark)]')}>Collection</span>
-            <div className="flex items-center">
-              <Disc label="Previous collection" onClick={() => select(active - 1)}>
-                <Tri dir="left" />
-              </Disc>
-              <span
-                className={cn(MICRO_LABEL, 'text-[12px] text-[var(--color-bg)] text-center')}
-                style={{ minWidth: 44 }}
-                aria-live="polite"
-              >
-                {pad2(active + 1)}
-                <span className="font-medium text-[var(--color-fg-muted-dark)]"> / {pad2(collections.length)}</span>
-              </span>
-              <Disc label="Next collection" onClick={() => select(active + 1)}>
-                <Tri dir="right" />
-              </Disc>
+            Collection
+          </span>
+          <div className="relative row-span-2 col-start-2 row-start-1 bg-[var(--color-fg)]">
+            <span
+              className={cn(
+                MICRO_LABEL,
+                'absolute inset-x-0 top-0 flex h-1/2 items-center justify-center text-[var(--color-fg-muted-dark)]'
+              )}
+            >
+              Slideshow
+            </span>
+            <div className="flex h-full items-center justify-center">
+              <PlayDisc
+                label={`Play ${collection.title} as a slideshow`}
+                onClick={() => setLightbox({ index: range ? range[0] : 0, autoplay: true })}
+              />
             </div>
           </div>
           <div
-            className="flex flex-1 basis-0 min-w-0 flex-col items-center justify-center gap-2 bg-[var(--color-fg)]"
-            style={{ padding: '10px 8px' }}
+            className="col-start-1 row-start-2 flex items-center justify-between bg-[color-mix(in_oklab,var(--color-bg-plate-dark)_72%,var(--color-fg))]"
+            style={{ paddingInline: 6 }}
           >
-            <span className={cn(MICRO_LABEL_XS, 'text-[var(--color-fg-muted-dark)]')}>Slideshow</span>
-            <PlayDisc
-              label={`Play ${collection.title} as a slideshow`}
-              onClick={() => setLightbox({ index: range ? range[0] : 0, autoplay: true })}
-            />
+            <Disc label="Previous collection" onClick={() => select(active - 1)}>
+              <Tri dir="left" size={12} />
+            </Disc>
+            <span
+              className={cn(MICRO_LABEL, 'text-[14px] text-[var(--color-bg)] text-center')}
+              aria-live="polite"
+            >
+              {pad2(active + 1)}
+              <span className="font-medium text-[var(--color-fg-muted-dark)]"> / {pad2(collections.length)}</span>
+            </span>
+            <Disc label="Next collection" onClick={() => select(active + 1)}>
+              <Tri dir="right" size={12} />
+            </Disc>
           </div>
         </div>
       </div>
