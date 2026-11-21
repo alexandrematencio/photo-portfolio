@@ -351,7 +351,9 @@ export function WorkGallery({ collections }: { collections: PreparedSeries[] }) 
             >
               Slideshow
             </span>
-            <div className="flex h-full items-center justify-center">
+            {/* Disque abaissé de 20 px sous le centre (demande Alexandre, 2026-11-21) : le
+                padding du haut vaut le DOUBLE du décalage, la boîte reste en border-box. */}
+            <div className="flex h-full items-center justify-center" style={{ paddingTop: 40 }}>
               <PlayDisc
                 label={`Play ${collection.title} as a slideshow`}
                 onClick={() => setLightbox({ index: range ? range[0] : 0, autoplay: true })}
