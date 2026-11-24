@@ -149,6 +149,24 @@ export function seriesFacts(photos: Photo[]): string {
 }
 
 /**
+ * Ordre des photos d'une collection de /work (2026-11-24, demande Alexandre) :
+ * les plus récentes d'abord. L'ANNÉE d'abord, parce que c'est le seul champ
+ * que toutes les photos portent ; dans l'année, la date de prise de vue, ou à
+ * défaut la date d'upload ; titre en dernier, pour que l'ordre ne dépende
+ * jamais de celui de la requête. Les chaînes ISO se comparent telles quelles.
+ *
+ * ⚠️ /work IGNORE donc `series.photoOrder` : l'ordre glissé dans le Studio ne
+ * vaut plus que pour `/series` et `/series/[slug]`.
+ */
+function byDateTakenDesc(a: Photo, b: Photo): number {
+  if (a.year !== b.year) return (b.year ?? 0) - (a.year ?? 0);
+  const da = a.dateTaken ?? a._createdAt ?? '';
+  const db = b.dateTaken ?? b._createdAt ?? '';
+  if (da !== db) return da < db ? 1 : -1;
+  return (a.title ?? '').localeCompare(b.title ?? '');
+}
+
+/**
  * Le partage entre /series et /work (2026-11-15). Une série listée dans
  * `workPage.collections` est une COLLECTION : elle quitte la rangée de
  * /series et devient un onglet de /work, dans l'ordre de cette liste.
@@ -167,7 +185,9 @@ export function splitSeriesAndWork(
   return {
     series: all.filter((s) => !inWork.has(s._id)),
     work: applyOrder(
-      all.filter((s) => inWork.has(s._id)),
+      all
+        .filter((s) => inWork.has(s._id))
+        .map((s) => ({ ...s, photos: [...s.photos].sort(byDateTakenDesc) })),
       workRefs
     ),
   };

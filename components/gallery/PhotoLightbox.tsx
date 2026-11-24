@@ -15,7 +15,7 @@
  * `(photos, initialIndex)` to PhotoLightbox.
  *
  * Layout:
- *   • Desktop (≥ 768 px): `--color-bg-raised` outer bg + 32 px gutter + 32 px white
+ *   • Desktop (≥ 768 px): `--color-bg-viewing` (dark room) outer bg + 32 px gutter + 32 px white
  *     "polaroid" frame around the image. Prev / next arrow buttons pinned to
  *     the left and right viewport edges (mix-blend-mode: difference). Hidden
  *     by default — fade in on mousemove, fade out after 500 ms of idle cursor.
@@ -66,13 +66,14 @@ type Props = {
  *  la photo ARRIVÉE : un réseau lent ne raccourcit jamais une pose. */
 const SLIDESHOW_MS = 4500;
 
-/* Fonds de la lightbox — posés sur l'échelle de valeurs de globals.css, plus
-   en hex ici. Desktop : le barreau « calque posé sur le papier », commun au
-   tiroir du menu mobile (les deux valaient deux hex distincts à 0,4 point de
-   L* l'un de l'autre, c'est-à-dire le même barreau écrit deux fois).
+/* Fonds de la lightbox — posés sur l'échelle de valeurs (app/styles/theme.css),
+   jamais en hex ici. Desktop : la salle d'exposition éteinte autour du cadre
+   blanc (`--color-bg-viewing`, barreau 5, depuis le 2026-11-24 ; c'était le
+   calque beige `--color-bg-raised`). Tout ce qui s'écrit sur ce fond prend les
+   encres `-viewing` : `INK_*` ci-dessous, choisies avec le fond.
    Mobile : pas de cadre, le viewport EST le cadre — le fond prend donc la
-   couleur du CADRE et non celle du calque. */
-const BG_DESKTOP = 'var(--color-bg-raised)';
+   couleur du CADRE, et l'encre reste celle du site. */
+const BG_DESKTOP = 'var(--color-bg-viewing)';
 const BG_MOBILE = 'var(--color-frame)';
 const FRAME_COLOR = 'var(--color-frame)';
 const FRAME_THICKNESS = 32; // desktop only
@@ -337,6 +338,10 @@ export function PhotoLightbox({
     : (OUTER_GUTTER + FRAME_THICKNESS) * 2 + CAPTION_GAP + CAPTION_LINE;
 
   const bgColor = isMobile ? BG_MOBILE : BG_DESKTOP;
+  // Encres choisies AVEC le fond : sur la salle sombre du desktop,
+  // `--color-fg` serait invisible.
+  const ink = isMobile ? 'var(--color-fg)' : 'var(--color-fg-viewing)';
+  const inkMuted = isMobile ? 'var(--color-fg-muted)' : 'var(--color-fg-muted-viewing)';
   const outerPadding = isMobile ? MOBILE_PADDING : OUTER_GUTTER;
 
   const imgEl = previewSrc ? (
@@ -365,8 +370,8 @@ export function PhotoLightbox({
     />
   ) : (
     <div
-      className="flex items-center justify-center text-[var(--color-fg-muted)] text-sm"
-      style={{ width: 400, height: 300 }}
+      className="flex items-center justify-center text-sm"
+      style={{ width: 400, height: 300, color: inkMuted }}
     >
       Photo placeholder — no image available.
     </div>
@@ -409,7 +414,7 @@ export function PhotoLightbox({
             fontWeight: 400,
             fontSize: 16,
             lineHeight: 1,
-            color: 'var(--color-fg)',
+            color: ink,
           }}
         >
           couldn’t load — retry
@@ -435,7 +440,7 @@ export function PhotoLightbox({
                 fontWeight: 400,
                 fontSize: 16,
                 lineHeight: 1,
-                color: 'var(--color-fg)',
+                color: ink,
               }}
             >
               loading
@@ -445,10 +450,10 @@ export function PhotoLightbox({
                   état, et c'est le seul endroit du site où la couleur
                   apparaît pendant qu'on regarde une photo — une fraction de
                   seconde, puis elle disparaît. Le mot « loading » au-dessus
-                  reste en `--color-fg`.
+                  reste à l'encre du fond (`ink`).
                   Contraste : la barre est un élément GRAPHIQUE (seuil 3:1),
-                  à 3,39:1 sur le backdrop desktop (barreau 1) et 3,75:1 sur le
-                  blanc mobile. Passer le MOT en orange, lui, serait hors des
+                  à 4,94:1 sur la salle sombre du desktop (barreau 5) et 3,75:1
+                  sur le blanc mobile. Passer le MOT en orange, lui, serait hors des
                   clous — 16 px en graisse normale demandent 4,5:1. */}
               <div
                 className="lightbox-loader-bar"
@@ -500,11 +505,11 @@ export function PhotoLightbox({
             onClick={(e) => e.stopPropagation()}
             className={cn(
               MICRO_LABEL_XS,
-              'text-[var(--color-fg-muted)] flex items-center max-w-full leading-none'
+              'flex items-center max-w-full leading-none'
             )}
-            style={{ marginTop: CAPTION_GAP }}
+            style={{ marginTop: CAPTION_GAP, color: 'var(--color-fg-muted-viewing)' }}
           >
-            <span className="text-[var(--color-fg)] truncate">
+            <span className="truncate" style={{ color: 'var(--color-fg-viewing)' }}>
               {photo.title}
             </span>
             {/* marges inline : `mx-2` avalé par le reset global hors @layer.
@@ -550,8 +555,8 @@ export function PhotoLightbox({
           l'image pour loger la croix dans la gouttière (elle récupère ses 24 px
           en desktop), et le même geste ferme sur les deux tailles d'écran.
 
-          Encre du site (`--color-fg`) et PAS de `mix-blend-mode` : la croix est
-          noire, comme demandé. */}
+          Encre du fond (`ink`) et PAS de `mix-blend-mode` : noire sur le blanc
+          mobile, claire sur la salle sombre du desktop. */}
       <div
         className="fixed top-0 right-0 h-16 flex items-center"
         style={{
@@ -574,9 +579,9 @@ export function PhotoLightbox({
             }}
             aria-label={playing ? 'Pause slideshow' : 'Play slideshow'}
             aria-pressed={playing}
-            className="flex items-center justify-center text-[var(--color-fg)] hover:opacity-60 transition-opacity motion-reduce:transition-none cursor-pointer"
+            className="flex items-center justify-center hover:opacity-60 transition-opacity motion-reduce:transition-none cursor-pointer"
             // Marge inline : le reset global avale les utilities d'espacement.
-            style={{ marginRight: 24 }}
+            style={{ marginRight: 24, color: ink }}
           >
             {playing ? (
               <Pause size={closeSize - 8} strokeWidth={2} />
@@ -592,7 +597,8 @@ export function PhotoLightbox({
             onClose();
           }}
           aria-label="Close"
-          className="flex items-center justify-center text-[var(--color-fg)] hover:opacity-60 transition-opacity motion-reduce:transition-none cursor-pointer"
+          className="flex items-center justify-center hover:opacity-60 transition-opacity motion-reduce:transition-none cursor-pointer"
+          style={{ color: ink }}
         >
           <X size={closeSize} strokeWidth={2} />
         </button>

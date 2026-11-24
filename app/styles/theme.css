@@ -50,11 +50,22 @@
 
   /* Palette « gallery paper » — fond blanc cassé, ink noir, accent cobalt depuis le glyph ALXMTNC. */
   --color-bg: var(--surface-0);
-  /* Calque posé SUR le papier : fond de lightbox desktop et tiroir du menu
-     mobile. Les deux vivaient en hex dans leur composant (`#F7F3F1` et
-     `#f5f2f0`), à 0,4 point de L* l'un de l'autre — le même barreau écrit deux
-     fois, avec deux teintes différentes. */
+  /* Calque posé SUR le papier : tiroir du menu mobile (et fond de lightbox
+     desktop jusqu'au 2026-11-24). Les deux vivaient en hex dans leur composant
+     (`#F7F3F1` et `#f5f2f0`), à 0,4 point de L* l'un de l'autre — le même
+     barreau écrit deux fois, avec deux teintes différentes. */
   --color-bg-raised: var(--surface-1);
+  /* SALLE D'EXPOSITION — fond de la lightbox desktop (2026-11-24, demande
+     Alexandre : la salle éteinte autour du cadre blanc, un noir qui ne soit
+     pas #000 pour ne pas brûler les yeux). Barreau 5, le plus profond de
+     l'échelle, libre depuis que le pied de page a pris le gris AAXLO. Arbitre
+     le ⚠️ du brand book §4.1. Encres DÉDIÉES : sur ce fond, `--color-fg` est
+     invisible. Contrastes mesurés contre #151312 : encre 15,2:1, atténuée
+     7,2:1, barre orange du chargement 4,9:1. Le mobile reste blanc (le
+     viewport y est le cadre). */
+  --color-bg-viewing: var(--surface-5);
+  --color-fg-viewing: var(--surface-2);
+  --color-fg-muted-viewing: var(--color-fg-muted-dark);
   /* Boîtes d'image en attente (grille des Archives, blocs de la home, hero).
      Fusionné avec la plaque : les deux valaient 93,7 et 92,1, un écart
      imperceptible pour deux métiers distincts. Le nom sémantique survit, la

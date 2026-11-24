@@ -30,6 +30,9 @@ export type Photo = {
   year: number;
   location: string;
   dateTaken?: string;
+  /** Date d'upload (Sanity). Lue par le seul tri de /work, en repli de
+   *  `dateTaken` — d'où sa présence dans `seriesWithPhotosQuery` seulement. */
+  _createdAt?: string;
   camera?: PhotoGear | null;
   lens?: PhotoGear | null;
   parallaxSpeed: number;
@@ -289,7 +292,7 @@ const seriesWithPhotosQuery = groq`
     ${seriesProjection},
     "coverRef": coverPhoto._ref,
     "photoOrderRefs": photoOrder[]._ref,
-    "photos": *[_type == "photo" && ${VISIBLE} && references(^._id)] | order(year desc, title asc) { ${photoProjection} }
+    "photos": *[_type == "photo" && ${VISIBLE} && references(^._id)] | order(year desc, title asc) { ${photoProjection}, _createdAt }
   }
 }
 `;
