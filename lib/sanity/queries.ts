@@ -30,9 +30,6 @@ export type Photo = {
   year: number;
   location: string;
   dateTaken?: string;
-  /** Date d'upload (Sanity). Lue par le seul tri de /work, en repli de
-   *  `dateTaken` — d'où sa présence dans `seriesWithPhotosQuery` seulement. */
-  _createdAt?: string;
   camera?: PhotoGear | null;
   lens?: PhotoGear | null;
   parallaxSpeed: number;
@@ -193,8 +190,13 @@ const homepagePhotosQuery = groq`
   (*[_type == "siteSettings"][0].curation[]->)[${VISIBLE}]{ ${photoProjection} }
 `;
 
+/* /archives : les plus récentes d'abord (2026-11-24, demande Alexandre), plus
+   l'alphabet. L'ANNÉE d'abord (seul champ que toutes les photos portent), puis
+   la date de prise de vue, ou à défaut la date d'upload ; le titre ne départage
+   que les ex æquo. Les groupes de FlatGallery gardent cet ordre. ⚠️ /work n'est
+   PAS concerné : ses collections suivent `series.photoOrder`, glissé à la main. */
 const allPhotosQuery = groq`
-  *[_type == "photo" && ${VISIBLE}] | order(year desc, title asc) { ${photoProjection} }
+  *[_type == "photo" && ${VISIBLE}] | order(year desc, coalesce(dateTaken, _createdAt) desc, title asc) { ${photoProjection} }
 `;
 
 // Depuis le 2026-10-05, hero, phrase d'auteur et textes éditoriaux vivent dans
@@ -292,7 +294,7 @@ const seriesWithPhotosQuery = groq`
     ${seriesProjection},
     "coverRef": coverPhoto._ref,
     "photoOrderRefs": photoOrder[]._ref,
-    "photos": *[_type == "photo" && ${VISIBLE} && references(^._id)] | order(year desc, title asc) { ${photoProjection}, _createdAt }
+    "photos": *[_type == "photo" && ${VISIBLE} && references(^._id)] | order(year desc, title asc) { ${photoProjection} }
   }
 }
 `;
