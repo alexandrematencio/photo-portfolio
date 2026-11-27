@@ -26,7 +26,20 @@ export type WorkMotion = {
   scenes: HTMLElement[];
   /** Vrai : un album s'ouvre, est ouvert ou se ferme. Plus de ressort, plus de glisser. */
   setLocked(locked: boolean): void;
+  /** Ouverture d'un album (1,2 s). Rend la timeline, ou `null` si rien ne s'anime (mouvement
+   *  réduit, arrivée par adresse) : `onComplete` est alors déjà appelé. */
+  open(index: number, o: AlbumFlight & { instant?: boolean }): gsap.core.Timeline | null;
+  /** Fermeture (0,75 s). Même contrat. */
+  close(index: number, o: AlbumFlight): gsap.core.Timeline | null;
   destroy(): void;
+};
+
+type AlbumFlight = {
+  /** `[data-album]` : le conteneur de l'album (fondu). */
+  album: HTMLElement;
+  /** La grille de l'album : ses enfants sont les vignettes. */
+  grid: HTMLElement;
+  onComplete: () => void;
 };
 
 const reducedMotion = () => !window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
@@ -80,12 +93,79 @@ function bindScroll(scene: HTMLElement, scroller: HTMLElement): ScrollTrigger | 
   return tl.scrollTrigger;
 }
 
+const sceneParts = (scene: HTMLElement) => ({
+  ring: scene.querySelector<HTMLElement>('[data-ring]'),
+  flight: scene.querySelector<HTMLElement>('[data-flight]'),
+  cards: scene.querySelectorAll<HTMLElement>('[data-card]'),
+  chars: scene.querySelectorAll<HTMLElement>('.char'),
+});
+
+/** Scroll qui centre la scène dans le conteneur, borné. */
+function centerOf(scene: HTMLElement, scroller: HTMLElement): number {
+  const y = scene.offsetTop + scene.offsetHeight / 2 - scroller.clientHeight / 2;
+  return Math.min(Math.max(0, y), scroller.scrollHeight - scroller.clientHeight);
+}
+
+/** Vignettes de la grille, et la part visible à l'écran (les 12 premières au plus). */
+function gridItems(grid: HTMLElement) {
+  const all = [...grid.children] as HTMLElement[];
+  const vh = window.innerHeight;
+  const visible = all.filter((el) => el.getBoundingClientRect().top < vh).slice(0, WORK_MOTION.grid.max);
+  return { all, visible, rest: all.filter((el) => !visible.includes(el)) };
+}
+
+/** Distance de chaque vignette au centre de la grille. */
+function distancesFromCenter(items: HTMLElement[], grid: HTMLElement) {
+  const g = grid.getBoundingClientRect();
+  const cx = g.left + g.width / 2;
+  const cy = g.top + Math.min(g.height, window.innerHeight) / 2;
+  const d = items.map((el) => {
+    const r = el.getBoundingClientRect();
+    return Math.hypot(r.left + r.width / 2 - cx, r.top + r.height / 2 - cy);
+  });
+  return { d, dMax: Math.max(...d, 1) };
+}
+
+/** Les vignettes arrivent des bords vers le centre : fondu et petite profondeur CSS (pas de WebGL). */
+function gridIn(grid: HTMLElement): gsap.core.Timeline {
+  const G = WORK_MOTION.grid;
+  const { visible } = gridItems(grid);
+  const { d, dMax } = distancesFromCenter(visible, grid);
+  const tl = gsap.timeline();
+  visible.forEach((el, k) => {
+    tl.fromTo(
+      el,
+      { autoAlpha: 0, z: -G.depth },
+      { autoAlpha: 1, z: 0, duration: G.duration, ease: 'power3.out' },
+      (1 - d[k] / dMax) * G.stagger, // les plus éloignées d'abord, comme la démo
+    );
+  });
+  return tl;
+}
+
+/** Sortie : du centre vers les bords, 0,25 s. */
+function gridOut(grid: HTMLElement): gsap.core.Timeline {
+  const { visible } = gridItems(grid);
+  const { d, dMax } = distancesFromCenter(visible, grid);
+  const tl = gsap.timeline();
+  visible.forEach((el, k) => {
+    tl.to(el, { autoAlpha: 0, z: -60, duration: WORK_MOTION.close.gridOut, ease: 'sine.in' }, (d[k] / dMax) * 0.05);
+  });
+  return tl;
+}
+
 export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
   const scroller = root.closest<HTMLElement>('[data-scroll-container]');
   if (!scroller) return null;
   const scenes = [...root.querySelectorAll<HTMLElement>('[data-scene]')];
   const reduced = reducedMotion();
   let locked = false;
+  /** `translateZ` de repos de `flight` (écrit en inline par le HTML servi) : on y revient exactement. */
+  const restZ = new Map<HTMLElement, number>();
+  scenes.forEach((s) => {
+    const f = s.querySelector<HTMLElement>('[data-flight]');
+    if (f) restZ.set(s, parseFloat(/translateZ\((-?[\d.]+)px\)/.exec(f.style.transform)?.[1] ?? '0'));
+  });
 
   const cleanups: (() => void)[] = [];
   const splits: SplitText[] = [];
@@ -288,6 +368,72 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
       scroller.style.overflow = v ? 'hidden' : ''; // le conteneur ne défile plus tant qu'un album est ouvert
       if (v) root.classList.remove('is-dragging');
     },
+    open(index, { album, grid, onComplete, instant }) {
+      const scene = scenes[index];
+      const { flight, chars } = sceneParts(scene);
+      gsap.set(grid.children, { autoAlpha: 1 });
+      if (reduced || instant || !flight) {
+        // Ni vol ni grille animée : album affiché, scène cachée, dans la même frame.
+        gsap.set(scene, { autoAlpha: 0 });
+        gsap.set(album, { autoAlpha: 1 });
+        onComplete();
+        return null;
+      }
+      const O = WORK_MOTION.open;
+      const { visible, rest } = gridItems(grid);
+      gsap.set(visible, { autoAlpha: 0 });
+      gsap.set(rest, { autoAlpha: 1 });
+      gsap.set(album, { autoAlpha: 0 });
+      gsap.set(scene, { zIndex: 41 }); // l'anneau passe DEVANT l'album (z-index 40)
+      return gsap
+        .timeline({
+          onComplete: () => {
+            gsap.set(scene, { autoAlpha: 0, clearProps: 'zIndex' });
+            gsap.set(album, { autoAlpha: 1 });
+            onComplete();
+          },
+        })
+        .to(scroller, { scrollTop: centerOf(scene, scroller), duration: O.flip, ease: 'power2.inOut' }, 0)
+        .to(chars, { autoAlpha: 0, duration: 0.02, ease: 'none', stagger: { each: 0.015, from: 'end' } }, 0)
+        .to(flight, { rotationX: 90, rotationY: -270, z: -2000, duration: O.flip, ease: 'power2.inOut' }, O.flipAt)
+        .to(flight, { z: 1500, rotationZ: 270, duration: O.through, ease: 'power3.inOut' }, O.throughAt)
+        .to(album, { autoAlpha: 1, duration: 0.2, ease: 'none' }, O.gridAt - 0.2)
+        .add(gridIn(grid), O.gridAt);
+    },
+    close(index, { album, grid, onComplete }) {
+      const scene = scenes[index];
+      const { flight, cards, chars } = sceneParts(scene);
+      const finish = () => {
+        if (flight) {
+          // `clearProps` CIBLÉS, jamais 'all' (§3.7 inv. 4) ; puis le transform exact écrit par le serveur.
+          gsap.set(flight, { clearProps: 'transform' });
+          flight.style.transform = `translateZ(${restZ.get(scene) ?? 0}px)`;
+        }
+        gsap.set([scene, ...cards], { clearProps: 'zIndex,opacity,visibility' });
+        gsap.set(chars, { autoAlpha: 1 });
+        ScrollTrigger.refresh();
+        onComplete();
+      };
+      if (reduced || !flight) {
+        finish();
+        return null;
+      }
+      const C = WORK_MOTION.close;
+      gsap.set(scene, { zIndex: 41 });
+      return gsap
+        .timeline({ onComplete: finish })
+        .add(gridOut(grid), 0)
+        .to(album, { autoAlpha: 0, duration: C.gridOut, ease: 'sine.in' }, 0)
+        .set(scene, { autoAlpha: 1 }, C.ringAt)
+        .fromTo(
+          flight,
+          { z: -550, rotationX: 0, rotationY: -630, rotationZ: 0, yPercent: 300 },
+          { z: restZ.get(scene) ?? 0, rotationY: 0, yPercent: 0, duration: C.ring, ease: 'expo.out' },
+          C.ringAt,
+        )
+        .fromTo(cards, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, C.ringAt + 0.1)
+        .fromTo(chars, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.02, ease: 'none', stagger: { each: 0.015 } }, C.ringAt);
+    },
     destroy() {
       if (tick) gsap.ticker.remove(tick);
       observer.kill();
@@ -295,6 +441,7 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
       window.removeEventListener('click', onClickCapture, true);
       root.removeEventListener('keydown', onKeyDown);
       root.style.touchAction = prevTouchAction;
+      scroller.style.overflow = '';
       root.classList.remove('is-dragging');
       cleanups.forEach((fn) => fn());
       splits.forEach((s) => s.revert());

@@ -6,6 +6,7 @@ import type { PreparedSeries } from '@/lib/site/series';
 import { pushModalHistory } from '@/lib/utils/modalHistory';
 import { AlbumView } from './AlbumView';
 import { CarouselScene } from './CarouselScene';
+import type gsap from 'gsap';
 import { bindWorkCarousels, type WorkMotion } from './carousel-motion';
 
 type Phase = 'idle' | 'opening' | 'open' | 'closing';
@@ -28,6 +29,10 @@ export function WorkCarousels({ collections }: { collections: PreparedSeries[] }
   const popRef = useRef<(() => void) | null>(null);
   // Miroirs lisibles de façon synchrone par les écouteurs natifs (un `setState` n'est pas vu avant le microtask).
   const albumRef = useRef<number | null>(null);
+  const phaseRef = useRef<Phase>('idle');
+  /** Timeline d'ouverture ou de fermeture en cours : un geste la termine d'un coup, jamais une seconde par-dessus. */
+  const tlRef = useRef<gsap.core.Timeline | null>(null);
+  const pendingOpen = useRef<{ instant: boolean } | null>(null);
   const lightboxRef = useRef(lightbox);
 
   useLayoutEffect(() => {
@@ -46,22 +51,57 @@ export function WorkCarousels({ collections }: { collections: PreparedSeries[] }
     setLightbox(v);
   }, []);
 
+  const changePhase = useCallback((p: Phase) => {
+    phaseRef.current = p;
+    setPhase(p);
+  }, []);
+
+  /** Fin de l'ouverture : l'album est là, le focus va sur Close. */
+  const finishOpen = useCallback(() => {
+    tlRef.current = null;
+    changePhase('open');
+    closeRef.current?.focus({ preventScroll: true });
+  }, [changePhase]);
+
   /** Ferme l'album. Une seule porte : Close, Esc et retour navigateur y passent tous. */
-  const closeAlbum = useCallback(() => {
-    const i = albumRef.current;
-    if (i === null) return;
-    albumRef.current = null;
-    setLightboxBoth(null);
-    popRef.current?.();
-    popRef.current = null;
-    motionRef.current?.setLocked(false);
-    setAlbum(null);
-    setPhase('idle');
-    // Focus rendu au lien-titre de la scène.
-    requestAnimationFrame(() => {
-      rootRef.current?.querySelector<HTMLElement>(`[data-scene="${i}"] a[data-open]`)?.focus({ preventScroll: true });
-    });
-  }, [setLightboxBoth]);
+  const closeAlbum = useCallback(
+    (viaPop = false) => {
+      const i = albumRef.current;
+      if (i === null || phaseRef.current === 'closing') {
+        tlRef.current?.progress(1); // un geste pendant la fermeture la termine
+        return;
+      }
+      if (phaseRef.current === 'opening') {
+        tlRef.current?.progress(1); // l'ouverture se termine d'un coup...
+        if (!viaPop) return; // ...et un second geste fermera (le retour navigateur, lui, a déjà reculé)
+      }
+      const motion = motionRef.current;
+      changePhase('closing');
+      setLightboxBoth(null);
+      popRef.current?.();
+      popRef.current = null;
+      const finish = () => {
+        tlRef.current = null;
+        albumRef.current = null;
+        motion?.setLocked(false);
+        setAlbum(null);
+        changePhase('idle');
+        // Focus rendu au lien-titre de la scène.
+        requestAnimationFrame(() => {
+          rootRef.current?.querySelector<HTMLElement>(`[data-scene="${i}"] a[data-open]`)?.focus({ preventScroll: true });
+        });
+      };
+      const grid = gridRef.current;
+      const albumEl = grid?.closest<HTMLElement>('[data-album]');
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      if (!motion || !grid || !albumEl) {
+        finish();
+        return;
+      }
+      tlRef.current = motion.close(i, { album: albumEl, grid, onComplete: finish });
+    },
+    [changePhase, setLightboxBoth],
+  );
 
   const openAlbum = useCallback(
     (i: number, instant = false) => {
@@ -78,19 +118,29 @@ export function WorkCarousels({ collections }: { collections: PreparedSeries[] }
         scroller.scrollTop = Math.max(0, scene.offsetTop + scene.offsetHeight / 2 - scroller.clientHeight / 2);
       }
       motion.setLocked(true);
-      popRef.current = pushModalHistory(closeAlbum);
+      popRef.current = pushModalHistory(() => closeAlbum(true));
       window.history.replaceState(window.history.state, '', `#${slug}`);
+      pendingOpen.current = { instant };
       setAlbum(i);
-      setPhase('opening');
-      // Fin de l'ouverture (le vol vient en tâche 6) : l'album est là, le focus va sur Close.
-      requestAnimationFrame(() => {
-        if (albumRef.current !== i) return;
-        setPhase('open');
-        closeRef.current?.focus({ preventScroll: true });
-      });
+      changePhase('opening');
     },
-    [collections, closeAlbum],
+    [collections, closeAlbum, changePhase],
   );
+
+  // Dès que l'album est dans le DOM (avant la peinture), on le cache et on lance le vol.
+  useLayoutEffect(() => {
+    const pending = pendingOpen.current;
+    if (album === null || !pending) return;
+    pendingOpen.current = null;
+    const motion = motionRef.current;
+    const grid = gridRef.current;
+    const albumEl = grid?.closest<HTMLElement>('[data-album]');
+    if (!motion || !grid || !albumEl) {
+      finishOpen();
+      return;
+    }
+    tlRef.current = motion.open(album, { album: albumEl, grid, instant: pending.instant, onComplete: finishOpen });
+  }, [album, finishOpen]);
 
   // Adresse au montage : `#slug` d'une collection existante → album ouvert sans vol.
   // Différé d'un tick et annulable : le mode strict monte, démonte et remonte l'effet de
@@ -113,19 +163,34 @@ export function WorkCarousels({ collections }: { collections: PreparedSeries[] }
   }, [collections, openAlbum]);
 
   // Esc ferme l'album, SAUF quand la lightbox est ouverte (elle a le sien, sur `window` aussi).
-  // Phase de capture : lue avant que la lightbox ne se ferme.
+  // Phase de capture : lue avant que la lightbox ne se ferme. Pendant le vol, TOUTE touche ou
+  // tout clic le termine d'un coup (§0 du plan : jamais une seconde timeline par-dessus).
   useEffect(() => {
+    const busy = () => phaseRef.current === 'opening' || phaseRef.current === 'closing';
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || albumRef.current === null || lightboxRef.current) return;
+      if (albumRef.current === null) return;
+      if (busy()) {
+        tlRef.current?.progress(1); // le premier geste termine le vol ; Esc ne ferme qu'au suivant
+        return;
+      }
+      if (e.key !== 'Escape' || lightboxRef.current) return;
       closeAlbum();
     };
+    const onPointer = () => {
+      if (albumRef.current !== null && busy()) tlRef.current?.progress(1);
+    };
     window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    window.addEventListener('pointerdown', onPointer, true);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('pointerdown', onPointer, true);
+    };
   }, [closeAlbum]);
 
   // Quitter la page avec l'album ouvert : rendre l'historique et le défilement.
   useEffect(
     () => () => {
+      tlRef.current?.kill();
       popRef.current?.();
       popRef.current = null;
     },
@@ -157,7 +222,7 @@ export function WorkCarousels({ collections }: { collections: PreparedSeries[] }
         <AlbumView
           collection={current}
           top={albumTop}
-          onClose={closeAlbum}
+          onClose={() => closeAlbum()}
           onOpenPhoto={(index) => setLightboxBoth({ index, autoplay: false })}
           onPlay={() => setLightboxBoth({ index: 0, autoplay: true })}
           closeRef={closeRef}
