@@ -285,6 +285,7 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
     scenes,
     setLocked(v) {
       locked = v;
+      scroller.style.overflow = v ? 'hidden' : ''; // le conteneur ne défile plus tant qu'un album est ouvert
       if (v) root.classList.remove('is-dragging');
     },
     destroy() {
