@@ -84,7 +84,18 @@ const eight = RAT.map((r, i) => photo(`p${i}`, r));
 // 5. Panorama.
 {
   const l = ringLayout([photo('pano', 3)]);
-  ok('5 : borné à 1,6, largeur 544', l.cards[0].width === 544, `(${l.cards[0].width})`);
+  ok('5 : largeur plafonnée à 544', l.cards[0].width === 544, `(${l.cards[0].width})`);
+  ok('5 : hauteur réduite, ratio 3 gardé', l.cards[0].height === 181 && near(544 / 181, 3, 0.02), `(${l.cards[0].height})`);
+}
+// 5 bis. Aucun étirement : la carte a le ratio de la photo, quel qu'il soit.
+{
+  const ratios = [0.3, 0.5, 0.667, 0.8, 1, 1.333, 1.5, 2, 3, 5];
+  const l = ringLayout(ratios.map((r, i) => photo(`s${i}`, r)));
+  ok(
+    '5bis : ratio de carte = ratio de photo (écart < 1 %)',
+    l.cards.every((c, i) => near(c.width / c.height, ratios[i], ratios[i] * 0.01 + 0.005)),
+    JSON.stringify(l.cards.map((c) => [c.width, c.height])),
+  );
 }
 // 6. z.
 {

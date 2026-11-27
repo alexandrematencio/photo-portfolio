@@ -6,8 +6,12 @@ export const RING = {
   max: 8,
   /** Hauteur d'une carte (px), avant la mise à l'échelle de l'écran (`ringFit`). */
   cardHeight: 340,
-  /** Ratio largeur / hauteur : bornes, et repli quand Sanity n'a pas de dimensions. */
-  minAspect: 0.6,
+  /**
+   * Ratio largeur / hauteur. Le ratio de la photo n'est JAMAIS borné (aucun étirement : la carte a
+   * exactement le ratio de l'image). `maxAspect` borne seulement la LARGEUR de la carte (hauteur ×
+   * maxAspect) : au-delà, la carte rétrécit en gardant son ratio. `fallbackAspect` : repli quand
+   * Sanity n'a pas de dimensions (l'image y est alors recadrée, jamais étirée).
+   */
   maxAspect: 1.6,
   fallbackAspect: 0.8,
   /** Jeu minimal entre deux cartes, mesuré sur l'arc (px). */
@@ -66,16 +70,23 @@ export type RingCard = {
 
 export type RingLayout = { cards: RingCard[]; radius: number; z: number };
 
+/** Ratio réel de la photo (largeur / hauteur), tel que Sanity le donne. Non borné. */
 export function aspectOf(p: Photo): number {
   const a = p.image?.dimensions?.aspectRatio;
-  const v = typeof a === 'number' && Number.isFinite(a) && a > 0 ? a : RING.fallbackAspect;
-  return Math.min(RING.maxAspect, Math.max(RING.minAspect, v));
+  return typeof a === 'number' && Number.isFinite(a) && a > 0 ? a : RING.fallbackAspect;
+}
+
+/** Carte au ratio exact de la photo : hauteur pleine, sauf panorama (largeur plafonnée, hauteur réduite). */
+export function cardSize(p: Photo): { width: number; height: number } {
+  const a = aspectOf(p);
+  const width = Math.round(Math.min(RING.cardHeight * a, RING.cardHeight * RING.maxAspect));
+  return { width, height: Math.round(width / a) };
 }
 
 export function ringLayout(photos: Photo[]): RingLayout {
   const picked = photos.slice(0, RING.max);
-  const h = RING.cardHeight;
-  const widths = picked.map((p) => Math.round(h * aspectOf(p)));
+  const sizes = picked.map(cardSize);
+  const widths = sizes.map((z) => z.width);
   const used = widths.reduce((s, w) => s + w + RING.gap, 0);
   const wanted = Math.min(RING.maxRadius, Math.max(RING.minRadius, used / (2 * Math.PI * RING.fill)));
   // `maxRadius` cède devant le besoin : jamais un cercle plus court que les cartes qu'il porte.
@@ -89,7 +100,7 @@ export function ringLayout(photos: Photo[]): RingLayout {
   let center = 0;
   const cards = picked.map((photo, i) => {
     if (i > 0) center += steps[i - 1] / 2 + steps[i] / 2;
-    return { photo, width: widths[i], height: h, angle: (center / radius) * (180 / Math.PI) };
+    return { photo, width: widths[i], height: sizes[i].height, angle: (center / radius) * (180 / Math.PI) };
   });
   return { cards, radius, z: -(radius + RING.setBack) };
 }

@@ -4,10 +4,16 @@ import type { PreparedSeries } from '@/lib/site/series';
 import { MICRO_LABEL } from '@/lib/site/typography';
 import { cellTransform, FIRST_SCENE_SERVED_HEIGHT, RING_PERSPECTIVE, ringLayout } from './carousel-geometry';
 
-/** 2× la hauteur de carte, ratio intact : jamais `fit('crop')`. */
-function ringImageUrl(photo: Photo): string | undefined {
+/**
+ * 2× la taille de la carte, ratio intact : on ne fixe QUE la largeur. `urlFor` pose déjà `w=2048` ;
+ * y ajouter une hauteur fait calculer à la librairie un `rect=` qui découpe une bande (ex. 3:1) au
+ * centre de la photo, que la carte étire ensuite à son ratio réel (même avec `fit('max')`).
+ * Seul `asset` est passé, pour ignorer un éventuel `crop` / `hotspot` du Studio : la carte a le ratio
+ * des dimensions de l'asset (`aspectOf`), l'image doit donc être l'asset entier.
+ */
+function ringImageUrl(photo: Photo, width: number): string | undefined {
   if (!photo.image) return undefined;
-  return urlFor(photo.image)?.height(840).quality(70).auto('format').url();
+  return urlFor({ _type: 'image', asset: photo.image.asset })?.width(width * 2).quality(70).auto('format').url();
 }
 
 /**
@@ -91,7 +97,7 @@ export function CarouselScene({ collection: c, index }: { collection: PreparedSe
                   }}
                 >
                   <img
-                    src={ringImageUrl(k.photo)}
+                    src={ringImageUrl(k.photo, k.width)}
                     alt=""
                     width={k.width}
                     height={k.height}
@@ -103,18 +109,11 @@ export function CarouselScene({ collection: c, index }: { collection: PreparedSe
                       inset: 0,
                       width: '100%',
                       height: '100%',
-                      backfaceVisibility: 'hidden',
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      // Dos des cartes = le « ruban » vu entre les photos : à peine plus sombre que le fond
-                      // (`--surface-1`), pas la plaque `--color-bg-plate`, trop grise sur la page.
-                      background: 'var(--surface-1)',
-                      transform: 'rotateY(180deg)',
-                      backfaceVisibility: 'hidden',
+                      // Jamais d'étirement : la carte a le ratio de l'image ; sans dimensions Sanity
+                      // (repli), l'image est recadrée plutôt qu'écrasée.
+                      objectFit: 'cover',
+                      // Pas de `backfaceVisibility: hidden` : vue de derrière, la même photo se lit en
+                      // miroir, comme le dos du ruban de la démo Codrops.
                     }}
                   />
                 </div>
