@@ -165,6 +165,8 @@ export const isExiting = () => exiting;
 
 /** La page d'arrivée est en train d'entrer. */
 let arriving = false;
+/** Instant (performance.now) où l'arrivée en cours a démarré. */
+let arrivalAt = 0;
 /** Une page sort ou entre : `<ScrollThumb />` se tait pendant ce temps. */
 export const isPageInTransit = () => exiting || arriving;
 
@@ -303,6 +305,31 @@ export function pushAway(page: HTMLElement, toward: Side, onAbandon?: () => void
   }, 200);
 }
 
+/**
+ * Appelle `cb` quand la page est CENTRÉE : une fois la transition d'arrivée finie, ou tout de suite
+ * (deux images plus tard) s'il n'y en a pas — chargement direct, retour arrière, mouvement réduit.
+ * Les deux images laissent à `PageArrival` (dont l'effet passe APRÈS celui de la page) le temps de
+ * lever `arriving`.
+ *
+ * `lead` (secondes) : appeler `cb` EN AVANCE de ce délai sur la fin de la transition, pour qu'un
+ * mouvement enchaîné commence avant que la page ait fini de se centrer. Sans effet s'il n'y a pas de
+ * transition. Rend l'annulation.
+ */
+export function afterPageArrival(cb: () => void, lead = 0): () => void {
+  let raf = 0;
+  let frames = 0;
+  const tick = () => {
+    const early = arriving && lead > 0 && performance.now() - arrivalAt >= (ENTER_DURATION - lead) * 1000;
+    if (++frames >= 2 && (!arriving || early)) {
+      cb();
+      return;
+    }
+    raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+  return () => cancelAnimationFrame(raf);
+}
+
 // ─── Moitié ARRIVÉE ────────────────────────────────────────────────────────
 
 /**
@@ -336,6 +363,7 @@ export function playPageArrival(arrival: PageArrival, pathname: string): () => v
   const travel = window.innerWidth * arrival.side;
   page.style.transformOrigin = '0 0';
   arriving = true;
+  arrivalAt = performance.now();
   const settle = () => {
     arriving = false;
     page.style.transform = '';

@@ -25,6 +25,10 @@ export function CarouselScene({ collection: c, index }: { collection: PreparedSe
     <section
       id={`work-${c.slug}`}
       data-scene={index}
+      // Première scène : l'anneau attend, hors champ, la fin de la transition de page, puis monte du
+      // bas (`carousel-motion.ts`, « entrée »). L'état de départ est dans le HTML pour qu'il n'y ait
+      // pas d'image où l'anneau se montre à sa place avant de partir.
+      data-enter={index === 0 ? 'pending' : undefined}
       aria-labelledby={`work-title-${c.slug}`}
       className="relative flex items-center justify-center overflow-clip"
       style={{
@@ -35,6 +39,11 @@ export function CarouselScene({ collection: c, index }: { collection: PreparedSe
         cursor: 'grab',
       }}
     >
+      {index === 0 && (
+        <noscript>
+          <style>{`[data-enter] [data-ring]{translate:none!important}[data-enter] [data-scene-title]{opacity:1!important}`}</style>
+        </noscript>
+      )}
       <h2
         id={`work-title-${c.slug}`}
         data-scene-title

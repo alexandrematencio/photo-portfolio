@@ -138,6 +138,7 @@ export function PageShell({
   width = EDITORIAL_WIDTH,
   titleSize,
   centered = false,
+  titleAlign = 'start',
   back,
   language,
   progress,
@@ -164,6 +165,12 @@ export function PageShell({
    * `--page-title-size`, jamais un nombre.
    */
   titleSize?: string;
+  /**
+   * `center` : titre et sous-titre centrés dans la largeur de la page. Réservé à /work (demande
+   * Alexandre, 2026-11-27) : son titre est un grand lettrage posé au-dessus de la première scène,
+   * pas une tête de colonne éditoriale.
+   */
+  titleAlign?: 'start' | 'center';
   /**
    * `true` : la colonne (même largeur) est centrée dans la fenêtre au lieu
    * d'être calée à gauche. Réservé au journal (demande Alexandre,
@@ -222,8 +229,11 @@ export function PageShell({
           display: 'flex',
           flexDirection: 'column',
           gap: SUBTITLE_GAP,
+          alignItems: titleAlign === 'center' ? 'center' : undefined,
+          textAlign: titleAlign === 'center' ? 'center' : undefined,
           paddingInline: bleed ? 'var(--page-gutter)' : undefined,
-          maxWidth: bleed ? maxWidth : undefined,
+          // Centré = toute la largeur : la colonne de 1107 est calée à gauche, centrer dedans ne centrerait pas la page.
+          maxWidth: bleed && titleAlign !== 'center' ? maxWidth : undefined,
           paddingBottom: rule ? RULE_GAP : undefined,
           borderBottom: rule ? '1px solid var(--color-line)' : undefined,
         }}

@@ -21,6 +21,14 @@ export const metadata = buildMetadata({
 
 export const revalidate = 60;
 
+/**
+ * Corps du titre = celui du lettrage « SERIES » de /series (272,63 px de corps pour 1000 de large de
+ * boîte, boîte à 58 % de la page, plafonnée à 1076 — cf. `SeriesWordmark` et `useWordmarkFold`).
+ * `max()` avec le corps de page : sous `md`, où /series revient au titre ordinaire, /work aussi.
+ */
+const WORK_TITLE_SIZE =
+  'max(var(--page-title-size), calc(min(0.58 * (100vw - 2 * var(--page-gutter)), 1076px) * 0.27263))';
+
 export default async function WorkPage() {
   const { items, seriesOrderRefs, workRefs } = await getSeriesWithPhotos();
   const { work } = splitSeriesAndWork(items, seriesOrderRefs, workRefs);
@@ -48,6 +56,8 @@ export default async function WorkPage() {
       <PageShell
         bleed
         title="WORK"
+        titleAlign="center"
+        titleSize={WORK_TITLE_SIZE}
         subtitle={
           <p className={`${MICRO_LABEL} text-[var(--color-fg-muted)]`}>
             {work.length} collection{work.length === 1 ? '' : 's'} · {total} photo

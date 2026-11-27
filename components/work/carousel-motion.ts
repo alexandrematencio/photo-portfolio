@@ -8,6 +8,7 @@ import { Observer } from 'gsap/Observer';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
 import { FIRST_SCENE_MIN } from './carousel-geometry';
+import { afterPageArrival } from '@/lib/site/page-transition';
 import { grainMask, rowsOf } from './grain-reveal';
 import { bindSceneStep, centerOf, type SceneStep } from './scene-step';
 
@@ -20,6 +21,8 @@ export const WORK_MOTION = {
   drag: { spin: 0.12, smoothing: 0.6, inertia: 0.35, minimum: 4 }, // = démo
   // Ouverture (≈ 1 s) : l'anneau recule en pivotant et se dissout photo par photo, l'album
   // monte dessous en fondu. Jamais de traversée de caméra (perspective 900 px) : c'était le flash.
+  // Entrée de la première scène : l'anneau monte du bas de l'écran, `lead` secondes AVANT la fin du centrage de la page.
+  enter: { lead: 0.5, duration: 1.08, ease: 'power3.out', titleAt: 0.46, title: 0.42 },
   open: { recenter: 0.6, spin: -100, recede: 260, tiltBack: 8, ring: 0.8, fadeAt: 0.1, fade: 0.4, fadeStagger: 0.035, albumAt: 0.3, album: 0.4, gridAt: 0.45 },
   close: { gridOut: 0.25, ringAt: 0.12, ring: 0.7, fade: 0.35, fadeStagger: 0.03 },
   // Grille : front de grains de gauche à droite (grain-reveal.ts). colStep = décalage entre deux vignettes
@@ -262,6 +265,71 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
       first.style.height = served;
     });
   }
+
+  // ── Entrée : le premier anneau monte du bas, dès que la page est centrée ────
+  // Le HTML l'a posé hors champ (`data-enter`, site.css : `translate`). GSAP écrit lui-même le
+  // transform de l'anneau (défilement, rotation) et neutralise alors `translate` : l'entrée passe donc
+  // par `y` de GSAP, pas par la propriété CSS. Mouvement réduit : il apparaît à sa place.
+  // `finishEntrance` la termine d'un coup à l'ouverture d'un album (les vols mesurent les rects).
+  let entrance: gsap.core.Timeline | null = null;
+  let finishEntrance: (() => void) | null = null;
+  const enterRing = first?.querySelector<HTMLElement>('[data-ring]');
+  if (first && enterRing && first.hasAttribute('data-enter')) {
+    const title = first.querySelector<HTMLElement>('[data-scene-title]');
+    const settle = () => {
+      first.removeAttribute('data-enter');
+      gsap.set(enterRing, { y: 0 });
+      if (title) gsap.set(title, { clearProps: 'opacity' });
+    };
+    if (reduced) {
+      settle();
+    } else {
+      const E = WORK_MOTION.enter;
+      // Distance MESURÉE : la perspective rapproche les cartes du fond du centre de la scène (échelle
+      // ≈ 0,6), donc décaler de la hauteur de la scène laissait leur haut dépasser du cadre (174 px
+      // mesurés). On pose un décalage, on regarde la carte la plus haute, et on rajoute ce qui manque.
+      const cards = [...first.querySelectorAll<HTMLElement>('[data-card]')];
+      const dist = () => {
+        let d = Math.ceil(first.offsetHeight);
+        for (let i = 0; i < 4; i++) {
+          gsap.set(enterRing, { y: d });
+          const bottom = first.getBoundingClientRect().bottom;
+          const gap = 8 + bottom - Math.min(...cards.map((c) => c.getBoundingClientRect().top));
+          if (gap <= 0) break;
+          d += Math.ceil(gap / 0.5) + 24;
+        }
+        return d;
+      };
+      gsap.set(enterRing, { y: dist() });
+      let cancelWait = () => {};
+      cancelWait = afterPageArrival(() => {
+        entrance = gsap.timeline({ onComplete: settle });
+        entrance.fromTo(enterRing, { y: dist() }, { y: 0, duration: E.duration, ease: E.ease }, 0);
+        if (title) {
+          entrance.fromTo(title, { opacity: 0 }, { opacity: 1, duration: E.title, ease: 'none' }, E.titleAt);
+        }
+      }, E.lead);
+      finishEntrance = () => {
+        cancelWait();
+        entrance?.kill();
+        entrance = null;
+        settle();
+        finishEntrance = null;
+      };
+      cleanups.push(() => {
+        cancelWait();
+        entrance?.kill();
+        // Délié en cours de route (mode strict : lié, délié, relié) : état de départ remis, sinon la
+        // liaison suivante trouverait un anneau déjà en place et ne jouerait rien.
+        if (first.hasAttribute('data-enter')) {
+          gsap.set(enterRing, { y: dist() });
+          if (title) gsap.set(title, { clearProps: 'opacity' });
+        }
+        entrance = null;
+        finishEntrance = null;
+      });
+    }
+  }
   const splits: SplitText[] = [];
   const triggers = new Map<HTMLElement, ScrollTrigger>();
 
@@ -485,6 +553,7 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
     open(index, { album, grid, onComplete, instant }) {
       const scene = scenes[index];
       const { flight, chars } = sceneParts(scene);
+      finishEntrance?.(); // les vols mesurent les rects : l'anneau doit être à sa place
       endGrid();
       gsap.set(grid.children, { autoAlpha: 1 });
       if (reduced) {

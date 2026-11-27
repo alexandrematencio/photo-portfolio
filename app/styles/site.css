@@ -401,6 +401,18 @@ body img {
 
 /* /work : indice de défilement de la 1re scène — un filet fin dont un trait descend en boucle.
    Discret (muted, 1 px), s'efface au premier défilement (carousel-motion.ts). Fixe si mouvement réduit. */
+/* ENTRÉE de /work : tant que la première scène porte `data-enter`, son anneau est décalé vers le bas
+   (hors du cadre : la scène est en `overflow: clip`) et son titre invisible. L'indice « Scroll » reste : GSAP
+   lit son opacité de départ, un 0 posé ici le laisserait invisible pour toujours.
+   `carousel-motion.ts` prend le relais (`y` de GSAP, qui neutralise ce `translate` en écrivant son
+   transform), l'anime vers 0 une fois la page centrée, puis retire l'attribut. */
+[data-enter] [data-ring] {
+  translate: 0 200svh;
+}
+[data-enter] [data-scene-title] {
+  opacity: 0;
+}
+
 .work-scroll-cue-line {
   position: relative;
   display: block;
