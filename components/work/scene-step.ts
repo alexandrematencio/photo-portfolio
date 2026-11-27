@@ -22,6 +22,16 @@ export function centerOf(scene: HTMLElement, scroller: HTMLElement): number {
   return Math.min(Math.max(0, y), scroller.scrollHeight - scroller.clientHeight);
 }
 
+/**
+ * Position de repos de la scène `i` : la première au haut de page (titre WORK entier, anneau de face),
+ * les autres centrées. La SEULE définition : pas-à-pas, ouverture d'un album et arrivée par adresse s'y
+ * calent. `centerOf` sur la première donnait la moitié de la hauteur du titre : après un album, WORK
+ * restait coupé et la scène suivante dépassait en bas.
+ */
+export function restTopOf(scenes: HTMLElement[], i: number, scroller: HTMLElement): number {
+  return i === 0 ? 0 : centerOf(scenes[i], scroller);
+}
+
 type Options = {
   scroller: HTMLElement;
   scenes: HTMLElement[];
@@ -59,7 +69,7 @@ export function bindSceneStep({ scroller, scenes, isLocked, reduced }: Options):
   const listeners = new Set<(i: number) => void>();
 
   /** Première scène = haut de page (anneau de face, titre de la page visible) ; les autres, centrées. */
-  const stops = () => scenes.map((s, i) => (i === 0 ? 0 : centerOf(s, scroller)));
+  const stops = () => scenes.map((_, i) => restTopOf(scenes, i, scroller));
 
   const nearest = (list: number[]) => {
     const y = scroller.scrollTop;

@@ -60,22 +60,22 @@ const eight = RAT.map((r, i) => photo(`p${i}`, r));
   const l = ringLayout(Array.from({ length: 4 }, (_, i) => photo(`n${i}`, 0.6)));
   const w = Math.round(RING.cardHeight * 0.6);
   const wanted = (4 * (w + RING.gap)) / (2 * Math.PI * RING.fill);
-  ok('3 : rayon calculé 338', near(wanted, 338, 1), `(${wanted})`);
+  ok('3 : rayon calculé 282', near(wanted, 282, 1), `(${wanted})`);
   ok('3 : borné à minRadius', l.radius === RING.minRadius, `(${l.radius})`);
   ok('3 : angles 0/90/180/270', l.cards.every((c, i) => near(c.angle, i * 90, 1e-6)), JSON.stringify(l.cards.map((c) => c.angle)));
   const l08 = ringLayout(Array.from({ length: 4 }, (_, i) => photo(`q${i}`, 0.8)));
-  ok('3 : repère 4 × 0,8 → 435', near(l08.radius, 435, 1), `(${l08.radius})`);
+  ok('3 : repère 4 × 0,8 → 361', near(l08.radius, 361, 1), `(${l08.radius})`);
 }
 // 4. Photo sans dimensions.
 {
   const l = ringLayout([photo('x')]);
-  ok('4 : repli 336', l.cards[0].width === Math.round(420 * 0.8), `(${l.cards[0].width})`);
+  ok('4 : repli 272', l.cards[0].width === Math.round(340 * 0.8), `(${l.cards[0].width})`);
   ok('4 : aspectOf repli', aspectOf(photo('x')) === 0.8);
 }
 // 5. Panorama.
 {
   const l = ringLayout([photo('pano', 3)]);
-  ok('5 : borné à 1,6, largeur 672', l.cards[0].width === 672, `(${l.cards[0].width})`);
+  ok('5 : borné à 1,6, largeur 544', l.cards[0].width === 544, `(${l.cards[0].width})`);
 }
 // 6. z.
 {

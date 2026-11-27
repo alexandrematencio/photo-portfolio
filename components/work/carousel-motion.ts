@@ -10,7 +10,7 @@ import { SplitText } from 'gsap/SplitText';
 import { FIRST_SCENE_MIN } from './carousel-geometry';
 import { afterPageArrival } from '@/lib/site/page-transition';
 import { grainMask, rowsOf } from './grain-reveal';
-import { bindSceneStep, centerOf, type SceneStep } from './scene-step';
+import { bindSceneStep, restTopOf, type SceneStep } from './scene-step';
 
 gsap.registerPlugin(ScrollTrigger, Observer, SplitText);
 
@@ -230,6 +230,25 @@ function gridOut(grid: HTMLElement): gsap.core.Timeline {
   return tl;
 }
 
+/**
+ * Décalage `y` MESURÉ qui met tout l'anneau sous le bas de sa scène (clippée : `overflow-clip`). La
+ * perspective rapproche les cartes du fond du centre (échelle ≈ 0,6) : décaler de la hauteur de la
+ * scène laisserait leur haut dépasser du cadre. On pose un décalage, on regarde la carte la plus haute,
+ * et on rajoute ce qui manque. Laisse `y` posé à la valeur rendue.
+ */
+function distBelow(scene: HTMLElement, ring: HTMLElement): number {
+  const cards = [...scene.querySelectorAll<HTMLElement>('[data-card]')];
+  let d = Math.ceil(scene.offsetHeight);
+  for (let i = 0; i < 4; i++) {
+    gsap.set(ring, { y: d });
+    const bottom = scene.getBoundingClientRect().bottom;
+    const gap = 8 + bottom - Math.min(...cards.map((c) => c.getBoundingClientRect().top));
+    if (gap <= 0) break;
+    d += Math.ceil(gap / 0.5) + 24;
+  }
+  return d;
+}
+
 export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
   const scroller = root.closest<HTMLElement>('[data-scroll-container]');
   if (!scroller) return null;
@@ -285,21 +304,7 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
       settle();
     } else {
       const E = WORK_MOTION.enter;
-      // Distance MESURÉE : la perspective rapproche les cartes du fond du centre de la scène (échelle
-      // ≈ 0,6), donc décaler de la hauteur de la scène laissait leur haut dépasser du cadre (174 px
-      // mesurés). On pose un décalage, on regarde la carte la plus haute, et on rajoute ce qui manque.
-      const cards = [...first.querySelectorAll<HTMLElement>('[data-card]')];
-      const dist = () => {
-        let d = Math.ceil(first.offsetHeight);
-        for (let i = 0; i < 4; i++) {
-          gsap.set(enterRing, { y: d });
-          const bottom = first.getBoundingClientRect().bottom;
-          const gap = 8 + bottom - Math.min(...cards.map((c) => c.getBoundingClientRect().top));
-          if (gap <= 0) break;
-          d += Math.ceil(gap / 0.5) + 24;
-        }
-        return d;
-      };
+      const dist = () => distBelow(first, enterRing);
       gsap.set(enterRing, { y: dist() });
       let cancelWait = () => {};
       cancelWait = afterPageArrival(() => {
@@ -337,38 +342,20 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
     // ── 3a. Défilement + titre ────────────────────────────────────────────────
     if (!reduced) {
       scenes.forEach((scene) => {
-        if (scene === scenes[0]) {
-          // L'indice de défilement s'efface sur les premiers pixels.
-          const cue = scene.querySelector('[data-scroll-cue]');
-          if (cue) {
-            gsap.to(cue, {
-              autoAlpha: 0,
-              ease: 'none',
-              scrollTrigger: { trigger: scene, scroller, start: 0, end: 160, scrub: true },
-            });
-          }
-        }
         const st = bindScroll(scene, scroller, scene === scenes[0]);
         if (st) triggers.set(scene, st);
         const span = scene.querySelector<HTMLElement>('[data-split]');
         if (span) {
           const split = SplitText.create(span, { type: 'words, chars', charsClass: 'char' });
           splits.push(split);
-          gsap.fromTo(
+          // Un coup, jamais lié à un `refresh` : un ScrollTrigger rattaché à la tween la remettait à zéro
+          // (titre effacé) à chaque `ScrollTrigger.refresh()`, dont celui de la fermeture d'un album.
+          const reveal = gsap.fromTo(
             split.chars,
             { autoAlpha: 0 },
-            {
-              autoAlpha: 1,
-              duration: 0.02,
-              stagger: { each: 0.04 },
-              scrollTrigger: {
-                trigger: scene,
-                scroller,
-                start: 'top center',
-                toggleActions: 'play none none reverse',
-              },
-            },
+            { autoAlpha: 1, duration: 0.02, stagger: { each: 0.04 }, paused: true },
           );
+          ScrollTrigger.create({ trigger: scene, scroller, start: 'top center', once: true, onEnter: () => reveal.play() });
         }
       });
     }
@@ -596,7 +583,7 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
             onComplete();
           },
         })
-        .to(scroller, { scrollTop: centerOf(scene, scroller), duration: O.recenter, ease: 'power2.inOut' }, 0)
+        .to(scroller, { scrollTop: restTopOf(scenes, index, scroller), duration: O.recenter, ease: 'power2.inOut' }, 0)
         .to(chars, { autoAlpha: 0, duration: 0.02, ease: 'none', stagger: { each: 0.015, from: 'end' } }, 0)
         // Un seul tween sur `flight` : il part en douceur et prend de l'élan en s'éloignant.
         .to(
@@ -622,8 +609,8 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
         }
         gsap.set([scene, ...cards], { clearProps: 'zIndex,opacity,visibility' });
         gsap.set(scene.querySelectorAll('[data-card] > *'), { clearProps: 'opacity,visibility' });
-        gsap.set(chars, { autoAlpha: 1 });
         ScrollTrigger.refresh();
+        gsap.set(chars, { autoAlpha: 1 });
         onComplete();
       };
       if (reduced || !flight) {
@@ -631,28 +618,26 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
         return null;
       }
       const C = WORK_MOTION.close;
-      const O = WORK_MOTION.open;
+      const ring = sceneParts(scene).ring;
       const rest = restZ.get(scene) ?? 0;
+      // L'anneau n'est plus visible : on remet tout de suite le vol à sa place (celle du HTML), puis
+      // l'anneau remonte du dessous comme à l'entrée de la page, au lieu de revenir en tournant.
+      gsap.set(flight, { z: rest, rotationX: 0, rotationY: 0, rotationZ: 0 });
       gsap.set(scene, { zIndex: 41 });
-      const faces = facesBackToFront(scene).flat();
-      gsap.set(faces, { autoAlpha: 0 });
+      gsap.set(scene.querySelectorAll('[data-card] > *'), { autoAlpha: 1 });
+      const below = ring ? distBelow(scene, ring) : 0;
       const tl = gsap
         .timeline({ onComplete: finish })
         .add(gridOut(grid), 0)
         .to(album, { autoAlpha: 0, duration: C.gridOut, ease: 'sine.in' }, 0)
-        .set(scene, { autoAlpha: 1 }, C.ringAt)
-        // Le retour prolonge le sens de rotation de l'ouverture (jamais un rembobinage) et se pose.
-        .fromTo(
-          flight,
-          { z: rest - O.recede, rotationX: O.tiltBack, rotationY: -O.spin, rotationZ: 0 },
-          { z: rest, rotationX: 0, rotationY: 0, duration: C.ring, ease: 'power3.out' },
-          C.ringAt,
-        )
-        .fromTo(chars, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.02, ease: 'none', stagger: { each: 0.015 } }, C.ringAt);
-      // Les photos reviennent de l'avant vers le fond.
-      facesBackToFront(scene)
-        .reverse()
-        .forEach((f, k) => tl.to(f, { autoAlpha: 1, duration: C.fade, ease: 'sine.out' }, C.ringAt + k * C.fadeStagger));
+        .set(scene, { autoAlpha: 1 }, C.ringAt);
+      if (ring) tl.fromTo(ring, { y: below }, { y: 0, duration: C.ring, ease: 'power3.out' }, C.ringAt);
+      tl.fromTo(
+        chars,
+        { autoAlpha: 0 },
+        { autoAlpha: 1, duration: 0.02, ease: 'none', stagger: { each: 0.015 } },
+        C.ringAt + C.ring * 0.4,
+      );
       return tl;
     },
     destroy() {

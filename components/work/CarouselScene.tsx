@@ -54,16 +54,6 @@ export function CarouselScene({ collection: c, index }: { collection: PreparedSe
           <span className="sr-only">, {c.photos.length} photos</span>
         </a>
       </h2>
-      {index === 0 && (
-        <div
-          data-scroll-cue
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-5 z-10 flex flex-col items-center gap-2 text-[var(--color-fg-muted)]"
-        >
-          <span className={MICRO_LABEL}>Scroll</span>
-          <span className="work-scroll-cue-line" />
-        </div>
-      )}
       <div
         data-ring
         aria-hidden
@@ -118,7 +108,9 @@ export function CarouselScene({ collection: c, index }: { collection: PreparedSe
                   style={{
                     position: 'absolute',
                     inset: 0,
-                    background: 'var(--color-bg-plate)',
+                    // Dos des cartes = le « ruban » vu entre les photos : à peine plus sombre que le fond
+                    // (`--surface-1`), pas la plaque `--color-bg-plate`, trop grise sur la page.
+                    background: 'var(--surface-1)',
                     transform: 'rotateY(180deg)',
                     backfaceVisibility: 'hidden',
                   }}
