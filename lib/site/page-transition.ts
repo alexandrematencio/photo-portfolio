@@ -163,6 +163,11 @@ export function announcePageArrival(to: string, side: Side): PageArrival {
 let exiting = false;
 export const isExiting = () => exiting;
 
+/** La page d'arrivée est en train d'entrer. */
+let arriving = false;
+/** Une page sort ou entre : `<ScrollThumb />` se tait pendant ce temps. */
+export const isPageInTransit = () => exiting || arriving;
+
 // ─── Moitié DÉPART ─────────────────────────────────────────────────────────
 
 const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -210,6 +215,9 @@ export function ghostOf(el: HTMLElement, zIndex: number): HTMLElement {
   // La copie ne doit répondre à rien de ce qui cherche LE conteneur de scroll
   // (TopBarAutoHide, /series), ni au clavier, ni aux lecteurs d'écran.
   ghost.removeAttribute('data-scroll-container');
+  // Sans l'attribut, la copie échappait au masquage de la barre native
+  // (`site.css`) : la barre de la page sortante glissait avec elle.
+  ghost.setAttribute('data-scroll-ghost', '');
   ghost.setAttribute('aria-hidden', 'true');
   ghost.inert = true;
   Object.assign(ghost.style, {
@@ -327,7 +335,9 @@ export function playPageArrival(arrival: PageArrival, pathname: string): () => v
 
   const travel = window.innerWidth * arrival.side;
   page.style.transformOrigin = '0 0';
+  arriving = true;
   const settle = () => {
+    arriving = false;
     page.style.transform = '';
     page.style.transformOrigin = '';
   };

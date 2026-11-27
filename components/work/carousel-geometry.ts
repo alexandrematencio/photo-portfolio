@@ -21,6 +21,11 @@ export const RING = {
   setBack: 50,
 } as const;
 
+/** Première scène : elle remplit l'écran sous l'en-tête (mesure exacte en JS, carousel-motion.ts). */
+export const FIRST_SCENE_MIN = 520; // px : l'anneau (420) et son inclinaison y tiennent
+/** Hauteur approchée servie dans le HTML, avant la mesure : nav-bar 64 + en-tête de page ≈ 284 (desktop). */
+export const FIRST_SCENE_SERVED_HEIGHT = `max(${FIRST_SCENE_MIN}px, calc(100svh - 64px - 284px))`;
+
 export type RingCard = {
   photo: Photo;
   width: number; // px

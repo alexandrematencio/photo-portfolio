@@ -7,7 +7,7 @@ import { PhotoCard } from '@/components/gallery/PhotoCard';
 import { PHOTO_GRID_STYLE } from '@/components/series/page/SeriesPhotoGrid';
 import { cn } from '@/lib/utils/cn';
 import { collectionPlaces, type PreparedSeries } from '@/lib/site/series';
-import { EDITORIAL_LINK_DECORATION, MICRO_LABEL, PAGE_CONTROLS_GAP } from '@/lib/site/typography';
+import { EDITORIAL_LINK_DECORATION, PAGE_CONTROLS_GAP } from '@/lib/site/typography';
 
 type Props = {
   collection: PreparedSeries;
@@ -21,7 +21,19 @@ type Props = {
   gridRef: Ref<HTMLDivElement>;
 };
 
-const BUTTON = cn(MICRO_LABEL, 'inline-flex items-center gap-2 text-[var(--color-fg)]');
+/** Titre : la voix du H2 du site, un cran plus petit sur mobile pour laisser la place aux boutons. */
+const TITLE =
+  'min-w-0 text-[26px] md:text-[43px] font-bold uppercase tracking-[-0.02em] leading-[0.95] text-[var(--color-fg)] [overflow-wrap:anywhere]';
+
+/**
+ * Commandes (Play, Close) : 44 px de haut (cible tactile), pastille cerclée qui s'inverse au survol.
+ * Sur mobile, icône seule (nom accessible par `aria-label`) ; le libellé revient dès `sm`.
+ */
+const BUTTON = cn(
+  'inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-[var(--color-fg)] album-command', // padding : site.css (reset `* { padding: 0 }`)
+  'text-[14px] font-bold uppercase tracking-[-0.02em] text-[var(--color-fg)]',
+  'transition-colors hover:bg-[var(--color-fg)] hover:text-[var(--color-bg)] motion-reduce:transition-none',
+);
 
 /**
  * L'album ouvert d'une collection, en surimpression. Ne porte PAS la lightbox (§3.4) :
@@ -29,6 +41,7 @@ const BUTTON = cn(MICRO_LABEL, 'inline-flex items-center gap-2 text-[var(--color
  */
 export function AlbumView({ collection, top, onClose, onOpenPhoto, onPlay, closeRef, gridRef }: Props) {
   const n = collection.photos.length;
+  const places = collectionPlaces(collection.photos);
   return (
     <div
       role="dialog"
@@ -46,36 +59,41 @@ export function AlbumView({ collection, top, onClose, onOpenPhoto, onPlay, close
         overflowY: 'auto',
         overscrollBehavior: 'contain',
         paddingInline: 'var(--page-gutter)',
-        paddingBlock: '24px 96px',
+        paddingBlock: '0 96px', // le haut est porté par l'en-tête collant
       }}
     >
+      {/* En-tête collant : Close reste à portée de main quand on descend dans un long album. */}
       <header
-        className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-3"
-        style={{ marginBottom: PAGE_CONTROLS_GAP }}
+        className="sticky top-0 z-10 flex items-center justify-between gap-4 bg-[var(--color-bg)]"
+        // Inline : le reset global du site écrase padding et marges utilitaires sur ces éléments.
+        style={{ paddingBlock: '20px 12px' }}
       >
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-6 gap-y-1">
-          <h2 id={`album-title-${collection.slug}`} className={cn(MICRO_LABEL, 'text-[var(--color-fg)]')}>
-            {collection.title}
-          </h2>
-          <p className={cn(MICRO_LABEL, 'text-[var(--color-fg-muted)]')}>
-            {n} photo{n === 1 ? '' : 's'}
-            {collectionPlaces(collection.photos) ? ` · ${collectionPlaces(collection.photos)}` : ''}
-          </p>
-          <Link href={`/series/${collection.slug}/`} className={cn(MICRO_LABEL, EDITORIAL_LINK_DECORATION)}>
-            About this collection
-          </Link>
-        </div>
-        <div className="flex items-center gap-6">
-          <button type="button" className={BUTTON} onClick={onPlay}>
-            <Play size={12} aria-hidden fill="currentColor" strokeWidth={0} />
-            Play
+        <h2 id={`album-title-${collection.slug}`} className={TITLE}>
+          {collection.title}
+        </h2>
+        <div className="flex shrink-0 items-center gap-2">
+          <button type="button" className={BUTTON} onClick={onPlay} aria-label="Play slideshow">
+            <Play size={16} aria-hidden fill="currentColor" strokeWidth={0} />
+            <span className="hidden sm:inline">Play</span>
           </button>
-          <button type="button" ref={closeRef} className={BUTTON} onClick={onClose}>
-            <X size={14} aria-hidden />
-            Close
+          <button type="button" ref={closeRef} className={BUTTON} onClick={onClose} aria-label="Close album">
+            <X size={18} aria-hidden strokeWidth={2.25} />
+            <span className="hidden sm:inline">Close</span>
           </button>
         </div>
       </header>
+      <div
+        className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-[13px] font-bold uppercase tabular-nums"
+        style={{ marginTop: 4, marginBottom: PAGE_CONTROLS_GAP }}
+      >
+        <p className="text-[var(--color-fg-muted)]">
+          {n} photo{n === 1 ? '' : 's'}
+          {places ? ` · ${places}` : ''}
+        </p>
+        <Link href={`/series/${collection.slug}/`} className={EDITORIAL_LINK_DECORATION}>
+          About this collection
+        </Link>
+      </div>
       <div ref={gridRef} style={{ ...PHOTO_GRID_STYLE, perspective: '900px' }}>
         {collection.photos.map((p, k) => (
           <PhotoCard key={p._id} photo={p} onOpen={() => onOpenPhoto(k)} />

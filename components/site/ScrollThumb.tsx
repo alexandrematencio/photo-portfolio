@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { isPhotoHome } from '@/lib/site/sites';
+import { isPageInTransit } from '@/lib/site/page-transition';
 import { useEffect, useRef } from 'react';
 
 /** Épaisseur au repos et sous le doigt / le curseur, en px. */
@@ -102,6 +103,9 @@ export function ScrollThumb() {
       thumb.style.pointerEvents = visible ? 'auto' : 'none';
     };
     const wake = () => {
+      // Pendant une transition de page, le défilement remis à zéro de la page
+      // qui arrive réveillerait le curseur : il reste éteint jusqu'au repos.
+      if (isPageInTransit()) return;
       shown = true;
       paint();
       window.clearTimeout(idle);

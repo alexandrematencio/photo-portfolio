@@ -398,6 +398,31 @@ body img {
 
 /* /work : curseur de glisser (les anneaux se tirent à la main, components/work/carousel-motion.ts). */
 [data-work-root] [data-scene]:hover { cursor: grab; }
+
+/* /work : indice de défilement de la 1re scène — un filet fin dont un trait descend en boucle.
+   Discret (muted, 1 px), s'efface au premier défilement (carousel-motion.ts). Fixe si mouvement réduit. */
+.work-scroll-cue-line {
+  position: relative;
+  display: block;
+  width: 1px;
+  height: 36px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-fg-muted) 35%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .work-scroll-cue-line::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 40%;
+    background: var(--color-fg);
+    animation: work-scroll-cue 1.9s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  }
+}
+@keyframes work-scroll-cue {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(250%); }
+}
 [data-work-root].is-dragging,
 [data-work-root].is-dragging [data-scene] {
   cursor: grabbing;
@@ -417,6 +442,18 @@ html[data-scroll-thumb] [data-scroll-container] {
 }
 html[data-scroll-thumb]::-webkit-scrollbar,
 html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
+  display: none;
+}
+/* La copie de la page qui SORT (`ghostOf`, lib/site/page-transition.ts) perd
+   `data-scroll-container` : sans cette règle, sa barre native glissait avec
+   elle (vu de /series vers /work). Ses scrollers internes aussi : c'est une
+   image qui passe, rien ne s'y fait défiler. */
+[data-scroll-ghost],
+[data-scroll-ghost] * {
+  scrollbar-width: none;
+}
+[data-scroll-ghost]::-webkit-scrollbar,
+[data-scroll-ghost] *::-webkit-scrollbar {
   display: none;
 }
 
@@ -602,4 +639,32 @@ html[data-scroll-thumb] [data-scroll-container]::-webkit-scrollbar {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* /work : reveal granulaire des vignettes d'un album (components/work/grain-reveal.ts).
+   `--grain-mask` est posé sur la grille, `--grain-x` animé par GSAP de 100 % à 0 %. */
+[data-album] .is-grain-revealing {
+  -webkit-mask-image: var(--grain-mask);
+  mask-image: var(--grain-mask);
+  -webkit-mask-size: 300% auto;
+  mask-size: 300% auto;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: var(--grain-x, 0%) 0;
+  mask-position: var(--grain-x, 0%) 0;
+}
+
+/* /work : boutons Play / Close de l'album (AlbumView). Le padding vit ici, pas en utilitaire :
+   le reset `* { padding: 0 }` hors @layer le battrait. Icône seule sur mobile, libellé dès 640 px. */
+.album-command { padding-inline: 13px; }
+@media (min-width: 640px) { .album-command { padding-inline: 20px; } }
+/* Le focus global (`*:focus-visible`) rabote les coins à 2 px : la pastille garde son arrondi. */
+.album-command:focus-visible { border-radius: 9999px; }
+
+/* /work : le menu de gauche (components/work/SceneMenu.tsx) s'efface pendant qu'un album s'ouvre,
+   est ouvert ou se ferme : l'album est plein écran, la liste n'a rien à y faire. */
+.work-menu { transition: opacity 0.3s ease; }
+[data-work-root]:not([data-phase='idle']) .work-menu {
+  opacity: 0;
+  pointer-events: none;
 }

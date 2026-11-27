@@ -6,6 +6,7 @@ import type { PreparedSeries } from '@/lib/site/series';
 import { pushModalHistory } from '@/lib/utils/modalHistory';
 import { AlbumView } from './AlbumView';
 import { CarouselScene } from './CarouselScene';
+import { SceneMenu } from './SceneMenu';
 import type gsap from 'gsap';
 import { bindWorkCarousels, type WorkMotion } from './carousel-motion';
 
@@ -20,6 +21,8 @@ export function WorkCarousels({ collections }: { collections: PreparedSeries[] }
   const [phase, setPhase] = useState<Phase>('idle');
   const [lightbox, setLightbox] = useState<{ index: number; autoplay: boolean } | null>(null);
   const [albumTop, setAlbumTop] = useState(64);
+  /** Scène la plus proche du repos (ou visée par le pas en cours) : allume le menu de gauche. */
+  const [active, setActive] = useState(0);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -40,7 +43,10 @@ export function WorkCarousels({ collections }: { collections: PreparedSeries[] }
     if (!root) return;
     const motion = bindWorkCarousels(root);
     motionRef.current = motion;
+    const off = motion?.step.onActive(setActive);
+    if (motion) setActive(motion.step.active());
     return () => {
+      off?.();
       motion?.destroy();
       motionRef.current = null;
     };
@@ -218,6 +224,7 @@ export function WorkCarousels({ collections }: { collections: PreparedSeries[] }
           <CarouselScene key={c._id} collection={c} index={i} />
         ))}
       </div>
+      <SceneMenu collections={collections} active={active} hidden={album !== null} onGo={(i) => motionRef.current?.step.goTo(i)} />
       {current && (
         <AlbumView
           collection={current}

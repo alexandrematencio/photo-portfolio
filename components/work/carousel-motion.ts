@@ -7,6 +7,9 @@ import gsap from 'gsap';
 import { Observer } from 'gsap/Observer';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
+import { FIRST_SCENE_MIN } from './carousel-geometry';
+import { grainMask, rowsOf } from './grain-reveal';
+import { bindSceneStep, centerOf, type SceneStep } from './scene-step';
 
 gsap.registerPlugin(ScrollTrigger, Observer, SplitText);
 
@@ -15,9 +18,15 @@ export const WORK_MOTION = {
   scroll: { turn: 90, tilt: 3, cardTilt: 10, ease: 'sine.inOut' }, // démo : ±90°, ±3°, ±10°
   springs: { spread: 0.05, maxSpread: 120, lean: 0.006, maxLean: 12, stiffness: 120, damping: 14 }, // démo : max 180 px et 20°
   drag: { spin: 0.12, smoothing: 0.6, inertia: 0.35, minimum: 4 }, // = démo
-  open: { total: 1.2, flipAt: 0, flip: 0.56, throughAt: 0.26, through: 0.94, gridAt: 0.7 },
-  close: { gridOut: 0.25, ringAt: 0.15, ring: 0.6 },
-  grid: { depth: 100, duration: 0.4, stagger: 0.1, max: 12 },
+  // Ouverture (≈ 1 s) : l'anneau recule en pivotant et se dissout photo par photo, l'album
+  // monte dessous en fondu. Jamais de traversée de caméra (perspective 900 px) : c'était le flash.
+  open: { recenter: 0.6, spin: -100, recede: 260, tiltBack: 8, ring: 0.8, fadeAt: 0.1, fade: 0.4, fadeStagger: 0.035, albumAt: 0.3, album: 0.4, gridAt: 0.45 },
+  close: { gridOut: 0.25, ringAt: 0.12, ring: 0.7, fade: 0.35, fadeStagger: 0.03 },
+  // Grille : front de grains de gauche à droite (grain-reveal.ts). colStep = décalage entre deux vignettes
+  // d'une rangée, rowStep = entre deux rangées ; settle = léger recul de l'image qui se pose (1,5 %).
+  // TOUTES les vignettes visibles à l'ouverture jouent le reveal (plus de plafond) ; les autres le jouent
+  // quand elles entrent à l'écran en défilant (`inset` = de combien elles doivent être entrées, en px).
+  grid: { duration: 0.5, colStep: 0.07, rowStep: 0.16, settle: 1.015, inset: 48 },
 } as const;
 
 export type WorkMotion = {
@@ -26,11 +35,13 @@ export type WorkMotion = {
   scenes: HTMLElement[];
   /** Vrai : un album s'ouvre, est ouvert ou se ferme. Plus de ressort, plus de glisser. */
   setLocked(locked: boolean): void;
-  /** Ouverture d'un album (1,2 s). Rend la timeline, ou `null` si rien ne s'anime (mouvement
+  /** Ouverture d’un album (≈ 1,1 s). Rend la timeline, ou `null` si rien ne s'anime (mouvement
    *  réduit, arrivée par adresse) : `onComplete` est alors déjà appelé. */
   open(index: number, o: AlbumFlight & { instant?: boolean }): gsap.core.Timeline | null;
-  /** Fermeture (0,75 s). Même contrat. */
+  /** Fermeture (≈ 0,8 s). Même contrat. */
   close(index: number, o: AlbumFlight): gsap.core.Timeline | null;
+  /** Pas-à-pas de scène en scène (molette, doigt, ↑ ↓) et menu de gauche : `goTo`, scène active. */
+  step: SceneStep;
   destroy(): void;
 };
 
@@ -77,19 +88,31 @@ function createSpeedSprings(apply: (spread: number, lean: number) => void) {
   };
 }
 
-/** Défilement : l'anneau tourne de +turn à −turn pendant que la scène traverse l'écran. */
-function bindScroll(scene: HTMLElement, scroller: HTMLElement): ScrollTrigger | undefined {
+/**
+ * Défilement : l'anneau tourne de +turn à −turn pendant que la scène traverse l'écran.
+ * La PREMIÈRE scène n'a pas d'avant : elle part de face (0°) à `scrollTop = 0`, donc centrée
+ * dès l'arrivée, et ne joue que la seconde moitié du parcours (même pente au départ que le
+ * milieu des autres : `sine.out` prolonge `sine.inOut`).
+ */
+function bindScroll(scene: HTMLElement, scroller: HTMLElement, first: boolean): ScrollTrigger | undefined {
   const ring = scene.querySelector<HTMLElement>('[data-ring]');
   const cards = scene.querySelectorAll('[data-card]');
   if (!ring) return;
   const { turn, tilt, cardTilt, ease } = WORK_MOTION.scroll;
   const tl = gsap.timeline({
-    defaults: { ease },
-    scrollTrigger: { trigger: scene, scroller, start: 'top bottom', end: 'bottom top', scrub: true },
+    defaults: { ease: first ? 'sine.out' : ease },
+    scrollTrigger: {
+      trigger: scene,
+      scroller,
+      start: first ? 0 : 'top bottom',
+      end: 'bottom top',
+      scrub: true,
+    },
   });
-  tl.fromTo(ring, { rotationY: turn }, { rotationY: -turn }, 0)
-    .fromTo(ring, { rotationZ: tilt, rotationX: tilt }, { rotationZ: -tilt, rotationX: -tilt }, 0)
-    .fromTo(cards, { rotationZ: cardTilt }, { rotationZ: -cardTilt, ease: 'none' }, 0);
+  const from = first ? 0 : 1;
+  tl.fromTo(ring, { rotationY: turn * from }, { rotationY: -turn }, 0)
+    .fromTo(ring, { rotationZ: tilt * from, rotationX: tilt * from }, { rotationZ: -tilt, rotationX: -tilt }, 0)
+    .fromTo(cards, { rotationZ: cardTilt * from }, { rotationZ: -cardTilt, ease: 'none' }, 0);
   return tl.scrollTrigger;
 }
 
@@ -100,17 +123,23 @@ const sceneParts = (scene: HTMLElement) => ({
   chars: scene.querySelectorAll<HTMLElement>('.char'),
 });
 
-/** Scroll qui centre la scène dans le conteneur, borné. */
-function centerOf(scene: HTMLElement, scroller: HTMLElement): number {
-  const y = scene.offsetTop + scene.offsetHeight / 2 - scroller.clientHeight / 2;
-  return Math.min(Math.max(0, y), scroller.scrollHeight - scroller.clientHeight);
+/**
+ * Faces des cartes (photo + dos), du plus loin au plus près de l'œil. On fond les FEUILLES,
+ * jamais `[data-card]` : une opacité < 1 sur un parent `preserve-3d` l'aplatit (dos visible).
+ * La profondeur se lit à la largeur affichée : plus petite = plus loin.
+ */
+function facesBackToFront(scene: HTMLElement): HTMLElement[][] {
+  return [...scene.querySelectorAll<HTMLElement>('[data-card]')]
+    .map((card) => ({ faces: [...card.children] as HTMLElement[], w: card.getBoundingClientRect().width }))
+    .sort((a, b) => a.w - b.w)
+    .map((c) => c.faces);
 }
 
-/** Vignettes de la grille, et la part visible à l'écran (les 12 premières au plus). */
+/** Vignettes de la grille : celles que l'écran montre à l'ouverture, et le reste (sous la ligne de flottaison). */
 function gridItems(grid: HTMLElement) {
   const all = [...grid.children] as HTMLElement[];
   const vh = window.innerHeight;
-  const visible = all.filter((el) => el.getBoundingClientRect().top < vh).slice(0, WORK_MOTION.grid.max);
+  const visible = all.filter((el) => el.getBoundingClientRect().top < vh);
   return { all, visible, rest: all.filter((el) => !visible.includes(el)) };
 }
 
@@ -126,21 +155,65 @@ function distancesFromCenter(items: HTMLElement[], grid: HTMLElement) {
   return { d, dMax: Math.max(...d, 1) };
 }
 
-/** Les vignettes arrivent des bords vers le centre : fondu et petite profondeur CSS (pas de WebGL). */
-function gridIn(grid: HTMLElement): gsap.core.Timeline {
+/** Pose sur `tl`, à l'instant `at`, le reveal en grain d'UNE vignette. */
+function grainReveal(tl: gsap.core.Timeline, el: HTMLElement, at: number) {
   const G = WORK_MOTION.grid;
-  const { visible } = gridItems(grid);
-  const { d, dMax } = distancesFromCenter(visible, grid);
-  const tl = gsap.timeline();
-  visible.forEach((el, k) => {
-    tl.fromTo(
+  tl.call(() => el.classList.add('is-grain-revealing'), undefined, at)
+    .fromTo(el, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01, ease: 'none' }, at)
+    .fromTo(
       el,
-      { autoAlpha: 0, z: -G.depth },
-      { autoAlpha: 1, z: 0, duration: G.duration, ease: 'power3.out' },
-      (1 - d[k] / dMax) * G.stagger, // les plus éloignées d'abord, comme la démo
+      { '--grain-x': '100%', scale: G.settle },
+      {
+        '--grain-x': '0%',
+        scale: 1,
+        duration: G.duration,
+        ease: 'power2.out',
+        onComplete: () => {
+          el.classList.remove('is-grain-revealing');
+          gsap.set(el, { clearProps: '--grain-x,scale' });
+        },
+      },
+      at,
     );
-  });
+}
+
+/**
+ * Les vignettes se révèlent en grain, de gauche à droite, rangée après rangée (grain-reveal.ts).
+ * Rapide : la dernière vignette d'une rangée est entière ≈ 0,5 s après la première.
+ */
+function gridIn(items: HTMLElement[]): gsap.core.Timeline {
+  const G = WORK_MOTION.grid;
+  const tl = gsap.timeline();
+  rowsOf(items).forEach((row, r) => row.forEach((el, c) => grainReveal(tl, el, r * G.rowStep + c * G.colStep)));
   return tl;
+}
+
+/**
+ * Les vignettes sous la ligne de flottaison, cachées à l'ouverture, se révèlent à leur tour quand le
+ * défilement de l'album les amène à l'écran. Plusieurs entrées dans la même passe se décalent comme à
+ * l'ouverture (rangées, puis colonnes). Rend la fonction qui arrête tout (fermeture, démontage).
+ */
+function revealOnScroll(album: HTMLElement, items: HTMLElement[]): () => void {
+  if (!items.length) return () => {};
+  const G = WORK_MOTION.grid;
+  const live = new Set<gsap.core.Timeline>();
+  const io = new IntersectionObserver(
+    (entries) => {
+      const entering = entries.filter((e) => e.isIntersecting).map((e) => e.target as HTMLElement);
+      if (!entering.length) return;
+      entering.forEach((el) => io.unobserve(el));
+      const tl = gsap.timeline({ onComplete: () => live.delete(tl) });
+      live.add(tl);
+      rowsOf(entering).forEach((row, r) => row.forEach((el, c) => grainReveal(tl, el, r * G.rowStep + c * G.colStep)));
+    },
+    { root: album, rootMargin: `0px 0px -${G.inset}px 0px` },
+  );
+  items.forEach((el) => io.observe(el));
+  return () => {
+    io.disconnect();
+    live.forEach((t) => t.progress(1)); // un reveal en cours se pose d'un coup : aucun masque ne reste
+    live.clear();
+  };
 }
 
 /** Sortie : du centre vers les bords, 0,25 s. */
@@ -168,6 +241,27 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
   });
 
   const cleanups: (() => void)[] = [];
+
+  // ── La première scène remplit ce qui reste sous l'en-tête : l'anneau y est centré à l'œil,
+  // pas au milieu d'une page dont le haut est pris par le titre. Le HTML serveur porte une
+  // hauteur approchée (CarouselScene) ; ici la mesure exacte, et à chaque redimensionnement.
+  const first = scenes[0];
+  if (first) {
+    const served = first.style.height;
+    const fit = () => {
+      first.style.height = `${Math.max(FIRST_SCENE_MIN, scroller.clientHeight - first.offsetTop)}px`;
+    };
+    fit();
+    const ro = new ResizeObserver(() => {
+      fit();
+      ScrollTrigger.refresh();
+    });
+    ro.observe(scroller);
+    cleanups.push(() => {
+      ro.disconnect();
+      first.style.height = served;
+    });
+  }
   const splits: SplitText[] = [];
   const triggers = new Map<HTMLElement, ScrollTrigger>();
 
@@ -175,7 +269,18 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
     // ── 3a. Défilement + titre ────────────────────────────────────────────────
     if (!reduced) {
       scenes.forEach((scene) => {
-        const st = bindScroll(scene, scroller);
+        if (scene === scenes[0]) {
+          // L'indice de défilement s'efface sur les premiers pixels.
+          const cue = scene.querySelector('[data-scroll-cue]');
+          if (cue) {
+            gsap.to(cue, {
+              autoAlpha: 0,
+              ease: 'none',
+              scrollTrigger: { trigger: scene, scroller, start: 0, end: 160, scrub: true },
+            });
+          }
+        }
+        const st = bindScroll(scene, scroller, scene === scenes[0]);
         if (st) triggers.set(scene, st);
         const span = scene.querySelector<HTMLElement>('[data-split]');
         if (span) {
@@ -360,9 +465,18 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
   // Le layout a bougé depuis le montage (§3.6 inv. 4).
   ScrollTrigger.refresh();
 
+  const step = bindSceneStep({ scroller, scenes, isLocked: () => locked, reduced });
+  /** Arrête les reveals de la grille ouverte (fermeture, démontage). */
+  let stopGrid: (() => void) | null = null;
+  const endGrid = () => {
+    stopGrid?.();
+    stopGrid = null;
+  };
+
   return {
     scroller,
     scenes,
+    step,
     setLocked(v) {
       locked = v;
       scroller.style.overflow = v ? 'hidden' : ''; // le conteneur ne défile plus tant qu'un album est ouvert
@@ -371,21 +485,41 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
     open(index, { album, grid, onComplete, instant }) {
       const scene = scenes[index];
       const { flight, chars } = sceneParts(scene);
+      endGrid();
       gsap.set(grid.children, { autoAlpha: 1 });
-      if (reduced || instant || !flight) {
-        // Ni vol ni grille animée : album affiché, scène cachée, dans la même frame.
+      if (reduced) {
+        // Mouvement réduit : rien ne s'anime, tout est là.
         gsap.set(scene, { autoAlpha: 0 });
         gsap.set(album, { autoAlpha: 1 });
         onComplete();
         return null;
       }
+      grid.style.setProperty('--grain-mask', grainMask());
+      if (instant || !flight) {
+        // Arrivée par adresse : pas de vol, mais la grille se révèle comme à l'ouverture
+        // (visibles d'abord, le reste au défilement).
+        const { visible, rest } = gridItems(grid);
+        gsap.set([...visible, ...rest], { autoAlpha: 0 });
+        gsap.set(scene, { autoAlpha: 0 });
+        gsap.set(album, { autoAlpha: 1 });
+        const intro = gridIn(visible);
+        const stopScroll = revealOnScroll(album, rest);
+        stopGrid = () => {
+          intro.progress(1);
+          stopScroll();
+        };
+        onComplete();
+        return null;
+      }
       const O = WORK_MOTION.open;
-      const { visible, rest } = gridItems(grid);
-      gsap.set(visible, { autoAlpha: 0 });
-      gsap.set(rest, { autoAlpha: 1 });
+      const rest = restZ.get(scene) ?? 0;
+      const { visible, rest: hidden } = gridItems(grid);
+      gsap.set([...visible, ...hidden], { autoAlpha: 0 });
       gsap.set(album, { autoAlpha: 0 });
-      gsap.set(scene, { zIndex: 41 }); // l'anneau passe DEVANT l'album (z-index 40)
-      return gsap
+      stopGrid = revealOnScroll(album, hidden); // sous la ligne de flottaison : au défilement
+      gsap.set(scene, { zIndex: 41 }); // l'anneau reste DEVANT l'album (z-index 40) pendant qu'il se dissout
+      const faces = facesBackToFront(scene);
+      const tl = gsap
         .timeline({
           onComplete: () => {
             gsap.set(scene, { autoAlpha: 0, clearProps: 'zIndex' });
@@ -393,16 +527,24 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
             onComplete();
           },
         })
-        .to(scroller, { scrollTop: centerOf(scene, scroller), duration: O.flip, ease: 'power2.inOut' }, 0)
+        .to(scroller, { scrollTop: centerOf(scene, scroller), duration: O.recenter, ease: 'power2.inOut' }, 0)
         .to(chars, { autoAlpha: 0, duration: 0.02, ease: 'none', stagger: { each: 0.015, from: 'end' } }, 0)
-        .to(flight, { rotationX: 90, rotationY: -270, z: -2000, duration: O.flip, ease: 'power2.inOut' }, O.flipAt)
-        .to(flight, { z: 1500, rotationZ: 270, duration: O.through, ease: 'power3.inOut' }, O.throughAt)
-        .to(album, { autoAlpha: 1, duration: 0.2, ease: 'none' }, O.gridAt - 0.2)
-        .add(gridIn(grid), O.gridAt);
+        // Un seul tween sur `flight` : il part en douceur et prend de l'élan en s'éloignant.
+        .to(
+          flight,
+          { rotationY: O.spin, rotationX: O.tiltBack, z: rest - O.recede, duration: O.ring, ease: 'power2.in' },
+          0,
+        )
+        .to(album, { autoAlpha: 1, duration: O.album, ease: 'sine.inOut' }, O.albumAt)
+        .add(gridIn(visible), O.gridAt);
+      // Les photos de l'anneau s'éteignent du fond vers l'avant : la plus proche part la dernière.
+      faces.forEach((f, k) => tl.to(f, { autoAlpha: 0, duration: O.fade, ease: 'sine.in' }, O.fadeAt + k * O.fadeStagger));
+      return tl;
     },
     close(index, { album, grid, onComplete }) {
       const scene = scenes[index];
       const { flight, cards, chars } = sceneParts(scene);
+      endGrid();
       const finish = () => {
         if (flight) {
           // `clearProps` CIBLÉS, jamais 'all' (§3.7 inv. 4) ; puis le transform exact écrit par le serveur.
@@ -410,6 +552,7 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
           flight.style.transform = `translateZ(${restZ.get(scene) ?? 0}px)`;
         }
         gsap.set([scene, ...cards], { clearProps: 'zIndex,opacity,visibility' });
+        gsap.set(scene.querySelectorAll('[data-card] > *'), { clearProps: 'opacity,visibility' });
         gsap.set(chars, { autoAlpha: 1 });
         ScrollTrigger.refresh();
         onComplete();
@@ -419,22 +562,33 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
         return null;
       }
       const C = WORK_MOTION.close;
+      const O = WORK_MOTION.open;
+      const rest = restZ.get(scene) ?? 0;
       gsap.set(scene, { zIndex: 41 });
-      return gsap
+      const faces = facesBackToFront(scene).flat();
+      gsap.set(faces, { autoAlpha: 0 });
+      const tl = gsap
         .timeline({ onComplete: finish })
         .add(gridOut(grid), 0)
         .to(album, { autoAlpha: 0, duration: C.gridOut, ease: 'sine.in' }, 0)
         .set(scene, { autoAlpha: 1 }, C.ringAt)
+        // Le retour prolonge le sens de rotation de l'ouverture (jamais un rembobinage) et se pose.
         .fromTo(
           flight,
-          { z: -550, rotationX: 0, rotationY: -630, rotationZ: 0, yPercent: 300 },
-          { z: restZ.get(scene) ?? 0, rotationY: 0, yPercent: 0, duration: C.ring, ease: 'expo.out' },
+          { z: rest - O.recede, rotationX: O.tiltBack, rotationY: -O.spin, rotationZ: 0 },
+          { z: rest, rotationX: 0, rotationY: 0, duration: C.ring, ease: 'power3.out' },
           C.ringAt,
         )
-        .fromTo(cards, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, C.ringAt + 0.1)
         .fromTo(chars, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.02, ease: 'none', stagger: { each: 0.015 } }, C.ringAt);
+      // Les photos reviennent de l'avant vers le fond.
+      facesBackToFront(scene)
+        .reverse()
+        .forEach((f, k) => tl.to(f, { autoAlpha: 1, duration: C.fade, ease: 'sine.out' }, C.ringAt + k * C.fadeStagger));
+      return tl;
     },
     destroy() {
+      endGrid();
+      step.destroy();
       if (tick) gsap.ticker.remove(tick);
       observer.kill();
       window.removeEventListener('pointerdown', onPointerDown, true);

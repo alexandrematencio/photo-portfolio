@@ -2,7 +2,7 @@ import { urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
 import type { PreparedSeries } from '@/lib/site/series';
 import { MICRO_LABEL } from '@/lib/site/typography';
-import { cellTransform, ringLayout } from './carousel-geometry';
+import { cellTransform, FIRST_SCENE_SERVED_HEIGHT, ringLayout } from './carousel-geometry';
 
 /** 2× la hauteur de carte, ratio intact : jamais `fit('crop')`. */
 function ringImageUrl(photo: Photo): string | undefined {
@@ -28,10 +28,10 @@ export function CarouselScene({ collection: c, index }: { collection: PreparedSe
       aria-labelledby={`work-title-${c.slug}`}
       className="relative flex items-center justify-center overflow-clip"
       style={{
-        height: '100svh',
+        height: index === 0 ? FIRST_SCENE_SERVED_HEIGHT : '100svh',
         perspective: '900px',
         contentVisibility: 'auto',
-        containIntrinsicSize: 'auto 100svh',
+        containIntrinsicSize: index === 0 ? undefined : 'auto 100svh',
         cursor: 'grab',
       }}
     >
@@ -45,6 +45,16 @@ export function CarouselScene({ collection: c, index }: { collection: PreparedSe
           <span className="sr-only">, {c.photos.length} photos</span>
         </a>
       </h2>
+      {index === 0 && (
+        <div
+          data-scroll-cue
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-5 z-10 flex flex-col items-center gap-2 text-[var(--color-fg-muted)]"
+        >
+          <span className={MICRO_LABEL}>Scroll</span>
+          <span className="work-scroll-cue-line" />
+        </div>
+      )}
       <div
         data-ring
         aria-hidden
