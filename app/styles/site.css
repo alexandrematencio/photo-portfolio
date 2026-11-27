@@ -396,6 +396,14 @@ body img {
   user-select: none;
 }
 
+/* /work : curseur de glisser (les anneaux se tirent à la main, components/work/carousel-motion.ts). */
+[data-work-root] [data-scene]:hover { cursor: grab; }
+[data-work-root].is-dragging,
+[data-work-root].is-dragging [data-scene] {
+  cursor: grabbing;
+  user-select: none;
+}
+
 /* Barre de défilement : la native est masquée sur la page, `<ScrollThumb />`
    la remplace — un curseur fin qui n'apparaît qu'au défilement (demande
    Alexandre, 2026-10-15). Masquée SEULEMENT quand le composant l'a dit
