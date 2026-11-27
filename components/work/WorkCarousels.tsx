@@ -9,6 +9,7 @@ import { CarouselScene } from './CarouselScene';
 import { SceneMenu } from './SceneMenu';
 import type gsap from 'gsap';
 import { bindWorkCarousels, type WorkMotion } from './carousel-motion';
+import { restTopOf } from './scene-step';
 
 type Phase = 'idle' | 'opening' | 'open' | 'closing';
 
@@ -119,9 +120,8 @@ export function WorkCarousels({ collections }: { collections: PreparedSeries[] }
       albumRef.current = i;
       setAlbumTop(Math.round(scroller.getBoundingClientRect().top));
       if (instant) {
-        // Arrivée par adresse : la scène est amenée au centre sans animation.
-        const scene = scenes[i];
-        scroller.scrollTop = Math.max(0, scene.offsetTop + scene.offsetHeight / 2 - scroller.clientHeight / 2);
+        // Arrivée par adresse : la scène est amenée à sa position de repos, sans animation.
+        scroller.scrollTop = restTopOf(scenes, i, scroller);
       }
       motion.setLocked(true);
       popRef.current = pushModalHistory(() => closeAlbum(true));

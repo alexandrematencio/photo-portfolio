@@ -399,11 +399,8 @@ body img {
 /* /work : curseur de glisser (les anneaux se tirent à la main, components/work/carousel-motion.ts). */
 [data-work-root] [data-scene]:hover { cursor: grab; }
 
-/* /work : indice de défilement de la 1re scène — un filet fin dont un trait descend en boucle.
-   Discret (muted, 1 px), s'efface au premier défilement (carousel-motion.ts). Fixe si mouvement réduit. */
 /* ENTRÉE de /work : tant que la première scène porte `data-enter`, son anneau est décalé vers le bas
-   (hors du cadre : la scène est en `overflow: clip`) et son titre invisible. L'indice « Scroll » reste : GSAP
-   lit son opacité de départ, un 0 posé ici le laisserait invisible pour toujours.
+   (hors du cadre : la scène est en `overflow: clip`) et son titre invisible.
    `carousel-motion.ts` prend le relais (`y` de GSAP, qui neutralise ce `translate` en écrivant son
    transform), l'anime vers 0 une fois la page centrée, puis retire l'attribut. */
 [data-enter] [data-ring] {
@@ -413,28 +410,6 @@ body img {
   opacity: 0;
 }
 
-.work-scroll-cue-line {
-  position: relative;
-  display: block;
-  width: 1px;
-  height: 36px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--color-fg-muted) 35%, transparent);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .work-scroll-cue-line::after {
-    content: '';
-    position: absolute;
-    inset: 0 0 auto 0;
-    height: 40%;
-    background: var(--color-fg);
-    animation: work-scroll-cue 1.9s cubic-bezier(0.65, 0, 0.35, 1) infinite;
-  }
-}
-@keyframes work-scroll-cue {
-  from { transform: translateY(-100%); }
-  to { transform: translateY(250%); }
-}
 [data-work-root].is-dragging,
 [data-work-root].is-dragging [data-scene] {
   cursor: grabbing;

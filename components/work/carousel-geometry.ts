@@ -5,7 +5,7 @@ export const RING = {
   /** Photos par anneau, au plus (les premières de l'ordre manuel, cover en tête). */
   max: 8,
   /** Hauteur d'une carte (px, desktop). Mobile : `scale` CSS, cf. CarouselScene. */
-  cardHeight: 420,
+  cardHeight: 340,
   /** Ratio largeur / hauteur : bornes, et repli quand Sanity n'a pas de dimensions. */
   minAspect: 0.6,
   maxAspect: 1.6,
@@ -22,7 +22,7 @@ export const RING = {
 } as const;
 
 /** Première scène : elle remplit l'écran sous l'en-tête (mesure exacte en JS, carousel-motion.ts). */
-export const FIRST_SCENE_MIN = 520; // px : l'anneau (420) et son inclinaison y tiennent
+export const FIRST_SCENE_MIN = 440; // px : l'anneau (340) et son inclinaison y tiennent
 /** Hauteur approchée servie dans le HTML, avant la mesure : nav-bar 64 + en-tête de page ≈ 450 (desktop, grand titre centré de /work). */
 export const FIRST_SCENE_SERVED_HEIGHT = `max(${FIRST_SCENE_MIN}px, calc(100svh - 64px - 450px))`;
 
