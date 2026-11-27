@@ -10,7 +10,7 @@ import { PHOTO_GRID_STYLE } from '@/components/series/page/SeriesPhotoGrid';
 import { StateDot } from '@/components/site/StateDot';
 import { urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
-import type { PreparedSeries } from '@/lib/site/series';
+import { collectionPlaces, type PreparedSeries } from '@/lib/site/series';
 import {
   EDITORIAL_LINK_DECORATION,
   MICRO_LABEL,
@@ -99,22 +99,6 @@ const motionAllowed = () =>
   window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
 const scrollContainerOf = (el: Element | null) =>
   el?.closest<HTMLElement>('[data-scroll-container]') ?? null;
-
-/** « 2020–2026 · Paris, Djerba +4 » — années et villes, DÉDUITES des photos. */
-function collectionPlaces(photos: Photo[]): string {
-  const years = photos.map((p) => p.year).filter((y): y is number => Number.isFinite(y));
-  const span = years.length
-    ? Math.min(...years) === Math.max(...years)
-      ? String(years[0])
-      : `${Math.min(...years)}–${Math.max(...years)}`
-    : '';
-  const cities = [
-    ...new Set(photos.map((p) => p.location?.split(',')[0]?.trim()).filter(Boolean)),
-  ] as string[];
-  const where =
-    cities.length <= 2 ? cities.join(', ') : `${cities.slice(0, 2).join(', ')} +${cities.length - 2}`;
-  return [span, where].filter(Boolean).join(' · ');
-}
 
 // ─── Icônes du transport (triangles pleins, à la façon d'une touche) ─────────
 const Tri = ({ dir, size = 10 }: { dir: 'left' | 'right'; size?: number }) => (
