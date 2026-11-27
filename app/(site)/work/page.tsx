@@ -1,6 +1,6 @@
 import { PageShell } from '@/components/site/PageShell';
 import { JsonLd } from '@/components/seo/JsonLd';
-import { WorkGallery } from '@/components/work/WorkGallery';
+import { CarouselScene } from '@/components/work/CarouselScene';
 import { getSeriesWithPhotos } from '@/lib/sanity/queries';
 import { buildMetadata } from '@/lib/seo/metadata';
 import { breadcrumbJsonLd, imageGalleryJsonLd, pageUrl } from '@/lib/seo/jsonld';
@@ -47,7 +47,6 @@ export default async function WorkPage() {
       <JsonLd data={jsonLd} />
       <PageShell
         bleed
-        controlBand
         title="WORK"
         subtitle={
           <p className={`${MICRO_LABEL} text-[var(--color-fg-muted)]`}>
@@ -57,7 +56,7 @@ export default async function WorkPage() {
         }
       >
         {work.length > 0 ? (
-          <WorkGallery collections={work} />
+          work.map((c, i) => <CarouselScene key={c._id} collection={c} index={i} />)
         ) : (
           <p className="py-32 text-center text-sm text-[var(--color-fg-muted)]">
             No collections yet.
