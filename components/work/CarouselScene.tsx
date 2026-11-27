@@ -2,7 +2,7 @@ import { urlFor } from '@/lib/sanity/image';
 import type { Photo } from '@/lib/sanity/queries';
 import type { PreparedSeries } from '@/lib/site/series';
 import { MICRO_LABEL } from '@/lib/site/typography';
-import { cellTransform, FIRST_SCENE_SERVED_HEIGHT, ringLayout } from './carousel-geometry';
+import { cellTransform, FIRST_SCENE_SERVED_HEIGHT, RING_PERSPECTIVE, ringLayout } from './carousel-geometry';
 
 /** 2× la hauteur de carte, ratio intact : jamais `fit('crop')`. */
 function ringImageUrl(photo: Photo): string | undefined {
@@ -16,8 +16,9 @@ function ringImageUrl(photo: Photo): string | undefined {
  * servi soit déjà juste avant l'hydratation (CLAUDE.md §3.7 inv. 18). Tout ce qui bouge
  * se pose ensuite dans `carousel-motion.ts`, par refs et attributs `data-*`.
  *
- * Deux boîtes imbriquées : `data-ring` (défilement, inclinaison) ⊃ `data-flight`
- * (ouverture, fermeture). Aucune timeline n'anime les deux.
+ * Trois boîtes imbriquées : `data-ring` (défilement, inclinaison) ⊃ `data-fit` (taille selon
+ * l'écran, `scale: var(--ring-fit)`, jamais touchée par GSAP) ⊃ `data-flight` (ouverture,
+ * fermeture). Aucune timeline n'anime deux de ces boîtes.
  */
 export function CarouselScene({ collection: c, index }: { collection: PreparedSeries; index: number }) {
   const layout = ringLayout(c.photos);
@@ -33,7 +34,7 @@ export function CarouselScene({ collection: c, index }: { collection: PreparedSe
       className="relative flex items-center justify-center overflow-clip"
       style={{
         height: index === 0 ? FIRST_SCENE_SERVED_HEIGHT : '100svh',
-        perspective: '900px',
+        perspective: `${RING_PERSPECTIVE}px`,
         contentVisibility: 'auto',
         containIntrinsicSize: index === 0 ? undefined : 'auto 100svh',
         cursor: 'grab',
@@ -57,67 +58,69 @@ export function CarouselScene({ collection: c, index }: { collection: PreparedSe
       <div
         data-ring
         aria-hidden
-        className="absolute left-1/2 top-1/2 max-md:scale-70"
+        className="absolute left-1/2 top-1/2"
         style={{ transformStyle: 'preserve-3d', willChange: 'transform' }}
       >
-        <div
-          data-flight
-          style={{ transformStyle: 'preserve-3d', transform: `translateZ(${layout.z}px)` }}
-        >
-          {layout.cards.map((k) => (
-            <div
-              key={k.photo._id}
-              data-cell
-              style={{
-                position: 'absolute',
-                width: k.width,
-                height: k.height,
-                left: -k.width / 2,
-                top: -k.height / 2,
-                transformStyle: 'preserve-3d',
-                transform: cellTransform(k.angle, layout.radius),
-              }}
-            >
+        <div data-fit style={{ transformStyle: 'preserve-3d', scale: 'var(--ring-fit)' }}>
+          <div
+            data-flight
+            style={{ transformStyle: 'preserve-3d', transform: `translateZ(${layout.z}px)` }}
+          >
+            {layout.cards.map((k) => (
               <div
-                data-card
+                key={k.photo._id}
+                data-cell
                 style={{
-                  position: 'relative',
-                  width: '100%',
-                  height: '100%',
+                  position: 'absolute',
+                  width: k.width,
+                  height: k.height,
+                  left: -k.width / 2,
+                  top: -k.height / 2,
                   transformStyle: 'preserve-3d',
-                  rotate: 'y calc(var(--lean, 0deg) + var(--spin-lean, 0deg))',
+                  transform: cellTransform(k.angle, layout.radius),
                 }}
               >
-                <img
-                  src={ringImageUrl(k.photo)}
-                  alt=""
-                  width={k.width}
-                  height={k.height}
-                  draggable={false}
-                  loading={index < 2 ? 'eager' : 'lazy'}
-                  decoding="async"
+                <div
+                  data-card
                   style={{
-                    position: 'absolute',
-                    inset: 0,
+                    position: 'relative',
                     width: '100%',
                     height: '100%',
-                    backfaceVisibility: 'hidden',
+                    transformStyle: 'preserve-3d',
+                    rotate: 'y calc(var(--lean, 0deg) + var(--spin-lean, 0deg))',
                   }}
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    // Dos des cartes = le « ruban » vu entre les photos : à peine plus sombre que le fond
-                    // (`--surface-1`), pas la plaque `--color-bg-plate`, trop grise sur la page.
-                    background: 'var(--surface-1)',
-                    transform: 'rotateY(180deg)',
-                    backfaceVisibility: 'hidden',
-                  }}
-                />
+                >
+                  <img
+                    src={ringImageUrl(k.photo)}
+                    alt=""
+                    width={k.width}
+                    height={k.height}
+                    draggable={false}
+                    loading={index < 2 ? 'eager' : 'lazy'}
+                    decoding="async"
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      backfaceVisibility: 'hidden',
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      // Dos des cartes = le « ruban » vu entre les photos : à peine plus sombre que le fond
+                      // (`--surface-1`), pas la plaque `--color-bg-plate`, trop grise sur la page.
+                      background: 'var(--surface-1)',
+                      transform: 'rotateY(180deg)',
+                      backfaceVisibility: 'hidden',
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </section>
