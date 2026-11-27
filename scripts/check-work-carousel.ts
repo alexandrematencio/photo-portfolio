@@ -2,7 +2,16 @@
  * Vérification de la géométrie des anneaux de /work (components/work/carousel-geometry.ts)
  * et de `collectionPlaces` (lib/site/series.ts). Fausses photos, aucun appel réseau.
  */
-import { RING, aspectOf, cellTransform, ringLayout } from '../components/work/carousel-geometry';
+import {
+  FIRST_SCENE_MIN,
+  RING,
+  RING_FIT,
+  RING_REST_HEIGHT,
+  aspectOf,
+  cellTransform,
+  ringFit,
+  ringLayout,
+} from '../components/work/carousel-geometry';
 import { collectionPlaces } from '../lib/site/series';
 import type { Photo } from '../lib/sanity/queries';
 
@@ -109,6 +118,17 @@ ok('cellTransform stable', cellTransform(45, 500) ===
   ok('7 : 2 villes', collectionPlaces([p(2024, 'Paris, France'), p(2024, 'Djerba, Tunisie')]) === '2024 · Paris, Djerba');
   ok('7 : 4 villes', collectionPlaces(['A', 'B', 'C', 'D'].map((c) => p(2024, `${c}, X`))) === '2024 · A, B +2');
   ok('7 : aucune donnée', collectionPlaces([photo('z', 0.8, { year: NaN as unknown as number, location: '' })]) === '');
+}
+
+// 8. ringFit : l'anneau tient dans sa scène et dans la largeur de l'écran
+{
+  ok('8 : hauteur de repos ≈ 322', near(RING_REST_HEIGHT, 322, 1), `(${RING_REST_HEIGHT})`);
+  ok('8 : grand écran → 1', ringFit(900, 1440) === 1);
+  const short = ringFit(290, 1440); // portable bas : 290 px sous WORK
+  ok('8 : portable bas, anneau + marges ≤ scène', RING_REST_HEIGHT * short + 2 * RING_FIT.pad <= 290 + 0.5, `(${short})`);
+  ok('8 : iPhone 390 → ≈ 0,7 par la largeur', near(ringFit(844, 390), 0.696, 0.001), `(${ringFit(844, 390)})`);
+  ok('8 : plancher', ringFit(50, 1440) === RING_FIT.min && ringFit(900, 100) === RING_FIT.min);
+  ok('8 : FIRST_SCENE_MIN = anneau au plancher + marges', FIRST_SCENE_MIN >= RING_REST_HEIGHT * RING_FIT.min + 2 * RING_FIT.pad);
 }
 
 console.log(`${total - failed}/${total} cas OK.`);

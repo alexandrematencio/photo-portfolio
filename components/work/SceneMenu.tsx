@@ -28,7 +28,7 @@ export function SceneMenu({
   onGo: (index: number) => void;
 }) {
   return (
-    <div className="work-menu-rail max-md:hidden" inert={hidden} style={{ position: 'sticky', bottom: 0, height: 0, zIndex: 30 }}>
+    <div className="work-menu-rail max-xl:hidden" inert={hidden} style={{ position: 'sticky', bottom: 0, height: 0, zIndex: 30 }}>
       <nav
         aria-label="Collections"
         className="work-menu flex flex-col"

@@ -4,7 +4,7 @@ import type { Photo } from '@/lib/sanity/queries';
 export const RING = {
   /** Photos par anneau, au plus (les premières de l'ordre manuel, cover en tête). */
   max: 8,
-  /** Hauteur d'une carte (px, desktop). Mobile : `scale` CSS, cf. CarouselScene. */
+  /** Hauteur d'une carte (px), avant la mise à l'échelle de l'écran (`ringFit`). */
   cardHeight: 340,
   /** Ratio largeur / hauteur : bornes, et repli quand Sanity n'a pas de dimensions. */
   minAspect: 0.6,
@@ -21,8 +21,39 @@ export const RING = {
   setBack: 50,
 } as const;
 
-/** Première scène : elle remplit l'écran sous l'en-tête (mesure exacte en JS, carousel-motion.ts). */
-export const FIRST_SCENE_MIN = 440; // px : l'anneau (340) et son inclinaison y tiennent
+/** Perspective des scènes (px), posée par CarouselScene. */
+export const RING_PERSPECTIVE = 900;
+/** Hauteur à l'écran de l'anneau au repos, à l'échelle 1 : la carte de face, vue à `setBack` derrière l'écran. */
+export const RING_REST_HEIGHT = (RING.cardHeight * RING_PERSPECTIVE) / (RING_PERSPECTIVE + RING.setBack);
+
+/** Mise à l'échelle de l'anneau selon l'écran (`--ring-fit`, carousel-motion.ts). */
+export const RING_FIT = {
+  /** Marge gardée au-dessus et au-dessous de l'anneau, dans sa scène (px). */
+  pad: 40,
+  /** Plancher : en dessous, l'anneau ne se lit plus ; la scène s'allonge plutôt. */
+  min: 0.45,
+  /** Largeur d'écran (px) à laquelle l'anneau a sa taille pleine ; en dessous, il rétrécit d'autant. */
+  widthRef: 560,
+} as const;
+
+/**
+ * Échelle de l'anneau dans une scène de hauteur `sceneHeight`, sur un écran large de `viewWidth` :
+ * la plus petite des deux contraintes, bornée à [min, 1]. Arrondie au millième (pas de micro-écarts
+ * réécrits à chaque redimensionnement).
+ */
+export function ringFit(sceneHeight: number, viewWidth: number): number {
+  const byHeight = (sceneHeight - 2 * RING_FIT.pad) / RING_REST_HEIGHT;
+  const byWidth = viewWidth / RING_FIT.widthRef;
+  const v = Math.min(1, Math.max(RING_FIT.min, Math.min(byHeight, byWidth)));
+  return Math.round(v * 1000) / 1000;
+}
+
+/**
+ * Première scène : elle remplit l'écran sous l'en-tête (mesure exacte en JS, carousel-motion.ts),
+ * jamais moins que l'anneau à son plancher et ses marges. Au-dessus, c'est l'anneau qui rétrécit :
+ * la scène ne dépasse plus le bas de l'écran.
+ */
+export const FIRST_SCENE_MIN = Math.ceil(RING_REST_HEIGHT * RING_FIT.min + 2 * RING_FIT.pad);
 /** Hauteur approchée servie dans le HTML, avant la mesure : nav-bar 64 + en-tête de page ≈ 450 (desktop, grand titre centré de /work). */
 export const FIRST_SCENE_SERVED_HEIGHT = `max(${FIRST_SCENE_MIN}px, calc(100svh - 64px - 450px))`;
 

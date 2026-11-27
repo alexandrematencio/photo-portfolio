@@ -7,7 +7,7 @@ import gsap from 'gsap';
 import { Observer } from 'gsap/Observer';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
-import { FIRST_SCENE_MIN } from './carousel-geometry';
+import { FIRST_SCENE_MIN, ringFit } from './carousel-geometry';
 import { afterPageArrival } from '@/lib/site/page-transition';
 import { grainMask, rowsOf } from './grain-reveal';
 import { bindSceneStep, restTopOf, type SceneStep } from './scene-step';
@@ -93,11 +93,16 @@ function createSpeedSprings(apply: (spread: number, lean: number) => void) {
 
 /**
  * Défilement : l'anneau tourne de +turn à −turn pendant que la scène traverse l'écran.
- * La PREMIÈRE scène n'a pas d'avant : elle part de face (0°) à `scrollTop = 0`, donc centrée
- * dès l'arrivée, et ne joue que la seconde moitié du parcours (même pente au départ que le
- * milieu des autres : `sine.out` prolonge `sine.inOut`).
+ * La PREMIÈRE scène n'a pas d'avant : elle part de face (0°) à sa position de repos (`firstRest`,
+ * 0 sauf écran très bas), et ne joue que la seconde moitié du parcours (même pente au départ que
+ * le milieu des autres : `sine.out` prolonge `sine.inOut`).
  */
-function bindScroll(scene: HTMLElement, scroller: HTMLElement, first: boolean): ScrollTrigger | undefined {
+function bindScroll(
+  scene: HTMLElement,
+  scroller: HTMLElement,
+  firstRest: (() => number) | null,
+): ScrollTrigger | undefined {
+  const first = firstRest !== null;
   const ring = scene.querySelector<HTMLElement>('[data-ring]');
   const cards = scene.querySelectorAll('[data-card]');
   if (!ring) return;
@@ -107,7 +112,7 @@ function bindScroll(scene: HTMLElement, scroller: HTMLElement, first: boolean): 
     scrollTrigger: {
       trigger: scene,
       scroller,
-      start: first ? 0 : 'top bottom',
+      start: firstRest ?? 'top bottom',
       end: 'bottom top',
       scrub: true,
     },
@@ -267,23 +272,26 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
   // ── La première scène remplit ce qui reste sous l'en-tête : l'anneau y est centré à l'œil,
   // pas au milieu d'une page dont le haut est pris par le titre. Le HTML serveur porte une
   // hauteur approchée (CarouselScene) ; ici la mesure exacte, et à chaque redimensionnement.
+  // Puis chaque anneau prend l'échelle qui le fait tenir dans SA scène et dans la largeur de l'écran
+  // (`--ring-fit`, lu par la boîte `data-fit`). Le CSS sert 1, ou 0,7 sous 768 px, avant cette mesure.
   const first = scenes[0];
-  if (first) {
-    const served = first.style.height;
-    const fit = () => {
-      first.style.height = `${Math.max(FIRST_SCENE_MIN, scroller.clientHeight - first.offsetTop)}px`;
-    };
+  const served = first?.style.height ?? '';
+  const fit = () => {
+    if (first) first.style.height = `${Math.max(FIRST_SCENE_MIN, scroller.clientHeight - first.offsetTop)}px`;
+    const w = scroller.clientWidth;
+    scenes.forEach((s) => s.style.setProperty('--ring-fit', String(ringFit(s.offsetHeight, w))));
+  };
+  fit();
+  const ro = new ResizeObserver(() => {
     fit();
-    const ro = new ResizeObserver(() => {
-      fit();
-      ScrollTrigger.refresh();
-    });
-    ro.observe(scroller);
-    cleanups.push(() => {
-      ro.disconnect();
-      first.style.height = served;
-    });
-  }
+    ScrollTrigger.refresh();
+  });
+  ro.observe(scroller);
+  cleanups.push(() => {
+    ro.disconnect();
+    if (first) first.style.height = served;
+    scenes.forEach((s) => s.style.removeProperty('--ring-fit'));
+  });
 
   // ── Entrée : le premier anneau monte du bas, dès que la page est centrée ────
   // Le HTML l'a posé hors champ (`data-enter`, site.css : `translate`). GSAP écrit lui-même le
@@ -342,7 +350,7 @@ export function bindWorkCarousels(root: HTMLElement): WorkMotion | null {
     // ── 3a. Défilement + titre ────────────────────────────────────────────────
     if (!reduced) {
       scenes.forEach((scene) => {
-        const st = bindScroll(scene, scroller, scene === scenes[0]);
+        const st = bindScroll(scene, scroller, scene === scenes[0] ? () => restTopOf(scenes, 0, scroller) : null);
         if (st) triggers.set(scene, st);
         const span = scene.querySelector<HTMLElement>('[data-split]');
         if (span) {

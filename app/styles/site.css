@@ -406,6 +406,16 @@ body img {
 [data-enter] [data-ring] {
   translate: 0 200svh;
 }
+/* Échelle de l'anneau avant la mesure de carousel-motion.ts (`ringFit`), qui la remplace en style
+   inline sur chaque scène : pleine, réduite sous 768 px comme l'était le `scale-70` d'avant. */
+[data-scene] {
+  --ring-fit: 1;
+}
+@media (max-width: 767.98px) {
+  [data-scene] {
+    --ring-fit: 0.7;
+  }
+}
 [data-enter] [data-scene-title] {
   opacity: 0;
 }

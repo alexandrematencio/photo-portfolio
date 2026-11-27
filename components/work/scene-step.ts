@@ -23,13 +23,20 @@ export function centerOf(scene: HTMLElement, scroller: HTMLElement): number {
 }
 
 /**
- * Position de repos de la scène `i` : la première au haut de page (titre WORK entier, anneau de face),
- * les autres centrées. La SEULE définition : pas-à-pas, ouverture d'un album et arrivée par adresse s'y
- * calent. `centerOf` sur la première donnait la moitié de la hauteur du titre : après un album, WORK
- * restait coupé et la scène suivante dépassait en bas.
+ * Position de repos de la scène `i` : les scènes centrées, sauf la première, posée au haut de page (titre
+ * WORK entier, anneau de face). La SEULE définition : pas-à-pas, ouverture d'un album, arrivée par adresse
+ * et départ du défilement de l'anneau s'y calent. `centerOf` sur la première donnait la moitié de la hauteur
+ * du titre : après un album, WORK restait coupé et la scène suivante dépassait en bas.
+ *
+ * Première scène, cas d'un écran bas (téléphone à l'horizontale) : l'en-tête ne lui laisse pas sa hauteur
+ * minimale (`FIRST_SCENE_MIN`) et elle déborde sous l'écran. Son repos descend alors juste assez pour la
+ * montrer entière. Partout ailleurs elle remplit exactement le bas de l'écran et ce calcul vaut 0.
  */
 export function restTopOf(scenes: HTMLElement[], i: number, scroller: HTMLElement): number {
-  return i === 0 ? 0 : centerOf(scenes[i], scroller);
+  if (i > 0) return centerOf(scenes[i], scroller);
+  const s = scenes[0];
+  const y = s.offsetTop + s.offsetHeight - scroller.clientHeight;
+  return Math.min(Math.max(0, y), scroller.scrollHeight - scroller.clientHeight);
 }
 
 type Options = {
