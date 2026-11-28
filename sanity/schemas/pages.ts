@@ -6,6 +6,7 @@ import {
   seoField,
 } from './pageFields';
 import { SEO_DEFAULTS } from '../../lib/seo/defaults';
+import { WorkOrderInput } from '../inputs/WorkOrderInput';
 
 /**
  * Un document PAR PAGE du site (2026-10-05), rangés dans la rubrique « Pages »
@@ -24,13 +25,36 @@ import { SEO_DEFAULTS } from '../../lib/seo/defaults';
 export type PageDoc = {
   /** `_type` ET `_id` du document. */
   type: string;
-  /** Libellé dans la rubrique « Pages » et en tête du formulaire. */
+  /** Libellé dans le Studio, en tête du formulaire et dans la recherche. */
   title: string;
   /** Chemin sur le site — bouton « Open preview » du Studio. */
   path: string;
+  /**
+   * Le site dont la page relève, donc où le Studio la range (premier niveau de
+   * Structure, sanity/structure/index.ts). `hub` = amatencio.com, `photo` =
+   * photo.amatencio.com. Le journal n'a pas de PageDoc : ses pages sont des
+   * singletons du journal (schemas/journal.ts). Ranger une nouvelle page, c'est
+   * lui donner un site.
+   */
+  site: StudioSite;
+  /**
+   * Page valable pour TOUS les sites (contact, mentions légales,
+   * confidentialité) : rangée sous « Pages communes » du hub. Son lien
+   * « Open preview » pointe toujours là où elle est servie (`path`, base du
+   * portfolio) — le rangement du Studio ne déplace rien sur le site.
+   */
+  common?: boolean;
 };
 
-export const HOME_PAGE: PageDoc = { type: 'homePage', title: 'Accueil', path: '/' };
+/** Les sites qui portent des PageDoc (le journal et design n'en ont pas). */
+export type StudioSite = 'hub' | 'photo';
+
+export const HOME_PAGE: PageDoc = {
+  type: 'homePage',
+  title: 'Accueil du portfolio',
+  path: '/',
+  site: 'photo',
+};
 
 /**
  * La page d'accueil de `amatencio.com` (projet am-home, la porte vers
@@ -41,8 +65,9 @@ export const HOME_PAGE: PageDoc = { type: 'homePage', title: 'Accueil', path: '/
  */
 export const HUB_PAGE: PageDoc = {
   type: 'hubPage',
-  title: 'amatencio.com — page d’accueil',
+  title: 'Accueil amatencio.com',
   path: '/',
+  site: 'hub',
 };
 
 /** Pages éditoriales : un seul champ `body`, tout le texte de la page. */
@@ -51,6 +76,7 @@ const BODY_PAGES: (PageDoc & { intro: string })[] = [
     type: 'aboutPage',
     title: 'About',
     path: '/about/',
+    site: 'hub',
     intro:
       'Le texte complet de la page amatencio.com/about — c’est cette liste qui EST la page, il n’y a pas de texte en dur ailleurs. C’est la seule page About des sites (hors celle du journal) : le portfolio et le journal y renvoient. L’encart de questions et les compléments repliés se règlent plus bas, dans ce même document.',
   },
@@ -58,6 +84,8 @@ const BODY_PAGES: (PageDoc & { intro: string })[] = [
     type: 'contactPage',
     title: 'Contact',
     path: '/contact/',
+    site: 'hub',
+    common: true,
     intro:
       'Le début de la page /contact — titre « CONTACT » mis à part. Les réseaux (document suivant) s’affichent à la suite. Le même texte sert l’encart Contact de /about.',
   },
@@ -67,6 +95,8 @@ const BODY_PAGES: (PageDoc & { intro: string })[] = [
     type: 'socialsPage',
     title: 'Contact — réseaux',
     path: '/contact/',
+    site: 'hub',
+    common: true,
     intro:
       'La fin de la page /contact, après le texte de Contact : les liens vers les plateformes, en annotations de lien. Aussi repris dans l’encart Contact de /about.',
   },
@@ -74,6 +104,8 @@ const BODY_PAGES: (PageDoc & { intro: string })[] = [
     type: 'legalPage',
     title: 'Mentions légales',
     path: '/legal/',
+    site: 'hub',
+    common: true,
     intro:
       'Le texte complet de la page /legal (éditeur, hébergeur, propriété intellectuelle et conditions de licence des photos).',
   },
@@ -81,6 +113,8 @@ const BODY_PAGES: (PageDoc & { intro: string })[] = [
     type: 'privacyPage',
     title: 'Confidentialité',
     path: '/privacy/',
+    site: 'hub',
+    common: true,
     intro:
       'Le texte complet de la page /privacy (données personnelles, droits RGPD, droit à l’image des personnes photographiées).',
   },
@@ -96,9 +130,9 @@ const BODY_PAGES: (PageDoc & { intro: string })[] = [
  * de la série — rien à dupliquer ni à migrer. Une série listée ici quitte la
  * rangée de /series ; la retirer de la liste l'y renvoie. C'est tout le geste.
  */
-export const WORK_PAGE: PageDoc = { type: 'workPage', title: 'Work', path: '/work/' };
+export const WORK_PAGE: PageDoc = { type: 'workPage', title: 'Work', path: '/work/', site: 'photo' };
 
-/** Toutes les pages, dans l'ordre de la rubrique « Pages ». */
+/** Toutes les pages ; chacune est rangée par `site` (et `common`) dans Structure. */
 export const PAGE_DOCS: PageDoc[] = [HUB_PAGE, HOME_PAGE, WORK_PAGE, ...BODY_PAGES];
 
 /** Les pages servies sur le HUB plutôt que sur le portfolio (productionUrl). */
@@ -251,13 +285,22 @@ const workPageSchema = defineType({
   fields: [
     defineField({
       name: 'collections',
-      title: 'Collections (onglets de la page Work)',
+      title: 'Ordre des albums (onglets de la page Work)',
       type: 'array',
-      of: [defineArrayMember({ type: 'reference', to: [{ type: 'series' }] })],
+      of: [
+        defineArrayMember({
+          type: 'reference',
+          to: [{ type: 'series' }],
+          // Albums Work seulement. Ce qui fait d'une série un album, c'est son
+          // champ « Où s'affiche-t-elle ? » — pas sa présence ici.
+          options: { filter: 'destination == "work"' },
+        }),
+      ],
       description:
-        'Les séries affichées sur /work, une par onglet, dans cet ordre (glisser-déposer). Une série listée ici QUITTE la page Series ; retire-la de la liste pour l’y renvoyer. Ses photos, leur ordre et sa cover se règlent toujours dans la série elle-même. ' +
+        'L’ORDRE des onglets de /work, de gauche à droite (glisser-déposer). Cette liste ne décide plus de ce qui s’affiche : un album Work y figure dès que sa destination est « Album Work », et ceux que tu ne ranges pas ici passent après les autres. Pour créer un album : Photo → Albums Work → +. Pour envoyer une série sur /work (ou un album sur /series) : change « Où s’affiche-t-elle ? » dans le document. ' +
         PUBLISH_HINT,
       validation: (Rule) => Rule.unique(),
+      components: { input: WorkOrderInput },
     }),
   ],
   preview: { prepare: () => ({ title: WORK_PAGE.title }) },

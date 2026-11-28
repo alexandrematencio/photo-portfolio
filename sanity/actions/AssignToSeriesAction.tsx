@@ -42,12 +42,13 @@ type SeriesRow = {
   title: string;
   slug: string | null;
   year: number | null;
+  destination: string | null;
   photoCount: number;
 };
 
 const SERIES_QUERY = /* groq */ `
   *[_type == "series" && !(_id in path('drafts.**'))] | order(title asc) {
-    _id, title, "slug": slug.current, year,
+    _id, title, "slug": slug.current, year, destination,
     "photoCount": count(*[_type == "photo" && references(^._id)])
   }
 `;
@@ -294,6 +295,7 @@ function SeriesPicker({
                         {s.year}
                       </Text>
                     )}
+                    {s.destination === 'work' && <Badge tone="primary">Album Work</Badge>}
                   </Flex>
                   <Badge tone={isCurrent ? 'positive' : 'default'}>
                     {isCurrent

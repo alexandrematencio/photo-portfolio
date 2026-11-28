@@ -4,7 +4,7 @@ import { PhotoOrderItem } from '../inputs/PhotoOrderItem';
 
 export const seriesSchema = defineType({
   name: 'series',
-  title: 'Série',
+  title: 'Série ou album Work',
   type: 'document',
   fields: [
     defineField({
@@ -30,6 +30,27 @@ export const seriesSchema = defineType({
         },
       },
       validation: (Rule) => Rule.required(),
+    }),
+    // OÙ la série s'affiche. Une seule décision, prise ICI, sur le document :
+    // avant le 2026-11-28 l'appartenance à /work se lisait dans un AUTRE document
+    // (`workPage.collections`) et la série disparaissait de /series sans aucun
+    // signe sur elle. `workPage.collections` n'est plus que l'ORDRE des onglets
+    // (clé de tri, CLAUDE.md §11.12). Absent = « series » : les documents d'avant
+    // la migration restent valides, sans erreur à l'ouverture.
+    defineField({
+      name: 'destination',
+      title: 'Où s’affiche-t-elle ?',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'Série — page /series (un récit, une pile à ouvrir)', value: 'series' },
+          { title: 'Album Work — page /work (une collection par genre, un onglet)', value: 'work' },
+        ],
+        layout: 'radio',
+      },
+      initialValue: 'series',
+      description:
+        'Une série s’affiche sur /series, un album Work sur /work — jamais les deux. L’adresse /series/<slug> reste en ligne dans les deux cas (elle est déjà indexée). Les photos, leur ordre et la couverture se règlent ici, comme avant ; l’ordre des onglets de /work, lui, se règle dans Work → Ordre des albums.',
     }),
     // Cover + ordre des photos AVANT les champs de texte : ce sont les deux
     // réglages que l'éditeur vient chercher, ils ne doivent pas se trouver
@@ -109,13 +130,18 @@ export const seriesSchema = defineType({
   preview: {
     select: {
       title: 'title',
-      subtitle: 'year',
+      year: 'year',
+      destination: 'destination',
       media: 'coverPhoto.image',
     },
-    prepare({ title, subtitle, media }) {
+    prepare({ title, year, destination, media }) {
+      // Le libellé de destination figure partout où la série est listée ou
+      // choisie (recherche, champ « Séries » d'une photo) : on voit toujours
+      // de quelle page il s'agit.
+      const where = destination === 'work' ? 'Album Work' : 'Série';
       return {
         title,
-        subtitle: subtitle ? String(subtitle) : undefined,
+        subtitle: year ? `${where} · ${year}` : where,
         media,
       };
     },

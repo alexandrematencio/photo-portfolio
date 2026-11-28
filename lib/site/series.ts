@@ -149,20 +149,33 @@ export function seriesFacts(photos: Photo[]): string {
 }
 
 /**
- * Le partage entre /series et /work (2026-11-15). Une série listée dans
- * `workPage.collections` est une COLLECTION : elle quitte la rangée de
- * /series et devient un onglet de /work, dans l'ordre de cette liste.
+ * Le partage entre /series et /work. Depuis le 2026-11-28 il se lit sur la
+ * série elle-même : `destination == 'work'` en fait un ALBUM WORK (un onglet de
+ * /work), tout autre cas une SÉRIE (une pile de /series). `workPage.collections`
+ * ne décide plus de rien : c'est l'ordre des onglets, une CLÉ DE TRI comme
+ * `seriesOrder` (CLAUDE.md §11.12) — un album absent de la liste passe après
+ * les autres, une entrée périmée est ignorée.
  *
- * ⚠️ Partage fait à la LECTURE, jamais en base : la série ne change pas, sa
- * page `/series/[slug]` reste en ligne (adresse déjà indexée, sitemap
- * inchangé). Les deux pages appellent cette fonction, et elle seule.
+ * ⚠️ Repli transitoire : une série SANS `destination` (aucune migration
+ * encore passée) reste un album si elle figure dans `workRefs`, comme avant.
+ * Ça rend l'ordre « déployer le site / lancer la migration » indifférent. À
+ * retirer une fois `npm run migrate-series-destination -- --yes` appliqué.
+ *
+ * ⚠️ Partage fait à la LECTURE : la série ne change pas d'adresse, sa page
+ * `/series/[slug]` reste en ligne (déjà indexée, sitemap inchangé). Les deux
+ * pages appellent cette fonction, et elle seule.
  */
 export function splitSeriesAndWork(
   raw: SeriesWithPhotos[],
   seriesOrderRefs: string[] | null,
   workRefs: string[] | null
 ): { series: PreparedSeries[]; work: PreparedSeries[] } {
-  const inWork = new Set(workRefs ?? []);
+  const listed = new Set(workRefs ?? []);
+  const inWork = new Set(
+    raw
+      .filter((s) => (s.destination ? s.destination === 'work' : listed.has(s._id)))
+      .map((s) => s._id)
+  );
   const all = prepareSeries(raw, seriesOrderRefs);
   return {
     series: all.filter((s) => !inWork.has(s._id)),

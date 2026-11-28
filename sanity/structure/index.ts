@@ -4,9 +4,15 @@ import type {
   DocumentBuilder,
 } from 'sanity/structure';
 
+import { HomeIcon } from '@sanity/icons/Home';
+import { BookIcon } from '@sanity/icons/Book';
+import { ImageIcon } from '@sanity/icons/Image';
+import { ColorWheelIcon } from '@sanity/icons/ColorWheel';
+
 import { photoGridPane } from './photoGrid';
-import { PAGE_DOCS } from '../schemas/pages';
+import { PAGE_DOCS, type PageDoc, type StudioSite } from '../schemas/pages';
 import { ConceptMapStatusView } from '../components/ConceptMapStatus';
+import { ReservedSitePane } from '../panes/ReservedSitePane';
 
 const API_VERSION = '2026-01-01';
 
@@ -14,33 +20,55 @@ const API_VERSION = '2026-01-01';
 // quand rien n'est ouvert, colonne dès qu'une photo l'est — §11.21). La
 // condition GROQ se donne SANS `_type == "photo"`.
 
-function siteSettingsNode(S: StructureBuilder) {
+/**
+ * LES SITES — premier niveau de Structure (2026-11-28).
+ *
+ * Le Studio se range comme le public voit les sites : une entrée par domaine,
+ * `amatencio.com` en tête. Avant, la racine mêlait trois logiques (par site :
+ * Journal ; par type : Séries, Taxonomies ; par rôle : Pages, Réglages), si bien
+ * que le journal, seul bloc « par site », passait pour LE site, et que les
+ * pages du hub se noyaient parmi celles du portfolio.
+ *
+ * Règle de rangement : le 1ᵉʳ niveau répond à « sur quel site ça s'affiche ? »,
+ * le 2ᵉ à « qu'est-ce que j'en fais ? » (écrire, classer, régler). Jamais au
+ * type de document. Une nouvelle page : lui donner un `site` dans PAGE_DOCS.
+ */
+type SiteEntry = {
+  id: string;
+  title: string;
+  host: string;
+  icon: typeof HomeIcon;
+};
+
+const SITE_ENTRIES: Record<'hub' | 'journal' | 'photo' | 'design', SiteEntry> = {
+  hub: { id: 'site-hub', title: 'amatencio.com', host: 'amatencio.com', icon: HomeIcon },
+  journal: { id: 'site-journal', title: 'Journal', host: 'blog.amatencio.com', icon: BookIcon },
+  photo: { id: 'site-photo', title: 'Photo', host: 'photo.amatencio.com', icon: ImageIcon },
+  design: { id: 'site-design', title: 'Design', host: 'design.amatencio.com', icon: ColorWheelIcon },
+};
+
+/** Titre de la colonne d'un site : porte le domaine, on sait toujours où on écrit. */
+const siteTitle = (site: SiteEntry) =>
+  site.title === site.host ? site.host : `${site.title} — ${site.host}`;
+/** Titre d'une sous-colonne : le site d'abord, pour garder l'orientation. */
+const scoped = (site: SiteEntry, label: string) => `${site.title} · ${label}`;
+
+/** Un document de page (singleton) : son propre brouillon, son propre Publish. */
+function pageItem(S: StructureBuilder, page: PageDoc) {
   return S.listItem()
-    .title('Réglages du site')
-    .id('siteSettings')
-    .child(
-      S.document().schemaType('siteSettings').documentId('siteSettings')
-    );
+    .title(page.title)
+    .id(page.type)
+    .child(S.document().schemaType(page.type).documentId(page.type));
 }
 
-// Rubrique « Pages » : un document par page à texte, chacun avec son propre
-// brouillon et son propre Publish (cf. sanity/schemas/pages.ts).
-function pagesGroupNode(S: StructureBuilder) {
+const pagesOf = (site: StudioSite, common = false) =>
+  PAGE_DOCS.filter((p) => p.site === site && !!p.common === common);
+
+function siteSettingsItem(S: StructureBuilder) {
   return S.listItem()
-    .title('Pages')
-    .id('pages')
-    .child(
-      S.list()
-        .title('Pages')
-        .items(
-          PAGE_DOCS.map((page) =>
-            S.listItem()
-              .title(page.title)
-              .id(page.type)
-              .child(S.document().schemaType(page.type).documentId(page.type))
-          )
-        )
-    );
+    .title('Réglages de l’accueil (ordre des séries, motion)')
+    .id('siteSettings')
+    .child(S.document().schemaType('siteSettings').documentId('siteSettings'));
 }
 
 function photosBySeriesNode(S: StructureBuilder) {
@@ -297,12 +325,12 @@ function curatedPhotosNode(S: StructureBuilder) {
   // change au Tableau de bord (glisser-déposer) ou dans Réglages du site →
   // Curation ; l'ajout et le retrait, dans les Réglages seulement.
   return S.listItem()
-    .title('La curation (home)')
+    .title('Photos de l’accueil (curation)')
     .id('photos-curated')
     .child(
       photoGridPane(S, {
         id: 'photos-curated-grid',
-        title: 'Photos de la home — dans l’ordre du site',
+        title: 'Photos de l’accueil du portfolio — dans l’ordre du site',
         filter: '_id in *[_id == "siteSettings"][0].curation[]._ref',
         orderQuery: '*[_id == "siteSettings"][0].curation[]._ref',
         // Une mutation des Réglages (ordre, ajout, retrait) doit relire, or le
@@ -326,7 +354,7 @@ function curatedPhotosNode(S: StructureBuilder) {
  */
 function funnelCurationNode(S: StructureBuilder) {
   return S.listItem()
-    .title('Funnel curation (design-folio)')
+    .title('Tunnel d’accueil (funnel curation)')
     .id('photos-funnel')
     .child(
       S.list()
@@ -441,39 +469,59 @@ function recentPhotosNode(S: StructureBuilder) {
     );
 }
 
+/**
+ * Le catalogue. Quatre entrées au lieu de douze : l'essentiel (Toutes,
+ * Récentes), ce qui demande du travail (À traiter), puis les axes pour
+ * parcourir. La curation de l'accueil et la funnel curation n'y sont plus :
+ * l'une appartient à l'accueil du portfolio, l'autre au hub.
+ */
 function photosGroupNode(S: StructureBuilder, context: StructureResolverContext) {
+  const site = SITE_ENTRIES.photo;
   return S.listItem()
     .title('Photos')
     .id('photos-group')
     .child(
       S.list()
-        .title('Photos')
+        .title(scoped(site, 'Photos'))
         .items([
-          recentPhotosNode(S),
-          photosBySeriesNode(S),
-          photosWithoutSeriesNode(S),
-          photosByStyleNode(S, context),
-          photosByYearNode(S, context),
-          photosByLocationNode(S, context),
-          photosByTaxonomyRefNode(S, context, {
-            nodeTitle: 'Par boîtier',
-            nodeId: 'photos-by-camera',
-            docType: 'camera',
-            field: 'camera',
-            emptyLabel: 'Sans boîtier renseigné',
-          }),
-          photosByTaxonomyRefNode(S, context, {
-            nodeTitle: 'Par objectif',
-            nodeId: 'photos-by-lens',
-            docType: 'lens',
-            field: 'lens',
-            emptyLabel: 'Sans objectif renseigné',
-          }),
-          curatedPhotosNode(S),
-          funnelCurationNode(S),
-          hiddenPhotosNode(S),
-          S.divider(),
           allPhotosNode(S),
+          recentPhotosNode(S),
+          S.divider(),
+          S.listItem()
+            .title('À traiter')
+            .id('photos-todo')
+            .child(
+              S.list()
+                .title(scoped(site, 'Photos à traiter'))
+                .items([photosWithoutSeriesNode(S), hiddenPhotosNode(S)])
+            ),
+          S.listItem()
+            .title('Parcourir par…')
+            .id('photos-browse')
+            .child(
+              S.list()
+                .title(scoped(site, 'Parcourir les photos'))
+                .items([
+                  photosBySeriesNode(S),
+                  photosByStyleNode(S, context),
+                  photosByYearNode(S, context),
+                  photosByLocationNode(S, context),
+                  photosByTaxonomyRefNode(S, context, {
+                    nodeTitle: 'Par boîtier',
+                    nodeId: 'photos-by-camera',
+                    docType: 'camera',
+                    field: 'camera',
+                    emptyLabel: 'Sans boîtier renseigné',
+                  }),
+                  photosByTaxonomyRefNode(S, context, {
+                    nodeTitle: 'Par objectif',
+                    nodeId: 'photos-by-lens',
+                    docType: 'lens',
+                    field: 'lens',
+                    emptyLabel: 'Sans objectif renseigné',
+                  }),
+                ])
+            ),
         ])
     );
 }
@@ -485,7 +533,7 @@ function seriesByYearNode(S: StructureBuilder, context: StructureResolverContext
     .child(async () => {
       const client = context.getClient({ apiVersion: API_VERSION });
       const years = await client.fetch<number[]>(
-        `array::unique(*[_type=="series" && defined(year)].year) | order(@ desc)`
+        `array::unique(*[_type=="series" && destination != "work" && defined(year)].year) | order(@ desc)`
       );
       return S.list()
         .title('Années')
@@ -497,7 +545,7 @@ function seriesByYearNode(S: StructureBuilder, context: StructureResolverContext
               .child(
                 S.documentList()
                   .title(`Séries ${year}`)
-                  .filter('_type == "series" && year == $year')
+                  .filter('_type == "series" && destination != "work" && year == $year')
                   .params({ year })
                   .initialValueTemplates([
                     S.initialValueTemplateItem('series-by-year', { year }),
@@ -508,16 +556,64 @@ function seriesByYearNode(S: StructureBuilder, context: StructureResolverContext
     });
 }
 
+/**
+ * SÉRIES — ce qui s'affiche sur /series : des récits, des piles à ouvrir. Un
+ * album Work n'y figure pas (`destination != "work"`, absent compris : les
+ * documents d'avant la migration sont des séries). Son « + » crée une série.
+ */
 function seriesGroupNode(S: StructureBuilder, context: StructureResolverContext) {
   return S.listItem()
-    .title('Séries')
+    .title('Séries — page /series')
     .id('series-group')
     .child(
       S.list()
-        .title('Séries')
+        .title(scoped(SITE_ENTRIES.photo, 'Séries'))
         .items([
-          S.documentTypeListItem('series').title('Toutes').id('series-all'),
+          S.listItem()
+            .title('Toutes')
+            .id('series-all')
+            .child(
+              S.documentList()
+                .id('series-all-list')
+                .title('Séries (page /series)')
+                .filter('_type == "series" && destination != "work"')
+                .defaultOrdering([{ field: 'order', direction: 'asc' }])
+                .initialValueTemplates([S.initialValueTemplateItem('series-new')])
+            ),
           seriesByYearNode(S, context),
+        ])
+    );
+}
+
+/**
+ * WORK — ce qui s'affiche sur /work : un album par onglet, des collections
+ * par genre. Même type de document que les séries, autre destination : la
+ * séparation se lit ici (deux listes) ET sur chaque document (« Où s'affiche-
+ * t-elle ? »). Le document de la page Work ne garde que l'ordre des onglets.
+ */
+function workGroupNode(S: StructureBuilder) {
+  return S.listItem()
+    .title('Work — page /work')
+    .id('work-group')
+    .child(
+      S.list()
+        .title(scoped(SITE_ENTRIES.photo, 'Work'))
+        .items([
+          S.listItem()
+            .title('Albums Work')
+            .id('work-albums')
+            .child(
+              S.documentList()
+                .id('work-albums-list')
+                .title('Albums Work (page /work)')
+                .filter('_type == "series" && destination == "work"')
+                .defaultOrdering([{ field: 'order', direction: 'asc' }])
+                .initialValueTemplates([S.initialValueTemplateItem('album-work-new')])
+            ),
+          S.listItem()
+            .title('Ordre des albums (onglets)')
+            .id('workPage')
+            .child(S.document().schemaType('workPage').documentId('workPage')),
         ])
     );
 }
@@ -528,7 +624,7 @@ function taxonomiesGroupNode(S: StructureBuilder) {
     .id('taxonomies-group')
     .child(
       S.list()
-        .title('Taxonomies')
+        .title(scoped(SITE_ENTRIES.photo, 'Taxonomies'))
         .items([
           S.documentTypeListItem('style').title('Styles').id('taxonomy-styles'),
           S.documentTypeListItem('camera')
@@ -551,68 +647,194 @@ export const journalMapViews = (S: StructureBuilder, doc: DocumentBuilder) =>
   doc.views([S.view.component(ConceptMapStatusView).title('État').id('status'), S.view.form().title('Données')]);
 
 /**
- * LE JOURNAL — rubrique à part, sous un filet : rien de ce qui suit ne
- * touche à la photo. Deviendra son propre espace (« workspace ») quand le
- * Studio partira sur studio.amatencio.com.
+ * LE JOURNAL — blog.amatencio.com. Quatre groupes au lieu de neuf entrées
+ * plates : écrire, classer, la Concept Map, les pages et réglages. Contenu
+ * inchangé, seulement rangé (2026-11-28).
  */
-function journalGroupNode(S: StructureBuilder) {
+function journalNode(S: StructureBuilder) {
+  const site = SITE_ENTRIES.journal;
   return S.listItem()
-    .title('Journal')
-    .id('journal')
+    .title(site.title)
+    .id(site.id)
+    .icon(site.icon)
     .child(
       S.list()
-        .title('Journal')
+        .id(site.id)
+        .title(siteTitle(site))
         .items([
-          // Les originaux français d'un côté, les traductions de l'autre
-          // (2026-10-18). Le « + » des articles crée un article français
-          // (valeur initiale de `language`), qui appartient bien à cette
-          // liste ; celui des traductions est coupé — une traduction se crée
-          // depuis « Articles », en changeant sa langue.
           S.listItem()
-            .title('Articles')
-            .id('journal-posts')
-            .schemaType('post')
+            .title('Écrire')
+            .id('journal-write')
             .child(
-              S.documentList()
-                .title('Articles')
-                .schemaType('post')
-                .filter('_type == "post" && (!defined(language) || language == "fr")')
-                .defaultOrdering([{ field: 'date', direction: 'desc' }]),
+              S.list()
+                .title(scoped(site, 'Écrire'))
+                .items([
+                  // Les originaux français d'un côté, les traductions de
+                  // l'autre (2026-10-18). Le « + » des articles crée un
+                  // article français (valeur initiale de `language`), qui
+                  // appartient bien à cette liste ; celui des traductions est
+                  // coupé — une traduction se crée depuis « Articles », en
+                  // changeant sa langue.
+                  S.listItem()
+                    .title('Articles')
+                    .id('journal-posts')
+                    .schemaType('post')
+                    .child(
+                      S.documentList()
+                        .title('Articles')
+                        .schemaType('post')
+                        .filter('_type == "post" && (!defined(language) || language == "fr")')
+                        .defaultOrdering([{ field: 'date', direction: 'desc' }])
+                    ),
+                  S.listItem()
+                    .title('Traductions')
+                    .id('journal-translations')
+                    .schemaType('post')
+                    .child(
+                      S.documentList()
+                        .title('Traductions')
+                        .schemaType('post')
+                        .filter('_type == "post" && defined(language) && language != "fr"')
+                        .defaultOrdering([{ field: 'title', direction: 'asc' }])
+                        .initialValueTemplates([])
+                    ),
+                ])
             ),
           S.listItem()
-            .title('Traductions')
-            .id('journal-translations')
-            .schemaType('post')
+            .title('Classer')
+            .id('journal-sort')
             .child(
-              S.documentList()
-                .title('Traductions')
-                .schemaType('post')
-                .filter('_type == "post" && defined(language) && language != "fr"')
-                .defaultOrdering([{ field: 'title', direction: 'asc' }])
-                .initialValueTemplates([]),
+              S.list()
+                .title(scoped(site, 'Classer'))
+                .items([
+                  S.documentTypeListItem('journalSeries').title('Séries d’articles'),
+                  S.documentTypeListItem('journalTag').title('Thématiques'),
+                ])
             ),
-          S.documentTypeListItem('journalSeries').title('Séries d’articles'),
-          S.documentTypeListItem('journalTag').title('Thématiques'),
-          S.listItem()
-            .title('Signature des articles')
-            .id('journalSettings')
-            .child(S.document().schemaType('journalSettings').documentId('journalSettings')),
-          S.listItem()
-            .title('À propos du journal')
-            .id('journalAboutPage')
-            .child(S.document().schemaType('journalAboutPage').documentId('journalAboutPage')),
-          S.listItem()
-            .title('À propos de la Concept Map')
-            .id('journalMapAboutPage')
-            .child(S.document().schemaType('journalMapAboutPage').documentId('journalMapAboutPage')),
-          // La Concept Map (2026-10-29) : écrite depuis le vault par
-          // `map:build -- --write`, lecture seule ici — on n'y fait que Publish.
-          S.divider(),
           S.listItem()
             .title('Concept Map')
-            .id('journalMap')
-            .child(journalMapViews(S, S.document().schemaType('journalMap').documentId('journalMap'))),
-        ]),
+            .id('journal-map-group')
+            .child(
+              S.list()
+                .title(scoped(site, 'Concept Map'))
+                .items([
+                  // Écrite depuis le vault par `map:build -- --write`, lecture
+                  // seule ici — on n'y fait que Publish.
+                  S.listItem()
+                    .title('La carte')
+                    .id('journalMap')
+                    .child(journalMapViews(S, S.document().schemaType('journalMap').documentId('journalMap'))),
+                  S.listItem()
+                    .title('À propos de la Concept Map')
+                    .id('journalMapAboutPage')
+                    .child(S.document().schemaType('journalMapAboutPage').documentId('journalMapAboutPage')),
+                ])
+            ),
+          S.listItem()
+            .title('Pages et réglages')
+            .id('journal-pages')
+            .child(
+              S.list()
+                .title(scoped(site, 'Pages et réglages'))
+                .items([
+                  S.listItem()
+                    .title('À propos du journal')
+                    .id('journalAboutPage')
+                    .child(S.document().schemaType('journalAboutPage').documentId('journalAboutPage')),
+                  S.listItem()
+                    .title('Signature des articles')
+                    .id('journalSettings')
+                    .child(S.document().schemaType('journalSettings').documentId('journalSettings')),
+                ])
+            ),
+        ])
+    );
+}
+
+/**
+ * AMATENCIO.COM — le hub, entrée principale de tous les sites : sa page
+ * d'accueil, le About (la seule page About des sites), le tunnel d'accueil
+ * (la « funnel curation » est la galerie du tunnel de design-folio, qui EST le
+ * hub — pas une galerie du portfolio) et les pages communes à tous les sites.
+ */
+function hubNode(S: StructureBuilder) {
+  const site = SITE_ENTRIES.hub;
+  const [home, ...others] = pagesOf('hub');
+  return S.listItem()
+    .title(site.title)
+    .id(site.id)
+    .icon(site.icon)
+    .child(
+      S.list()
+        .id(site.id)
+        .title(siteTitle(site))
+        .items([
+          pageItem(S, home),
+          ...others.map((page) => pageItem(S, page)),
+          funnelCurationNode(S),
+          S.divider(),
+          S.listItem()
+            .title('Pages communes (contact, légal)')
+            .id('hub-common')
+            .child(
+              S.list()
+                .title(scoped(site, 'Pages communes'))
+                .items(pagesOf('hub', true).map((page) => pageItem(S, page)))
+            ),
+        ])
+    );
+}
+
+/**
+ * PHOTO — photo.amatencio.com : l'accueil du portfolio (page, photos de la
+ * curation, réglages), Work, puis le catalogue (photos, séries, taxonomies).
+ */
+function photoNode(S: StructureBuilder, context: StructureResolverContext) {
+  const site = SITE_ENTRIES.photo;
+  const [home] = pagesOf('photo').filter((p) => p.path === '/');
+  const others = pagesOf('photo').filter((p) => p.path !== '/' && p.type !== 'workPage');
+  return S.listItem()
+    .title(site.title)
+    .id(site.id)
+    .icon(site.icon)
+    .child(
+      S.list()
+        .id(site.id)
+        .title(siteTitle(site))
+        .items([
+          S.listItem()
+            .title('Accueil du portfolio')
+            .id('photo-home')
+            .child(
+              S.list()
+                .title(scoped(site, 'Accueil'))
+                .items([pageItem(S, home), curatedPhotosNode(S), siteSettingsItem(S)])
+            ),
+          ...others.map((page) => pageItem(S, page)),
+          S.divider(),
+          workGroupNode(S),
+          photosGroupNode(S, context),
+          seriesGroupNode(S, context),
+          taxonomiesGroupNode(S),
+        ])
+    );
+}
+
+/** DESIGN — réservé : annoncé dans « All sites » (« Soon »), pas encore en ligne. */
+function designNode(S: StructureBuilder) {
+  const site = SITE_ENTRIES.design;
+  return S.listItem()
+    .title(site.title)
+    .id(site.id)
+    .icon(site.icon)
+    .child(
+      S.component(ReservedSitePane)
+        .id('site-design-reserved')
+        .title(siteTitle(site))
+        .options({
+          host: site.host,
+          why: 'Le site est annoncé (« Soon » dans le menu All sites) mais il n’existe pas encore. Cette place est réservée : quand ses contenus existeront, ils se rangeront ici, comme ceux des autres sites.',
+        })
     );
 }
 
@@ -621,15 +843,12 @@ export function buildStructure(
   context: StructureResolverContext
 ) {
   return S.list()
-    .title('Contenu')
+    .title('Sites')
     .items([
-      pagesGroupNode(S),
-      siteSettingsNode(S),
+      hubNode(S),
       S.divider(),
-      photosGroupNode(S, context),
-      seriesGroupNode(S, context),
-      taxonomiesGroupNode(S),
-      S.divider(),
-      journalGroupNode(S),
+      journalNode(S),
+      photoNode(S, context),
+      designNode(S),
     ]);
 }

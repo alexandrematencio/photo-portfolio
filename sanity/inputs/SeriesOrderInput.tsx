@@ -12,7 +12,7 @@ export const SeriesOrderInput = createOrderedRefsInput({
   // Ordre de repli du site — le même que seriesWithPhotosQuery. Publiées
   // uniquement : une référence doit pointer un document publié.
   query: `
-    *[_type == "series" && !(_id in path('drafts.**'))] | order(order asc, title asc) {
+    *[_type == "series" && destination != "work" && !(_id in path('drafts.**'))] | order(order asc, title asc) {
       _id,
       title
     }

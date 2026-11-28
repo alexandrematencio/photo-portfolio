@@ -12,7 +12,8 @@ import {
   ringFit,
   ringLayout,
 } from '../components/work/carousel-geometry';
-import { collectionPlaces } from '../lib/site/series';
+import { collectionPlaces, splitSeriesAndWork } from '../lib/site/series';
+import type { SeriesWithPhotos } from '../lib/sanity/queries';
 import type { Photo } from '../lib/sanity/queries';
 
 let failed = 0;
@@ -140,6 +141,34 @@ ok('cellTransform stable', cellTransform(45, 500) ===
   ok('8 : iPhone 390 → ≈ 0,7 par la largeur', near(ringFit(844, 390), 0.696, 0.001), `(${ringFit(844, 390)})`);
   ok('8 : plancher', ringFit(50, 1440) === RING_FIT.min && ringFit(900, 100) === RING_FIT.min);
   ok('8 : FIRST_SCENE_MIN = anneau au plancher + marges', FIRST_SCENE_MIN >= RING_REST_HEIGHT * RING_FIT.min + 2 * RING_FIT.pad);
+}
+
+// 9. splitSeriesAndWork : la destination se lit sur la série, workPage.collections n'est qu'un ordre
+{
+  const ser = (id: string, destination?: 'series' | 'work'): SeriesWithPhotos =>
+    ({
+      _id: id, title: id, slug: { current: id }, order: 100, destination,
+      coverRef: null, photoOrderRefs: null, photos: [photo(`${id}-1`, 1)],
+    }) as unknown as SeriesWithPhotos;
+  const ids = (l: { _id: string }[]) => l.map((x) => x._id).join(',');
+
+  const a = splitSeriesAndWork([ser('s1', 'series'), ser('w1', 'work'), ser('w2', 'work')], null, null);
+  ok('9 : destination work → /work, sans liste', ids(a.work) === 'w1,w2' && ids(a.series) === 's1');
+
+  const b = splitSeriesAndWork([ser('w1', 'work'), ser('w2', 'work'), ser('w3', 'work')], null, ['w3', 'w1']);
+  ok('9 : workPage.collections ordonne, le reste suit', ids(b.work) === 'w3,w1,w2', ids(b.work));
+
+  const c = splitSeriesAndWork([ser('s1', 'series'), ser('w1', 'work')], null, ['s1', 'w1']);
+  ok('9 : une série listée dans collections reste sur /series', ids(c.series) === 's1' && ids(c.work) === 'w1');
+
+  const d = splitSeriesAndWork([ser('w1', 'work')], null, ['gone', 'w1']);
+  ok('9 : entrée périmée ignorée', ids(d.work) === 'w1');
+
+  const e = splitSeriesAndWork([ser('s1'), ser('w1')], null, ['w1']);
+  ok('9 : sans destination (avant migration), la liste fait foi', ids(e.work) === 'w1' && ids(e.series) === 's1');
+
+  const f = splitSeriesAndWork([ser('s1'), ser('w1', 'series')], null, ['w1']);
+  ok('9 : destination explicite series gagne sur la liste', ids(f.series) === 's1,w1' && f.work.length === 0, ids(f.series));
 }
 
 console.log(`${total - failed}/${total} cas OK.`);

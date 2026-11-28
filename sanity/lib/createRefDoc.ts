@@ -83,6 +83,10 @@ export async function createRefDoc(
     _type: opts.type,
     title: opts.title,
     slug: { _type: 'slug', current: slug },
+    // Créée depuis le champ « Séries » d'une photo : c'est une SÉRIE (page
+    // /series). Un album Work se crée dans Photo → Work → Albums Work, où sa
+    // destination est choisie — jamais en passant.
+    ...(opts.type === 'series' ? { destination: 'series' } : {}),
   });
 
   return { _id: created._id, title: opts.title };

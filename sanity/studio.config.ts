@@ -113,7 +113,28 @@ const PHOTO_AXIS_TEMPLATES = [
     title: 'Série de cette année',
     schemaType: 'series',
     parameters: [{ name: 'year', type: 'number' }],
-    value: ({ year }: { year: number }) => ({ year }),
+    value: ({ year }: { year: number }) => ({ year, destination: 'series' }),
+  },
+];
+
+/**
+ * Création d'une série OU d'un album Work : deux entrées de création, deux
+ * destinations, sans paramètre — elles figurent donc aussi dans le menu « + »
+ * global, avec leur nom exact. Le modèle `series` générique en est retiré
+ * (cf. `schema.templates`) : « Série » seul ne disait pas sur quelle page.
+ */
+const SERIES_DESTINATION_TEMPLATES = [
+  {
+    id: 'series-new',
+    title: 'Série (page /series)',
+    schemaType: 'series',
+    value: { destination: 'series' },
+  },
+  {
+    id: 'album-work-new',
+    title: 'Album Work (page /work)',
+    schemaType: 'series',
+    value: { destination: 'work' },
   },
 ];
 
@@ -236,7 +257,10 @@ export const studioConfig = defineConfig({
     types: schemaTypes,
     templates: (prev) => [
       // Hide singleton from global "create new" menu.
-      ...prev.filter(({ schemaType }) => !SINGLETON_TYPES.has(schemaType)),
+      ...prev.filter(
+        ({ schemaType }) => !SINGLETON_TYPES.has(schemaType) && schemaType !== 'series'
+      ),
+      ...SERIES_DESTINATION_TEMPLATES,
       // Contextual templates : paramétrés, donc absents du menu « create »
       // global (Sanity ne peut pas les résoudre sans paramètres) et joignables
       // uniquement depuis les listes filtrées du structure builder.
