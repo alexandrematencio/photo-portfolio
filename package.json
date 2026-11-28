@@ -21,6 +21,7 @@
     "translate-post": "node --env-file=.env.local --import tsx scripts/translate-post.ts",
     "translate:check": "node --env-file-if-exists=.env.local --import tsx scripts/translate-check.ts",
     "migrate-taxonomy": "node --env-file=.env.local --import tsx scripts/migrate-taxonomy.ts",
+    "migrate-series-destination": "node --env-file=.env.local --import tsx scripts/migrate-series-destination.ts",
     "migrate-series-multi": "node --env-file=.env.local --import tsx scripts/migrate-photo-series-multi.ts",
     "assign-series-by-location": "node --env-file=.env.local --import tsx scripts/assign-series-by-location.ts",
     "check-parser": "node --import tsx scripts/check-filename-parser.ts",

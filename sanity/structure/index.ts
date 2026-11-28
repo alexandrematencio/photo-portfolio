@@ -533,7 +533,7 @@ function seriesByYearNode(S: StructureBuilder, context: StructureResolverContext
     .child(async () => {
       const client = context.getClient({ apiVersion: API_VERSION });
       const years = await client.fetch<number[]>(
-        `array::unique(*[_type=="series" && defined(year)].year) | order(@ desc)`
+        `array::unique(*[_type=="series" && destination != "work" && defined(year)].year) | order(@ desc)`
       );
       return S.list()
         .title('Années')
@@ -545,7 +545,7 @@ function seriesByYearNode(S: StructureBuilder, context: StructureResolverContext
               .child(
                 S.documentList()
                   .title(`Séries ${year}`)
-                  .filter('_type == "series" && year == $year')
+                  .filter('_type == "series" && destination != "work" && year == $year')
                   .params({ year })
                   .initialValueTemplates([
                     S.initialValueTemplateItem('series-by-year', { year }),
@@ -556,16 +556,64 @@ function seriesByYearNode(S: StructureBuilder, context: StructureResolverContext
     });
 }
 
+/**
+ * SÉRIES — ce qui s'affiche sur /series : des récits, des piles à ouvrir. Un
+ * album Work n'y figure pas (`destination != "work"`, absent compris : les
+ * documents d'avant la migration sont des séries). Son « + » crée une série.
+ */
 function seriesGroupNode(S: StructureBuilder, context: StructureResolverContext) {
   return S.listItem()
-    .title('Séries')
+    .title('Séries — page /series')
     .id('series-group')
     .child(
       S.list()
         .title(scoped(SITE_ENTRIES.photo, 'Séries'))
         .items([
-          S.documentTypeListItem('series').title('Toutes').id('series-all'),
+          S.listItem()
+            .title('Toutes')
+            .id('series-all')
+            .child(
+              S.documentList()
+                .id('series-all-list')
+                .title('Séries (page /series)')
+                .filter('_type == "series" && destination != "work"')
+                .defaultOrdering([{ field: 'order', direction: 'asc' }])
+                .initialValueTemplates([S.initialValueTemplateItem('series-new')])
+            ),
           seriesByYearNode(S, context),
+        ])
+    );
+}
+
+/**
+ * WORK — ce qui s'affiche sur /work : un album par onglet, des collections
+ * par genre. Même type de document que les séries, autre destination : la
+ * séparation se lit ici (deux listes) ET sur chaque document (« Où s'affiche-
+ * t-elle ? »). Le document de la page Work ne garde que l'ordre des onglets.
+ */
+function workGroupNode(S: StructureBuilder) {
+  return S.listItem()
+    .title('Work — page /work')
+    .id('work-group')
+    .child(
+      S.list()
+        .title(scoped(SITE_ENTRIES.photo, 'Work'))
+        .items([
+          S.listItem()
+            .title('Albums Work')
+            .id('work-albums')
+            .child(
+              S.documentList()
+                .id('work-albums-list')
+                .title('Albums Work (page /work)')
+                .filter('_type == "series" && destination == "work"')
+                .defaultOrdering([{ field: 'order', direction: 'asc' }])
+                .initialValueTemplates([S.initialValueTemplateItem('album-work-new')])
+            ),
+          S.listItem()
+            .title('Ordre des albums (onglets)')
+            .id('workPage')
+            .child(S.document().schemaType('workPage').documentId('workPage')),
         ])
     );
 }
@@ -744,7 +792,7 @@ function hubNode(S: StructureBuilder) {
 function photoNode(S: StructureBuilder, context: StructureResolverContext) {
   const site = SITE_ENTRIES.photo;
   const [home] = pagesOf('photo').filter((p) => p.path === '/');
-  const others = pagesOf('photo').filter((p) => p.path !== '/');
+  const others = pagesOf('photo').filter((p) => p.path !== '/' && p.type !== 'workPage');
   return S.listItem()
     .title(site.title)
     .id(site.id)
@@ -764,6 +812,7 @@ function photoNode(S: StructureBuilder, context: StructureResolverContext) {
             ),
           ...others.map((page) => pageItem(S, page)),
           S.divider(),
+          workGroupNode(S),
           photosGroupNode(S, context),
           seriesGroupNode(S, context),
           taxonomiesGroupNode(S),

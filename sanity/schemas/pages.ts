@@ -6,6 +6,7 @@ import {
   seoField,
 } from './pageFields';
 import { SEO_DEFAULTS } from '../../lib/seo/defaults';
+import { WorkOrderInput } from '../inputs/WorkOrderInput';
 
 /**
  * Un document PAR PAGE du site (2026-10-05), rangés dans la rubrique « Pages »
@@ -284,13 +285,22 @@ const workPageSchema = defineType({
   fields: [
     defineField({
       name: 'collections',
-      title: 'Collections (onglets de la page Work)',
+      title: 'Ordre des albums (onglets de la page Work)',
       type: 'array',
-      of: [defineArrayMember({ type: 'reference', to: [{ type: 'series' }] })],
+      of: [
+        defineArrayMember({
+          type: 'reference',
+          to: [{ type: 'series' }],
+          // Albums Work seulement. Ce qui fait d'une série un album, c'est son
+          // champ « Où s'affiche-t-elle ? » — pas sa présence ici.
+          options: { filter: 'destination == "work"' },
+        }),
+      ],
       description:
-        'Les séries affichées sur /work, une par onglet, dans cet ordre (glisser-déposer). Une série listée ici QUITTE la page Series ; retire-la de la liste pour l’y renvoyer. Ses photos, leur ordre et sa cover se règlent toujours dans la série elle-même. ' +
+        'L’ORDRE des onglets de /work, de gauche à droite (glisser-déposer). Cette liste ne décide plus de ce qui s’affiche : un album Work y figure dès que sa destination est « Album Work », et ceux que tu ne ranges pas ici passent après les autres. Pour créer un album : Photo → Albums Work → +. Pour envoyer une série sur /work (ou un album sur /series) : change « Où s’affiche-t-elle ? » dans le document. ' +
         PUBLISH_HINT,
       validation: (Rule) => Rule.unique(),
+      components: { input: WorkOrderInput },
     }),
   ],
   preview: { prepare: () => ({ title: WORK_PAGE.title }) },

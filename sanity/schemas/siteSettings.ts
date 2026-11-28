@@ -32,6 +32,8 @@ export const siteSettingsSchema = defineType({
         defineArrayMember({
           type: 'reference',
           to: [{ type: 'series' }],
+          // Séries seulement : un album Work n'a pas de pile sur /series.
+          options: { filter: 'destination != "work"' },
         }),
       ],
       description:

@@ -59,6 +59,11 @@ export type Series = {
   subtitle?: string;
   year?: number;
   order: number;
+  /**
+   * Où la série s'affiche : /series ('series') ou /work ('work'). Absent sur
+   * les documents d'avant la migration — voir `splitSeriesAndWork`.
+   */
+  destination?: 'series' | 'work';
 };
 
 /** Série avec ses photos déréférencées — consommée par /series. */
@@ -175,7 +180,7 @@ const photoProjection = groq`
 const VISIBLE = groq`hidden != true`;
 
 const seriesProjection = groq`
-  _id, title, slug, subtitle, year, order
+  _id, title, slug, subtitle, year, order, destination
 `;
 
 // La home lit l'array ordonné siteSettings.curation : les photos sortent
@@ -302,7 +307,7 @@ const seriesWithPhotosQuery = groq`
 export type SeriesWithPhotosResult = {
   /** Ordre des piles sur /series (`siteSettings.seriesOrder`) — clé de tri. */
   seriesOrderRefs: string[] | null;
-  /** Séries rangées sur /work (`workPage.collections`), dans leur ordre. */
+  /** Ordre des onglets de /work (`workPage.collections`) — clé de tri, comme `seriesOrderRefs`. */
   workRefs: string[] | null;
   items: SeriesWithPhotos[];
 };
